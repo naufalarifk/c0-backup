@@ -1,0 +1,128 @@
+import type { MicroserviceOptions } from '@nestjs/microservices';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+
+import * as os from 'os';
+
+import {
+  ClassSerializerInterceptor,
+  HttpStatus,
+  Logger,
+  UnprocessableEntityException,
+  ValidationPipe,
+} from '@nestjs/common';
+import { NestFactory, Reflector } from '@nestjs/core';
+import { Transport } from '@nestjs/microservices';
+import { ExpressAdapter } from '@nestjs/platform-express';
+import compression from 'compression';
+import helmet from 'helmet';
+import morgan from 'morgan';
+
+import { AppModule } from './app.module';
+import { docs } from './lib';
+import { ConfigService } from './shared/services/config.service';
+import { SharedModule } from './shared/shared.module';
+
+function getLocalIP() {
+  const interfaces = os.networkInterfaces();
+
+  for (const name of Object.keys(interfaces)) {
+    const networkInterface = interfaces[name];
+    if (networkInterface) {
+      for (const iface of networkInterface) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          return iface.address;
+        }
+      }
+    }
+  }
+  return 'localhost';
+}
+
+async function bootstrap() {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter(), {
+    bodyParser: false,
+  });
+  const reflector = app.get(Reflector);
+  const logger = new Logger(bootstrap.name);
+  const configService = app.select(SharedModule).get(ConfigService);
+
+  app.enableCors({
+    origin: configService.appConfig.allowedOrigins,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    credentials: true,
+  });
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: configService.isDevelopment
+        ? {
+            directives: {
+              defaultSrc: ["'self'"],
+              scriptSrc: ["'self'", "'unsafe-inline'", 'https:'],
+              styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
+              fontSrc: ["'self'", 'https:', 'data:'],
+              imgSrc: ["'self'", 'https:', 'data:'],
+              connectSrc: ["'self'", 'https:'],
+            },
+          }
+        : {
+            directives: {
+              defaultSrc: ["'self'"],
+              scriptSrc: ["'self'", 'https://cdn.jsdelivr.net'],
+              styleSrc: ["'self'", 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com'],
+              fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+              imgSrc: ["'self'", 'https:', 'data:'],
+              connectSrc: ["'self'"],
+              frameSrc: ["'none'"],
+              objectSrc: ["'none'"],
+            },
+          },
+    }),
+  );
+  app.use(compression());
+  app.use(morgan('combined'));
+
+  app.setGlobalPrefix('api');
+  app.enableVersioning();
+
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(reflector));
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+      transform: true,
+      dismissDefaultMessages: true,
+      forbidNonWhitelisted: true,
+      exceptionFactory: errors => new UnprocessableEntityException(errors),
+    }),
+  );
+
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.TCP,
+    options: {
+      host: 'localhost',
+      port: 3001
+    },
+  });
+
+  await app.startAllMicroservices();
+
+  if (configService.documentationEnabled) {
+    await docs(app);
+  }
+
+  // Starts listening for shutdown hooks
+  if (!configService.isDevelopment) {
+    app.enableShutdownHooks();
+  }
+
+  const localIP = getLocalIP();
+  const port = configService.appConfig.port;
+  await app.listen(port, () => {
+    logger.log(`Server is listening at port ${port}`);
+    logger.log(`Current environment is: ${configService.nodeEnv}`);
+    logger.log(`Local IP address is: ${localIP}`);
+  });
+}
+void bootstrap();

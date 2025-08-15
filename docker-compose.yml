@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:${POSTGRES_VERSION}
+    container_name: ${POSTGRES_CONTAINER_NAME}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - '${POSTGRES_PORT}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - gadain-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: ${HEALTHCHECK_INTERVAL}
+      timeout: ${HEALTHCHECK_TIMEOUT}
+      retries: ${HEALTHCHECK_RETRIES}
+      start_period: ${HEALTHCHECK_START_PERIOD}
+
+  redis:
+    image: redis:${REDIS_VERSION}
+    container_name: ${REDIS_CONTAINER_NAME}
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    ports:
+      - '${REDIS_PORT}:6379'
+    volumes:
+      - redis_data:/data
+    networks:
+      - gadain-network
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--raw', 'incr', 'ping']
+      interval: ${HEALTHCHECK_INTERVAL}
+      timeout: ${HEALTHCHECK_TIMEOUT}
+      retries: ${HEALTHCHECK_RETRIES}
+      start_period: ${HEALTHCHECK_START_PERIOD}
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  gadain-network:
+    driver: bridge
