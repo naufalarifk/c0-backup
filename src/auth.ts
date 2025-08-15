@@ -13,7 +13,6 @@ import {
   twoFactor,
   username,
 } from 'better-auth/plugins';
-import { passkey } from 'better-auth/plugins/passkey';
 import parse from 'parse-duration';
 import invariant from 'tiny-invariant';
 import { v7 as uuidv7 } from 'uuid';
@@ -160,7 +159,6 @@ const options = {
         getTempName: phoneNumber => `User-${phoneNumber.slice(-4)}`,
       },
     }),
-    passkey(),
     oneTap(),
     sso(),
     multiSession(),

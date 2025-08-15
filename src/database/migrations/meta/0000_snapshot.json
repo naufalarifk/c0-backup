@@ -1,5 +1,5 @@
 {
-  "id": "c1f3a226-5d65-4db9-b362-1882d5b2fbc2",
+  "id": "607128d1-0df9-48cb-a8d2-04e1d17d5689",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -92,99 +92,6 @@
         "accounts_user_id_users_id_fk": {
           "name": "accounts_user_id_users_id_fk",
           "tableFrom": "accounts",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.passkeys": {
-      "name": "passkeys",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "public_key": {
-          "name": "public_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "credential_i_d": {
-          "name": "credential_i_d",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "counter": {
-          "name": "counter",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "device_type": {
-          "name": "device_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "backed_up": {
-          "name": "backed_up",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "transports": {
-          "name": "transports",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "aaguid": {
-          "name": "aaguid",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "passkeys_user_id_users_id_fk": {
-          "name": "passkeys_user_id_users_id_fk",
-          "tableFrom": "passkeys",
           "tableTo": "users",
           "columnsFrom": [
             "user_id"

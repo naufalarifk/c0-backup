@@ -2,7 +2,6 @@ import { relations } from 'drizzle-orm';
 import * as t from 'drizzle-orm/pg-core';
 
 import { accounts } from './accounts';
-import { passkeys } from './passkeys';
 import { sessions } from './sessions';
 import { ssoProviders } from './sso-providers';
 import { twoFactors } from './two-factors';
@@ -41,6 +40,5 @@ export const userRelations = relations(users, ({ many }) => ({
   accounts: many(accounts),
   sessions: many(sessions),
   twoFactors: many(twoFactors),
-  passkeys: many(passkeys),
   ssoProviders: many(ssoProviders),
 }));
