@@ -5,11 +5,8 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { auth } from './auth';
 import { AuthModule } from './modules/auth/auth.module';
-import { LoansModule } from './modules/loans/loans.module';
 import { ConfigService } from './shared/services/config.service';
 import { SharedModule } from './shared/shared.module';
-import { TestModule } from './test/test.module';
-
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -24,8 +21,6 @@ import { TestModule } from './test/test.module';
       inject: [ConfigService],
     }),
     AuthModule.forRoot(auth),
-    LoansModule,
-    TestModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

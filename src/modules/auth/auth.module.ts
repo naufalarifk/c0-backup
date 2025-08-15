@@ -29,8 +29,6 @@ import {
   BEFORE_HOOK_KEY,
   HOOK_KEY,
 } from './auth.symbols';
-import { EmailOwnershipController } from './email-ownership.controller';
-import { UnverifiedAccountCleanupService } from './unverified-account-cleanup.service';
 
 /**
  * Configuration options for the AuthModule
@@ -52,8 +50,6 @@ const HOOKS = [
  */
 @Module({
   imports: [DiscoveryModule],
-  controllers: [EmailOwnershipController],
-  providers: [UnverifiedAccountCleanupService],
 })
 export class AuthModule implements NestModule, OnModuleInit {
   private readonly logger = new Logger(AuthModule.name);

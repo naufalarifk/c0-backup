@@ -1,4 +1,3 @@
-import type { MicroserviceOptions } from '@nestjs/microservices';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 
 import * as os from 'os';
@@ -11,7 +10,6 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
-import { Transport } from '@nestjs/microservices';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import compression from 'compression';
 import helmet from 'helmet';
@@ -97,16 +95,6 @@ async function bootstrap() {
       exceptionFactory: errors => new UnprocessableEntityException(errors),
     }),
   );
-
-  app.connectMicroservice<MicroserviceOptions>({
-    transport: Transport.TCP,
-    options: {
-      host: 'localhost',
-      port: 3001
-    },
-  });
-
-  await app.startAllMicroservices();
 
   if (configService.documentationEnabled) {
     await docs(app);

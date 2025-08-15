@@ -3,7 +3,6 @@ import type { BetterAuthOptions } from 'better-auth';
 import { expo } from '@better-auth/expo';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { APIError, createAuthMiddleware } from 'better-auth/api';
 import {
   admin,
   bearer,
@@ -15,13 +14,11 @@ import {
   username,
 } from 'better-auth/plugins';
 import { passkey } from 'better-auth/plugins/passkey';
-import { eq } from 'drizzle-orm';
 import parse from 'parse-duration';
 import invariant from 'tiny-invariant';
 import { v7 as uuidv7 } from 'uuid';
 
 import { db } from './database';
-import { users } from './database/schema';
 import { sendSMS, sso } from './lib';
 import { resend, verificationEmail } from './lib/email';
 
@@ -97,11 +94,6 @@ const rateLimit = {
   max: +env.throttlerLimit!,
 };
 
-// Email ownership protection configuration
-const EMAIL_OWNERSHIP_CONFIG = {
-  // Grace period untuk verifikasi email (configurable via env)
-  unverifiedAccountGracePeriod: parse(env.emailVerificationGracePeriod, 'millisecond')!, // parse duration string to milliseconds
-} as const;
 
 const options = {
   appName: APP_NAME,
@@ -180,45 +172,6 @@ const options = {
     accountLinking: {
       trustedProviders: ['google'],
     },
-  },
-  hooks: {
-    before: createAuthMiddleware(async ctx => {
-      // Email ownership protection untuk sign-up
-      if (ctx.path === '/sign-up/email' && ctx.body?.email) {
-        const email = ctx.body?.email;
-
-        // Query hanya user yang belum diverifikasi dengan email tersebut
-        const existingUnverifiedUser = await db.query.users.findFirst({
-          where: eq(users.email, email)
-          // Better Auth sudah handle verified users secara default
-        });
-
-        // Hanya proses jika ada user yang belum diverifikasi
-        if (existingUnverifiedUser && !existingUnverifiedUser.emailVerified) {
-          // Cek apakah masih dalam grace period
-          const accountCreatedAt = new Date(existingUnverifiedUser.createdAt).getTime();
-          const now = Date.now();
-          const gracePeriodExpired = (now - accountCreatedAt) > EMAIL_OWNERSHIP_CONFIG.unverifiedAccountGracePeriod;
-
-          if (gracePeriodExpired) {
-            // Hapus akun lama yang tidak diverifikasi
-            console.log(`Cleaning up expired unverified account for email: ${email} (created: ${existingUnverifiedUser.createdAt})`);
-
-            await db.delete(users).where(eq(users.email, email));
-
-            console.log(`Successfully deleted expired unverified account for: ${email}`);
-            // Lanjutkan dengan registrasi normal
-          } else {
-            // Masih dalam grace period, tolak registrasi baru
-            const hoursLeft = Math.ceil((EMAIL_OWNERSHIP_CONFIG.unverifiedAccountGracePeriod - (now - accountCreatedAt)) / (60 * 60 * 1000));
-            throw new APIError('CONFLICT', {
-              message: `An unverified account with this email exists. Please check your email for verification or try again in ${hoursLeft} hours.`
-            });
-          }
-        }
-        // Jika user verified, biarkan Better Auth handle secara default
-      }
-    }),
   },
   trustedOrigins: ['gadainclient://'],
   rateLimit: {
