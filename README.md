@@ -1,98 +1,292 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 🚀 Backend API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+> NestJS backend application with Better Auth, Drizzle ORM, and comprehensive development tooling
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+[![NestJS](https://img.shields.io/badge/NestJS-v11-red?logo=nestjs)](https://nestjs.com)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?logo=typescript)](https://typescriptlang.org)
+[![Drizzle](https://img.shields.io/badge/Drizzle-ORM-green?logo=drizzle)](https://orm.drizzle.team)
+[![Better Auth](https://img.shields.io/badge/Better-Auth-purple)](https://better-auth.com)
 
-## Description
+## 📖 **Overview**
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+This is a NestJS backend application with Better Auth, Drizzle ORM, and comprehensive development tooling including automated code quality checks and git hooks.
 
-## Project setup
+## 🛠 **Tech Stack**
 
+- **Framework**: NestJS v11
+- **Database**: PostgreSQL with Drizzle ORM
+- **Authentication**: Better Auth with SSO support
+- **Code Quality**: Biome (formatter + linter)
+- **Git Hooks**: Lefthook
+- **Package Manager**: pnpm
+
+## 🚀 **Quick Start**
+
+### **Option 1: With Docker (Recommended)**
 ```bash
-$ pnpm install
+# Clone and setup
+git clone https://github.com/cryptogadai-projects/cg-backend.git
+cd cg-backend
+pnpm install  # Auto-installs hooks via postinstall
+
+# Setup environment
+cp .env.example .env
+# Edit .env with your configuration
+
+# Start services with Docker
+docker-compose up -d
+
+# Database setup
+pnpm db:push    # Push schema to database
+
+# Start development
+pnpm start:dev
 ```
 
-## Compile and run the project
-
+### **Option 2: Local Database**
 ```bash
-# development
-$ pnpm run start
+# Clone and setup
+git clone https://github.com/cryptogadai-projects/cg-backend.git
+cd cg-backend
+pnpm install
 
-# watch mode
-$ pnpm run start:dev
+# Setup environment (with local PostgreSQL/Redis)
+cp .env.example .env
+# Edit .env with your local database credentials
 
-# production mode
-$ pnpm run start:prod
+# Database setup
+pnpm db:push
+
+# Start development
+pnpm start:dev
 ```
 
-## Run tests
+## 🌱 **Environment Variables**
+
+Create a `.env` file in the root directory:
 
 ```bash
-# unit tests
-$ pnpm run test
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/database_name"
 
-# e2e tests
-$ pnpm run test:e2e
+# Auth
+AUTH_SECRET="your-auth-secret-key"
+BETTER_AUTH_URL="http://localhost:3000"
 
-# test coverage
-$ pnpm run test:cov
+# Email (Resend)
+RESEND_API_KEY="your-resend-api-key"
+
+# SMS (Twilio)
+TWILIO_ACCOUNT_SID="your-twilio-sid"
+TWILIO_AUTH_TOKEN="your-twilio-token"
+TWILIO_PHONE_NUMBER="your-twilio-phone"
+
+# SSO (Google OAuth)
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+
+# Docker Configuration (for docker-compose)
+POSTGRES_VERSION="16-alpine"
+POSTGRES_CONTAINER_NAME="gadain-postgres"
+POSTGRES_DB="gadain_db"
+POSTGRES_USER="gadain_user"
+POSTGRES_PASSWORD="your-postgres-password"
+POSTGRES_PORT="5432"
+
+REDIS_VERSION="7-alpine"
+REDIS_CONTAINER_NAME="gadain-redis"
+REDIS_PASSWORD="your-redis-password"
+REDIS_PORT="6379"
+
+# Health Check Settings
+HEALTHCHECK_INTERVAL="30s"
+HEALTHCHECK_TIMEOUT="10s"
+HEALTHCHECK_RETRIES="3"
+HEALTHCHECK_START_PERIOD="30s"
 ```
 
-## Deployment
+## 🐳 **Docker Setup**
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### **Quick Start with Docker**
+```bash
+# Start PostgreSQL and Redis services
+docker-compose up -d
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+# Stop services
+docker-compose down
+
+# View logs
+docker-compose logs -f
+
+# Reset all data (⚠️ Destructive)
+docker-compose down -v
+```
+
+### **Docker Services**
+- **PostgreSQL**: Database server on port 5432
+- **Redis**: Cache/session store on port 6379
+- **Networks**: Custom `gadain-network` bridge
+- **Volumes**: Persistent data storage for both services
+
+### **Health Checks**
+Both services include health checks for monitoring:
+```bash
+# Check service status
+docker-compose ps
+
+# Check specific service health
+docker-compose exec postgres pg_isready -U gadain_user -d gadain_db
+docker-compose exec redis redis-cli ping
+```
+
+## 🏃‍♂️ **Running the Application**
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+# Development mode (with hot reload)
+pnpm start:dev
+
+# Production mode
+pnpm build
+pnpm start
+
+# Debug mode
+pnpm start:debug
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## 🛠 **Available Scripts**
 
-## Resources
+### **Development**
+```bash
+pnpm start:dev              # Start in watch mode
+pnpm build                  # Build for production
+pnpm format                 # Format code with Biome
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+### **Database**
+```bash
+pnpm db:generate             # Generate migrations
+pnpm db:migrate             # Run migrations
+pnpm db:push                # Push schema to DB (dev only)
+pnpm db:studio              # Open Drizzle Studio
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### **Testing**
+```bash
+pnpm test                   # Run tests
+pnpm test:watch             # Run tests in watch mode
+pnpm test:cov               # Run with coverage
+pnpm test:e2e               # Run e2e tests
+```
 
-## Support
+## 🪝 **Git Hooks**
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+### **📋 Installed Hooks:**
+- **pre-commit**: Biome check with auto-fix (JS, TS, JSON files)
+- **commit-msg**: Conventional commits validation
+- **pre-push**: Build verification
 
-## Stay in touch
+```bash
+pnpm hooks:install          # Install git hooks
+pnpm hooks:uninstall        # Remove git hooks
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## ✅ **Commit Message Format**
 
-## License
+```bash
+# ✅ Valid formats
+feat: add new authentication module
+fix: resolve database connection issue
+docs: update API documentation
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+# ❌ Invalid formats
+"add new feature"           # No type
+"Fix Bug"                   # Wrong case
+```
+
+## 📁 **Project Structure**
+
+```
+src/
+├── modules/
+│   └── auth/                # Authentication module
+│       ├── auth.module.ts
+│       ├── auth.service.ts
+│       ├── auth-config.service.ts
+│       └── types/           # Auth-specific types
+├── shared/                  # Shared modules
+│   ├── database/           # Database configuration
+│   └── modules/            # Shared NestJS modules
+├── lib/                    # Utility libraries
+│   ├── email/              # Email service
+│   ├── otp/                # OTP service
+│   └── sso.ts              # SSO configuration
+└── main.ts                 # Application entry point
+```
+
+## 🚀 **API Documentation**
+
+Once the application is running:
+
+- **API Documentation**: `http://localhost:3000/docs`
+- **Health Check**: `http://localhost:3000/health`
+- **Database Studio**: Run `pnpm db:studio`
+
+## 🚨 **Troubleshooting**
+
+### **Git Hooks Issues**
+```bash
+pnpm hooks:install          # Re-install hooks
+npx lefthook version        # Check status
+```
+
+### **Build/Commit Issues**
+```bash
+pnpm format                 # Fix formatting
+pnpm build                  # Fix build errors
+```
+
+### **Database Connection Issues**
+```bash
+# Check Docker services
+docker-compose ps
+docker-compose logs postgres
+
+# Restart services
+docker-compose restart postgres redis
+
+# Reset database (⚠️ Destructive)
+docker-compose down -v
+docker-compose up -d
+pnpm db:push
+```
+
+### **Port Conflicts**
+```bash
+# Check what's using ports
+lsof -i :5432  # PostgreSQL
+lsof -i :6379  # Redis
+lsof -i :3000  # Application
+
+# Change ports in .env if needed
+POSTGRES_PORT="5433"
+REDIS_PORT="6380"
+```
+
+## 🤝 **Contributing**
+
+1. **Fork** the repository
+2. **Create** a feature branch: `git checkout -b feat/amazing-feature`
+3. **Commit** your changes: `git commit -m "feat: add amazing feature"`
+4. **Push** to the branch: `git push origin feat/amazing-feature`
+5. **Open** a Pull Request
+
+## 📚 **Additional Resources**
+
+- [NestJS Documentation](https://docs.nestjs.com/)
+- [Drizzle ORM Documentation](https://orm.drizzle.team/)
+- [Better Auth Documentation](https://www.better-auth.com/)
+- [Conventional Commits](https://www.conventionalcommits.org/)
+
+---
+
+**Happy coding! 🎉**
