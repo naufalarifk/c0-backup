@@ -96,6 +96,3 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
-
-better-auth drizzle-orm pg dotenv @nestjs/config @nestjs/swagger @scalar/nestjs-api-reference tiny-invariant @thallesp/nestjs-better-auth
-@types/pg drizzle-kit

@@ -1,5 +1,5 @@
 import type { BetterAuthOptions } from 'better-auth';
-import type { DrizzleDB } from '../../shared/database';
+import type { DrizzleDB } from '../../shared/database/database.module';
 
 import { expo } from '@better-auth/expo';
 import { sso } from '@better-auth/sso';
