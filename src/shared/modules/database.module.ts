@@ -8,8 +8,8 @@ export const DRIZZLE_DB = Symbol('DRIZZLE_DB');
   providers: [
     {
       provide: DRIZZLE_DB,
-      inject: [ConfigService],
       useFactory: (configService: ConfigService) => configService.drizzleConfig,
+      inject: [ConfigService],
     },
   ],
   exports: [DRIZZLE_DB],

@@ -1,5 +1,6 @@
 import type { CustomDecorator, ExecutionContext } from '@nestjs/common';
 import type { createAuthMiddleware } from 'better-auth/api';
+import type { Request } from 'express';
 
 import { createParamDecorator, SetMetadata } from '@nestjs/common';
 
@@ -23,8 +24,8 @@ export const Optional = (): CustomDecorator<'OPTIONAL'> => SetMetadata('OPTIONAL
  * Provides easy access to the authenticated user's session data in controller methods.
  */
 export const Session: ReturnType<typeof createParamDecorator> = createParamDecorator(
-  (_data: unknown, context: ExecutionContext): unknown => {
-    const request = context.switchToHttp().getRequest();
+  (_data: unknown, context: ExecutionContext) => {
+    const request = context.switchToHttp().getRequest<Request>();
     return request.session;
   },
 );

@@ -76,14 +76,25 @@ export class ConfigService {
     return this.getString('NODE_ENV');
   }
 
+  get emailConfig() {
+    return {
+      apiKey: this.getString('RESEND_API_KEY'),
+      from: this.getString('EMAIL_FROM'),
+    };
+  }
+
   get databaseUrl() {
     return this.getString('DATABASE_URL');
+  }
+
+  get databaseLogger() {
+    return this.getBoolean('DATABASE_LOGGER');
   }
 
   get drizzleConfig() {
     const pool = new Pool({ connectionString: this.databaseUrl });
 
-    return drizzle(pool, { logger: true, schema, casing: 'snake_case' });
+    return drizzle(pool, { logger: this.databaseLogger, schema, casing: 'snake_case' });
   }
 
   get throttlerConfigs(): ThrottlerOptions {
@@ -95,6 +106,24 @@ export class ConfigService {
 
   get documentationEnabled(): boolean {
     return this.getBoolean('ENABLE_DOCUMENTATION');
+  }
+
+  get socialProviderConfig() {
+    return {
+      google: {
+        clientId: this.getString('GOOGLE_CLIENT_ID'),
+        clientSecret: this.getString('GOOGLE_CLIENT_SECRET'),
+      },
+    };
+  }
+
+  get twilioConfig() {
+    return {
+      accountSid: this.getString('TWILIO_ACCOUNT_SID'),
+      authToken: this.getString('TWILIO_AUTH_TOKEN'),
+      verifySid: this.getString('TWILIO_VERIFY_SID'),
+      phoneNumber: this.getString('TWILIO_PHONE_NUMBER'),
+    };
   }
 
   get redisConfig() {
@@ -115,6 +144,7 @@ export class ConfigService {
   get appConfig() {
     return {
       port: this.getString('PORT'),
+      appName: this.getString('APP_NAME', 'Gadain'),
       allowedOrigins: this.getString('ALLOWED_ORIGINS').split(','),
     };
   }

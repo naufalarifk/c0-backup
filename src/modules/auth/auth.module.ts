@@ -1,9 +1,11 @@
 import type {
   DynamicModule,
   MiddlewareConsumer,
+  ModuleMetadata,
   NestModule,
   OnModuleInit,
   Provider,
+  Type,
 } from '@nestjs/common';
 import type { Auth } from 'better-auth';
 import type { Application } from 'express';
@@ -39,6 +41,56 @@ type AuthModuleOptions = {
   disableBodyParser?: boolean;
 };
 
+/**
+ * Factory for creating Auth instance and module options asynchronously
+ */
+export interface AuthModuleAsyncOptions extends Pick<ModuleMetadata, 'imports'> {
+  /**
+   * Factory function that returns an object with auth instance and optional module options
+   */
+  useFactory?: (...args: unknown[]) =>
+    | Promise<{
+        auth: Auth;
+        options?: AuthModuleOptions;
+      }>
+    | {
+        auth: Auth;
+        options?: AuthModuleOptions;
+      };
+  /**
+   * Providers to inject into the factory function
+   */
+  inject?: (string | symbol | Type<unknown>)[];
+  /**
+   * Use an existing provider class
+   */
+  useClass?: Type<{
+    createAuthOptions():
+      | Promise<{
+          auth: Auth;
+          options?: AuthModuleOptions;
+        }>
+      | {
+          auth: Auth;
+          options?: AuthModuleOptions;
+        };
+  }>;
+  /**
+   * Use an existing provider
+   */
+  useExisting?: Type<{
+    createAuthOptions():
+      | Promise<{
+          auth: Auth;
+          options?: AuthModuleOptions;
+        }>
+      | {
+          auth: Auth;
+          options?: AuthModuleOptions;
+        };
+  }>;
+}
+
 const HOOKS = [
   { metadataKey: BEFORE_HOOK_KEY, hookType: 'before' as const },
   { metadataKey: AFTER_HOOK_KEY, hookType: 'after' as const },
@@ -53,6 +105,7 @@ const HOOKS = [
 })
 export class AuthModule implements NestModule, OnModuleInit {
   private readonly logger = new Logger(AuthModule.name);
+
   constructor(
     @Inject(AUTH_INSTANCE_KEY)
     private readonly auth: Auth,
@@ -158,11 +211,7 @@ export class AuthModule implements NestModule, OnModuleInit {
    * @param auth - The Auth instance to use
    * @param options - Configuration options for the module
    */
-  static forRoot(
-    // biome-ignore lint/suspicious/noExplicitAny: i still need to find a type for the auth instance
-    auth: any,
-    options: AuthModuleOptions = {},
-  ): DynamicModule {
+  static forRoot(auth: Auth, options: AuthModuleOptions = {}): DynamicModule {
     // Initialize hooks with an empty object if undefined
     // Without this initialization, the setupHook method won't be able to properly override hooks
     // It won't throw an error, but any hook functions we try to add won't be called
@@ -204,6 +253,157 @@ export class AuthModule implements NestModule, OnModuleInit {
         },
         AuthService,
       ],
+    };
+  }
+
+  /**
+   * Static factory method to create and configure the AuthModule asynchronously.
+   * @param options - Async configuration options for the module
+   */
+  static forRootAsync(options: AuthModuleAsyncOptions): DynamicModule {
+    const asyncProviders = AuthModule.createAsyncProviders(options);
+
+    return {
+      global: true,
+      module: AuthModule,
+      imports: options.imports || [],
+      providers: [...asyncProviders, AuthService],
+      exports: [
+        {
+          provide: AUTH_INSTANCE_KEY,
+          useExisting: AUTH_INSTANCE_KEY,
+        },
+        {
+          provide: AUTH_MODULE_OPTIONS_KEY,
+          useExisting: AUTH_MODULE_OPTIONS_KEY,
+        },
+        AuthService,
+      ],
+    };
+  }
+
+  private static createAsyncProviders(options: AuthModuleAsyncOptions): Provider[] {
+    if (options.useFactory) {
+      return [
+        {
+          provide: AUTH_INSTANCE_KEY,
+          useFactory: async (...args: unknown[]) => {
+            const result = await options.useFactory?.(...args);
+            if (!result) throw new Error('useFactory must return a result');
+            const auth = result.auth;
+
+            // Initialize hooks with an empty object if undefined
+            auth.options.hooks = {
+              ...auth.options.hooks,
+            };
+
+            return auth;
+          },
+          inject: options.inject || [],
+        },
+        {
+          provide: AUTH_MODULE_OPTIONS_KEY,
+          useFactory: async (...args: unknown[]) => {
+            const result = await options.useFactory?.(...args);
+            if (!result) throw new Error('useFactory must return a result');
+            return result.options || {};
+          },
+          inject: options.inject || [],
+        },
+        AuthModule.createExceptionFilterProvider(),
+      ];
+    }
+
+    if (options.useClass) {
+      return [
+        {
+          provide: options.useClass,
+          useClass: options.useClass,
+        },
+        {
+          provide: AUTH_INSTANCE_KEY,
+          useFactory: async (configService: {
+            createAuthOptions():
+              | Promise<{ auth: Auth; options?: AuthModuleOptions }>
+              | { auth: Auth; options?: AuthModuleOptions };
+          }) => {
+            const result = await configService.createAuthOptions();
+            const auth = result.auth;
+
+            // Initialize hooks with an empty object if undefined
+            auth.options.hooks = {
+              ...auth.options.hooks,
+            };
+
+            return auth;
+          },
+          inject: [options.useClass],
+        },
+        {
+          provide: AUTH_MODULE_OPTIONS_KEY,
+          useFactory: async (configService: {
+            createAuthOptions():
+              | Promise<{ auth: Auth; options?: AuthModuleOptions }>
+              | { auth: Auth; options?: AuthModuleOptions };
+          }) => {
+            const result = await configService.createAuthOptions();
+            return result.options || {};
+          },
+          inject: [options.useClass],
+        },
+        AuthModule.createExceptionFilterProvider(),
+      ];
+    }
+
+    if (options.useExisting) {
+      return [
+        {
+          provide: AUTH_INSTANCE_KEY,
+          useFactory: async (configService: {
+            createAuthOptions():
+              | Promise<{ auth: Auth; options?: AuthModuleOptions }>
+              | { auth: Auth; options?: AuthModuleOptions };
+          }) => {
+            const result = await configService.createAuthOptions();
+            const auth = result.auth;
+
+            // Initialize hooks with an empty object if undefined
+            auth.options.hooks = {
+              ...auth.options.hooks,
+            };
+
+            return auth;
+          },
+          inject: [options.useExisting],
+        },
+        {
+          provide: AUTH_MODULE_OPTIONS_KEY,
+          useFactory: async (configService: {
+            createAuthOptions():
+              | Promise<{ auth: Auth; options?: AuthModuleOptions }>
+              | { auth: Auth; options?: AuthModuleOptions };
+          }) => {
+            const result = await configService.createAuthOptions();
+            return result.options || {};
+          },
+          inject: [options.useExisting],
+        },
+        AuthModule.createExceptionFilterProvider(),
+      ];
+    }
+
+    throw new Error(
+      'Invalid async configuration. Must provide useFactory, useClass, or useExisting.',
+    );
+  }
+
+  private static createExceptionFilterProvider(): Provider {
+    return {
+      provide: APP_FILTER,
+      useFactory: (options: AuthModuleOptions) => {
+        return options.disableExceptionFilter ? null : new AuthFilter();
+      },
+      inject: [AUTH_MODULE_OPTIONS_KEY],
     };
   }
 }

@@ -6,7 +6,7 @@ import express from 'express';
 
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
-  use(req: Request, res: Response, next: NextFunction): void {
+  use(req: Request, res: Response, next: NextFunction) {
     // skip body parsing for better-auth routes
     if (req.baseUrl.startsWith('/api/auth')) {
       next();

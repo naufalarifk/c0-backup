@@ -9,11 +9,15 @@ import invariant from 'tiny-invariant';
 import * as schema from './schema';
 
 const databaseUrl = process.env.DATABASE_URL;
-const enableOrmLogs = process.env.ENABLE_ORM_LOGS;
+const databaseLogger = process.env.DATABASE_LOGGER;
 invariant(databaseUrl, 'Internal DATABASE_URL environment variable must be defined');
-invariant(enableOrmLogs, 'Internal ENABLE_ORM_LOGS environment variable must be defined');
+invariant(databaseLogger, 'Internal DATABASE_LOGGER environment variable must be defined');
 
 const pool = new Pool({ connectionString: databaseUrl });
-export const db = drizzle(pool, { schema, logger: enableOrmLogs === 'true', casing: 'snake_case' });
+export const db = drizzle(pool, {
+  schema,
+  logger: databaseLogger === 'true',
+  casing: 'snake_case',
+});
 
 export type DrizzleDB = NodePgDatabase<typeof schema>;

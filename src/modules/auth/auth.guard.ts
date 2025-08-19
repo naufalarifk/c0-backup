@@ -1,28 +1,13 @@
 import type { CanActivate, ExecutionContext } from '@nestjs/common';
 import type { Auth } from 'better-auth';
-import type { getSession } from 'better-auth/api';
 import type { Request } from 'express';
 
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { APIError } from 'better-auth/api';
 import { fromNodeHeaders } from 'better-auth/node';
 
 import { AUTH_INSTANCE_KEY } from './auth.symbols';
-
-/**
- * Type representing a valid user session after authentication
- * Excludes null and undefined values from the session return type
- */
-export type UserSession = NonNullable<Awaited<ReturnType<ReturnType<typeof getSession>>>>;
-
-/**
- * Extended Express Request interface with authentication properties
- */
-interface AuthenticatedRequest extends Request {
-  session?: UserSession | null;
-  user?: UserSession['user'] | null;
-}
 
 /**
  * NestJS guard that handles authentication for protected routes
@@ -44,7 +29,7 @@ export class AuthGuard implements CanActivate {
    * @returns True if the request is authorized to proceed, throws an error otherwise
    */
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    const request = context.switchToHttp().getRequest<Request>();
     const session = await this.auth.api.getSession({
       headers: fromNodeHeaders(request.headers),
     });
@@ -56,18 +41,16 @@ export class AuthGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
-
     if (isPublic) return true;
 
     const isOptional = this.reflector.getAllAndOverride<boolean>('OPTIONAL', [
       context.getHandler(),
       context.getClass(),
     ]);
-
     if (isOptional && !session) return true;
 
     if (!session)
-      throw new APIError(401, {
+      throw new APIError(HttpStatus.UNAUTHORIZED, {
         code: 'UNAUTHORIZED',
         message: 'Unauthorized',
       });
