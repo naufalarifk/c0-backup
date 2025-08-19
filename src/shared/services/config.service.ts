@@ -7,7 +7,7 @@ import parse from 'parse-duration';
 import { Pool } from 'pg';
 import invariant from 'tiny-invariant';
 
-import * as schema from '../../database/schema';
+import * as schema from '../database/schema';
 
 @Injectable()
 export class ConfigService {

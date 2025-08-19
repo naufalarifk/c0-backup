@@ -1,5 +1,5 @@
 import type { BetterAuthOptions } from 'better-auth';
-import type { DrizzleDB } from 'src/database';
+import type { DrizzleDB } from '../../shared/database';
 
 import { expo } from '@better-auth/expo';
 import { sso } from '@better-auth/sso';
@@ -20,7 +20,7 @@ import invariant from 'tiny-invariant';
 import { v7 as uuidv7 } from 'uuid';
 
 import { verificationEmail } from '../../lib';
-import { DRIZZLE_DB } from '../../shared/modules/database.module';
+import { DRIZZLE_DB } from '../../shared/database/database.module';
 import { ConfigService } from '../../shared/services/config.service';
 import { EmailService } from '../../shared/services/email.service';
 import { TwilioService } from '../../shared/services/twilio.service';
