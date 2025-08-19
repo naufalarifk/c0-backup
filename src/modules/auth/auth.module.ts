@@ -20,6 +20,7 @@ import {
 } from '@nestjs/core';
 import { toNodeHandler } from 'better-auth/node';
 import { createAuthMiddleware } from 'better-auth/plugins';
+import invariant from 'tiny-invariant';
 
 import { AuthFilter } from './auth.filter';
 import { AuthMiddleware } from './auth.middleware';
@@ -35,7 +36,7 @@ import {
 /**
  * Configuration options for the AuthModule
  */
-type AuthModuleOptions = {
+export type AuthModuleOptions = {
   disableExceptionFilter?: boolean;
   disableTrustedOriginsCors?: boolean;
   disableBodyParser?: boolean;
@@ -289,7 +290,8 @@ export class AuthModule implements NestModule, OnModuleInit {
           provide: AUTH_INSTANCE_KEY,
           useFactory: async (...args: unknown[]) => {
             const result = await options.useFactory?.(...args);
-            if (!result) throw new Error('useFactory must return a result');
+            invariant(result, 'useFactory must return a result');
+
             const auth = result.auth;
 
             // Initialize hooks with an empty object if undefined
@@ -305,7 +307,8 @@ export class AuthModule implements NestModule, OnModuleInit {
           provide: AUTH_MODULE_OPTIONS_KEY,
           useFactory: async (...args: unknown[]) => {
             const result = await options.useFactory?.(...args);
-            if (!result) throw new Error('useFactory must return a result');
+            invariant(result, 'useFactory must return a result');
+
             return result.options || {};
           },
           inject: options.inject || [],

@@ -1,5 +1,6 @@
 import type { BetterAuthOptions } from 'better-auth';
 import type { DrizzleDB } from '../../shared/database/database.module';
+import type { AuthModuleOptions } from './auth.module';
 
 import { expo } from '@better-auth/expo';
 import { sso } from '@better-auth/sso';
@@ -74,7 +75,7 @@ export class AuthConfig {
    * Creates and returns the Better Auth configuration
    * This method is called by the AuthModule to initialize Better Auth
    */
-  createAuthOptions() {
+  createAuthOptions(): { auth: Auth; options?: AuthModuleOptions } {
     const options: BetterAuthOptions = {
       appName: 'Gadain Better Auth',
       database: this.createDatabaseAdapter(),
@@ -85,6 +86,14 @@ export class AuthConfig {
       },
       socialProviders: this.createSocialProvidersConfig(),
       plugins: this.createPlugins(),
+      user: {
+        changeEmail: {
+          enabled: true,
+        },
+        deleteUser: {
+          enabled: true,
+        },
+      },
       account: {
         accountLinking: {
           trustedProviders: ['google'],
@@ -101,10 +110,8 @@ export class AuthConfig {
       advanced: this.createAdvancedConfig(),
     };
 
-    const auth = betterAuth(options);
-
     return {
-      auth: auth as unknown as Auth,
+      auth: betterAuth(options) as unknown as Auth,
     };
   }
 

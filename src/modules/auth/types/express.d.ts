@@ -1,6 +1,6 @@
 import 'express';
 
-import { UserSession } from './auth.types';
+import type { UserSession } from './auth.types';
 
 declare module 'express' {
   interface Request {
