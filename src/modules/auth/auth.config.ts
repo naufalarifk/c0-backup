@@ -26,8 +26,8 @@ import { EmailService } from '../../shared/services/email.service';
 import { TwilioService } from '../../shared/services/twilio.service';
 
 @Injectable()
-export class AuthConfigService {
-  private readonly logger = new Logger(AuthConfigService.name);
+export class AuthConfig {
+  private readonly logger = new Logger(AuthConfig.name);
   private readonly reservedUsernames = [
     'admin',
     'administrator',

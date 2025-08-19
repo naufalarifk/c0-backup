@@ -4,7 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { AuthModule } from './modules/auth/auth.module';
-import { AuthConfigService } from './modules/auth/auth-config.service';
+import { AuthConfig } from './modules/auth/auth.config';
 import { ConfigService } from './shared/services/config.service';
 import { SharedModule } from './shared/shared.module';
 
@@ -28,7 +28,7 @@ import { SharedModule } from './shared/shared.module';
     }),
 
     // Authentication
-    AuthModule.forRootAsync({ useClass: AuthConfigService }),
+    AuthModule.forRootAsync({ useClass: AuthConfig }),
   ],
   providers: [
     // Global guards
