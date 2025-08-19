@@ -5,5 +5,54 @@
   "editor.codeActionsOnSave": {
     "quickfix.biome": "explicit",
     "source.organizeImports.biome": "explicit"
-  }
+  },
+
+  // Fallback formatters jika Biome tidak tersedia
+  "[typescript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+
+  // TypeScript settings
+  "typescript.preferences.includePackageJsonAutoImports": "auto",
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "typescript.suggest.autoImports": true,
+
+  // File explorer settings
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/coverage": true
+  },
+
+  // Search settings
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/coverage": true,
+    "**/.git": true
+  },
+
+  // Auto-save settings
+  "files.autoSave": "onWindowChange",
+
+  // Terminal settings
+  "terminal.integrated.defaultProfile.osx": "zsh",
+
+  // Git settings
+  "git.autofetch": true,
+  "git.confirmSync": false,
+
+  // Biome specific settings
+  "biome.lsp.bin": "./node_modules/.bin/biome",
+
+  // Notification settings
+  "extensions.ignoreRecommendations": false
 }

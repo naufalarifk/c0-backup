@@ -1,0 +1,164 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Format Code (Biome)",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["format"],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": [],
+      "detail": "Format all code using Biome"
+    },
+    {
+      "label": "Lint & Fix (Biome)",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["biome", "check", "--write", "src"],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": [],
+      "detail": "Lint and auto-fix code using Biome"
+    },
+    {
+      "label": "Check Code Quality",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["biome", "check", "src"],
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": [],
+      "detail": "Check code quality without fixing"
+    },
+    {
+      "label": "Start Dev Server",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["start:dev"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "detail": "Start NestJS development server"
+    },
+    {
+      "label": "Build Project",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["build"],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": "$tsc",
+      "detail": "Build the project for production"
+    },
+    {
+      "label": "Run Tests",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["test"],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": [],
+      "detail": "Run all tests"
+    },
+    {
+      "label": "Database: Push Schema",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["db:push"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": [],
+      "detail": "Push database schema changes"
+    },
+    {
+      "label": "Database: Studio",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["db:studio"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "detail": "Open Drizzle Studio"
+    },
+    {
+      "label": "Install Git Hooks",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["hooks:install"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": [],
+      "detail": "Install lefthook git hooks"
+    }
+  ]
+}

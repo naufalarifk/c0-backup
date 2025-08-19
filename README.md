@@ -61,6 +61,54 @@ pnpm db:push
 pnpm start:dev
 ```
 
+## 🛠 **VSCode Setup**
+
+### **Recommended Extensions**
+When you open the project in VSCode, you'll be prompted to install recommended extensions:
+
+- **Biome** (`biomejs.biome`) - Code formatting and linting
+- **TypeScript** (`ms-vscode.vscode-typescript-next`) - Enhanced TypeScript support
+- **Path Intellisense** (`christian-kohler.path-intellisense`) - File path autocomplete
+
+### **Without Biome Extension**
+If you don't have the Biome extension installed:
+
+#### **Manual Formatting**
+```bash
+# Format all code
+pnpm format
+```
+
+#### **VSCode Tasks**
+Press `Cmd+Shift+P` (macOS) or `Ctrl+Shift+P` (Windows/Linux) and run:
+- **"Tasks: Run Task"** → **"Format Code (Biome)"**
+- **"Tasks: Run Task"** → **"Lint & Fix (Biome)"**
+
+Or use the keyboard shortcuts listed below ⬇️
+
+#### **Keyboard Shortcuts**
+The workspace includes pre-configured shortcuts:
+```json
+Cmd+Alt+F → Format Code (Biome)
+Cmd+Alt+L → Lint & Fix (Biome)
+Cmd+Alt+T → Run Tests
+Cmd+Alt+D → Start Dev Server
+```
+
+Or manually add to your VSCode `keybindings.json`:
+```json
+[
+  {
+    "key": "cmd+alt+f",
+    "command": "workbench.action.tasks.runTask",
+    "args": "Format Code (Biome)"
+  }
+]
+```
+
+### **Pre-commit Hooks**
+Even without the extension, code will be auto-formatted on commit via git hooks.
+
 ## 🌱 **Environment Variables**
 
 Create a `.env` file in the root directory:
@@ -225,11 +273,68 @@ src/
 
 ## 🚀 **API Documentation**
 
-Once the application is running:
+The application provides comprehensive API documentation with multiple interfaces:
 
-- **API Documentation**: `http://localhost:3000/docs`
-- **Health Check**: `http://localhost:3000/health`
-- **Database Studio**: Run `pnpm db:studio`
+### **📚 Available Documentation Endpoints**
+
+#### **1. 🔵 Swagger UI - Main API**
+- **URL**: `http://localhost:3000/docs/swagger`
+- **Purpose**: Complete API documentation for the loan management platform
+- **Features**: Interactive API testing, request/response examples
+- **Title**: "Gadain Financial API"
+- **Description**: "Comprehensive loan management platform"
+
+#### **2. 🔐 Scalar API Reference - Auth System**
+- **URL**: `http://localhost:3000/docs/auth`
+- **Purpose**: Better Auth system documentation
+- **Features**: Beautiful UI with "bluePlanet" theme
+- **Content**: Auto-generated from Better Auth OpenAPI schema
+
+#### **3. 🏥 Health Check**
+- **URL**: `http://localhost:3000/health`
+- **Purpose**: Application health monitoring
+
+#### **4. 🗄️ Database Studio**
+- **Command**: `pnpm db:studio`
+- **Purpose**: Visual database management interface
+
+### **🛠 Documentation Setup**
+
+The documentation is automatically configured via `src/lib/docs.ts`:
+
+```typescript
+// Swagger for main API
+SwaggerModule.setup('docs/swagger', app, document);
+
+// Scalar for auth documentation
+app.use('/docs/auth', apiReference({
+  content: documentAuth,
+  theme: 'bluePlanet',
+}));
+```
+
+### **📖 Documentation Structure**
+
+| Documentation | Technology | Use Case |
+|---------------|------------|----------|
+| **Swagger UI** | `@nestjs/swagger` | Main API endpoints |
+| **Scalar Reference** | `@scalar/nestjs-api-reference` | Authentication system |
+| **OpenAPI Schema** | Better Auth | Auto-generated auth docs |
+
+### **🔧 Customization**
+
+To modify documentation:
+
+1. **Main API**: Update `DocumentBuilder` configuration in `docs.ts`
+2. **Auth Docs**: Better Auth auto-generates from your auth configuration
+3. **Theme**: Change Scalar theme in `apiReference()` options
+
+### **📱 Access URLs**
+
+Once `pnpm start:dev` is running, visit:
+- **Main API Docs**: http://localhost:3000/docs/swagger
+- **Auth API Docs**: http://localhost:3000/docs/auth
+- **Health Check**: http://localhost:3000/health
 
 ## 🚨 **Troubleshooting**
 

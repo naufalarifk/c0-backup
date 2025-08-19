@@ -1,0 +1,24 @@
+[
+  {
+    "key": "cmd+alt+f",
+    "command": "workbench.action.tasks.runTask",
+    "args": "Format Code (Biome)",
+    "when": "!editorReadonly"
+  },
+  {
+    "key": "cmd+alt+l",
+    "command": "workbench.action.tasks.runTask",
+    "args": "Lint & Fix (Biome)",
+    "when": "!editorReadonly"
+  },
+  {
+    "key": "cmd+alt+t",
+    "command": "workbench.action.tasks.runTask",
+    "args": "Run Tests"
+  },
+  {
+    "key": "cmd+alt+d",
+    "command": "workbench.action.tasks.runTask",
+    "args": "Start Dev Server"
+  }
+]
