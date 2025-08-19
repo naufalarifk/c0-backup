@@ -34,7 +34,7 @@ cp .env.example .env
 # Edit .env with your configuration
 
 # Start services with Docker
-docker-compose up -d
+docker compose --env-file .env.docker up -d
 
 # Database setup
 pnpm db:push    # Push schema to database
@@ -85,7 +85,7 @@ TWILIO_PHONE_NUMBER="your-twilio-phone"
 GOOGLE_CLIENT_ID="your-google-client-id"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
 
-# Docker Configuration (for docker-compose)
+# Docker Configuration (for docker compose)
 POSTGRES_VERSION="16-alpine"
 POSTGRES_CONTAINER_NAME="gadain-postgres"
 POSTGRES_DB="gadain_db"
@@ -110,16 +110,16 @@ HEALTHCHECK_START_PERIOD="30s"
 ### **Quick Start with Docker**
 ```bash
 # Start PostgreSQL and Redis services
-docker-compose up -d
+docker compose up -d
 
 # Stop services
-docker-compose down
+docker compose down
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
 # Reset all data (⚠️ Destructive)
-docker-compose down -v
+docker compose down -v
 ```
 
 ### **Docker Services**
@@ -132,11 +132,11 @@ docker-compose down -v
 Both services include health checks for monitoring:
 ```bash
 # Check service status
-docker-compose ps
+docker compose ps
 
 # Check specific service health
-docker-compose exec postgres pg_isready -U gadain_user -d gadain_db
-docker-compose exec redis redis-cli ping
+docker compose exec postgres pg_isready -U gadain_user -d gadain_db
+docker compose exec redis redis-cli ping
 ```
 
 ## 🏃‍♂️ **Running the Application**
@@ -248,15 +248,15 @@ pnpm build                  # Fix build errors
 ### **Database Connection Issues**
 ```bash
 # Check Docker services
-docker-compose ps
-docker-compose logs postgres
+docker compose ps
+docker compose logs postgres
 
 # Restart services
-docker-compose restart postgres redis
+docker compose restart postgres redis
 
 # Reset database (⚠️ Destructive)
-docker-compose down -v
-docker-compose up -d
+docker compose down -v
+docker compose up -d
 pnpm db:push
 ```
 
