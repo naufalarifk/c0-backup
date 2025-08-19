@@ -1,4 +1,4 @@
-# 🚀 Backend API
+# 🚀 Gadain Backend API
 
 > NestJS backend application with Better Auth, Drizzle ORM, and comprehensive development tooling
 
@@ -7,18 +7,43 @@
 [![Drizzle](https://img.shields.io/badge/Drizzle-ORM-green?logo=drizzle)](https://orm.drizzle.team)
 [![Better Auth](https://img.shields.io/badge/Better-Auth-purple)](https://better-auth.com)
 
+## � **Table of Contents**
+
+- [📖 Overview](#-overview)
+- [🛠 Tech Stack](#-tech-stack)
+- [🚀 Quick Start](#-quick-start)
+- [🌱 Environment Setup](#-environment-setup)
+- [🐳 Docker Configuration](#-docker-configuration)
+- [🏃‍♂️ Development](#️-development)
+- [🛠 VSCode Setup](#-vscode-setup)
+- [🚀 API Documentation](#-api-documentation)
+- [📁 Project Structure](#-project-structure)
+- [🪝 Git Hooks & Code Quality](#-git-hooks--code-quality)
+- [🚨 Troubleshooting](#-troubleshooting)
+- [🤝 Contributing](#-contributing)
+- [📚 Additional Resources](#-additional-resources)
+
 ## 📖 **Overview**
 
-This is a NestJS backend application with Better Auth, Drizzle ORM, and comprehensive development tooling including automated code quality checks and git hooks.
+A comprehensive NestJS backend application featuring:
+- **Authentication**: Better Auth with SSO support (Google OAuth)
+- **Database**: PostgreSQL with Drizzle ORM
+- **Code Quality**: Automated formatting, linting, and git hooks
+- **Documentation**: Swagger UI and Scalar API Reference
+- **Development**: Docker containerization and VSCode workspace
 
 ## 🛠 **Tech Stack**
 
-- **Framework**: NestJS v11
-- **Database**: PostgreSQL with Drizzle ORM
-- **Authentication**: Better Auth with SSO support
-- **Code Quality**: Biome (formatter + linter)
-- **Git Hooks**: Lefthook
-- **Package Manager**: pnpm
+| Category | Technology |
+|----------|------------|
+| **Framework** | NestJS v11 |
+| **Language** | TypeScript 5.7 |
+| **Database** | PostgreSQL + Drizzle ORM |
+| **Authentication** | Better Auth |
+| **Code Quality** | Biome (formatter + linter) |
+| **Git Hooks** | Lefthook |
+| **Package Manager** | pnpm |
+| **Containerization** | Docker + Docker Compose |
 
 ## 🚀 **Quick Start**
 
@@ -109,7 +134,9 @@ Or manually add to your VSCode `keybindings.json`:
 ### **Pre-commit Hooks**
 Even without the extension, code will be auto-formatted on commit via git hooks.
 
-## 🌱 **Environment Variables**
+## 🌱 **Environment Setup**
+
+### **Environment Variables**
 
 Create a `.env` file in the root directory:
 
@@ -153,11 +180,12 @@ HEALTHCHECK_RETRIES="3"
 HEALTHCHECK_START_PERIOD="30s"
 ```
 
-## 🐳 **Docker Setup**
+## 🐳 **Docker Configuration**
 
-### **Quick Start with Docker**
+### **Docker Services & Management**
+
 ```bash
-# Start PostgreSQL and Redis services
+# Start all services
 docker compose up -d
 
 # Stop services
@@ -166,28 +194,31 @@ docker compose down
 # View logs
 docker compose logs -f
 
+# Check service status
+docker compose ps
+
 # Reset all data (⚠️ Destructive)
 docker compose down -v
 ```
 
-### **Docker Services**
+**Available Services:**
 - **PostgreSQL**: Database server on port 5432
 - **Redis**: Cache/session store on port 6379
 - **Networks**: Custom `gadain-network` bridge
 - **Volumes**: Persistent data storage for both services
 
 ### **Health Checks**
-Both services include health checks for monitoring:
-```bash
-# Check service status
-docker compose ps
 
+Both services include health monitoring:
+```bash
 # Check specific service health
 docker compose exec postgres pg_isready -U gadain_user -d gadain_db
 docker compose exec redis redis-cli ping
 ```
 
-## 🏃‍♂️ **Running the Application**
+## 🏃‍♂️ **Development**
+
+### **Running the Application**
 
 ```bash
 # Development mode (with hot reload)
@@ -201,16 +232,20 @@ pnpm start
 pnpm start:debug
 ```
 
-## 🛠 **Available Scripts**
+### **Available Scripts**
 
-### **Development**
+#### **Core Development**
 ```bash
 pnpm start:dev              # Start in watch mode
 pnpm build                  # Build for production
 pnpm format                 # Format code with Biome
+pnpm test                   # Run tests
+pnpm test:watch             # Run tests in watch mode
+pnpm test:cov               # Run with coverage
+pnpm test:e2e               # Run e2e tests
 ```
 
-### **Database**
+#### **Database Management**
 ```bash
 pnpm db:generate             # Generate migrations
 pnpm db:migrate             # Run migrations
@@ -218,38 +253,39 @@ pnpm db:push                # Push schema to DB (dev only)
 pnpm db:studio              # Open Drizzle Studio
 ```
 
-### **Testing**
-```bash
-pnpm test                   # Run tests
-pnpm test:watch             # Run tests in watch mode
-pnpm test:cov               # Run with coverage
-pnpm test:e2e               # Run e2e tests
-```
-
-## 🪝 **Git Hooks**
-
-### **📋 Installed Hooks:**
-- **pre-commit**: Biome check with auto-fix (JS, TS, JSON files)
-- **commit-msg**: Conventional commits validation
-- **pre-push**: Build verification
-
+#### **Git Hooks**
 ```bash
 pnpm hooks:install          # Install git hooks
 pnpm hooks:uninstall        # Remove git hooks
 ```
 
-## ✅ **Commit Message Format**
+## 🪝 **Git Hooks & Code Quality**
+
+### **Automated Git Hooks**
+
+Pre-configured hooks for code quality:
+- **pre-commit**: Biome check with auto-fix (JS, TS, JSON files)
+- **commit-msg**: Conventional commits validation
+- **pre-push**: Build verification
+
+### **Commit Message Format**
+
+Use conventional commits for consistency:
 
 ```bash
 # ✅ Valid formats
 feat: add new authentication module
 fix: resolve database connection issue
 docs: update API documentation
+chore: update dependencies
 
 # ❌ Invalid formats
 "add new feature"           # No type
 "Fix Bug"                   # Wrong case
+"WIP"                       # Non-descriptive
 ```
+
+**Commit Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 ## 📁 **Project Structure**
 
@@ -338,19 +374,21 @@ Once `pnpm start:dev` is running, visit:
 
 ## 🚨 **Troubleshooting**
 
-### **Git Hooks Issues**
+### **Common Issues & Solutions**
+
+#### **Git Hooks Issues**
 ```bash
 pnpm hooks:install          # Re-install hooks
 npx lefthook version        # Check status
 ```
 
-### **Build/Commit Issues**
+#### **Build/Format Issues**
 ```bash
 pnpm format                 # Fix formatting
-pnpm build                  # Fix build errors
+pnpm build                  # Check build errors
 ```
 
-### **Database Connection Issues**
+#### **Database Connection Issues**
 ```bash
 # Check Docker services
 docker compose ps
@@ -365,7 +403,7 @@ docker compose up -d
 pnpm db:push
 ```
 
-### **Port Conflicts**
+#### **Port Conflicts**
 ```bash
 # Check what's using ports
 lsof -i :5432  # PostgreSQL
@@ -377,21 +415,49 @@ POSTGRES_PORT="5433"
 REDIS_PORT="6380"
 ```
 
+#### **Permission Issues (macOS/Linux)**
+```bash
+# Fix node_modules permissions
+chmod -R 755 node_modules
+
+# Fix git hooks permissions
+chmod +x .lefthook/pre-commit/*
+```
+
 ## 🤝 **Contributing**
 
 1. **Fork** the repository
 2. **Create** a feature branch: `git checkout -b feat/amazing-feature`
-3. **Commit** your changes: `git commit -m "feat: add amazing feature"`
-4. **Push** to the branch: `git push origin feat/amazing-feature`
-5. **Open** a Pull Request
+3. **Make** your changes following the code style guidelines
+4. **Commit** using conventional format: `git commit -m "feat: add amazing feature"`
+5. **Push** to the branch: `git push origin feat/amazing-feature`
+6. **Open** a Pull Request with detailed description
+
+### **Development Guidelines**
+
+- Follow TypeScript and NestJS best practices
+- Write tests for new features
+- Update documentation when needed
+- Use conventional commit messages
+- Ensure all hooks pass before pushing
 
 ## 📚 **Additional Resources**
 
+### **Framework Documentation**
 - [NestJS Documentation](https://docs.nestjs.com/)
 - [Drizzle ORM Documentation](https://orm.drizzle.team/)
 - [Better Auth Documentation](https://www.better-auth.com/)
+
+### **Development Tools**
+- [Biome Formatter](https://biomejs.dev/)
+- [Lefthook Git Hooks](https://evilmartians.com/chronicles/lefthook-knock-your-teams-code-back-into-shape)
 - [Conventional Commits](https://www.conventionalcommits.org/)
+
+### **VSCode Extensions**
+- [Biome Extension](https://marketplace.visualstudio.com/items?itemName=biomejs.biome)
+- [TypeScript Hero](https://marketplace.visualstudio.com/items?itemName=rbbit.typescript-hero)
+- [Thunder Client](https://marketplace.visualstudio.com/items?itemName=rangav.vscode-thunder-client)
 
 ---
 
-**Happy coding! 🎉**
+**Made with ❤️ by the Gadain Team • Happy coding! 🎉**
