@@ -1,7 +1,5 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
 
-import * as os from 'os';
-
 import {
   ClassSerializerInterceptor,
   HttpStatus,
@@ -20,26 +18,11 @@ import { docs } from './lib';
 import { ConfigService } from './shared/services/config.service';
 import { SharedModule } from './shared/shared.module';
 
-function getLocalIP() {
-  const interfaces = os.networkInterfaces();
-
-  for (const name of Object.keys(interfaces)) {
-    const networkInterface = interfaces[name];
-    if (networkInterface) {
-      for (const iface of networkInterface) {
-        if (iface.family === 'IPv4' && !iface.internal) {
-          return iface.address;
-        }
-      }
-    }
-  }
-  return 'localhost';
-}
-
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter(), {
     bodyParser: false,
   });
+
   const reflector = app.get(Reflector);
   const logger = new Logger(bootstrap.name);
   const configService = app.select(SharedModule).get(ConfigService);
@@ -105,12 +88,10 @@ async function bootstrap() {
     app.enableShutdownHooks();
   }
 
-  const localIP = getLocalIP();
   const port = configService.appConfig.port;
-  await app.listen(port, () => {
-    logger.log(`Server is listening at port ${port}`);
+  await app.listen(port, async () => {
+    logger.log(`Server is listening at ${await app.getUrl()}`);
     logger.log(`Current environment is: ${configService.nodeEnv}`);
-    logger.log(`Local IP address is: ${localIP}`);
   });
 }
 void bootstrap();

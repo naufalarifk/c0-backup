@@ -1,5 +1,6 @@
 import type { CustomDecorator, ExecutionContext } from '@nestjs/common';
 import type { createAuthMiddleware } from 'better-auth/api';
+import type { Request } from 'express';
 
 import { createParamDecorator, SetMetadata } from '@nestjs/common';
 
@@ -9,22 +10,22 @@ import { AFTER_HOOK_KEY, BEFORE_HOOK_KEY, HOOK_KEY } from './auth.symbols';
  * Marks a route or a controller as public, allowing unauthenticated access.
  * When applied, the AuthGuard will skip authentication checks.
  */
-export const Public = (): CustomDecorator<'PUBLIC'> => SetMetadata('PUBLIC', true);
+export const Public = (): CustomDecorator => SetMetadata('PUBLIC', true);
 
 /**
  * Marks a route or a controller as having optional authentication.
  * When applied, the AuthGuard will allow the request to proceed
  * even if no session is present.
  */
-export const Optional = (): CustomDecorator<'OPTIONAL'> => SetMetadata('OPTIONAL', true);
+export const Optional = (): CustomDecorator => SetMetadata('OPTIONAL', true);
 
 /**
  * Parameter decorator that extracts the user session from the request.
  * Provides easy access to the authenticated user's session data in controller methods.
  */
 export const Session: ReturnType<typeof createParamDecorator> = createParamDecorator(
-  (_data: unknown, context: ExecutionContext): unknown => {
-    const request = context.switchToHttp().getRequest();
+  (_data: unknown, context: ExecutionContext) => {
+    const request = context.switchToHttp().getRequest<Request>();
     return request.session;
   },
 );
