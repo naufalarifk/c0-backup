@@ -9,7 +9,6 @@ import { Auth, betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import {
   admin,
-  bearer,
   multiSession,
   oneTap,
   openAPI,
@@ -17,58 +16,27 @@ import {
   twoFactor,
   username,
 } from 'better-auth/plugins';
-import invariant from 'tiny-invariant';
 import { v7 as uuidv7 } from 'uuid';
 
 import { verificationEmail } from '../../lib';
 import { DRIZZLE_DB } from '../../shared/database/database.module';
+import * as schema from '../../shared/database/schema';
 import { ConfigService } from '../../shared/services/config.service';
 import { EmailService } from '../../shared/services/email.service';
+import { RedisService } from '../../shared/services/redis.service';
 import { TwilioService } from '../../shared/services/twilio.service';
+import { RESERVED_USERNAMES } from './auth.constants';
 
 @Injectable()
 export class AuthConfig {
   private readonly logger = new Logger(AuthConfig.name);
-  private readonly reservedUsernames = [
-    'admin',
-    'administrator',
-    'root',
-    'system',
-    'support',
-    'help',
-    'api',
-    'www',
-    'mail',
-    'email',
-    'info',
-    'contact',
-    'about',
-    'blog',
-    'news',
-    'user',
-    'users',
-    'account',
-    'profile',
-    'settings',
-    'config',
-    'test',
-    'demo',
-    'null',
-    'undefined',
-    'me',
-    'app',
-    'mobile',
-    'web',
-    'site',
-    'page',
-    'home',
-  ] as const;
 
   constructor(
     @Inject(DRIZZLE_DB) private readonly database: DrizzleDB,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
     private readonly twilioService: TwilioService,
+    private readonly redisService: RedisService,
   ) {}
 
   /**
@@ -77,12 +45,13 @@ export class AuthConfig {
    */
   createAuthOptions(): { auth: Auth; options?: AuthModuleOptions } {
     const options: BetterAuthOptions = {
-      appName: 'Gadain Better Auth',
       database: this.createDatabaseAdapter(),
+      session: this.createSessionConfig(),
+      secondaryStorage: this.createSecondaryStorage(),
       emailVerification: this.createEmailVerificationConfig(),
       emailAndPassword: {
         enabled: true,
-        requireEmailVerification: true,
+        requireEmailVerification: this.configService.isProduction,
       },
       socialProviders: this.createSocialProvidersConfig(),
       plugins: this.createPlugins(),
@@ -96,10 +65,15 @@ export class AuthConfig {
       },
       account: {
         accountLinking: {
+          enabled: true,
           trustedProviders: ['google'],
         },
       },
-      trustedOrigins: ['gadainclient://'],
+      trustedOrigins: [
+        'exp://192.168.0.109:8081', // Development
+        'gadainclient://', // Production scheme from app.json
+        // Add your production URL
+      ],
       rateLimit: {
         enabled: true,
         ...this.configService.throttlerConfigs,
@@ -120,28 +94,76 @@ export class AuthConfig {
       provider: 'pg',
       usePlural: true,
       debugLogs: this.configService.databaseLogger,
+      schema,
     });
   }
 
-  private createEmailVerificationConfig() {
+  private createSessionConfig(): BetterAuthOptions['session'] {
+    const authConfig = this.configService.authConfig;
+
+    return {
+      expiresIn: authConfig.sessionMaxAge, // 7 days by default
+      updateAge: authConfig.sessionUpdateAge, // 1 day by default
+      cookieCache: {
+        enabled: true,
+        maxAge: authConfig.sessionCookieCacheAge, // 5 minutes by default
+      },
+      storeSessionInDatabase: true,
+      preserveSessionInDatabase: true,
+    };
+  }
+
+  private createSecondaryStorage(): BetterAuthOptions['secondaryStorage'] {
+    return {
+      get: async (key: string) => {
+        try {
+          const value = await this.redisService.get(key);
+          return value ? value : null;
+        } catch (error) {
+          this.logger.error(`Error getting secondary storage key ${key}:`, error);
+          return null;
+        }
+      },
+      set: async (key: string, value: string, ttl?: number) => {
+        try {
+          if (ttl) {
+            await this.redisService.set(key, value, ttl);
+          } else {
+            await this.redisService.set(key, value);
+          }
+        } catch (error) {
+          this.logger.error(`Error setting secondary storage key ${key}:`, error);
+        }
+      },
+      delete: async (key: string) => {
+        try {
+          await this.redisService.del(key);
+        } catch (error) {
+          this.logger.error(`Error deleting secondary storage key ${key}:`, error);
+        }
+      },
+    };
+  }
+
+  private createEmailVerificationConfig(): BetterAuthOptions['emailVerification'] {
     return {
       sendOnSignUp: true,
       autoSignInAfterVerification: true,
-      sendVerificationEmail: async ({ user, url }: { user: { email: string }; url: string }) => {
+      sendVerificationEmail: async ({ user, url }) => {
         const html = verificationEmail({
           url,
           userName: user.email,
           companyName: 'Gadain',
         });
-
         const res = await this.emailService.sendEmail({
           to: user.email,
           subject: 'Verify your email address',
           html,
         });
 
-        invariant(!res.error, 'Failed to send verification email');
-        this.logger.debug('Email sent successfully:', res.data?.id);
+        if (res.error) {
+          this.logger.error('Failed to send verification email :>> ', res.error);
+        }
       },
     };
   }
@@ -156,9 +178,8 @@ export class AuthConfig {
     };
   }
 
-  private createPlugins() {
+  private createPlugins(): BetterAuthOptions['plugins'] {
     return [
-      bearer(),
       twoFactor(),
       username({
         usernameValidator: this.validateUsername.bind(this),
@@ -178,16 +199,16 @@ export class AuthConfig {
       }),
       oneTap(),
       sso(),
-      multiSession({ maximumSessions: 3 }),
+      multiSession({ maximumSessions: this.configService.authConfig.maximumSessions }),
       admin(),
       expo(),
       openAPI(),
     ];
   }
 
-  private createAdvancedConfig() {
+  private createAdvancedConfig(): BetterAuthOptions['advanced'] {
     return {
-      cookiePrefix: 'gadain',
+      cookiePrefix: this.configService.authConfig.cookiePrefix,
       useSecureCookies: true,
       disableCSRFCheck: false,
       defaultCookieAttributes: {
@@ -201,9 +222,7 @@ export class AuthConfig {
   }
 
   private validateUsername(username: string): boolean {
-    return !this.reservedUsernames.includes(
-      username.toLowerCase() as (typeof this.reservedUsernames)[number],
-    );
+    return !RESERVED_USERNAMES.includes(username.toLowerCase());
   }
 
   private normalizeUsername(username: string): string {

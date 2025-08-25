@@ -20,7 +20,7 @@ export async function docs(app: NestExpressApplication) {
     .setVersion('1.0')
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
+  const document = () => SwaggerModule.createDocument(app, config);
 
   SwaggerModule.setup('docs/swagger', app, document);
   logger.log('Docs swagger: /docs/swagger');
