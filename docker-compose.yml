@@ -24,20 +24,13 @@ services:
   redis:
     image: redis:${REDIS_VERSION}
     container_name: ${REDIS_CONTAINER_NAME}
-    restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    restart: always
     ports:
       - '${REDIS_PORT}:6379'
     volumes:
       - redis_data:/data
     networks:
       - gadain-network
-    healthcheck:
-      test: ['CMD', 'redis-cli', '--raw', 'incr', 'ping']
-      interval: ${HEALTHCHECK_INTERVAL}
-      timeout: ${HEALTHCHECK_TIMEOUT}
-      retries: ${HEALTHCHECK_RETRIES}
-      start_period: ${HEALTHCHECK_START_PERIOD}
 
 volumes:
   postgres_data:

@@ -1,4 +1,5 @@
 import type { ThrottlerOptions } from '@nestjs/throttler';
+import type { RedisOptions } from 'ioredis';
 
 import { Injectable } from '@nestjs/common';
 import { ConfigService as _ConfigService } from '@nestjs/config';
@@ -25,8 +26,16 @@ export class ConfigService {
     return this.nodeEnv === 'test';
   }
 
-  private getNumber(key: string): number {
-    const value = this.get(key);
+  private getNumber(key: string, defaultValue?: number): number {
+    const value = this.configService.get<string>(key);
+
+    if (value === undefined) {
+      if (defaultValue !== undefined) {
+        return defaultValue;
+      }
+      throw new TypeError(`Environment variable ${key} doesn't exist`);
+    }
+
     const num = Number(value);
 
     if (Number.isNaN(num)) {
@@ -126,24 +135,34 @@ export class ConfigService {
     };
   }
 
-  get redisConfig() {
+  get redisConfig(): RedisOptions {
     return {
       host: this.getString('REDIS_HOST', 'localhost'),
       port: this.getNumber('REDIS_PORT'),
       password: this.getString('REDIS_PASSWORD', ''),
+      db: this.getNumber('REDIS_DB', 0),
+      lazyConnect: true,
+      keepAlive: 30000,
+      connectTimeout: 10000,
+      commandTimeout: 5000,
     };
   }
 
   get authConfig() {
     return {
-      betterAuthUrl: this.getString('BETTER_AUTH_URL'),
-      betterAuthExpirationTime: this.getNumber('BETTER_AUTH_EXPIRATION_TIME'),
+      url: this.getString('BETTER_AUTH_URL'),
+      expirationTime: this.getNumber('BETTER_AUTH_EXPIRATION_TIME'),
+      cookiePrefix: this.getString('BETTER_AUTH_COOKIE_PREFIX'),
+      maximumSessions: this.getNumber('BETTER_AUTH_MAXIMUM_SESSIONS'),
+      sessionMaxAge: this.getNumber('SESSION_MAX_AGE', 604_800), // 7 days
+      sessionUpdateAge: this.getNumber('SESSION_UPDATE_AGE', 86_400), // 1 day
+      sessionCookieCacheAge: this.getNumber('SESSION_COOKIE_CACHE_AGE', 300), // 5 minutes
     };
   }
 
   get appConfig() {
     return {
-      port: this.getString('PORT'),
+      port: this.getString('PORT', '3000'),
       appName: this.getString('APP_NAME', 'Gadain'),
       allowedOrigins: this.getString('ALLOWED_ORIGINS').split(','),
     };
