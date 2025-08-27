@@ -2,7 +2,7 @@ import type { ThrottlerOptions } from '@nestjs/throttler';
 import type { RedisOptions } from 'ioredis';
 
 import { Injectable } from '@nestjs/common';
-import { ConfigService as _ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import parse from 'parse-duration';
 import { Pool } from 'pg';
@@ -11,8 +11,8 @@ import invariant from 'tiny-invariant';
 import * as schema from '../database/schema';
 
 @Injectable()
-export class ConfigService {
-  constructor(private configService: _ConfigService) {}
+export class AppConfigService {
+  constructor(private configService: ConfigService) {}
 
   get isDevelopment(): boolean {
     return this.nodeEnv === 'development';

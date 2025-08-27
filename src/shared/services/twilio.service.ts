@@ -5,7 +5,7 @@ import { Injectable } from '@nestjs/common';
 import invariant from 'tiny-invariant';
 import twilio from 'twilio';
 
-import { ConfigService } from './config.service';
+import { AppConfigService } from './app-config.service';
 
 @Injectable()
 export class TwilioService {
@@ -13,7 +13,7 @@ export class TwilioService {
   private readonly defaultFromSMS: string;
   private readonly defaultFromWhatsApp: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(private readonly configService: AppConfigService) {
     const { accountSid, authToken, phoneNumber } = this.configService.twilioConfig;
     this.defaultFromSMS = phoneNumber;
     this.client = twilio(accountSid, authToken);

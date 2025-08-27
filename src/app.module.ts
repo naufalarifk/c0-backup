@@ -5,10 +5,11 @@ import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
+import { AppController } from './app.controller';
 import { AuthConfig } from './modules/auth/auth.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { BlockchainsModule } from './modules/blockchains/blockchains.module';
-import { ConfigService } from './shared/services/config.service';
+import { AppConfigService } from './shared/services/app-config.service';
 import { SharedModule } from './shared/shared.module';
 
 @Module({
@@ -24,19 +25,19 @@ import { SharedModule } from './shared/shared.module';
 
     // Rate limiting
     ThrottlerModule.forRootAsync({
-      useFactory: (configService: ConfigService) => ({
+      useFactory: (configService: AppConfigService) => ({
         throttlers: [configService.throttlerConfigs],
       }),
-      inject: [ConfigService],
+      inject: [AppConfigService],
     }),
 
     BullModule.forRootAsync({
-      useFactory: (configService: ConfigService) => ({
+      useFactory: (configService: AppConfigService) => ({
         connection: {
           ...configService.redisConfig,
         },
       }),
-      inject: [ConfigService],
+      inject: [AppConfigService],
     }),
 
     EventEmitterModule.forRoot(),
@@ -46,6 +47,7 @@ import { SharedModule } from './shared/shared.module';
 
     BlockchainsModule,
   ],
+  controllers: [AppController],
   providers: [
     // Global guards
     {

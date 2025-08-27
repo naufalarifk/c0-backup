@@ -3,7 +3,7 @@ import type { CreateEmailOptions, CreateEmailRequestOptions } from 'resend';
 import { Injectable } from '@nestjs/common';
 import { Resend } from 'resend';
 
-import { ConfigService } from './config.service';
+import { AppConfigService } from './app-config.service';
 
 type ResendEmailParams = Omit<CreateEmailOptions, 'from'> & {
   from?: string;
@@ -14,7 +14,7 @@ export class EmailService {
   private readonly resend: Resend;
   private readonly defaultFrom: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(private readonly configService: AppConfigService) {
     const { apiKey, from } = this.configService.emailConfig;
     this.defaultFrom = `${this.configService.appConfig.appName} <${from}>`;
     this.resend = new Resend(apiKey);

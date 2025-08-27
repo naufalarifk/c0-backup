@@ -295,7 +295,7 @@ src/
 │   └── auth/                # Authentication module
 │       ├── auth.module.ts
 │       ├── auth.service.ts
-│       ├── auth-config.service.ts
+│       ├── auth-app-config.service.ts
 │       └── types/           # Auth-specific types
 ├── shared/                  # Shared modules
 │   ├── database/           # Database configuration

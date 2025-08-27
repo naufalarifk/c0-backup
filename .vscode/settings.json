@@ -24,11 +24,11 @@
 
   // File explorer settings
   "files.exclude": {
-    "**/node_modules": true,
-    "**/dist": true,
-    "**/.git": true,
-    "**/.DS_Store": true,
-    "**/coverage": true
+    // "**/dist": true,
+    // "**/node_modules": true,
+    // "**/.git": true,
+    // "**/.DS_Store": true,
+    // "**/coverage": true
   },
 
   // Search settings

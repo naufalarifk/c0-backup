@@ -6,7 +6,6 @@ import { expo } from '@better-auth/expo';
 import { sso } from '@better-auth/sso';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Auth, betterAuth } from 'better-auth';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import {
   admin,
   multiSession,
@@ -20,11 +19,12 @@ import { v7 as uuidv7 } from 'uuid';
 
 import { verificationEmail } from '../../lib';
 import { DRIZZLE_DB } from '../../shared/database/database.module';
-import * as schema from '../../shared/database/schema';
-import { ConfigService } from '../../shared/services/config.service';
+import { UserRepository } from '../../shared/repositories/user.repository';
+import { AppConfigService } from '../../shared/services/app-config.service';
 import { EmailService } from '../../shared/services/email.service';
 import { RedisService } from '../../shared/services/redis.service';
 import { TwilioService } from '../../shared/services/twilio.service';
+import { authAdapter } from './auth.adapter';
 import { RESERVED_USERNAMES } from './auth.constants';
 
 @Injectable()
@@ -32,11 +32,12 @@ export class AuthConfig {
   private readonly logger = new Logger(AuthConfig.name);
 
   constructor(
-    @Inject(DRIZZLE_DB) private readonly database: DrizzleDB,
-    private readonly configService: ConfigService,
+    @Inject(DRIZZLE_DB) readonly _database: DrizzleDB,
+    private readonly configService: AppConfigService,
     private readonly emailService: EmailService,
     private readonly twilioService: TwilioService,
     private readonly redisService: RedisService,
+    private readonly userRepository: UserRepository,
   ) {}
 
   /**
@@ -90,11 +91,9 @@ export class AuthConfig {
   }
 
   private createDatabaseAdapter() {
-    return drizzleAdapter(this.database, {
-      provider: 'pg',
-      usePlural: true,
+    return authAdapter({
+      userRepo: this.userRepository,
       debugLogs: this.configService.databaseLogger,
-      schema,
     });
   }
 

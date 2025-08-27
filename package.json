@@ -54,6 +54,7 @@
     "helmet": "^8.1.0",
     "ioredis": "^5.7.0",
     "morgan": "^1.10.1",
+    "nodemailer": "^7.0.5",
     "parse-duration": "^2.1.4",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
@@ -70,11 +71,14 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
+    "@testcontainers/postgresql": "^11.5.1",
+    "@testcontainers/redis": "^11.5.1",
     "@types/compression": "^1.8.1",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/morgan": "^1.9.10",
     "@types/node": "^24.2.1",
+    "@types/nodemailer": "^7.0.1",
     "@types/pg": "^8.15.5",
     "@types/supertest": "^6.0.2",
     "drizzle-kit": "^0.31.4",
@@ -103,6 +107,9 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^parse-duration$": "<rootDir>/../test/__mocks__/parse-duration.js"
+    }
   }
 }
