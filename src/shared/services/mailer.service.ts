@@ -1,8 +1,5 @@
-import fs from 'node:fs/promises';
-
 import { Injectable } from '@nestjs/common';
 
-import Handlebars from 'handlebars';
 import nodemailer from 'nodemailer';
 
 import { AppConfigService } from './app-config.service';
@@ -10,43 +7,31 @@ import { AppConfigService } from './app-config.service';
 @Injectable()
 export class MailerService {
   private transporter: nodemailer.Transporter;
+  private readonly defaultFrom: string;
 
   constructor(private readonly configService: AppConfigService) {
+    const { host, port, user, pass, secure, ignoreTLS, requireTLS, from } =
+      this.configService.emailConfig;
+    this.defaultFrom = `${this.configService.appConfig.appName} <${from}>`;
     this.transporter = nodemailer.createTransport({
-      host: this.configService.emailConfig.host,
-      port: this.configService.emailConfig.port,
-      auth: {
-        user: this.configService.emailConfig.user,
-        pass: this.configService.emailConfig.pass,
-      },
-      secure: this.configService.emailConfig.secure,
-      ignoreTLS: this.configService.emailConfig.ignoreTLS,
-      requireTLS: this.configService.emailConfig.requireTLS,
+      host,
+      port,
+      ...(user && pass ? { auth: { user, pass } } : {}),
+      secure,
+      ignoreTLS,
+      requireTLS,
     });
   }
 
-  async sendMail({
-    templatePath,
-    context,
-    ...mailOptions
-  }: nodemailer.SendMailOptions & {
-    templatePath: string;
-    context: Record<string, unknown>;
-  }) {
-    let html: string | undefined;
-    if (templatePath) {
-      const template = await fs.readFile(templatePath, 'utf-8');
-      html = Handlebars.compile(template, {
-        strict: true,
-      })(context);
-    }
+  async sendMail(params: Parameters<typeof this.transporter.sendMail>[0]) {
+    const emailParams = {
+      ...params,
+      from: params.from || this.defaultFrom,
+    };
+    return await this.transporter.sendMail(emailParams);
+  }
 
-    await this.transporter.sendMail({
-      ...mailOptions,
-      from: mailOptions.from
-        ? mailOptions.from
-        : `"${this.configService.emailConfig.defaultName}" <${this.configService.emailConfig.defaultEmail}>`,
-      html: mailOptions.html ? mailOptions.html : html,
-    });
+  getClient() {
+    return this.transporter;
   }
 }

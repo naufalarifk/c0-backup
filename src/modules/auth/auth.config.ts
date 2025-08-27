@@ -2,9 +2,12 @@ import type { BetterAuthOptions } from 'better-auth';
 import type { DrizzleDB } from '../../shared/database/database.module';
 import type { AuthModuleOptions } from './auth.module';
 
+import path from 'node:path';
+
+import { Inject, Injectable, Logger } from '@nestjs/common';
+
 import { expo } from '@better-auth/expo';
 import { sso } from '@better-auth/sso';
-import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Auth, betterAuth } from 'better-auth';
 import {
   admin,
@@ -17,15 +20,16 @@ import {
 } from 'better-auth/plugins';
 import { v7 as uuidv7 } from 'uuid';
 
-import { verificationEmail } from '../../lib';
 import { DRIZZLE_DB } from '../../shared/database/database.module';
 import { UserRepository } from '../../shared/repositories/user.repository';
 import { AppConfigService } from '../../shared/services/app-config.service';
 import { EmailService } from '../../shared/services/email.service';
+import { MailerService } from '../../shared/services/mailer.service';
 import { RedisService } from '../../shared/services/redis.service';
 import { TwilioService } from '../../shared/services/twilio.service';
 import { authAdapter } from './auth.adapter';
 import { RESERVED_USERNAMES } from './auth.constants';
+import { verificationEmail } from './template/verification-email';
 
 @Injectable()
 export class AuthConfig {
@@ -34,7 +38,8 @@ export class AuthConfig {
   constructor(
     @Inject(DRIZZLE_DB) readonly _database: DrizzleDB,
     private readonly configService: AppConfigService,
-    private readonly emailService: EmailService,
+    readonly _emailService: EmailService,
+    private readonly mailerService: MailerService,
     private readonly twilioService: TwilioService,
     private readonly redisService: RedisService,
     private readonly userRepository: UserRepository,
@@ -152,17 +157,26 @@ export class AuthConfig {
         const html = verificationEmail({
           url,
           userName: user.email,
-          companyName: 'Gadain',
+          companyName: this.configService.appConfig.appName,
         });
-        const res = await this.emailService.sendEmail({
+
+        const emailConfirmTitle = 'Verify your email address';
+
+        await this.mailerService.sendMail({
           to: user.email,
-          subject: 'Verify your email address',
+          subject: emailConfirmTitle,
           html,
         });
 
-        if (res.error) {
-          this.logger.error('Failed to send verification email :>> ', res.error);
-        }
+        // const res = await this.emailService.sendEmail({
+        //   to: user.email,
+        //   subject: emailConfirmTitle,
+        //   html,
+        // });
+
+        // if (res.error) {
+        //   this.logger.error('Failed to send verification email :>> ', res.error);
+        // }
       },
     };
   }

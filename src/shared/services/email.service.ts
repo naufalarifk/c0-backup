@@ -1,6 +1,7 @@
 import type { CreateEmailOptions, CreateEmailRequestOptions } from 'resend';
 
 import { Injectable } from '@nestjs/common';
+
 import { Resend } from 'resend';
 
 import { AppConfigService } from './app-config.service';

@@ -15,7 +15,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 
 import { AppModule } from './app.module';
-import { docs } from './lib';
+import docs from './docs';
 import { AppConfigService } from './shared/services/app-config.service';
 import { SharedModule } from './shared/shared.module';
 
