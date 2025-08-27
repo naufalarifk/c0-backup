@@ -3,6 +3,7 @@ import type { RedisOptions } from 'ioredis';
 
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+
 import { drizzle } from 'drizzle-orm/node-postgres';
 import parse from 'parse-duration';
 import { Pool } from 'pg';
@@ -89,6 +90,16 @@ export class AppConfigService {
     return {
       apiKey: this.getString('RESEND_API_KEY'),
       from: this.getString('EMAIL_FROM'),
+      host: this.getString('MAIL_HOST'),
+      port: this.getNumber('MAIL_PORT'),
+      user: this.getString('MAIL_USER'),
+      pass: this.getString('MAIL_PASSWORD'),
+      ignoreTLS: this.getBoolean('MAIL_IGNORE_TLS'),
+      secure: this.getBoolean('MAIL_SECURE'),
+      requireTLS: this.getBoolean('MAIL_REQUIRE_TLS'),
+      defaultEmail: this.getString('MAIL_DEFAULT_EMAIL'),
+      defaultName: this.getString('MAIL_DEFAULT_NAME'),
+      clientPort: this.getNumber('MAIL_CLIENT_PORT'),
     };
   }
 

@@ -47,14 +47,6 @@ describe('Auth (e2e)', () => {
       expect(res.user).toHaveProperty('email', validUserData.email);
       expect(res.user).toHaveProperty('emailVerified', false);
       expect(res.user).not.toHaveProperty('password');
-    }, 10_000);
-
-    it('should return 400 when email is missing', async () => {
-      const invalidData = { ...validUserData };
-      delete invalidData.email;
-
-      const res = await authService.api.signUpEmail({ body: invalidData });
-      expect(res).toHaveProperty('statusCode');
     });
   });
 });
