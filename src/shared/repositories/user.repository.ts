@@ -1,4 +1,5 @@
-/** biome-ignore-all lint/suspicious/noExplicitAny: <explanation> */
+/** biome-ignore-all lint/suspicious/noExplicitAny: any */
+/** biome-ignore-all lint/correctness/noUnusedVariables: any */
 import { v7 } from 'uuid';
 
 import {
