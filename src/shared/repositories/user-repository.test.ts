@@ -1,5 +1,5 @@
 import { InMemoryCryptogadaiRepository } from './in-memory-cryptogadai-repository';
-import { runUserRepositoryTestSuite } from './user.repository-test-suite';
+import { runUserRepositoryTestSuite } from './user-repository-test-suite';
 
 runUserRepositoryTestSuite(
   async function () {

@@ -1,3 +1,4 @@
+import { unknownErrorToString } from '../utils';
 import {
   assertArrayOf,
   assertDefined,
@@ -9,7 +10,6 @@ import {
   assertPropStringOrNumber,
   setAssertPropValue,
 } from '../utils/assertions';
-import { unknownErrorToString } from '../utils/error';
 import {
   AdminApprovesWithdrawalRefundParams,
   AdminApprovesWithdrawalRefundResult,
