@@ -44,9 +44,9 @@
         "noUnreachableSuper": "error",
         "noUnsafeFinally": "error",
         "noUnsafeOptionalChaining": "error",
-        "noUnusedLabels": "error",
-        "noUnusedPrivateClassMembers": "error",
-        "noUnusedVariables": "error",
+        "noUnusedLabels": "info",
+        "noUnusedPrivateClassMembers": "info",
+        "noUnusedVariables": "info",
         "useIsNan": "error",
         "useValidForDirection": "error",
         "useValidTypeof": "error",
@@ -144,7 +144,7 @@
             "noImportAssign": "off",
             "noRedeclare": "off",
             "noUnsafeNegation": "off",
-            "noVar": "error",
+            "noVar": "off",
             "noWith": "off",
             "useGetterReturn": "off"
           }

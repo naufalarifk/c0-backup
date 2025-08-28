@@ -1,8 +1,16 @@
-export abstract class BaseRepository {
+export abstract class DbRepository {
+  abstract sql(query: TemplateStringsArray, ...params: unknown[]): Promise<Array<unknown>>;
+  abstract rawQuery(queryText: string, params: unknown[]): Promise<unknown>;
+  abstract commitTransaction(): Promise<void>;
+  abstract rollbackTransaction(): Promise<void>;
+}
+
+export abstract class BaseRepository extends DbRepository {
   abstract connect(): Promise<void>;
   abstract close(): Promise<void>;
-  abstract sql(query: TemplateStringsArray, ...params: unknown[]): Promise<unknown>;
-  abstract rawQuery(queryText: string, params: unknown[]): Promise<unknown>;
+
+  // Transaction methods
+  abstract beginTransaction(): Promise<DbRepository>;
 
   // Redis abstraction
   abstract set(key: string, value: unknown, ttl?: number): Promise<void>;
