@@ -44,7 +44,6 @@ CREATE TABLE IF NOT EXISTS users (
   reactivation_reason TEXT,
   reactivation_date TIMESTAMP,
   reactivation_admin_user_id BIGINT,
-
   CHECK (
     email IS NOT NULL AND
     (two_factor_enabled = false OR (two_factor_secret IS NOT NULL AND two_factor_backup_codes IS NOT NULL))

@@ -21,7 +21,7 @@ import {
 import { v7 as uuidv7 } from 'uuid';
 
 import { DRIZZLE_DB } from '../../shared/database/database.module';
-import { UserRepository } from '../../shared/repositories/user.repository';
+import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../shared/services/app-config.service';
 import { EmailService } from '../../shared/services/email.service';
 import { MailerService } from '../../shared/services/mailer.service';
@@ -42,7 +42,7 @@ export class AuthConfig {
     private readonly mailerService: MailerService,
     private readonly twilioService: TwilioService,
     private readonly redisService: RedisService,
-    private readonly userRepository: UserRepository,
+    private readonly userRepository: CryptogadaiRepository,
   ) {}
 
   /**

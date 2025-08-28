@@ -4,11 +4,11 @@ import type { AdapterDebugLogs } from 'better-auth/adapters';
 import { BetterAuthError } from 'better-auth';
 import { createAdapter } from 'better-auth/adapters';
 
-import { UserRepository } from '../../shared/repositories/user.repository';
-import { unknownErrorToPlain } from '../../shared/utils/errors';
+import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { unknownErrorToPlain } from '../../shared/utils';
 
 interface AuthAdapterOptions {
-  userRepo: UserRepository;
+  userRepo: CryptogadaiRepository;
   /**
    * Helps you debug issues with the adapter.
    */

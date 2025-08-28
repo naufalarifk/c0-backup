@@ -9,7 +9,7 @@ export type UserUpdatesProfileParams = {
 export type UserUpdatesProfileResult = {
   id: string;
   fullName?: string;
-  profilePictureUrl?: string;
+  profilePictureUrl?: string | null;
   updatedDate: Date;
 };
 
@@ -240,7 +240,7 @@ export type SystemCreatesInstitutionApplicationWithValidationParams = {
   registrationNumber: string;
   registrationDocumentPath: string;
   deedOfEstablishmentPath: string;
-  domicileCertificatePath: string;
+  // domicileCertificatePath: string; // TBD
   businessAddress: string;
   businessCity: string;
   businessProvince: string;

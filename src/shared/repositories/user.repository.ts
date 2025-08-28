@@ -1,25 +1,35 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: <explanation> */
-/** biome-ignore-all lint/correctness/noUnusedVariables: <explanation> */
-import { Injectable } from '@nestjs/common';
-
 import { v7 } from 'uuid';
 
 import {
+  AdminAddUserToInstitutionParams,
+  AdminAddUserToInstitutionResult,
   AdminApprovesInstitutionApplicationParams,
   AdminApprovesInstitutionApplicationResult,
   AdminApprovesKycParams,
   AdminApprovesKycResult,
+  AdminChecksUserInstitutionDataParams,
+  AdminChecksUserInstitutionDataResult,
+  AdminChecksUserKycIdParams,
+  AdminChecksUserKycIdResult,
   AdminRejectsInstitutionApplicationParams,
   AdminRejectsInstitutionApplicationResult,
   AdminRejectsKycParams,
   AdminRejectsKycResult,
+  AdminRemoveUserFromInstitutionParams,
+  AdminRemoveUserFromInstitutionResult,
   AdminViewPendingKycsResult,
+  AdminViewsNotificationsByTypeParams,
+  AdminViewsNotificationsByTypeResult,
   OwnerUserInvitesUserToInstitutionParams,
   OwnerUserInvitesUserToInstitutionResult,
+  SystemCreatesInstitutionApplicationWithValidationParams,
+  SystemCreatesInstitutionApplicationWithValidationResult,
   UserAcceptsInstitutionInvitationParams,
   UserAcceptsInstitutionInvitationResult,
   UserAppliesForInstitutionParams,
   UserAppliesForInstitutionResult,
+  UserDecidesUserTypeParams,
   UserRejectsInstitutionInvitationParams,
   UserRejectsInstitutionInvitationResult,
   UserSubmitsKYCResult,
@@ -29,48 +39,63 @@ import {
   UserViewKYCSStatusResult,
   UserViewKYCStatusParams,
 } from '../types';
-import { assertDefined } from '../utils';
-import { BaseRepository } from './base.repository';
+import { unknownErrorToString } from '../utils';
+import {
+  assertArrayOf,
+  assertDefined,
+  assertPropDate,
+  assertPropDefined,
+  assertPropNullableString,
+  assertPropNullableStringOrNumber,
+  assertPropString,
+  assertPropStringOrNumber,
+  setAssertPropValue,
+} from '../utils/assertions';
+import { BaseRepository } from './base-repository';
 
 /**
- * UserRepository <- DatabaseRepository
+ * UserRepository <- BaseRepository
  *
  * Repositories are responsible ONLY for data storage and retrieval.
  * Business logic such as encryption, hashing, TOTP verification, etc.
  * should be handled by services that use this repository.
  */
-@Injectable()
 export abstract class UserRepository extends BaseRepository {
   async betterAuthCreateUser(data: any): Promise<any> {
-    const {
-      name,
-      email,
-      email_address,
-      emailVerified = false,
-      createdAt = new Date(),
-      updatedAt = new Date(),
-      id,
-    } = data;
+    const tx = await this.beginTransaction();
+    try {
+      const { name, email, email_address, emailVerified = false, createdAt, updatedAt, id } = data;
 
-    // Handle field mapping: email_address maps to email column
-    const emailValue = email_address || email;
+      // Handle field mapping: email_address maps to email column
+      const emailValue = email_address || email;
 
-    const result = await this.sql`
-      INSERT INTO users (name, email, email_verified, created_date, updated_date)
-      VALUES (${name}, ${emailValue}, ${emailVerified}, ${createdAt}, ${updatedAt})
-      RETURNING id, name, email, email_verified as "emailVerified", created_date as "createdAt", updated_date as "updatedAt";
-    `;
+      // Convert Dates to UTC milliseconds for database storage
+      const createdAtUtc = new Date(createdAt ?? Date.now());
+      const updatedAtUtc = new Date(updatedAt ?? Date.now());
 
-    const user = Array.isArray(result) ? result[0] : result;
+      const rows = await tx.sql`
+        INSERT INTO users (name, email, email_verified, created_date, updated_date)
+        VALUES (${name}, ${emailValue}, ${emailVerified}, ${createdAtUtc}, ${updatedAtUtc})
+        RETURNING id, name, email, email_verified as "emailVerified", created_date as "createdAt", updated_date as "updatedAt";
+      `;
 
-    // If original data had email_address, return it as email_address in response
-    if (email_address) {
-      user.email_address = user.email;
-      // biome-ignore lint/correctness/noSelfAssign: <explanation>
-      user.email = user.email; // Keep both for compatibility
+      const user = rows[0];
+      assertDefined(user);
+      assertPropDefined(user, 'email', 'User email is undefined');
+      assertPropString(user, 'email', `Expect user id to string, got ${typeof user.email}`);
+
+      // If original data had email_address, return it as email_address in response
+      if (email_address) {
+        setAssertPropValue(user, 'email_address', user.email);
+      }
+
+      await tx.commitTransaction();
+
+      return user;
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
     }
-
-    return user;
   }
 
   async betterAuthFindOneUser(where: any[]): Promise<any> {
@@ -78,31 +103,41 @@ export abstract class UserRepository extends BaseRepository {
       return null;
     }
 
-    const conditions: string[] = [];
-    const params: any[] = [];
+    const idCondition = where.find(w => w.field === 'id');
+    const emailCondition = where.find(w => w.field === 'email' || w.field === 'email_address');
 
-    for (let i = 0; i < where.length; i++) {
-      const condition = where[i];
-      // Handle field mapping: email_address maps to email column
-      const fieldName = condition.field === 'email_address' ? 'email' : condition.field;
-      conditions.push(`${fieldName} = $${i + 1}`);
-      params.push(condition.value);
+    let rows: Array<unknown> = [];
+    if (idCondition) {
+      rows = await this.sql`
+        SELECT id, name, email, email_verified as "emailVerified",
+               created_date as "createdAt", updated_date as "updatedAt"
+        FROM users
+        WHERE id = ${idCondition.value}
+      `;
+    } else if (emailCondition) {
+      rows = await this.sql`
+        SELECT id, name, email, email_verified as "emailVerified",
+               created_date as "createdAt", updated_date as "updatedAt"
+        FROM users
+        WHERE email = ${emailCondition.value}
+      `;
+    } else {
+      return null;
     }
 
-    const query = `
-      SELECT id, name, email, email_verified as "emailVerified",
-             created_date as "createdAt", updated_date as "updatedAt"
-      FROM users
-      WHERE ${conditions.join(' AND ')}
-    `;
+    assertArrayOf(rows, function (row) {
+      assertDefined(row);
+      return row;
+    });
 
-    const result = await this.rawQuery(query, params);
-    const rows = Array.isArray(result) ? result : result ? [result] : [];
     if (rows.length > 0) {
       const user = rows[0];
+      assertDefined(user);
       // Add email_address field if original query used email_address
       if (where.some(w => w.field === 'email_address')) {
-        user.email_address = user.email;
+        if ('email' in user) {
+          setAssertPropValue(user, 'email_address', user.email);
+        }
       }
       return user;
     }
@@ -115,90 +150,98 @@ export abstract class UserRepository extends BaseRepository {
     offset?: number,
     sortBy?: any,
   ): Promise<any[]> {
-    let query = `
-      SELECT id, name, email, email_verified as "emailVerified",
-             created_date as "createdAt", updated_date as "updatedAt"
-      FROM users
-    `;
-
-    const params: any[] = [];
-
     const hasEmailAddressField = where && where.some(w => w.field === 'email_address');
 
-    if (where && where.length > 0) {
-      const conditions: string[] = [];
-      for (let i = 0; i < where.length; i++) {
-        const condition = where[i];
-        // Handle field mapping: email_address maps to email column
-        const fieldName = condition.field === 'email_address' ? 'email' : condition.field;
-        let operator = '=';
-        let value = condition.value;
+    let users: Array<unknown> = [];
+    if (!where || where.length === 0) {
+      users = await this.sql`
+        SELECT id, name, email, email_verified as "emailVerified",
+               created_date as "createdAt", updated_date as "updatedAt"
+        FROM users
+        ORDER BY created_date DESC
+        LIMIT ${limit || 100}
+        OFFSET ${offset || 0}
+      `;
+    } else {
+      const idCondition = where.find(w => w.field === 'id');
+      const emailCondition = where.find(w => w.field === 'email' || w.field === 'email_address');
+      const nameCondition = where.find(w => w.field === 'name');
 
-        switch (condition.operator) {
-          case 'eq':
-            operator = '=';
-            conditions.push(`${fieldName} ${operator} $${params.length + 1}`);
-            params.push(value);
-            break;
-          case 'in': {
-            operator = 'IN';
-            const placeholders = condition.value
-              .map((_: any, idx: number) => `$${params.length + idx + 1}`)
-              .join(',');
-            conditions.push(`${fieldName} ${operator} (${placeholders})`);
-            params.push(...condition.value);
-            break;
-          }
-          case 'contains':
-            operator = 'LIKE';
-            value = `%${condition.value}%`;
-            params.push(value);
-            conditions.push(`${fieldName} ${operator} $${params.length}`);
-            break;
-          case 'starts_with':
-            operator = 'LIKE';
-            value = `${condition.value}%`;
-            params.push(value);
-            conditions.push(`${fieldName} ${operator} $${params.length}`);
-            break;
-          case 'ends_with':
-            operator = 'LIKE';
-            value = `%${condition.value}`;
-            params.push(value);
-            conditions.push(`${fieldName} ${operator} $${params.length}`);
-            break;
-          default:
-            params.push(value);
-            conditions.push(`${fieldName} = $${params.length}`);
-            break;
+      if (idCondition && idCondition.operator === 'in') {
+        const ids = idCondition.value;
+        users = await this.sql`
+          SELECT id, name, email, email_verified as "emailVerified",
+                 created_date as "createdAt", updated_date as "updatedAt"
+          FROM users
+          WHERE id = ANY(${ids})
+          ORDER BY created_date DESC
+          LIMIT ${limit || 100}
+          OFFSET ${offset || 0}
+        `;
+      } else if (emailCondition) {
+        if (emailCondition.operator === 'contains') {
+          const searchTerm = `%${emailCondition.value}%`;
+          users = await this.sql`
+            SELECT id, name, email, email_verified as "emailVerified",
+                   created_date as "createdAt", updated_date as "updatedAt"
+            FROM users
+            WHERE email LIKE ${searchTerm}
+            ORDER BY created_date DESC
+            LIMIT ${limit || 100}
+            OFFSET ${offset || 0}
+          `;
+        } else {
+          users = await this.sql`
+            SELECT id, name, email, email_verified as "emailVerified",
+                   created_date as "createdAt", updated_date as "updatedAt"
+            FROM users
+            WHERE email = ${emailCondition.value}
+            ORDER BY created_date DESC
+            LIMIT ${limit || 100}
+            OFFSET ${offset || 0}
+          `;
         }
+      } else if (nameCondition) {
+        if (nameCondition.operator === 'contains') {
+          const searchTerm = `%${nameCondition.value}%`;
+          users = await this.sql`
+            SELECT id, name, email, email_verified as "emailVerified",
+                   created_date as "createdAt", updated_date as "updatedAt"
+            FROM users
+            WHERE name LIKE ${searchTerm}
+            ORDER BY created_date DESC
+            LIMIT ${limit || 100}
+            OFFSET ${offset || 0}
+          `;
+        } else {
+          users = await this.sql`
+            SELECT id, name, email, email_verified as "emailVerified",
+                   created_date as "createdAt", updated_date as "updatedAt"
+            FROM users
+            WHERE name = ${nameCondition.value}
+            ORDER BY created_date DESC
+            LIMIT ${limit || 100}
+            OFFSET ${offset || 0}
+          `;
+        }
+      } else {
+        users = await this.sql`
+          SELECT id, name, email, email_verified as "emailVerified",
+                 created_date as "createdAt", updated_date as "updatedAt"
+          FROM users
+          ORDER BY created_date DESC
+          LIMIT ${limit || 100}
+          OFFSET ${offset || 0}
+        `;
       }
-      query += ` WHERE ${conditions.join(' AND ')}`;
     }
-
-    if (sortBy) {
-      // Handle field mapping for sortBy as well
-      const sortFieldName = sortBy.field === 'email_address' ? 'email' : sortBy.field;
-      query += ` ORDER BY ${sortFieldName} ${sortBy.direction.toUpperCase()}`;
-    }
-
-    if (limit) {
-      params.push(limit);
-      query += ` LIMIT $${params.length}`;
-    }
-
-    if (offset) {
-      params.push(offset);
-      query += ` OFFSET $${params.length}`;
-    }
-
-    const result = await this.rawQuery(query, params);
-    const users = Array.isArray(result) ? result : result ? [result] : [];
 
     // Add email_address field if original query used email_address
     if (hasEmailAddressField) {
       users.forEach(user => {
-        user.email_address = user.email;
+        assertDefined(user);
+        assertPropDefined(user, 'email', 'User email is undefined');
+        setAssertPropValue(user, 'email_address', user.email);
       });
     }
 
@@ -206,135 +249,138 @@ export abstract class UserRepository extends BaseRepository {
   }
 
   async betterAuthUpdateUser(where: any[], update: any): Promise<any> {
-    if (!Array.isArray(where) || where.length === 0) {
-      return null;
+    const tx = await this.beginTransaction();
+    try {
+      if (!Array.isArray(where) || where.length === 0) {
+        await tx.rollbackTransaction();
+        return null;
+      }
+
+      const { name, email, emailVerified, createdAt, updatedAt } = update;
+
+      // Convert Dates to UTC milliseconds for database storage if they exist
+      const createdAtUtc = createdAt ? new Date(createdAt ?? Date.now()) : null;
+      const updatedAtUtc = updatedAt ? new Date(updatedAt ?? Date.now()) : null;
+
+      const rows = await tx.sql`
+        UPDATE users
+        SET name = COALESCE(${name}, name),
+            email = COALESCE(${email}, email),
+            email_verified = COALESCE(${emailVerified}, email_verified),
+            created_date = COALESCE(${createdAtUtc}, created_date),
+            updated_date = COALESCE(${updatedAtUtc}, updated_date)
+        WHERE id = ${where.find(w => w.field === 'id')?.value}
+        RETURNING id, name, email, email_verified as "emailVerified",
+                 created_date as "createdAt", updated_date as "updatedAt"
+      `;
+
+      const returnValue = rows.length > 0 ? rows[0] : null;
+
+      await tx.commitTransaction();
+      return returnValue;
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
     }
-
-    const updateFields: string[] = [];
-    const params: any[] = [];
-
-    // Build update fields
-    Object.keys(update).forEach(key => {
-      const dbField =
-        key === 'emailVerified'
-          ? 'email_verified'
-          : key === 'createdAt'
-            ? 'created_date'
-            : key === 'updatedAt'
-              ? 'updated_date'
-              : key;
-      updateFields.push(`${dbField} = $${params.length + 1}`);
-      params.push(update[key]);
-    });
-
-    // Build where conditions
-    const whereConditions: string[] = [];
-    for (const condition of where) {
-      whereConditions.push(`${condition.field} = $${params.length + 1}`);
-      params.push(condition.value);
-    }
-
-    const query = `
-      UPDATE users
-      SET ${updateFields.join(', ')}, updated_date = NOW()
-      WHERE ${whereConditions.join(' AND ')}
-      RETURNING id, name, email, email_verified as "emailVerified",
-               created_date as "createdAt", updated_date as "updatedAt"
-    `;
-
-    const result = await this.rawQuery(query, params);
-    const rows = Array.isArray(result) ? result : result ? [result] : [];
-    return rows.length > 0 ? rows[0] : null;
   }
 
   async betterAuthUpdateManyUsers(where: any[], update: any): Promise<any[]> {
-    if (!Array.isArray(where) || where.length === 0) {
+    const tx = await this.beginTransaction();
+    try {
+      if (!Array.isArray(where) || where.length === 0) {
+        await tx.rollbackTransaction();
+        return [];
+      }
+
+      const { name, email, emailVerified, createdAt, updatedAt } = update;
+
+      // Convert Dates to UTC milliseconds for database storage if they exist
+      const createdAtUtc = createdAt ? new Date(createdAt ?? Date.now()) : null;
+      const updatedAtUtc = updatedAt ? new Date(updatedAt ?? Date.now()) : null;
+
+      // For multiple users, we need to handle where conditions properly
+      const idCondition = where.find(w => w.field === 'id');
+      if (idCondition) {
+        const rows = await tx.sql`
+          UPDATE users
+          SET name = COALESCE(${name}, name),
+              email = COALESCE(${email}, email),
+              email_verified = COALESCE(${emailVerified}, email_verified),
+              created_date = COALESCE(${createdAtUtc}, created_date),
+              updated_date = COALESCE(${updatedAtUtc}, updated_date)
+          WHERE id = ${idCondition.value}
+          RETURNING id, name, email, email_verified as "emailVerified",
+                   created_date as "createdAt", updated_date as "updatedAt"
+        `;
+        await tx.commitTransaction();
+        return rows;
+      }
+
+      await tx.commitTransaction();
       return [];
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
     }
-
-    const updateFields: string[] = [];
-    const params: any[] = [];
-
-    // Build update fields
-    Object.keys(update).forEach(key => {
-      const dbField =
-        key === 'emailVerified'
-          ? 'email_verified'
-          : key === 'createdAt'
-            ? 'created_date'
-            : key === 'updatedAt'
-              ? 'updated_date'
-              : key;
-      updateFields.push(`${dbField} = $${params.length + 1}`);
-      params.push(update[key]);
-    });
-
-    // Build where conditions
-    const whereConditions: string[] = [];
-    for (const condition of where) {
-      whereConditions.push(`${condition.field} = $${params.length + 1}`);
-      params.push(condition.value);
-    }
-
-    const query = `
-      UPDATE users
-      SET ${updateFields.join(', ')}, updated_date = NOW()
-      WHERE ${whereConditions.join(' AND ')}
-      RETURNING id, name, email, email_verified as "emailVerified",
-               created_date as "createdAt", updated_date as "updatedAt"
-    `;
-
-    const result = await this.rawQuery(query, params);
-    return Array.isArray(result) ? result : result ? [result] : [];
   }
 
   async betterAuthDeleteUser(where: any[]): Promise<any> {
-    if (!Array.isArray(where) || where.length === 0) {
+    const tx = await this.beginTransaction();
+    try {
+      if (!Array.isArray(where) || where.length === 0) {
+        await tx.rollbackTransaction();
+        return null;
+      }
+
+      const idCondition = where.find(w => w.field === 'id');
+      if (idCondition) {
+        const rows = await tx.sql`
+          DELETE FROM users
+          WHERE id = ${idCondition.value}
+          RETURNING id, name, email, email_verified as "emailVerified",
+                   created_date as "createdAt", updated_date as "updatedAt"
+        `;
+
+        const returnValue = rows.length > 0 ? rows[0] : null;
+
+        await tx.commitTransaction();
+        return returnValue;
+      }
+
+      await tx.commitTransaction();
       return null;
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
     }
-
-    const whereConditions: string[] = [];
-    const params: any[] = [];
-
-    for (const condition of where) {
-      whereConditions.push(`${condition.field} = $${params.length + 1}`);
-      params.push(condition.value);
-    }
-
-    const query = `
-      DELETE FROM users
-      WHERE ${whereConditions.join(' AND ')}
-      RETURNING id, name, email, email_verified as "emailVerified",
-               created_date as "createdAt", updated_date as "updatedAt"
-    `;
-
-    const result = await this.rawQuery(query, params);
-    const rows = Array.isArray(result) ? result : result ? [result] : [];
-    return rows.length > 0 ? rows[0] : null;
   }
 
   async betterAuthDeleteManyUsers(where: any[]): Promise<any[]> {
-    if (!Array.isArray(where) || where.length === 0) {
+    const tx = await this.beginTransaction();
+    try {
+      if (!Array.isArray(where) || where.length === 0) {
+        await tx.rollbackTransaction();
+        return [];
+      }
+
+      const idCondition = where.find(w => w.field === 'id');
+      if (idCondition) {
+        const rows = await tx.sql`
+          DELETE FROM users
+          WHERE id = ${idCondition.value}
+          RETURNING id, name, email, email_verified as "emailVerified",
+                   created_date as "createdAt", updated_date as "updatedAt"
+        `;
+        await tx.commitTransaction();
+        return rows;
+      }
+
+      await tx.commitTransaction();
       return [];
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
     }
-
-    const whereConditions: string[] = [];
-    const params: any[] = [];
-
-    for (const condition of where) {
-      whereConditions.push(`${condition.field} = $${params.length + 1}`);
-      params.push(condition.value);
-    }
-
-    const query = `
-      DELETE FROM users
-      WHERE ${whereConditions.join(' AND ')}
-      RETURNING id, name, email, email_verified as "emailVerified",
-               created_date as "createdAt", updated_date as "updatedAt"
-    `;
-
-    const result = await this.rawQuery(query, params);
-    return Array.isArray(result) ? result : result ? [result] : [];
   }
 
   // Session methods for better-auth (using Redis)
@@ -344,7 +390,7 @@ export abstract class UserRepository extends BaseRepository {
     const sessionId = id || v7();
 
     const session = {
-      id: sessionId,
+      id: String(sessionId),
       token,
       userId,
       expiresAt,
@@ -459,7 +505,7 @@ export abstract class UserRepository extends BaseRepository {
     return [];
   }
 
-  // Account methods for better-auth (using Redis)
+  // Account methods for better-auth (stored in auth_providers table)
   async betterAuthCreateAccount(data: any): Promise<any> {
     const {
       id,
@@ -470,88 +516,194 @@ export abstract class UserRepository extends BaseRepository {
       refreshToken,
       expiresAt,
       password,
-      createdAt = new Date(),
-      updatedAt = new Date(),
+      createdAt,
+      updatedAt,
     } = data;
 
     const accountRecordId = id || v7();
 
-    const account = {
-      id: accountRecordId,
-      userId,
-      accountId,
-      providerId,
-      accessToken,
-      refreshToken,
-      expiresAt,
-      password, // Include password for credential provider
-      createdAt,
-      updatedAt,
+    const createdDate = new Date(createdAt);
+    const updatedDate = new Date(updatedAt);
+    const accessTokenExpiresDate = expiresAt ? new Date(expiresAt) : null;
+
+    const rows = await this.sql`
+      INSERT INTO auth_providers (
+        id, account_id, provider_id, user_id, access_token, refresh_token, password,
+        access_token_expires_date, created_date, updated_date
+      ) VALUES (
+        ${String(accountRecordId)}, ${accountId}, ${providerId}, ${userId}, ${accessToken}, ${refreshToken}, ${password},
+        ${accessTokenExpiresDate}, ${createdDate}, ${updatedDate}
+      ) RETURNING id, account_id, provider_id, user_id, access_token, refresh_token, password, access_token_expires_date, created_date, updated_date;
+    `;
+
+    const row = rows[0];
+    if (!row) return null;
+
+    assertDefined(row);
+    assertPropStringOrNumber(
+      row,
+      'id',
+      `Expect user id to string, got ${unknownErrorToString(row)}`,
+    );
+    assertPropStringOrNumber(
+      row,
+      'user_id',
+      `Expect user user_id to string, got ${unknownErrorToString(row)}`,
+    );
+    assertPropStringOrNumber(
+      row,
+      'account_id',
+      `Expect user account_id to string, got ${unknownErrorToString(row)}`,
+    );
+    assertPropStringOrNumber(
+      row,
+      'provider_id',
+      `Expect user provider_id to string, got ${unknownErrorToString(row)}`,
+    );
+    assertPropNullableString(
+      row,
+      'access_token',
+      `Expect user access_token to string, got ${unknownErrorToString(row)}`,
+    );
+    assertPropNullableString(
+      row,
+      'refresh_token',
+      `Expect user refresh_token to string, got ${unknownErrorToString(row)}`,
+    );
+    assertPropString(
+      row,
+      'password',
+      `Expect user password to string, got ${unknownErrorToString(row)}`,
+    );
+
+    return {
+      id: String(row.id),
+      userId: row.user_id ? String(row.user_id) : undefined,
+      accountId: row.account_id,
+      providerId: row.provider_id,
+      accessToken: row.access_token,
+      refreshToken: row.refresh_token,
+      expiresAt:
+        'access_token_expires_date' in row && row.access_token_expires_date instanceof Date
+          ? row.access_token_expires_date
+          : undefined,
+      password: row.password,
+      createdAt:
+        'created_date' in row && row.created_date instanceof Date ? row.created_date : undefined,
+      updatedAt:
+        'updated_date' in row && row.updated_date instanceof Date ? row.updated_date : undefined,
     };
-
-    // Store account in Redis
-    await this.set(`account:${accountRecordId}`, account);
-    await this.set(`account:userId:${userId}:${providerId}`, accountRecordId);
-
-    // Also index by accountId + providerId for credential lookups
-    if (accountId && providerId) {
-      await this.set(`account:accountId:${accountId}:${providerId}`, accountRecordId);
-    }
-
-    return account;
   }
 
   async betterAuthFindOneAccount(where: any[]): Promise<any> {
-    if (!Array.isArray(where) || where.length === 0) {
-      return null;
-    }
+    if (!Array.isArray(where) || where.length === 0) return null;
 
-    // Handle different search criteria
     const userId = where.find(w => w.field === 'userId')?.value;
     const providerId = where.find(w => w.field === 'providerId')?.value;
     const accountId = where.find(w => w.field === 'accountId')?.value;
     const idField = where.find(w => w.field === 'id')?.value;
 
-    // Search by account record id
+    const mapRowToAccount = function (row: unknown) {
+      assertDefined(row);
+      assertPropStringOrNumber(
+        row,
+        'id',
+        `Expect user id to string, got ${unknownErrorToString(row)}`,
+      );
+      assertPropStringOrNumber(
+        row,
+        'user_id',
+        `Expect user user_id to string, got ${unknownErrorToString(row)}`,
+      );
+      assertPropStringOrNumber(
+        row,
+        'account_id',
+        `Expect user account_id to string, got ${unknownErrorToString(row)}`,
+      );
+      assertPropStringOrNumber(
+        row,
+        'provider_id',
+        `Expect user provider_id to string, got ${unknownErrorToString(row)}`,
+      );
+      assertPropNullableString(
+        row,
+        'access_token',
+        `Expect user access_token to string, got ${unknownErrorToString(row)}`,
+      );
+      assertPropNullableString(
+        row,
+        'refresh_token',
+        `Expect user refresh_token to string, got ${unknownErrorToString(row)}`,
+      );
+      assertPropString(
+        row,
+        'password',
+        `Expect user password to string, got ${unknownErrorToString(row)}`,
+      );
+      return {
+        id: String(row.id),
+        userId: row.user_id ? String(row.user_id) : undefined,
+        accountId: row.account_id,
+        providerId: row.provider_id,
+        accessToken: row.access_token,
+        refreshToken: row.refresh_token,
+        expiresAt:
+          'access_token_expires_date' in row && row.access_token_expires_date instanceof Date
+            ? row.access_token_expires_date.toISOString()
+            : undefined,
+        password: row.password,
+        createdAt:
+          'created_date' in row && row.created_date instanceof Date
+            ? row.created_date.toISOString()
+            : undefined,
+        updatedAt:
+          'updated_date' in row && row.updated_date instanceof Date
+            ? row.updated_date.toISOString()
+            : undefined,
+      };
+    };
+
     if (idField) {
-      const account = await this.get(`account:${idField}`);
-      if (account) {
-        return account;
-      }
+      const rows = await this.sql`
+        SELECT id, account_id, provider_id, user_id, access_token, refresh_token, password, access_token_expires_date, created_date, updated_date
+        FROM auth_providers WHERE id = ${String(idField)} LIMIT 1
+      `;
+      const row = rows[0];
+      if (row) return mapRowToAccount(row);
     }
 
-    // Search by accountId + providerId
     if (accountId && providerId) {
-      const accountRecordId = await this.get(`account:accountId:${accountId}:${providerId}`);
-      if (accountRecordId) {
-        const account = await this.get(`account:${accountRecordId}`);
-        if (account) {
-          return account;
-        }
-      }
+      const rows = await this.sql`
+        SELECT id, account_id, provider_id, user_id, access_token, refresh_token, password, access_token_expires_date, created_date, updated_date
+        FROM auth_providers WHERE account_id = ${accountId} AND provider_id = ${providerId} LIMIT 1
+      `;
+      const row = rows[0];
+      if (row) return mapRowToAccount(row);
     }
 
-    // Search by userId + providerId
     if (userId && providerId) {
-      const accountRecordId = await this.get(`account:userId:${userId}:${providerId}`);
-      if (accountRecordId) {
-        const account = await this.get(`account:${accountRecordId}`);
-        if (account) {
-          return account;
-        }
-      }
+      const rows = await this.sql`
+        SELECT id, account_id, provider_id, user_id, access_token, refresh_token, password, access_token_expires_date, created_date, updated_date
+        FROM auth_providers WHERE user_id = ${userId} AND provider_id = ${providerId} LIMIT 1
+      `;
+      const row = rows[0];
+      if (row) return mapRowToAccount(row);
     }
 
-    // Search by userId alone (need to check all providers)
     if (userId && !providerId) {
-      // For email/password authentication, try credential provider
-      const credentialAccountId = await this.get(`account:userId:${userId}:credential`);
-      if (credentialAccountId) {
-        const account = await this.get(`account:${credentialAccountId}`);
-        if (account) {
-          return account;
-        }
+      const rows = await this.sql`
+        SELECT id, account_id, provider_id, user_id, access_token, refresh_token, password, access_token_expires_date, created_date, updated_date
+        FROM auth_providers WHERE user_id = ${userId} AND provider_id = 'credential' LIMIT 1
+      `;
+      let row = rows[0];
+      if (!row) {
+        const rows = await this.sql`
+          SELECT id, account_id, provider_id, user_id, access_token, refresh_token, password, access_token_expires_date, created_date, updated_date
+          FROM auth_providers WHERE user_id = ${userId} LIMIT 1
+        `;
+        row = rows[0];
       }
+      if (row) return mapRowToAccount(row);
     }
 
     return null;
@@ -563,36 +715,95 @@ export abstract class UserRepository extends BaseRepository {
     offset?: number,
     sortBy?: any,
   ): Promise<any[]> {
-    // This is a simplified implementation
-    // In a real scenario, you'd need proper indexing for accounts
-
-    if (!where || where.length === 0) {
-      // Return empty array for now - finding all accounts would require scanning all keys
-      return [];
-    }
+    if (!where || where.length === 0) return [];
 
     const account = await this.betterAuthFindOneAccount(where);
     return account ? [account] : [];
   }
 
   async betterAuthUpdateAccount(where: any[], update: any): Promise<any> {
-    if (!Array.isArray(where) || where.length === 0) {
-      return null;
-    }
-
-    // Find the account first
+    if (!Array.isArray(where) || where.length === 0) return null;
     const account = await this.betterAuthFindOneAccount(where);
-    if (!account) {
-      return null;
-    }
+    if (!account) return null;
 
-    // Update the account data
-    const updatedAccount = { ...account, ...update, updatedAt: new Date() };
+    const { accountId, providerId, userId, accessToken, refreshToken, expiresAt, password } =
+      update;
 
-    // Update in Redis
-    await this.set(`account:${account.id}`, updatedAccount);
+    const updatedAt = new Date();
+    const updatedAtUtc = updatedAt;
+    const accessTokenExpiresUtc = expiresAt ? new Date(expiresAt) : null;
 
-    return updatedAccount;
+    const rows = await this.sql`
+      UPDATE auth_providers SET
+        account_id = COALESCE(${accountId}, account_id),
+        provider_id = COALESCE(${providerId}, provider_id),
+        user_id = COALESCE(${userId}, user_id),
+        access_token = COALESCE(${accessToken}, access_token),
+        refresh_token = COALESCE(${refreshToken}, refresh_token),
+        password = COALESCE(${password}, password),
+        access_token_expires_date = COALESCE(${accessTokenExpiresUtc}, access_token_expires_date),
+        updated_date = ${updatedAtUtc}
+      WHERE id = ${account.id}
+      RETURNING id, account_id, provider_id, user_id, access_token, refresh_token, password, access_token_expires_date, created_date, updated_date;
+    `;
+
+    const row = rows[0];
+    if (!row) return null;
+
+    assertDefined(row);
+    assertPropStringOrNumber(
+      row,
+      'id',
+      `Expect user id to string, got ${unknownErrorToString(row)}`,
+    );
+    assertPropStringOrNumber(
+      row,
+      'user_id',
+      `Expect user user_id to string, got ${unknownErrorToString(row)}`,
+    );
+    assertPropStringOrNumber(
+      row,
+      'account_id',
+      `Expect user account_id to string, got ${unknownErrorToString(row)}`,
+    );
+    assertPropStringOrNumber(
+      row,
+      'provider_id',
+      `Expect user provider_id to string, got ${unknownErrorToString(row)}`,
+    );
+    assertPropNullableString(
+      row,
+      'access_token',
+      `Expect user access_token to string, got ${unknownErrorToString(row)}`,
+    );
+    assertPropNullableString(
+      row,
+      'refresh_token',
+      `Expect user refresh_token to string, got ${unknownErrorToString(row)}`,
+    );
+    assertPropString(
+      row,
+      'password',
+      `Expect user password to string, got ${unknownErrorToString(row)}`,
+    );
+
+    return {
+      id: String(row.id),
+      userId: row.user_id ? String(row.user_id) : undefined,
+      accountId: row.account_id,
+      providerId: row.provider_id,
+      accessToken: row.access_token,
+      refreshToken: row.refresh_token,
+      expiresAt:
+        'access_token_expires_date' in row && row.access_token_expires_date instanceof Date
+          ? row.access_token_expires_date
+          : undefined,
+      password: row.password,
+      createdAt:
+        'created_date' in row && row.created_date instanceof Date ? row.created_date : undefined,
+      updatedAt:
+        'updated_date' in row && row.updated_date instanceof Date ? row.updated_date : undefined,
+    };
   }
 
   async betterAuthUpdateManyAccounts(where: any[], update: any): Promise<any[]> {
@@ -601,22 +812,11 @@ export abstract class UserRepository extends BaseRepository {
   }
 
   async betterAuthDeleteAccount(where: any[]): Promise<any> {
-    if (!Array.isArray(where) || where.length === 0) {
-      return null;
-    }
-
-    // Find the account first
+    if (!Array.isArray(where) || where.length === 0) return null;
     const account = await this.betterAuthFindOneAccount(where);
-    if (!account) {
-      return null;
-    }
+    if (!account) return null;
 
-    // Delete from Redis
-    await this.del(`account:${account.id}`);
-    if (account.userId && account.providerId) {
-      await this.del(`account:userId:${account.userId}:${account.providerId}`);
-    }
-
+    await this.sql`DELETE FROM auth_providers WHERE id = ${account.id}`;
     return account;
   }
 
@@ -625,7 +825,6 @@ export abstract class UserRepository extends BaseRepository {
     return account ? [account] : [];
   }
 
-  // Verification methods for better-auth (using Redis)
   async betterAuthCreateVerification(data: any): Promise<any> {
     const {
       id,
@@ -829,185 +1028,343 @@ export abstract class UserRepository extends BaseRepository {
 
   // Profile management methods
   async userUpdatesProfile(params: UserUpdatesProfileParams): Promise<UserUpdatesProfileResult> {
-    const { id, fullName, profilePictureUrl, updateDate } = params;
+    const tx = await this.beginTransaction();
+    try {
+      const { id, fullName, profilePictureUrl, updateDate } = params;
 
-    const result = await this.sql`
-      UPDATE users
-      SET full_name = COALESCE(${fullName}, full_name),
-          profile_picture = COALESCE(${profilePictureUrl}, profile_picture)
-      WHERE id = ${id}
-      RETURNING id, full_name, profile_picture;
-    `;
+      const rows = await tx.sql`
+        UPDATE users
+        SET name = COALESCE(${fullName}, name),
+            profile_picture = COALESCE(${profilePictureUrl}, profile_picture),
+            updated_date = ${updateDate}
+        WHERE id = ${id}
+        RETURNING id, name, profile_picture, updated_date;
+      `;
 
-    assertDefined(result, 'Update operation failed');
-    const user = Array.isArray(result) ? result[0] : result;
+      const user = rows[0];
+      assertDefined(user, 'User not found or update failed');
+      assertPropStringOrNumber(
+        user,
+        'id',
+        `Expect user id to string, got ${unknownErrorToString(user)}`,
+      );
+      assertPropString(
+        user,
+        'name',
+        `Expect user name to string, got ${unknownErrorToString(user)}`,
+      );
+      assertPropNullableString(
+        user,
+        'profile_picture',
+        `Expect user profile_picture to string, got ${unknownErrorToString(user)}`,
+      );
 
-    return {
-      id: user.id,
-      fullName: user.full_name,
-      profilePictureUrl: user.profile_picture,
-      updatedDate: updateDate, // Return the passed Date instance
-    };
+      const returnValue: UserUpdatesProfileResult = {
+        id: String(user.id),
+        fullName: user.name,
+        profilePictureUrl: user.profile_picture,
+        updatedDate: updateDate,
+      };
+
+      await tx.commitTransaction();
+      return returnValue;
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  // Mandatory choise between KYC or Institution Application
+  async userDecidesUserType(params: UserDecidesUserTypeParams): Promise<void> {
+    const tx = await this.beginTransaction();
+    try {
+      const { userId, userType, decisionDate } = params;
+
+      const rows = await tx.sql`
+        UPDATE users
+        SET user_type = ${userType}, user_type_selected_date = ${decisionDate}
+        WHERE id = ${userId} AND user_type = 'Undecided'
+        RETURNING id;
+      `;
+
+      const row = rows[0];
+
+      if (!row) {
+        await tx.rollbackTransaction();
+        throw new Error('User type decision failed or already made');
+      }
+
+      await tx.commitTransaction();
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
+    }
   }
 
   // KYC methods
   async userSubmitsKyc(params: UserSubmitsKycParams): Promise<UserSubmitsKYCResult> {
-    const {
-      userId,
-      idCardPhoto,
-      selfiePhoto,
-      selfieWithIdCardPhoto,
-      nik,
-      fullName,
-      birthCity,
-      birthDate,
-      province,
-      city,
-      district,
-      subdistrict,
-      address,
-      postalCode,
-      phoneNumber,
-      submissionDate,
-    } = params;
+    const tx = await this.beginTransaction();
+    try {
+      const {
+        userId,
+        idCardPhoto,
+        selfiePhoto,
+        selfieWithIdCardPhoto,
+        nik,
+        fullName,
+        birthCity,
+        birthDate,
+        province,
+        city,
+        district,
+        subdistrict,
+        address,
+        postalCode,
+        phoneNumber,
+        submissionDate,
+      } = params;
 
-    const result = await this.sql`
-      INSERT INTO user_kycs (
-        user_id, submitted_date, id_card_photo, selfie_photo, selfie_with_id_card_photo,
-        nik, full_name, birth_city, birth_date, province, city,
-        district, subdistrict, address, postal_code, phone_number
-      )
-      VALUES (
-        ${userId}, ${submissionDate}, ${idCardPhoto}, ${selfiePhoto}, ${selfieWithIdCardPhoto},
-        ${nik}, ${fullName}, ${birthCity}, ${birthDate}, ${province}, ${city},
-        ${district}, ${subdistrict}, ${address}, ${postalCode}, ${phoneNumber}
-      )
-      RETURNING id, user_id;
-    `;
+      const rows = await tx.sql`
+        INSERT INTO user_kycs (
+          user_id, submitted_date, id_card_photo, selfie_photo, selfie_with_id_card_photo,
+          nik, name, birth_city, birth_date, province, city,
+          district, subdistrict, address, postal_code, phone_number
+        )
+        VALUES (
+          ${userId}, ${submissionDate}, ${idCardPhoto}, ${selfiePhoto}, ${selfieWithIdCardPhoto},
+          ${nik}, ${fullName}, ${birthCity}, ${birthDate}, ${province}, ${city},
+          ${district}, ${subdistrict}, ${address}, ${postalCode}, ${phoneNumber}
+        )
+        RETURNING id, user_id;
+      `;
 
-    assertDefined(result, 'KYC submission failed');
-    const kyc = Array.isArray(result) ? result[0] : result;
+      const kyc = rows[0];
+      assertDefined(kyc, 'KYC submission failed');
+      assertPropStringOrNumber(
+        kyc,
+        'id',
+        `Expect kyc id to string, got ${unknownErrorToString(kyc)}`,
+      );
+      assertPropStringOrNumber(
+        kyc,
+        'user_id',
+        `Expect kyc user_id to string, got ${unknownErrorToString(kyc)}`,
+      );
 
-    return {
-      id: kyc.id,
-      userId: kyc.user_id,
-    };
+      await tx.commitTransaction();
+
+      return {
+        id: String(kyc.id),
+        userId: String(kyc.user_id),
+      };
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
+    }
   }
 
   async userViewsKYCStatus(params: UserViewKYCStatusParams): Promise<UserViewKYCSStatusResult> {
     const { userId } = params;
 
-    const result = await this.sql`
+    const rows = await this.sql`
       SELECT id, user_id, submitted_date, verified_date, rejected_date, rejection_reason
       FROM user_kycs
       WHERE user_id = ${userId}
       ORDER BY submitted_date DESC
       LIMIT 1
     `;
+    const kycs = rows;
 
-    const kycs = Array.isArray(result) ? result : [result];
-
-    if (kycs.length === 0) {
+    if (kycs.length === 0 || !kycs[0]) {
       return {
-        userId,
-        status: 'none',
+        userId: String(userId),
+        status: 'none' as const,
         canResubmit: true,
       };
     }
 
     const kyc = kycs[0];
+    assertPropStringOrNumber(
+      kyc,
+      'id',
+      `Expect kyc id to string, got ${unknownErrorToString(kyc)}`,
+    );
+    assertPropStringOrNumber(
+      kyc,
+      'user_id',
+      `Expect kyc user_id to string, got ${unknownErrorToString(kyc)}`,
+    );
 
     let status: 'none' | 'pending' | 'verified' | 'rejected';
-    if (kyc.verified_date) {
+    if ('verified_date' in kyc && kyc.verified_date) {
       status = 'verified';
-    } else if (kyc.rejected_date) {
+    } else if ('rejected_date' in kyc && kyc.rejected_date) {
       status = 'rejected';
     } else {
       status = 'pending';
     }
 
     return {
-      id: kyc.id,
-      userId: kyc.user_id,
+      id: String(kyc.id),
+      userId: String(kyc.user_id),
       status,
-      submittedDate: kyc.submitted_date ? new Date(kyc.submitted_date) : undefined,
-      verifiedDate: kyc.verified_date ? new Date(kyc.verified_date) : undefined,
-      rejectedDate: kyc.rejected_date ? new Date(kyc.rejected_date) : undefined,
-      rejectionReason: kyc.rejection_reason,
+      submittedDate:
+        'submitted_date' in kyc && kyc.submitted_date instanceof Date
+          ? kyc.submitted_date
+          : undefined,
+      verifiedDate:
+        'verified_date' in kyc && kyc.verified_date instanceof Date ? kyc.verified_date : undefined,
+      rejectedDate:
+        'rejected_date' in kyc && kyc.rejected_date instanceof Date ? kyc.rejected_date : undefined,
+      rejectionReason:
+        'rejection_reason' in kyc && typeof kyc.rejection_reason === 'string'
+          ? kyc.rejection_reason
+          : undefined,
       canResubmit: status === 'rejected',
     };
   }
 
   async adminApprovesKYCParam(params: AdminApprovesKycParams): Promise<AdminApprovesKycResult> {
-    const { kycId, verifierUserId, approvalDate } = params;
+    const tx = await this.beginTransaction();
+    try {
+      const { kycId, verifierUserId, approvalDate } = params;
 
-    const result = await this.sql`
-      UPDATE user_kycs
-      SET verifier_user_id = ${verifierUserId},
-          verified_date = ${approvalDate}
-      WHERE id = ${kycId} AND verified_date IS NULL AND rejected_date IS NULL
-      RETURNING id, user_id, verified_date;
-    `;
+      const rows = await tx.sql`
+        UPDATE user_kycs
+        SET verifier_user_id = ${verifierUserId},
+            verified_date = ${approvalDate}
+        WHERE id = ${kycId} AND verified_date IS NULL AND rejected_date IS NULL
+        RETURNING id, user_id, verified_date;
+      `;
 
-    if (!result || (Array.isArray(result) && result.length === 0)) {
-      throw new Error('KYC approval failed');
+      if (rows.length === 0) {
+        await tx.rollbackTransaction();
+        throw new Error('KYC approval failed');
+      }
+
+      const kyc = rows[0];
+      assertDefined(kyc, 'KYC not found or already processed');
+      assertPropStringOrNumber(
+        kyc,
+        'id',
+        `Expect kyc id to string, got ${unknownErrorToString(kyc)}`,
+      );
+      assertPropStringOrNumber(
+        kyc,
+        'user_id',
+        `Expect kyc user_id to string, got ${unknownErrorToString(kyc)}`,
+      );
+      assertPropDate(
+        kyc,
+        'verified_date',
+        `Expect kyc verified_date to Date, got ${unknownErrorToString(kyc)}`,
+      );
+
+      await tx.commitTransaction();
+
+      return {
+        id: String(kyc.id),
+        userId: String(kyc.user_id),
+        verifiedDate: kyc.verified_date,
+      };
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
     }
-
-    const kyc = Array.isArray(result) ? result[0] : result;
-
-    // KYC ID is no longer stored in users table
-    // The relationship is maintained through the user_kycs table
-
-    return {
-      id: kyc.id,
-      userId: kyc.user_id,
-      verifiedDate: new Date(kyc.verified_date),
-    };
   }
 
   async adminRejectsKyc(params: AdminRejectsKycParams): Promise<AdminRejectsKycResult> {
-    const { kycId, verifierUserId, rejectionReason, rejectionDate } = params;
+    const tx = await this.beginTransaction();
+    try {
+      const { kycId, verifierUserId, rejectionReason, rejectionDate } = params;
 
-    const result = await this.sql`
-      UPDATE user_kycs
-      SET verifier_user_id = ${verifierUserId},
-          rejected_date = ${rejectionDate},
-          rejection_reason = ${rejectionReason}
-      WHERE id = ${kycId} AND verified_date IS NULL AND rejected_date IS NULL
-      RETURNING id, user_id, rejected_date;
-    `;
+      const rows = await tx.sql`
+        UPDATE user_kycs
+        SET verifier_user_id = ${verifierUserId},
+            rejected_date = ${rejectionDate},
+            rejection_reason = ${rejectionReason}
+        WHERE id = ${kycId} AND verified_date IS NULL AND rejected_date IS NULL
+        RETURNING id, user_id, rejected_date;
+      `;
 
-    if (!result || (Array.isArray(result) && result.length === 0)) {
-      throw new Error('KYC rejection failed');
+      if (rows.length === 0) {
+        await tx.rollbackTransaction();
+        throw new Error('KYC not found or already processed');
+      }
+
+      const kyc = rows[0];
+      assertDefined(kyc, 'KYC not found or already processed');
+      assertPropStringOrNumber(
+        kyc,
+        'id',
+        `Expect kyc id to string, got ${unknownErrorToString(kyc)}`,
+      );
+      assertPropStringOrNumber(
+        kyc,
+        'user_id',
+        `Expect kyc user_id to string, got ${unknownErrorToString(kyc)}`,
+      );
+      assertPropDate(
+        kyc,
+        'rejected_date',
+        `Expect kyc rejected_date to Date, got ${unknownErrorToString(kyc)}`,
+      );
+
+      await tx.commitTransaction();
+
+      return {
+        id: String(kyc.id),
+        userId: String(kyc.user_id),
+        rejectedDate: kyc.rejected_date,
+      };
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
     }
-
-    const kyc = Array.isArray(result) ? result[0] : result;
-
-    return {
-      id: kyc.id,
-      userId: kyc.user_id,
-      rejectedDate: new Date(kyc.rejected_date),
-    };
   }
 
   async adminViewsPendingKYCs(): Promise<AdminViewPendingKycsResult> {
-    const result = await this.sql`
-      SELECT id, user_id, full_name, nik, submitted_date
+    const rows = await this.sql`
+      SELECT id, user_id, name, nik, submitted_date
       FROM user_kycs
       WHERE verified_date IS NULL AND rejected_date IS NULL
       ORDER BY submitted_date ASC
     `;
 
-    const kycs = Array.isArray(result) ? result : result ? [result] : [];
+    const kycs = rows;
 
     return {
-      kycs: kycs.map((kyc: any) => ({
-        id: kyc.id,
-        userId: kyc.user_id,
-        fullName: kyc.full_name,
-        nik: kyc.nik,
-        submittedDate: new Date(kyc.submitted_date),
-      })),
+      kycs: kycs.map(function (kyc: unknown) {
+        assertDefined(kyc);
+        assertPropStringOrNumber(
+          kyc,
+          'id',
+          `Expect kyc id to string, got ${unknownErrorToString(kyc)}`,
+        );
+        assertPropStringOrNumber(
+          kyc,
+          'user_id',
+          `Expect kyc user_id to string, got ${unknownErrorToString(kyc)}`,
+        );
+        assertPropString(
+          kyc,
+          'name',
+          `Expect kyc name to string, got ${unknownErrorToString(kyc)}`,
+        );
+        assertPropString(kyc, 'nik', `Expect kyc nik to string, got ${unknownErrorToString(kyc)}`);
+        assertPropDate(
+          kyc,
+          'submitted_date',
+          `Expect kyc submitted_date to Date, got ${unknownErrorToString(kyc)}`,
+        );
+        return {
+          id: String(kyc.id),
+          userId: String(kyc.user_id),
+          fullName: kyc.name,
+          nik: kyc.nik,
+          submittedDate: kyc.submitted_date,
+        };
+      }),
     };
   }
 
@@ -1015,229 +1372,578 @@ export abstract class UserRepository extends BaseRepository {
   async userAppliesForInstitution(
     params: UserAppliesForInstitutionParams,
   ): Promise<UserAppliesForInstitutionResult> {
-    const { applicantUserId, businessName, applicationDate } = params;
+    const tx = await this.beginTransaction();
+    try {
+      const { applicantUserId, businessName, applicationDate } = params;
 
-    const result = await this.sql`
-      INSERT INTO institution_applications (
-        applicant_user_id, business_name, business_description, business_type,
-        npwp_number, npwp_document_path, registration_number, registration_document_path,
-        deed_of_establishment_path, domicile_certificate_path, business_address,
-        business_city, business_province, business_postal_code, director_name,
-        director_id_card_path, submitted_date
-      )
-      VALUES (
-        ${applicantUserId}, ${businessName}, 'Business Description', 'PT',
-        '01.234.567.8-901.234', '/path/to/npwp.pdf', 'NIB1234567890', '/path/to/registration.pdf',
-        '/path/to/deed.pdf', '/path/to/domicile.pdf', 'Business Address',
-        'Jakarta', 'DKI Jakarta', '12345', 'Director Name',
-        '/path/to/director_id.pdf', ${applicationDate}
-      )
-      RETURNING id, applicant_user_id, business_name;
-    `;
+      const rows = await tx.sql`
+        INSERT INTO institution_applications (
+          applicant_user_id, business_name, business_description, business_type,
+          npwp_number, npwp_document_path, registration_number, registration_document_path,
+          deed_of_establishment_path, business_address,
+          business_city, business_province, business_postal_code, director_name,
+          director_id_card_path, submitted_date
+        )
+        VALUES (
+          ${applicantUserId}, ${businessName}, 'Business Description', 'PT',
+          '01.234.567.8-901.234', '/path/to/npwp.pdf', 'NIB1234567890', '/path/to/registration.pdf',
+          '/path/to/deed.pdf', 'Business Address',
+          'Jakarta', 'DKI Jakarta', '12345', 'Director Name',
+          '/path/to/director_id.pdf', ${applicationDate}
+        )
+        RETURNING id, applicant_user_id, business_name;
+      `;
 
-    assertDefined(result, 'Institution application failed');
-    const application = Array.isArray(result) ? result[0] : result;
+      const application = rows[0];
+      assertDefined(application, 'Institution application failed');
+      assertPropStringOrNumber(
+        application,
+        'id',
+        `Expect application id to string, got ${unknownErrorToString(application)}`,
+      );
+      assertPropStringOrNumber(
+        application,
+        'applicant_user_id',
+        `Expect application applicant_user_id to string, got ${unknownErrorToString(application)}`,
+      );
+      assertPropString(
+        application,
+        'business_name',
+        `Expect application business_name to string, got ${unknownErrorToString(application)}`,
+      );
 
-    return {
-      id: application.id,
-      applicantUserId: application.applicant_user_id,
-      businessName: application.business_name,
-    };
+      await tx.commitTransaction();
+
+      return {
+        id: String(application.id),
+        applicantUserId: String(application.applicant_user_id),
+        businessName: application.business_name,
+      };
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
+    }
   }
 
   async adminApprovesInstitutionApplication(
     params: AdminApprovesInstitutionApplicationParams,
   ): Promise<AdminApprovesInstitutionApplicationResult> {
-    const { applicationId, reviewerUserId: verifierUserId, approvalDate } = params;
+    const tx = await this.beginTransaction();
+    try {
+      const { applicationId, reviewerUserId, approvalDate } = params;
 
-    // Get application details
-    const application = await this.sql`
-      SELECT id, applicant_user_id, business_name
-      FROM institution_applications
-      WHERE id = ${applicationId} AND verified_date IS NULL AND rejected_date IS NULL
-    `;
+      // Get application details
+      const rows = await tx.sql`
+        SELECT id, applicant_user_id, business_name
+        FROM institution_applications
+        WHERE id = ${applicationId} AND verified_date IS NULL AND rejected_date IS NULL
+      `;
 
-    if (!application || (Array.isArray(application) && application.length === 0)) {
-      throw new Error('Application not found or already processed');
+      if (rows.length === 0) {
+        await tx.rollbackTransaction();
+        throw new Error('Application not found or already processed');
+      }
+
+      const application = rows[0];
+      assertDefined(application, 'Application not found or already processed');
+      assertPropStringOrNumber(
+        application,
+        'id',
+        `Expect application id to string, got ${unknownErrorToString(application)}`,
+      );
+      assertPropStringOrNumber(
+        application,
+        'applicant_user_id',
+        `Expect application applicant_user_id to string, got ${unknownErrorToString(application)}`,
+      );
+      assertPropString(
+        application,
+        'business_name',
+        `Expect application business_name to string, got ${unknownErrorToString(application)}`,
+      );
+
+      // Update application status (trigger will handle user update)
+      await tx.sql`
+        UPDATE institution_applications
+        SET reviewer_user_id = ${reviewerUserId}, verified_date = ${approvalDate}
+        WHERE id = ${applicationId}
+      `;
+
+      await tx.commitTransaction();
+
+      return {
+        institutionId: String(application.applicant_user_id), // The applicant becomes the institution owner
+        applicationId: String(applicationId),
+      };
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
     }
-
-    const app = Array.isArray(application) ? application[0] : application;
-
-    // Update application status (trigger will handle user update)
-    await this.sql`
-      UPDATE institution_applications
-      SET reviewer_user_id = ${verifierUserId}, verified_date = ${approvalDate}
-      WHERE id = ${applicationId}
-    `;
-
-    return {
-      institutionId: app.applicant_user_id, // The applicant becomes the institution owner
-      applicationId: applicationId,
-    };
   }
 
   async rejectInstitutionApplication(
     params: AdminRejectsInstitutionApplicationParams,
   ): Promise<AdminRejectsInstitutionApplicationResult> {
-    const { applicationId, reviewerUserId, rejectionReason, rejectionDate } = params;
+    const tx = await this.beginTransaction();
+    try {
+      const { applicationId, reviewerUserId, rejectionReason, rejectionDate } = params;
 
-    const result = await this.sql`
-      UPDATE institution_applications
-      SET reviewer_user_id = ${reviewerUserId},
-          rejected_date = ${rejectionDate},
-          rejection_reason = ${rejectionReason}
-      WHERE id = ${applicationId} AND verified_date IS NULL AND rejected_date IS NULL
-      RETURNING id, rejected_date;
-    `;
+      const rows = await tx.sql`
+        UPDATE institution_applications
+        SET reviewer_user_id = ${reviewerUserId},
+            rejected_date = ${rejectionDate},
+            rejection_reason = ${rejectionReason}
+        WHERE id = ${applicationId} AND verified_date IS NULL AND rejected_date IS NULL
+        RETURNING id, rejected_date;
+      `;
 
-    if (!result || (Array.isArray(result) && result.length === 0)) {
-      throw new Error('Application rejection failed');
+      if (rows.length === 0) {
+        await tx.rollbackTransaction();
+        throw new Error('Application rejection failed');
+      }
+
+      const application = rows[0];
+      assertDefined(application, 'Application not found or already processed');
+      assertPropStringOrNumber(
+        application,
+        'id',
+        `Expect application id to string, got ${unknownErrorToString(application)}`,
+      );
+      assertPropDate(
+        application,
+        'rejected_date',
+        `Expect application rejected_date to Date, got ${unknownErrorToString(application)}`,
+      );
+
+      await tx.commitTransaction();
+      return {
+        id: String(application.id),
+        rejectedDate: application.rejected_date,
+      };
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
     }
-
-    const app = Array.isArray(result) ? result[0] : result;
-
-    return {
-      id: app.id,
-      rejectedDate: new Date(app.rejected_date),
-    };
   }
 
   async ownerUserInvitesUserToInstitution(
     params: OwnerUserInvitesUserToInstitutionParams,
   ): Promise<OwnerUserInvitesUserToInstitutionResult> {
-    const { institutionId, userId, role, invitationDate } = params;
+    const tx = await this.beginTransaction();
+    try {
+      const { institutionId, userId, role, invitationDate } = params;
 
-    // Create pending invitation (not auto-accepted)
-    const result = await this.sql`
-      INSERT INTO institution_invitations (institution_user_id, role, invited_date)
-      VALUES (${institutionId}, ${role}, ${invitationDate})
-      RETURNING id, institution_user_id, role;
-    `;
+      // Calculate expiration date (7 days from invitation date)
+      const expirationDate = new Date(invitationDate);
+      expirationDate.setDate(expirationDate.getDate() + 7);
 
-    const rows = Array.isArray(result) ? result : [result];
-    if (rows.length === 0) {
-      throw new Error('Institution invitation failed');
+      // Create pending invitation (not auto-accepted)
+      const rows = await tx.sql`
+        INSERT INTO institution_invitations (institution_user_id, target_user_id, role, invited_date, expires_date)
+        VALUES (${institutionId}, ${userId}, ${role}, ${invitationDate}, ${expirationDate})
+        RETURNING id, institution_user_id, target_user_id, role;
+      `;
+
+      if (rows.length === 0) {
+        await tx.rollbackTransaction();
+        throw new Error('Institution invitation failed');
+      }
+
+      const invitation = rows[0];
+      assertDefined(invitation, 'Institution invitation failed');
+      assertPropStringOrNumber(
+        invitation,
+        'id',
+        `Expect invitation id to string, got ${unknownErrorToString(invitation)}`,
+      );
+      assertPropStringOrNumber(
+        invitation,
+        'institution_user_id',
+        `Expect invitation institution_user_id to string, got ${unknownErrorToString(invitation)}`,
+      );
+      assertPropStringOrNumber(
+        invitation,
+        'target_user_id',
+        `Expect invitation target_user_id to string, got ${unknownErrorToString(invitation)}`,
+      );
+      assertPropString(
+        invitation,
+        'role',
+        `Expect invitation role to string, got ${unknownErrorToString(invitation)}`,
+      );
+
+      await tx.commitTransaction();
+
+      return {
+        id: String(invitation.id),
+        institutionId: String(invitation.institution_user_id),
+        userId: String(invitation.target_user_id),
+        role: invitation.role,
+      };
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
     }
-
-    const invitation = rows[0];
-
-    return {
-      id: invitation.id,
-      institutionId: invitation.institution_user_id,
-      userId: userId, // Note: new schema doesn't have user_id in invitations
-      role: invitation.role,
-    };
   }
 
   async userAcceptsInstitutionInvitation(
     params: UserAcceptsInstitutionInvitationParams,
   ): Promise<UserAcceptsInstitutionInvitationResult> {
-    const { invitationId, userId, acceptanceDate } = params;
+    const tx = await this.beginTransaction();
+    try {
+      const { invitationId, userId, acceptanceDate } = params;
 
-    // Get invitation details
-    const invitation = await this.sql`
-      SELECT institution_user_id, role
-      FROM institution_invitations
-      WHERE id = ${invitationId} AND accepted_date IS NULL AND rejected_date IS NULL
-    `;
+      // Get invitation details
+      const invitationRows = await tx.sql`
+        SELECT institution_user_id, role
+        FROM institution_invitations
+        WHERE id = ${invitationId} AND accepted_date IS NULL AND rejected_date IS NULL
+      `;
 
-    if (!invitation || (Array.isArray(invitation) && invitation.length === 0)) {
-      throw new Error('Invitation not found or already processed');
+      if (invitationRows.length === 0) {
+        await tx.rollbackTransaction();
+        throw new Error('Invitation not found or already processed');
+      }
+
+      // Convert Date to UTC timestamp for database storage
+      const acceptanceTimestamp = acceptanceDate.toISOString();
+
+      // Update invitation status (trigger will handle user update)
+      const updatedInvitationRows = await tx.sql`
+        UPDATE institution_invitations
+        SET accepted_date = ${acceptanceTimestamp}
+        WHERE id = ${invitationId}
+        RETURNING id, institution_user_id, accepted_date;
+      `;
+
+      const updatedInvitation = updatedInvitationRows[0];
+      assertDefined(updatedInvitation, 'Failed to update invitation status');
+      assertPropStringOrNumber(
+        updatedInvitation,
+        'id',
+        `Expect invitation id to string, got ${unknownErrorToString(updatedInvitation)}`,
+      );
+      assertPropStringOrNumber(
+        updatedInvitation,
+        'institution_user_id',
+        `Expect invitation institution_user_id to string, got ${unknownErrorToString(updatedInvitation)}`,
+      );
+      assertPropDate(
+        updatedInvitation,
+        'accepted_date',
+        `Expect invitation accepted_date to Date, got ${unknownErrorToString(updatedInvitation)}`,
+      );
+
+      await tx.commitTransaction();
+
+      return {
+        id: String(updatedInvitation.id),
+        institutionId: String(updatedInvitation.institution_user_id),
+        acceptedDate: new Date(updatedInvitation.accepted_date),
+      };
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
     }
-
-    const _inv = Array.isArray(invitation) ? invitation[0] : invitation;
-
-    // Update invitation status (trigger will handle user update)
-    const result = await this.sql`
-      UPDATE institution_invitations
-      SET accepted_date = ${acceptanceDate}
-      WHERE id = ${invitationId}
-      RETURNING id, institution_user_id, accepted_date;
-    `;
-
-    assertDefined(result, 'Invitation acceptance failed');
-    const updatedInv = Array.isArray(result) ? result[0] : result;
-
-    return {
-      id: updatedInv.id,
-      institutionId: updatedInv.institution_user_id,
-      acceptedDate: new Date(updatedInv.accepted_date),
-    };
   }
 
   async userRejectsInstitutionInvitation(
     params: UserRejectsInstitutionInvitationParams,
   ): Promise<UserRejectsInstitutionInvitationResult> {
-    const { invitationId, userId, rejectionReason, rejectionDate } = params;
+    const tx = await this.beginTransaction();
+    try {
+      const { invitationId, userId, rejectionReason, rejectionDate } = params;
 
-    const result = await this.sql`
-      UPDATE institution_invitations
-      SET rejected_date = ${rejectionDate},
-          rejection_reason = ${rejectionReason}
-      WHERE id = ${invitationId} AND accepted_date IS NULL AND rejected_date IS NULL
-      RETURNING id, rejected_date;
-    `;
+      // Convert Date to UTC timestamp for database storage
+      const rejectionTimestamp = rejectionDate.toISOString();
 
-    if (!result || (Array.isArray(result) && result.length === 0)) {
-      throw new Error('Invitation rejection failed');
+      const rows = await tx.sql`
+        UPDATE institution_invitations
+        SET rejected_date = ${rejectionTimestamp},
+            rejection_reason = ${rejectionReason}
+        WHERE id = ${invitationId} AND accepted_date IS NULL AND rejected_date IS NULL
+        RETURNING id, rejected_date;
+      `;
+
+      if (!rows || (Array.isArray(rows) && rows.length === 0)) {
+        await tx.rollbackTransaction();
+        throw new Error('Invitation rejection failed');
+      }
+
+      const invitation = rows[0];
+      assertDefined(invitation, 'Invitation not found or already processed');
+      assertPropStringOrNumber(
+        invitation,
+        'id',
+        `Expect invitation id to string, got ${unknownErrorToString(invitation)}`,
+      );
+      assertPropDate(
+        invitation,
+        'rejected_date',
+        `Expect invitation rejected_date to be string, got ${unknownErrorToString(invitation)}`,
+      );
+
+      await tx.commitTransaction();
+
+      return {
+        id: String(invitation.id),
+        rejectedDate: invitation.rejected_date,
+      };
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
     }
-
-    const inv = Array.isArray(result) ? result[0] : result;
-
-    return {
-      id: inv.id,
-      rejectedDate: new Date(inv.rejected_date),
-    };
   }
 
   // Institution membership management (explicit methods for services to call)
-  async adminAddUserToInstitution(params: {
-    userId: string;
-    institutionId: string;
-    role: 'Owner' | 'Finance' | string;
-    assignedDate: string;
-  }): Promise<{ userId: string; institutionId: string; role: string }> {
-    const { userId, institutionId, role, assignedDate } = params;
+  async adminAddUserToInstitution(
+    params: AdminAddUserToInstitutionParams,
+  ): Promise<AdminAddUserToInstitutionResult> {
+    const tx = await this.beginTransaction();
+    try {
+      const { userId, institutionId, role, assignedDate } = params;
 
-    const result = await this.sql`
-      UPDATE users
-      SET institution_user_id = ${institutionId}, institution_role = ${role}
-      WHERE id = ${userId}
-      RETURNING id, institution_user_id, institution_role;
-    `;
+      const rows = await tx.sql`
+        UPDATE users
+        SET institution_user_id = ${institutionId}, institution_role = ${role}
+        WHERE id = ${userId}
+        RETURNING id, institution_user_id, institution_role;
+      `;
 
-    if (!result || (Array.isArray(result) && result.length === 0)) {
-      throw new Error('Failed to add user to institution');
+      if (!rows || (Array.isArray(rows) && rows.length === 0)) {
+        await tx.rollbackTransaction();
+        throw new Error('Failed to add user to institution');
+      }
+
+      const row = Array.isArray(rows) ? rows[0] : rows;
+      assertDefined(row, 'Failed to add user to institution');
+      assertPropStringOrNumber(
+        row,
+        'id',
+        `Expect user id to string, got ${unknownErrorToString(row)}`,
+      );
+      assertPropStringOrNumber(
+        row,
+        'institution_user_id',
+        `Expect institution_user_id to string, got ${unknownErrorToString(row)}`,
+      );
+      assertPropString(
+        row,
+        'institution_role',
+        `Expect institution_role to string, got ${unknownErrorToString(row)}`,
+      );
+
+      await tx.commitTransaction();
+
+      return {
+        userId: String(row.id),
+        institutionId: String(row.institution_user_id),
+        role: row.institution_role,
+      };
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
     }
+  }
 
-    const row = Array.isArray(result) ? result[0] : result;
+  async adminRemoveUserFromInstitution(
+    params: AdminRemoveUserFromInstitutionParams,
+  ): Promise<AdminRemoveUserFromInstitutionResult> {
+    const tx = await this.beginTransaction();
+    try {
+      const { userId, removedDate } = params;
+
+      const rows = await tx.sql`
+        UPDATE users
+        SET institution_user_id = NULL, institution_role = NULL
+        WHERE id = ${userId}
+        RETURNING id;
+      `;
+
+      if (rows.length === 0) {
+        const returnValue = { userId, removed: false };
+        await tx.commitTransaction();
+        return returnValue;
+      }
+
+      const row = rows[0];
+      assertDefined(row, 'Failed to remove user from institution');
+      assertPropStringOrNumber(
+        row,
+        'id',
+        `Expect user id to string, got ${unknownErrorToString(row)}`,
+      );
+
+      await tx.commitTransaction();
+
+      return {
+        userId: String(row.id),
+        removed: true,
+      };
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  // Test-specific methods for verifying internal state
+  async adminChecksUserKycId(
+    params: AdminChecksUserKycIdParams,
+  ): Promise<AdminChecksUserKycIdResult> {
+    const { userId } = params;
+
+    const rows = await this.sql`SELECT kyc_id FROM users WHERE id = ${userId}`;
+    const user = rows[0];
+    assertDefined(user, 'User not found');
+    assertPropStringOrNumber(
+      user,
+      'kyc_id',
+      `Expect user kyc_id to string or null, got ${unknownErrorToString(user)}`,
+    );
+
     return {
-      userId: row.id,
-      institutionId: row.institution_user_id,
-      role: row.institution_role,
+      userId: String(userId),
+      kycId: user.kyc_id ? String(user.kyc_id) : null,
     };
   }
 
-  async adminRemoveUserFromInstitution(params: {
-    userId: string;
-    removedDate: string;
-  }): Promise<{ userId: string; removed: boolean }> {
+  async adminChecksUserInstitutionData(
+    params: AdminChecksUserInstitutionDataParams,
+  ): Promise<AdminChecksUserInstitutionDataResult> {
     const { userId } = params;
 
-    const result = await this.sql`
-      UPDATE users
-      SET institution_user_id = NULL, institution_role = NULL
-      WHERE id = ${userId}
-      RETURNING id;
+    const rows = await this.sql`
+      SELECT institution_user_id, institution_role FROM users WHERE id = ${userId}
     `;
-    if (!result || (Array.isArray(result) && result.length === 0)) {
-      return { userId, removed: false };
-    }
+    const user = rows[0];
+    assertDefined(user, 'User not found');
 
-    const row = Array.isArray(result) ? result[0] : result;
     return {
-      userId: row.id,
-      removed: true,
+      userId: String(userId),
+      institutionUserId: 'institution_user_id' in user ? String(user.institution_user_id) : null,
+      institutionRole:
+        'institution_role' in user && user.institution_role ? String(user.institution_role) : null,
     };
+  }
+
+  async adminViewsNotificationsByType(
+    params: AdminViewsNotificationsByTypeParams,
+  ): Promise<AdminViewsNotificationsByTypeResult> {
+    const { userId, type } = params;
+
+    const rows = await this.sql`
+      SELECT type, title, content, user_kyc_id, institution_application_id FROM notifications
+      WHERE user_id = ${userId} AND type = ${type}
+    `;
+
+    const notifications = rows;
+
+    return {
+      notifications: notifications.map(function (notification: unknown) {
+        assertDefined(notification);
+        assertPropString(
+          notification,
+          'type',
+          `Expect notification type to string, got ${unknownErrorToString(notification)}`,
+        );
+        assertPropString(
+          notification,
+          'title',
+          `Expect notification title to string, got ${unknownErrorToString(notification)}`,
+        );
+        assertPropString(
+          notification,
+          'content',
+          `Expect notification content to string, got ${unknownErrorToString(notification)}`,
+        );
+        assertPropNullableStringOrNumber(
+          notification,
+          'user_kyc_id',
+          `Expect notification user_kyc_id to string or null, got ${unknownErrorToString(notification)}`,
+        );
+        assertPropNullableStringOrNumber(
+          notification,
+          'institution_application_id',
+          `Expect notification institution_application_id to string or null, got ${unknownErrorToString(notification)}`,
+        );
+        return {
+          type: notification.type,
+          title: notification.title,
+          content: notification.content,
+          userKycId: notification.user_kyc_id ? String(notification.user_kyc_id) : undefined,
+          institutionApplicationId: notification.institution_application_id
+            ? String(notification.institution_application_id)
+            : undefined,
+        };
+      }),
+    };
+  }
+
+  async systemCreatesInstitutionApplicationWithValidation(
+    params: SystemCreatesInstitutionApplicationWithValidationParams,
+  ): Promise<SystemCreatesInstitutionApplicationWithValidationResult> {
+    const tx = await this.beginTransaction();
+    try {
+      const {
+        applicantUserId,
+        businessName,
+        npwpNumber,
+        npwpDocumentPath,
+        registrationNumber,
+        registrationDocumentPath,
+        deedOfEstablishmentPath,
+        // domicileCertificatePath, # TBD
+        businessAddress,
+        businessCity,
+        businessProvince,
+        businessPostalCode,
+        directorName,
+        directorIdCardPath,
+        submittedDate,
+      } = params;
+
+      const rows = await tx.sql`
+        INSERT INTO institution_applications (
+          applicant_user_id, business_name, npwp_number, npwp_document_path,
+          registration_number, registration_document_path, deed_of_establishment_path,
+          business_address, business_city, business_province,
+          business_postal_code, director_name, director_id_card_path, submitted_date
+        ) VALUES (
+          ${applicantUserId}, ${businessName}, ${npwpNumber}, ${npwpDocumentPath},
+          ${registrationNumber}, ${registrationDocumentPath}, ${deedOfEstablishmentPath},
+          ${businessAddress}, ${businessCity}, ${businessProvince},
+          ${businessPostalCode}, ${directorName}, ${directorIdCardPath}, ${submittedDate}
+        ) RETURNING id, applicant_user_id, business_name
+      `;
+
+      const application = rows[0];
+      assertDefined(application, 'Institution application creation failed');
+      assertPropStringOrNumber(
+        application,
+        'id',
+        `Expect application id to string, got ${unknownErrorToString(application)}`,
+      );
+      assertPropStringOrNumber(
+        application,
+        'applicant_user_id',
+        `Expect application applicant_user_id to string, got ${unknownErrorToString(application)}`,
+      );
+      assertPropString(
+        application,
+        'business_name',
+        `Expect application business_name to string, got ${unknownErrorToString(application)}`,
+      );
+
+      await tx.commitTransaction();
+
+      return {
+        id: String(application.id),
+        applicantUserId: String(application.applicant_user_id),
+        businessName: application.business_name,
+      };
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
+    }
   }
 }

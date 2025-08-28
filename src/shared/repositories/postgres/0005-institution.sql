@@ -29,9 +29,9 @@ CREATE TABLE IF NOT EXISTS institution_applications (
   ministry_approval_document_path TEXT,
   ministry_approval_date DATE,
 
-  -- Company Domicile Certificate (SKDP - Surat Keterangan Domisili Perusahaan)
-  domicile_certificate_path TEXT NOT NULL,
-  domicile_certificate_number VARCHAR(50),
+  -- Company Domicile Certificate (SKDP - Surat Keterangan Domisili Perusahaan) TBD
+  -- domicile_certificate_path TEXT,
+  -- domicile_certificate_number VARCHAR(50),
 
   -- Business Address Information
   business_address TEXT NOT NULL,

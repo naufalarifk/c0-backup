@@ -1,17 +1,32 @@
-/** biome-ignore-all lint/suspicious/noExplicitAny: <explanation> */
+/** biome-ignore-all lint/suspicious/noExplicitAny: Find other way if possible */
+import { ok } from 'node:assert/strict';
+
+export function isArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+export function isPropDefined(
+  value: unknown,
+  propName: string,
+): value is Record<string, NonNullable<unknown>> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    propName in value &&
+    (value as Record<string, unknown>)[propName] !== undefined &&
+    (value as Record<string, unknown>)[propName] !== null
+  );
+}
+
 export function assertDefined(
   value: unknown,
   message?: string,
 ): asserts value is NonNullable<typeof value> {
-  if (value === undefined || value === null) {
-    throw new Error(message || 'Value is not defined');
-  }
+  ok(value !== undefined && value !== null, message || 'Value is not defined');
 }
 
 export function assertArray(value: unknown, message?: string): asserts value is unknown[] {
-  if (!Array.isArray(value)) {
-    throw new Error(message || 'Value is not an array');
-  }
+  ok(Array.isArray(value), message || 'Value is not an array');
 }
 
 export function assertArrayOf<T>(
@@ -23,7 +38,8 @@ export function assertArrayOf<T>(
     try {
       check(item);
     } catch (error) {
-      throw new Error(
+      ok(
+        false,
         message ||
           'Array contains invalid item: ' +
             (error instanceof Error ? error.message : String(error)),
@@ -32,16 +48,23 @@ export function assertArrayOf<T>(
   }
 }
 
-export function assertString(value: unknown, message?: string): asserts value is string {
-  if (typeof value !== 'string') {
-    throw new Error(message || 'Value is not a string');
+export function assertArrayMapOf<T>(
+  value: unknown,
+  typeCheck: (item: unknown) => T,
+  message?: string,
+): asserts value is T[] {
+  assertArray(value, message);
+  for (const item of value) {
+    ok(typeCheck(item), message || 'Array contains invalid type');
   }
 }
 
+export function assertString(value: unknown, message?: string): asserts value is string {
+  ok(typeof value === 'string', message || 'Value is not a string');
+}
+
 export function assertNumber(value: unknown, message?: string): asserts value is number {
-  if (typeof value !== 'number') {
-    throw new Error(message || 'Value is not a number');
-  }
+  ok(typeof value === 'number', message || 'Value is not a number');
 }
 
 export type PropKey = string | number | symbol;
@@ -52,14 +75,13 @@ export function assertPropEqual<K extends PropKey, V extends NonNullable<unknown
   expectedValue: T,
   message?: string,
 ): asserts obj is V & Record<K, T> {
-  if (
-    typeof obj !== 'object' ||
-    obj === null ||
-    !(propKey in obj) ||
-    (obj as any)[propKey] !== expectedValue
-  ) {
-    throw new Error(message || `Property "${String(propKey)}" is not equal to expected value`);
-  }
+  ok(
+    typeof obj === 'object' &&
+      obj !== null &&
+      propKey in obj &&
+      (obj as any)[propKey] === expectedValue,
+    message || `Property "${String(propKey)}" is not equal to expected value`,
+  );
 }
 
 export function assertPropDefined<K extends PropKey, V extends NonNullable<unknown>>(
@@ -67,15 +89,14 @@ export function assertPropDefined<K extends PropKey, V extends NonNullable<unkno
   propKey: K,
   message?: string,
 ): asserts value is V & Record<K, NonNullable<unknown>> {
-  if (
-    typeof value !== 'object' ||
-    value === null ||
-    !(propKey in value) ||
-    (value as any)[propKey] === undefined ||
-    (value as any)[propKey] === null
-  ) {
-    throw new Error(message || `Property "${String(propKey)}" is not defined`);
-  }
+  ok(
+    typeof value === 'object' &&
+      value !== null &&
+      propKey in value &&
+      (value as any)[propKey] !== undefined &&
+      (value as any)[propKey] !== null,
+    message || `Property "${String(propKey)}" is not defined`,
+  );
 }
 
 export function assertPropNumber<K extends PropKey, V extends NonNullable<unknown>>(
@@ -83,14 +104,13 @@ export function assertPropNumber<K extends PropKey, V extends NonNullable<unknow
   propKey: K,
   message?: string,
 ): asserts value is V & Record<K, number> {
-  if (
-    typeof value !== 'object' ||
-    value === null ||
-    !(propKey in value) ||
-    typeof (value as any)[propKey] !== 'number'
-  ) {
-    throw new Error(message || `Property "${String(propKey)}" is not a number`);
-  }
+  ok(
+    typeof value === 'object' &&
+      value !== null &&
+      propKey in value &&
+      typeof (value as any)[propKey] === 'number',
+    message || `Property "${String(propKey)}" is not a number`,
+  );
 }
 
 export function assertPropString<K extends PropKey, V extends NonNullable<unknown>>(
@@ -98,14 +118,13 @@ export function assertPropString<K extends PropKey, V extends NonNullable<unknow
   propKey: K,
   message?: string,
 ): asserts value is V & Record<K, string> {
-  if (
-    typeof value !== 'object' ||
-    value === null ||
-    !(propKey in value) ||
-    typeof (value as any)[propKey] !== 'string'
-  ) {
-    throw new Error(message || `Property "${String(propKey)}" is not a string`);
-  }
+  ok(
+    typeof value === 'object' &&
+      value !== null &&
+      propKey in value &&
+      typeof (value as any)[propKey] === 'string',
+    message || `Property "${String(propKey)}" is not a string`,
+  );
 }
 
 export function assertPropStringOrNumber<K extends PropKey, V extends NonNullable<unknown>>(
@@ -113,14 +132,15 @@ export function assertPropStringOrNumber<K extends PropKey, V extends NonNullabl
   propKey: K,
   message?: string,
 ): asserts obj is V & Record<K, string | number> {
-  if (
-    typeof obj !== 'object' ||
-    obj === null ||
-    !(propKey in obj) ||
-    (typeof (obj as any)[propKey] !== 'string' && typeof (obj as any)[propKey] !== 'number')
-  ) {
-    throw new Error(message || `Property "${String(propKey)}" is not a string or number`);
-  }
+  ok(
+    typeof obj === 'object' &&
+      obj !== null &&
+      propKey in obj &&
+      (typeof (obj as any)[propKey] === 'string' ||
+        typeof (obj as any)[propKey] === 'number' ||
+        typeof (obj as any)[propKey] === 'bigint'),
+    message || `Property "${String(propKey)}" is not a string, number, or bigint`,
+  );
 }
 
 export function assertPropNullableString<K extends PropKey, V extends NonNullable<unknown>>(
@@ -128,14 +148,13 @@ export function assertPropNullableString<K extends PropKey, V extends NonNullabl
   propKey: K,
   message?: string,
 ): asserts obj is V & Record<K, string | null> {
-  if (
-    typeof obj !== 'object' ||
-    obj === null ||
-    !(propKey in obj) ||
-    ((obj as any)[propKey] !== null && typeof (obj as any)[propKey] !== 'string')
-  ) {
-    throw new Error(message || `Property "${String(propKey)}" is not a string or null`);
-  }
+  ok(
+    typeof obj === 'object' &&
+      obj !== null &&
+      propKey in obj &&
+      ((obj as any)[propKey] === null || typeof (obj as any)[propKey] === 'string'),
+    message || `Property "${String(propKey)}" is not a string or null`,
+  );
 }
 
 export function assertPropNullableStringOrNumber<K extends PropKey, V extends NonNullable<unknown>>(
@@ -143,16 +162,15 @@ export function assertPropNullableStringOrNumber<K extends PropKey, V extends No
   propKey: K,
   message?: string,
 ): asserts obj is V & Record<K, string | number | null> {
-  if (
-    typeof obj !== 'object' ||
-    obj === null ||
-    !(propKey in obj) ||
-    ((obj as any)[propKey] !== null &&
-      typeof (obj as any)[propKey] !== 'string' &&
-      typeof (obj as any)[propKey] !== 'number')
-  ) {
-    throw new Error(message || `Property "${String(propKey)}" is not a string, number, or null`);
-  }
+  ok(
+    typeof obj === 'object' &&
+      obj !== null &&
+      propKey in obj &&
+      ((obj as any)[propKey] === null ||
+        typeof (obj as any)[propKey] === 'string' ||
+        typeof (obj as any)[propKey] === 'number'),
+    message || `Property "${String(propKey)}" is not a string, number, or null`,
+  );
 }
 
 export function assertPropDate<K extends PropKey, V extends NonNullable<unknown>>(
@@ -160,14 +178,13 @@ export function assertPropDate<K extends PropKey, V extends NonNullable<unknown>
   propKey: K,
   message?: string,
 ): asserts obj is V & Record<K, Date> {
-  if (
-    typeof obj !== 'object' ||
-    obj === null ||
-    !(propKey in obj) ||
-    !((obj as any)[propKey] instanceof Date)
-  ) {
-    throw new Error(message || `Property "${String(propKey)}" is not a Date`);
-  }
+  ok(
+    typeof obj === 'object' &&
+      obj !== null &&
+      propKey in obj &&
+      (obj as any)[propKey] instanceof Date,
+    message || `Property "${String(propKey)}" is not a Date`,
+  );
 }
 
 export function assertPropNullableDate<K extends PropKey, V extends NonNullable<unknown>>(
@@ -175,14 +192,13 @@ export function assertPropNullableDate<K extends PropKey, V extends NonNullable<
   propKey: K,
   message?: string,
 ): asserts obj is V & Record<K, Date | null> {
-  if (
-    typeof obj !== 'object' ||
-    obj === null ||
-    !(propKey in obj) ||
-    !((obj as any)[propKey] === null || (obj as any)[propKey] instanceof Date)
-  ) {
-    throw new Error(message || `Property "${String(propKey)}" is not a Date or null`);
-  }
+  ok(
+    typeof obj === 'object' &&
+      obj !== null &&
+      propKey in obj &&
+      ((obj as any)[propKey] === null || (obj as any)[propKey] instanceof Date),
+    message || `Property "${String(propKey)}" is not a Date or null`,
+  );
 }
 
 export function assertPropOneOf<K extends PropKey, V extends NonNullable<unknown>, T>(
@@ -191,17 +207,14 @@ export function assertPropOneOf<K extends PropKey, V extends NonNullable<unknown
   validValues: T[],
   message?: string,
 ): asserts obj is V & Record<K, T> {
-  if (
-    typeof obj !== 'object' ||
-    obj === null ||
-    !(propKey in obj) ||
-    !validValues.includes((obj as any)[propKey])
-  ) {
-    throw new Error(
-      message ||
-        `Property "${String(propKey)}" is not one of the valid values: ${validValues.join(', ')}`,
-    );
-  }
+  ok(
+    typeof obj === 'object' &&
+      obj !== null &&
+      propKey in obj &&
+      validValues.includes((obj as any)[propKey]),
+    message ||
+      `Property "${String(propKey)}" is not one of the valid values: ${validValues.join(', ')}`,
+  );
 }
 
 export function setAssertPropValue<K extends PropKey, V extends NonNullable<unknown>, T>(
@@ -218,12 +231,11 @@ export function assertSingleRecord<T extends { id: string }>(
 ): asserts value is T {
   if (Array.isArray(value)) {
     if (value.length === 0) {
-      throw new Error(
-        `Expected single record but got empty array${context ? ` in ${context}` : ''}`,
-      );
+      ok(false, `Expected single record but got empty array${context ? ` in ${context}` : ''}`);
     }
     if (value.length > 1) {
-      throw new Error(
+      ok(
+        false,
         `Expected single record but got ${value.length} records${context ? ` in ${context}` : ''}`,
       );
     }

@@ -175,7 +175,10 @@ describe('Assertion Utils', () => {
     });
 
     it('should throw for non-object values', () => {
-      expect(() => assertPropDefined(null, 'name')).toThrow('Property "name" is not defined');
+      // biome-ignore lint/suspicious/noExplicitAny: Find other way if possible
+      expect(() => assertPropDefined(null as any, 'name')).toThrow(
+        'Property "name" is not defined',
+      );
       expect(() => assertPropDefined('string', 'name')).toThrow('Property "name" is not defined');
     });
 
