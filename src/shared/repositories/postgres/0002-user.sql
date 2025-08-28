@@ -2,15 +2,15 @@ CREATE TABLE IF NOT EXISTS users (
   id BIGSERIAL PRIMARY KEY,
 
   -- Basic user info
-  name TEXT,
+  name VARCHAR(160),
+  profile_picture TEXT,
+
+  -- Authentication credentials
   email TEXT UNIQUE NOT NULL,
   email_verified BOOLEAN DEFAULT false,
   email_verified_date TIMESTAMP,
-  image TEXT,
   created_date TIMESTAMP DEFAULT NOW(),
   updated_date TIMESTAMP DEFAULT NOW(),
-
-  -- Authentication credentials
   password_hash TEXT,
   google_id TEXT UNIQUE,
 
@@ -23,8 +23,10 @@ CREATE TABLE IF NOT EXISTS users (
 
   -- User profile and role fields (merged from users table)
   role VARCHAR(32) NOT NULL DEFAULT 'User' CHECK (role IN ('System', 'Admin', 'User')),
-  full_name VARCHAR(160),
-  profile_picture TEXT,
+
+  -- User type selection (mandatory after registration)
+  user_type VARCHAR(32) DEFAULT 'Undecided' CHECK (user_type IN ('Undecided', 'Individual', 'Institution')),
+  user_type_selected_date TIMESTAMP,
 
   -- Institution fields
   institution_user_id BIGINT,
@@ -33,6 +35,15 @@ CREATE TABLE IF NOT EXISTS users (
   -- Business fields
   business_name VARCHAR(160),
   business_type VARCHAR(100),
+
+  -- Account status management
+  access_status VARCHAR(32) DEFAULT 'active' CHECK (access_status IN ('active', 'suspended')),
+  suspension_reason TEXT,
+  suspension_date TIMESTAMP,
+  suspension_admin_user_id BIGINT,
+  reactivation_reason TEXT,
+  reactivation_date TIMESTAMP,
+  reactivation_admin_user_id BIGINT,
 
   CHECK (
     email IS NOT NULL AND
@@ -83,6 +94,6 @@ CREATE TABLE IF NOT EXISTS auth_verifications (
 );
 
 -- this assume the users id will be 1. This is important because we use id 1 to indicate the system user
-INSERT INTO users (email, email_verified, two_factor_enabled, two_factor_secret, two_factor_backup_codes, role, full_name, profile_picture)
+INSERT INTO users (email, email_verified, two_factor_enabled, two_factor_secret, two_factor_backup_codes, role, name, profile_picture)
 VALUES ('system@platform', true, true, 'invalid_secret_is_imposible_to_verify', ARRAY['invalid_code_is_imposible_to_verify'], 'System', 'System Platform', '')
 ON CONFLICT (email) DO NOTHING;

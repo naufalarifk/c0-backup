@@ -13,7 +13,7 @@ export class TestSetup {
     postgres: { host: string; port: number; database: string; username: string; password: string };
     redis: { host: string; port: number };
   }> {
-    console.log('Starting test containers...');
+    // console.log('Starting test containers...');
 
     // Initialize containers
     TestSetup.postgresContainer = PostgresTestContainer.getInstance();
@@ -25,7 +25,7 @@ export class TestSetup {
     // Apply database schema after PostgreSQL is ready
     TestSetup.applyDatabaseSchema();
 
-    console.log('Test containers started successfully');
+    // console.log('Test containers started successfully');
 
     return {
       postgres: {

@@ -5,7 +5,7 @@ import { BetterAuthError } from 'better-auth';
 import { createAdapter } from 'better-auth/adapters';
 
 import { UserRepository } from '../../shared/repositories/user.repository';
-import { unknownErrorToPlain } from '../../shared/utils/error';
+import { unknownErrorToPlain } from '../../shared/utils/errors';
 
 interface AuthAdapterOptions {
   userRepo: UserRepository;

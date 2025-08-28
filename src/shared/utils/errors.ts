@@ -1,5 +1,3 @@
-// @ts-check
-
 export function unknownErrorToPlain(error: unknown): unknown {
   if (error instanceof Error) {
     return errorToPlain(error);

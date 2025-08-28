@@ -1,4 +1,4 @@
-import { unknownErrorToPlain, unknownErrorToString } from './error';
+import { unknownErrorToPlain, unknownErrorToString } from './errors';
 
 describe('Error Utils', () => {
   describe('unknownErrorToPlain', () => {

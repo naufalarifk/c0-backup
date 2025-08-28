@@ -43,9 +43,9 @@ CREATE OR REPLACE VIEW active_admin_invitations AS
 SELECT
   ai.*,
   inviter_users.email as inviter_email,
-  inviter_users.full_name as inviter_name,
+  inviter_users.name as inviter_name,
   target_users.email as target_email,
-  target_users.full_name as target_name,
+  target_users.name as target_name,
   CASE
     WHEN NOW() > ai.expires_date THEN 'expired'
     WHEN ai.accepted_date IS NOT NULL THEN 'accepted'
@@ -63,40 +63,42 @@ COMMENT ON VIEW active_admin_invitations IS 'Active admin invitations with statu
 CREATE OR REPLACE FUNCTION validate_admin_invitation_data()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Ensure inviter is an admin
-  IF NOT EXISTS (
-    SELECT 1 FROM users
-    WHERE id = NEW.inviter_user_id AND role = 'Admin'
-  ) THEN
-    RAISE EXCEPTION 'Only admin users can create admin invitations';
+  -- For INSERT operations, validate all conditions
+  IF TG_OP = 'INSERT' THEN
+    -- Ensure inviter is an admin
+    IF NOT EXISTS (
+      SELECT 1 FROM users
+      WHERE id = NEW.inviter_user_id AND role = 'Admin'
+    ) THEN
+      RAISE EXCEPTION 'Only admin users can create admin invitations';
+    END IF;
+
+    -- Ensure target user exists and is not already admin
+    IF NOT EXISTS (
+      SELECT 1 FROM users
+      WHERE id = NEW.target_user_id AND role = 'User'
+    ) THEN
+      RAISE EXCEPTION 'Target user must exist and must be a regular user (not admin)';
+    END IF;
+
+    -- Check for existing pending invitations
+    IF EXISTS (
+      SELECT 1 FROM admin_invitations
+      WHERE target_user_id = NEW.target_user_id
+      AND accepted_date IS NULL
+      AND rejected_date IS NULL
+    ) THEN
+      RAISE EXCEPTION 'User already has a pending admin invitation';
+    END IF;
   END IF;
 
-  -- Ensure target user exists and is not already admin
-  IF NOT EXISTS (
-    SELECT 1 FROM users
-    WHERE id = NEW.target_user_id AND role = 'User'
-  ) THEN
-    RAISE EXCEPTION 'Target user must exist and must be a regular user (not admin)';
-  END IF;
-
-  -- Check for existing pending invitations
-  IF TG_OP = 'INSERT' AND EXISTS (
-    SELECT 1 FROM admin_invitations
-    WHERE target_user_id = NEW.target_user_id
-    AND accepted_date IS NULL
-    AND rejected_date IS NULL
-    AND expires_date > NOW()
-  ) THEN
-    RAISE EXCEPTION 'User already has a pending admin invitation';
-  END IF;
-
-  -- Validate expiry date
+  -- Validate expiry date for both INSERT and UPDATE
   IF NEW.expires_date <= NEW.invited_date THEN
     RAISE EXCEPTION 'Expiry date must be after invitation date';
   END IF;
 
-  -- Auto-set expiry to 24 hours if not provided
-  IF NEW.expires_date IS NULL THEN
+  -- Auto-set expiry to 24 hours if not provided (INSERT only)
+  IF TG_OP = 'INSERT' AND NEW.expires_date IS NULL THEN
     NEW.expires_date := NEW.invited_date + INTERVAL '24 hours';
   END IF;
 
@@ -147,7 +149,7 @@ BEGIN
       NEW.inviter_user_id,
       'AdminInvitationAccepted',
       'Admin Invitation Accepted',
-      target_user_record.full_name || ' (' || target_user_record.email || ') has accepted the admin invitation.',
+      target_user_record.name || ' (' || target_user_record.email || ') has accepted the admin invitation.',
       NEW.id,
       NEW.accepted_date
     );
@@ -288,49 +290,6 @@ END;
 $$ LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION validate_admin_invitation_data()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Ensure inviter is an admin
-  IF NOT EXISTS (
-    SELECT 1 FROM users
-    WHERE id = NEW.inviter_user_id AND role = 'Admin'
-  ) THEN
-    RAISE EXCEPTION 'Only admin users can create admin invitations';
-  END IF;
-
-  -- Ensure target user exists and is not already admin
-  IF NOT EXISTS (
-    SELECT 1 FROM users
-    WHERE id = NEW.target_user_id AND role = 'User'
-  ) THEN
-    RAISE EXCEPTION 'Target user must exist and must be a regular user (not admin)';
-  END IF;
-
-  -- Check for existing pending invitations
-  IF TG_OP = 'INSERT' AND EXISTS (
-    SELECT 1 FROM admin_invitations
-    WHERE target_user_id = NEW.target_user_id
-    AND accepted_date IS NULL
-    AND rejected_date IS NULL
-    AND expires_date > NOW()
-  ) THEN
-    RAISE EXCEPTION 'User already has a pending admin invitation';
-  END IF;
-
-  -- Validate expiry date
-  IF NEW.expires_date <= NEW.invited_date THEN
-    RAISE EXCEPTION 'Expiry date must be after invitation date';
-  END IF;
-
-  -- Auto-set expiry to 24 hours if not provided
-  IF NEW.expires_date IS NULL THEN
-    NEW.expires_date := NEW.invited_date + INTERVAL '24 hours';
-  END IF;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE TRIGGER validate_admin_invitation_data_trigger
 BEFORE INSERT OR UPDATE ON admin_invitations
@@ -375,7 +334,7 @@ BEGIN
       NEW.inviter_user_id,
       'AdminInvitationAccepted',
       'Admin Invitation Accepted',
-      target_user_record.full_name || ' (' || target_user_record.email || ') has accepted the admin invitation.',
+      target_user_record.name || ' (' || target_user_record.email || ') has accepted the admin invitation.',
       NEW.id,
       NEW.accepted_date
     );

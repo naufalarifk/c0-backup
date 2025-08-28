@@ -1,5 +1,7 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: <explanation> */
+/** biome-ignore-all lint/correctness/noUnusedVariables: <explanation> */
 import { Injectable } from '@nestjs/common';
+
 import { v7 } from 'uuid';
 
 import {
@@ -27,7 +29,7 @@ import {
   UserViewKYCSStatusResult,
   UserViewKYCStatusParams,
 } from '../types';
-import { assertDefined } from '../utils/assertions';
+import { assertDefined } from '../utils';
 import { BaseRepository } from './base.repository';
 
 /**
@@ -47,7 +49,6 @@ export abstract class UserRepository extends BaseRepository {
       emailVerified = false,
       createdAt = new Date(),
       updatedAt = new Date(),
-      // biome-ignore lint/correctness/noUnusedVariables: <explanation>
       id,
     } = data;
 
@@ -1131,7 +1132,6 @@ export abstract class UserRepository extends BaseRepository {
   async userAcceptsInstitutionInvitation(
     params: UserAcceptsInstitutionInvitationParams,
   ): Promise<UserAcceptsInstitutionInvitationResult> {
-    // biome-ignore lint/correctness/noUnusedVariables: <explanation>
     const { invitationId, userId, acceptanceDate } = params;
 
     // Get invitation details
@@ -1168,7 +1168,6 @@ export abstract class UserRepository extends BaseRepository {
   async userRejectsInstitutionInvitation(
     params: UserRejectsInstitutionInvitationParams,
   ): Promise<UserRejectsInstitutionInvitationResult> {
-    // biome-ignore lint/correctness/noUnusedVariables: <explanation>
     const { invitationId, userId, rejectionReason, rejectionDate } = params;
 
     const result = await this.sql`
@@ -1198,7 +1197,6 @@ export abstract class UserRepository extends BaseRepository {
     role: 'Owner' | 'Finance' | string;
     assignedDate: string;
   }): Promise<{ userId: string; institutionId: string; role: string }> {
-    // biome-ignore lint/correctness/noUnusedVariables: <explanation>
     const { userId, institutionId, role, assignedDate } = params;
 
     const result = await this.sql`

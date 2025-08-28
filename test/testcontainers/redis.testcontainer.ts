@@ -21,15 +21,15 @@ export class RedisTestContainer {
 
     const redisContainer = new RedisContainer('redis:7-alpine')
       .withExposedPorts(6379)
-      .withPassword('')
-      .withLogConsumer(stream => {
-        stream.on('data', line => console.log(`[REDIS] ${line}`));
-        stream.on('err', line => console.error(`[REDIS ERR] ${line}`));
-      });
+      .withPassword('');
+    // .withLogConsumer(stream => {
+    //   stream.on('data', line => console.log(`[REDIS] ${line}`));
+    //   stream.on('err', line => console.error(`[REDIS ERR] ${line}`));
+    // });
 
     this.container = await redisContainer.start();
 
-    console.log(`Redis testcontainer started on port: ${this.container.getMappedPort(6379)}`);
+    // console.log(`Redis testcontainer started on port: ${this.container.getMappedPort(6379)}`);
 
     return this.container;
   }

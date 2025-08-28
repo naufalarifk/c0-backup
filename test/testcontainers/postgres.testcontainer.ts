@@ -23,15 +23,15 @@ export class PostgresTestContainer {
       .withDatabase('test_db')
       .withUsername('test_user')
       .withPassword('test_password')
-      .withExposedPorts(5432)
-      .withLogConsumer(stream => {
-        stream.on('data', line => console.log(`[POSTGRES] ${line}`));
-        stream.on('err', line => console.error(`[POSTGRES ERR] ${line}`));
-      });
+      .withExposedPorts(5432);
+    // .withLogConsumer(stream => {
+    //   stream.on('data', line => console.log(`[POSTGRES] ${line}`));
+    //   stream.on('err', line => console.error(`[POSTGRES ERR] ${line}`));
+    // });
 
     this.container = await postgresContainer.start();
 
-    console.log(`PostgreSQL testcontainer started on port: ${this.container.getMappedPort(5432)}`);
+    // console.log(`PostgreSQL testcontainer started on port: ${this.container.getMappedPort(5432)}`);
 
     return this.container;
   }
