@@ -9,7 +9,6 @@ import { ConfigService } from './services/config.service';
 import { EmailService } from './services/email.service';
 import { RedisService } from './services/redis.service';
 import { TwilioService } from './services/twilio.service';
-import { VaultModule } from './vault/vault.module';
 
 const providers: Provider[] = [
   ConfigService,
@@ -22,7 +21,7 @@ const providers: Provider[] = [
 @Global()
 @Module({
   providers,
-  imports: [CqrsModule, DatabaseModule, VaultModule],
-  exports: [...providers, CqrsModule, DatabaseModule, VaultModule],
+  imports: [CqrsModule, DatabaseModule],
+  exports: [...providers, CqrsModule, DatabaseModule],
 })
 export class SharedModule {}

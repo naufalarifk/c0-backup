@@ -1,34 +1,26 @@
-import { 
-  Controller, 
-  Post, 
-  Get, 
-  Delete,
-  Body, 
-  Param, 
-  Logger,
-  UseFilters
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Logger, Param, Post, UseFilters } from '@nestjs/common';
+
+import {
+  CreatePolicyDto,
+  DatabaseCredentials,
+  DatabaseCredentialsDto,
+  DecryptDataDto,
+  DecryptionResult,
+  EncryptDataDto,
+  EncryptionResult,
+  TransitKeyDto,
+  VaultAuth,
+  VaultHealthStatus,
+  WriteSecretDto,
+} from './dto/vault.dto';
 import { VaultService } from './vault.service';
 import { VaultExceptionFilter } from './vault-exception.filter';
-import { 
-  WriteSecretDto, 
-  EncryptDataDto, 
-  DecryptDataDto, 
-  DatabaseCredentialsDto, 
-  TransitKeyDto, 
-  CreatePolicyDto,
-  VaultAuth,
-  DatabaseCredentials,
-  EncryptionResult,
-  DecryptionResult,
-  VaultHealthStatus
-} from './vault.dto';
 
 @Controller('vault')
 @UseFilters(VaultExceptionFilter)
 export class VaultController {
   private readonly logger = new Logger(VaultController.name);
-  
+
   constructor(private readonly vaultService: VaultService) {}
 
   @Get('health')
@@ -36,8 +28,8 @@ export class VaultController {
     this.logger.log('Checking Vault health status');
     try {
       return await this.vaultService.healthCheck();
-    } catch (error: any) {
-      this.logger.error('Health check failed', error.message);
+    } catch (error: unknown) {
+      this.logger.error('Health check failed', (error as Error).message);
       throw error;
     }
   }
@@ -49,20 +41,20 @@ export class VaultController {
       const isHealthy = await this.vaultService.isHealthy();
       return {
         healthy: isHealthy,
-        message: isHealthy ? 'Vault is healthy and accessible' : 'Vault is not accessible'
+        message: isHealthy ? 'Vault is healthy and accessible' : 'Vault is not accessible',
       };
-    } catch (error: any) {
-      this.logger.error('Status check failed', error.message);
+    } catch (error: unknown) {
+      this.logger.error('Status check failed', (error as Error).message);
       return {
         healthy: false,
-        message: `Vault status check failed: ${error.message}`
+        message: `Vault status check failed: ${(error as Error).message}`,
       };
     }
   }
 
   // Secret Management (KV v1)
   @Get('secret/:path')
-  async getSecret(@Param('path') path: string): Promise<any> {
+  async getSecret(@Param('path') path: string): Promise<string> {
     this.logger.log(`Getting secret from path: ${path}`);
     return await this.vaultService.getSecret(path);
   }
@@ -84,7 +76,7 @@ export class VaultController {
 
   // KV v2 Operations
   @Get('kv2/:path')
-  async getKv2Secret(@Param('path') path: string): Promise<any> {
+  async getKv2Secret(@Param('path') path: string): Promise<string> {
     this.logger.log(`Getting KV2 secret from path: ${path}`);
     return await this.vaultService.getKv2Secret(path);
   }
@@ -117,7 +109,7 @@ export class VaultController {
   @Post('transit/encrypt/:keyName')
   async encryptData(
     @Param('keyName') keyName: string,
-    @Body() dto: EncryptDataDto
+    @Body() dto: EncryptDataDto,
   ): Promise<EncryptionResult> {
     const { data, context } = dto;
     this.logger.log(`Encrypting data with key: ${keyName}`);
@@ -127,7 +119,7 @@ export class VaultController {
   @Post('transit/decrypt/:keyName')
   async decryptData(
     @Param('keyName') keyName: string,
-    @Body() dto: DecryptDataDto
+    @Body() dto: DecryptDataDto,
   ): Promise<DecryptionResult> {
     const { ciphertext, context } = dto;
     this.logger.log(`Decrypting data with key: ${keyName}`);
@@ -175,48 +167,54 @@ export class VaultController {
 
   // Wallet Integration Examples
   @Post('wallet/encrypt-mnemonic')
-  async encryptMnemonic(@Body() body: { mnemonic: string; walletId: string }): Promise<EncryptionResult> {
+  async encryptMnemonic(
+    @Body() body: { mnemonic: string; walletId: string },
+  ): Promise<EncryptionResult> {
     const { mnemonic, walletId } = body;
     this.logger.log(`Encrypting mnemonic for wallet: ${walletId}`);
-    
+
     // Create a unique encryption key for the wallet if it doesn't exist
     const keyName = `wallet-${walletId}`;
     try {
       await this.vaultService.createTransitKey(keyName);
       this.logger.log(`Created new transit key for wallet: ${keyName}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Key might already exist, which is fine
-      if (!error.message.includes('path is already in use')) {
+      if (!(error as Error).message.includes('path is already in use')) {
         throw error;
       }
     }
-    
+
     return await this.vaultService.encryptData(keyName, mnemonic, walletId);
   }
 
   @Post('wallet/decrypt-mnemonic')
-  async decryptMnemonic(@Body() body: { ciphertext: string; walletId: string }): Promise<DecryptionResult> {
+  async decryptMnemonic(
+    @Body() body: { ciphertext: string; walletId: string },
+  ): Promise<DecryptionResult> {
     const { ciphertext, walletId } = body;
     this.logger.log(`Decrypting mnemonic for wallet: ${walletId}`);
-    
+
     const keyName = `wallet-${walletId}`;
     return await this.vaultService.decryptData(keyName, ciphertext, walletId);
   }
 
   @Post('wallet/store-config')
-  async storeWalletConfig(@Body() body: { walletId: string; config: any }): Promise<{ message: string }> {
+  async storeWalletConfig(
+    @Body() body: { walletId: string; config: Record<string, string> },
+  ): Promise<{ message: string }> {
     const { walletId, config } = body;
     this.logger.log(`Storing configuration for wallet: ${walletId}`);
-    
+
     const path = `wallets/${walletId}/config`;
     await this.vaultService.writeKv2Secret(path, config);
     return { message: `Wallet configuration stored successfully for ${walletId}` };
   }
 
   @Get('wallet/:walletId/config')
-  async getWalletConfig(@Param('walletId') walletId: string): Promise<any> {
+  async getWalletConfig(@Param('walletId') walletId: string): Promise<string> {
     this.logger.log(`Getting configuration for wallet: ${walletId}`);
-    
+
     const path = `wallets/${walletId}/config`;
     return await this.vaultService.getKv2Secret(path);
   }

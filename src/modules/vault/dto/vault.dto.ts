@@ -1,5 +1,5 @@
-import { IsNotEmpty, IsString, IsOptional, IsObject } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { IsNotEmpty, IsObject, IsOptional, IsString } from 'class-validator';
 
 export class AppRoleLoginDto {
   @IsNotEmpty({ message: 'Role ID is required' })
@@ -26,7 +26,7 @@ export class WriteSecretDto {
 
   @IsNotEmpty({ message: 'Data is required' })
   @IsObject({ message: 'Data must be an object' })
-  data: Record<string, any>;
+  data: Record<string, unknown>;
 }
 
 export class EncryptDataDto {
@@ -84,24 +84,24 @@ export class VaultAuth {
   accessor: string;
   policies: string[];
   token_policies: string[];
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   lease_duration: number;
   renewable: boolean;
   entity_id: string;
   token_type: string;
   orphan: boolean;
-  mfa_requirement: any;
+  mfa_requirement: unknown;
   num_uses: number;
 }
 
-export class VaultResponse<T = any> {
+export class VaultResponse<T = unknown> {
   request_id: string;
   lease_id: string;
   renewable: boolean;
   lease_duration: number;
   data: T;
-  wrap_info: any;
-  warnings: any;
+  wrap_info: unknown;
+  warnings: unknown;
   auth?: VaultAuth;
 }
 

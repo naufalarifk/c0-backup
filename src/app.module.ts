@@ -8,6 +8,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthConfig } from './modules/auth/auth.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { BlockchainsModule } from './modules/blockchains/blockchains.module';
+import { VaultModule } from './modules/vault/vault.module';
 import { ConfigService } from './shared/services/config.service';
 import { SharedModule } from './shared/shared.module';
 
@@ -45,6 +46,7 @@ import { SharedModule } from './shared/shared.module';
     AuthModule.forRootAsync({ useClass: AuthConfig }),
 
     BlockchainsModule,
+    VaultModule,
   ],
   providers: [
     // Global guards

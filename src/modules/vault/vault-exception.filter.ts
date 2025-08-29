@@ -1,10 +1,10 @@
-import { 
-  ExceptionFilter, 
-  Catch, 
-  ArgumentsHost, 
-  HttpException, 
-  HttpStatus, 
-  Logger 
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpException,
+  HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 
@@ -12,7 +12,7 @@ import { Request, Response } from 'express';
 export class VaultExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(VaultExceptionFilter.name);
 
-  catch(exception: any, host: ArgumentsHost) {
+  catch(exception: Record<string, unknown>, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
@@ -26,18 +26,22 @@ export class VaultExceptionFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
-      message = typeof exceptionResponse === 'string' 
-        ? exceptionResponse 
-        : (exceptionResponse as any).message || message;
+      message =
+        typeof exceptionResponse === 'string'
+          ? exceptionResponse
+          : (exceptionResponse as Record<string, string>).message || message;
     } else if (exception.message) {
       // Handle specific Vault errors
       const errorMessage = exception.message.toLowerCase();
-      
+
       if (errorMessage.includes('permission denied')) {
         status = HttpStatus.FORBIDDEN;
         message = 'Vault permission denied';
         errorCode = 'VAULT_PERMISSION_DENIED';
-      } else if (errorMessage.includes('invalid token') || errorMessage.includes('token not found')) {
+      } else if (
+        errorMessage.includes('invalid token') ||
+        errorMessage.includes('token not found')
+      ) {
         status = HttpStatus.UNAUTHORIZED;
         message = 'Invalid or expired Vault token';
         errorCode = 'VAULT_INVALID_TOKEN';
@@ -45,7 +49,10 @@ export class VaultExceptionFilter implements ExceptionFilter {
         status = HttpStatus.SERVICE_UNAVAILABLE;
         message = 'Vault is sealed';
         errorCode = 'VAULT_SEALED';
-      } else if (errorMessage.includes('connection refused') || errorMessage.includes('econnrefused')) {
+      } else if (
+        errorMessage.includes('connection refused') ||
+        errorMessage.includes('econnrefused')
+      ) {
         status = HttpStatus.SERVICE_UNAVAILABLE;
         message = 'Cannot connect to Vault server';
         errorCode = 'VAULT_CONNECTION_FAILED';
@@ -72,10 +79,7 @@ export class VaultExceptionFilter implements ExceptionFilter {
     };
 
     // Log the error details
-    this.logger.error(
-      `${request.method} ${request.url} - ${status} - ${message}`,
-      exception.stack
-    );
+    this.logger.error(`${request.method} ${request.url} - ${status} - ${message}`, exception.stack);
 
     response.status(status).json(errorResponse);
   }
