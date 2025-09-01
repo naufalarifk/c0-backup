@@ -2,8 +2,6 @@ import type { BetterAuthOptions } from 'better-auth';
 import type { DrizzleDB } from '../../shared/database/database.module';
 import type { AuthModuleOptions } from './auth.module';
 
-import path from 'node:path';
-
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { expo } from '@better-auth/expo';
@@ -12,7 +10,6 @@ import { Auth, betterAuth } from 'better-auth';
 import {
   admin,
   multiSession,
-  oneTap,
   openAPI,
   phoneNumber,
   twoFactor,
@@ -77,7 +74,7 @@ export class AuthConfig {
       },
       trustedOrigins: [
         'exp://192.168.0.109:8081', // Development
-        'gadainclient://', // Production scheme from app.json
+        'crypto-gadai://', // Production scheme from app.json
         // Add your production URL
       ],
       rateLimit: {
@@ -210,7 +207,6 @@ export class AuthConfig {
           getTempName: (phoneNumber: string) => `User-${phoneNumber.slice(-4)}`,
         },
       }),
-      oneTap(),
       sso(),
       multiSession({ maximumSessions: this.configService.authConfig.maximumSessions }),
       admin(),
