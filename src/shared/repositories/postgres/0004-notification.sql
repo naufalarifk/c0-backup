@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS notifications (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL REFERENCES users (id),
   type VARCHAR(64) NOT NULL CHECK (type IN (
     -- Authentication notifications
     'UserRegistered', 'EmailVerificationSent', 'EmailVerified', 'PasswordResetRequested',
@@ -30,6 +30,5 @@ CREATE TABLE IF NOT EXISTS notifications (
   title TEXT NOT NULL,
   content TEXT NOT NULL,
   read_date TIMESTAMP,
-  creation_date TIMESTAMP NOT NULL,
-  FOREIGN KEY (user_id) REFERENCES users (id)
+  creation_date TIMESTAMP NOT NULL
 );

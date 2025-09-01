@@ -7,14 +7,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { expo } from '@better-auth/expo';
 import { sso } from '@better-auth/sso';
 import { Auth, betterAuth } from 'better-auth';
-import {
-  admin,
-  multiSession,
-  openAPI,
-  phoneNumber,
-  twoFactor,
-  username,
-} from 'better-auth/plugins';
+import { admin, multiSession, openAPI, phoneNumber, twoFactor } from 'better-auth/plugins';
 import { v7 as uuidv7 } from 'uuid';
 
 import { DRIZZLE_DB } from '../../shared/database/database.module';
@@ -191,10 +184,10 @@ export class AuthConfig {
   private createPlugins(): BetterAuthOptions['plugins'] {
     return [
       twoFactor(),
-      username({
-        usernameValidator: this.validateUsername.bind(this),
-        usernameNormalization: this.normalizeUsername.bind(this),
-      }),
+      // username({
+      //   usernameValidator: this.validateUsername.bind(this),
+      //   usernameNormalization: this.normalizeUsername.bind(this),
+      // }),
       phoneNumber({
         sendOTP: async ({ phoneNumber, code }: { phoneNumber: string; code: string }) => {
           await this.twilioService.sendSMS({
@@ -230,11 +223,11 @@ export class AuthConfig {
     };
   }
 
-  private validateUsername(username: string): boolean {
-    return !RESERVED_USERNAMES.includes(username.toLowerCase());
-  }
+  // private validateUsername(username: string): boolean {
+  //   return !RESERVED_USERNAMES.includes(username.toLowerCase());
+  // }
 
-  private normalizeUsername(username: string): string {
-    return username.trim().toLowerCase();
-  }
+  // private normalizeUsername(username: string): string {
+  //   return username.trim().toLowerCase();
+  // }
 }
