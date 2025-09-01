@@ -66,7 +66,17 @@ export abstract class UserRepository extends BaseRepository {
   async betterAuthCreateUser(data: any): Promise<any> {
     const tx = await this.beginTransaction();
     try {
-      const { name, email, email_address, emailVerified = false, createdAt, updatedAt, id } = data;
+      const {
+        name,
+        email,
+        email_address,
+        emailVerified = false,
+        createdAt,
+        updatedAt,
+        id,
+        image,
+        callbackURL,
+      } = data;
 
       // Handle field mapping: email_address maps to email column
       const emailValue = email_address || email;
@@ -76,18 +86,25 @@ export abstract class UserRepository extends BaseRepository {
       const updatedAtUtc = new Date(updatedAt ?? Date.now());
 
       const rows = await tx.sql`
-        INSERT INTO users (name, email, email_verified, created_date, updated_date)
-        VALUES (${name}, ${emailValue}, ${emailVerified}, ${createdAtUtc}, ${updatedAtUtc})
-        RETURNING id, name, email, email_verified as "emailVerified", created_date as "createdAt", updated_date as "updatedAt";
+        INSERT INTO users (name, profile_picture, email, email_verified, created_date, updated_date)
+        VALUES (${name}, ${image}, ${emailValue}, ${emailVerified}, ${createdAtUtc}, ${updatedAtUtc})
+        RETURNING id, name, profile_picture, email, email_verified as "emailVerified", created_date as "createdAt", updated_date as "updatedAt";
       `;
 
       const user = rows[0];
       assertDefined(user);
       assertPropString(user, 'email');
+      assertPropStringOrNumber(user, 'profile_picture');
 
       // If original data had email_address, return it as email_address in response
       if (email_address) {
         setAssertPropValue(user, 'email_address', user.email);
+      }
+      if (image) {
+        setAssertPropValue(user, 'image', user.profile_picture);
+      }
+      if (callbackURL) {
+        setAssertPropValue(user, 'callbackURL', callbackURL);
       }
 
       await tx.commitTransaction();
@@ -547,7 +564,7 @@ export abstract class UserRepository extends BaseRepository {
     assertPropStringOrNumber(row, 'provider_id');
     assertPropNullableString(row, 'access_token');
     assertPropNullableString(row, 'refresh_token');
-    assertPropString(row, 'password');
+    assertPropNullableString(row, 'password');
 
     return {
       id: String(row.id),
@@ -584,7 +601,7 @@ export abstract class UserRepository extends BaseRepository {
       assertPropStringOrNumber(row, 'provider_id');
       assertPropNullableString(row, 'access_token');
       assertPropNullableString(row, 'refresh_token');
-      assertPropString(row, 'password');
+      assertPropNullableString(row, 'password');
       return {
         id: String(row.id),
         userId: row.user_id ? String(row.user_id) : undefined,
@@ -702,7 +719,7 @@ export abstract class UserRepository extends BaseRepository {
     assertPropStringOrNumber(row, 'provider_id');
     assertPropNullableString(row, 'access_token');
     assertPropNullableString(row, 'refresh_token');
-    assertPropString(row, 'password');
+    assertPropNullableString(row, 'password');
 
     return {
       id: String(row.id),
