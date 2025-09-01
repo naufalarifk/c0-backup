@@ -24,18 +24,50 @@ services:
   redis:
     image: redis:${REDIS_VERSION}
     container_name: ${REDIS_CONTAINER_NAME}
-    restart: always
+    restart: unless-stopped
     ports:
       - '${REDIS_PORT}:6379'
     volumes:
       - redis_data:/data
     networks:
       - gadain-network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: ${HEALTHCHECK_INTERVAL}
+      timeout: ${HEALTHCHECK_TIMEOUT}
+      retries: ${HEALTHCHECK_RETRIES}
+      start_period: ${HEALTHCHECK_START_PERIOD}
+
+  mailpit:
+    image: axllent/mailpit:${MAILPIT_VERSION}
+    container_name: ${MAILPIT_CONTAINER_NAME}
+    restart: unless-stopped
+    ports:
+      - '${MAILPIT_HTTP_PORT}:8025'  # Web UI
+      - '${MAILPIT_SMTP_PORT}:1025'  # SMTP
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+      MP_MAX_MESSAGES: 5000
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_AUTH_FILE: ""
+    volumes:
+      - mailpit_data:/data
+    networks:
+      - gadain-network
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8025/api/v1/info']
+      interval: ${HEALTHCHECK_INTERVAL}
+      timeout: ${HEALTHCHECK_TIMEOUT}
+      retries: ${HEALTHCHECK_RETRIES}
+      start_period: ${HEALTHCHECK_START_PERIOD}
 
 volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  mailpit_data:
     driver: local
 
 networks:

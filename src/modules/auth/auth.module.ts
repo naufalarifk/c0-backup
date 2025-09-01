@@ -18,6 +18,7 @@ import {
   HttpAdapterHost,
   MetadataScanner,
 } from '@nestjs/core';
+
 import { toNodeHandler } from 'better-auth/node';
 import { createAuthMiddleware } from 'better-auth/plugins';
 import invariant from 'tiny-invariant';

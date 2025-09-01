@@ -9,13 +9,14 @@ import {
 } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
+
 import compression from 'compression';
 import helmet from 'helmet';
 import morgan from 'morgan';
 
 import { AppModule } from './app.module';
-import { docs } from './lib';
-import { ConfigService } from './shared/services/config.service';
+import docs from './docs';
+import { AppConfigService } from './shared/services/app-config.service';
 import { SharedModule } from './shared/shared.module';
 
 async function bootstrap() {
@@ -25,7 +26,7 @@ async function bootstrap() {
 
   const reflector = app.get(Reflector);
   const logger = new Logger(bootstrap.name);
-  const configService = app.select(SharedModule).get(ConfigService);
+  const configService = app.select(SharedModule).get(AppConfigService);
 
   app.enableCors({
     origin: configService.appConfig.allowedOrigins,

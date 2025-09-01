@@ -2,7 +2,8 @@ import type { ThrottlerOptions } from '@nestjs/throttler';
 import type { RedisOptions } from 'ioredis';
 
 import { Injectable } from '@nestjs/common';
-import { ConfigService as _ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
+
 import { drizzle } from 'drizzle-orm/node-postgres';
 import parse from 'parse-duration';
 import { Pool } from 'pg';
@@ -11,8 +12,8 @@ import invariant from 'tiny-invariant';
 import * as schema from '../database/schema';
 
 @Injectable()
-export class ConfigService {
-  constructor(private configService: _ConfigService) {}
+export class AppConfigService {
+  constructor(private configService: ConfigService) {}
 
   get isDevelopment(): boolean {
     return this.nodeEnv === 'development';
@@ -89,6 +90,16 @@ export class ConfigService {
     return {
       apiKey: this.getString('RESEND_API_KEY'),
       from: this.getString('EMAIL_FROM'),
+      host: this.getString('MAIL_HOST'),
+      port: this.getNumber('MAIL_PORT'),
+      user: this.getString('MAIL_USER'),
+      pass: this.getString('MAIL_PASSWORD'),
+      ignoreTLS: this.getBoolean('MAIL_IGNORE_TLS'),
+      secure: this.getBoolean('MAIL_SECURE'),
+      requireTLS: this.getBoolean('MAIL_REQUIRE_TLS'),
+      defaultEmail: this.getString('MAIL_DEFAULT_EMAIL'),
+      defaultName: this.getString('MAIL_DEFAULT_NAME'),
+      clientPort: this.getNumber('MAIL_CLIENT_PORT'),
     };
   }
 

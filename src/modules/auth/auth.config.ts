@@ -2,15 +2,14 @@ import type { BetterAuthOptions } from 'better-auth';
 import type { DrizzleDB } from '../../shared/database/database.module';
 import type { AuthModuleOptions } from './auth.module';
 
+import { Inject, Injectable, Logger } from '@nestjs/common';
+
 import { expo } from '@better-auth/expo';
 import { sso } from '@better-auth/sso';
-import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Auth, betterAuth } from 'better-auth';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import {
   admin,
   multiSession,
-  oneTap,
   openAPI,
   phoneNumber,
   twoFactor,
@@ -18,25 +17,29 @@ import {
 } from 'better-auth/plugins';
 import { v7 as uuidv7 } from 'uuid';
 
-import { verificationEmail } from '../../lib';
 import { DRIZZLE_DB } from '../../shared/database/database.module';
-import * as schema from '../../shared/database/schema';
-import { ConfigService } from '../../shared/services/config.service';
+import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { AppConfigService } from '../../shared/services/app-config.service';
 import { EmailService } from '../../shared/services/email.service';
+import { MailerService } from '../../shared/services/mailer.service';
 import { RedisService } from '../../shared/services/redis.service';
 import { TwilioService } from '../../shared/services/twilio.service';
+import { authAdapter } from './auth.adapter';
 import { RESERVED_USERNAMES } from './auth.constants';
+import { verificationEmail } from './template/verification-email';
 
 @Injectable()
 export class AuthConfig {
   private readonly logger = new Logger(AuthConfig.name);
 
   constructor(
-    @Inject(DRIZZLE_DB) private readonly database: DrizzleDB,
-    private readonly configService: ConfigService,
-    private readonly emailService: EmailService,
+    @Inject(DRIZZLE_DB) readonly _database: DrizzleDB,
+    private readonly configService: AppConfigService,
+    readonly _emailService: EmailService,
+    private readonly mailerService: MailerService,
     private readonly twilioService: TwilioService,
     private readonly redisService: RedisService,
+    private readonly userRepository: CryptogadaiRepository,
   ) {}
 
   /**
@@ -71,7 +74,7 @@ export class AuthConfig {
       },
       trustedOrigins: [
         'exp://192.168.0.109:8081', // Development
-        'gadainclient://', // Production scheme from app.json
+        'crypto-gadai://', // Production scheme from app.json
         // Add your production URL
       ],
       rateLimit: {
@@ -90,11 +93,9 @@ export class AuthConfig {
   }
 
   private createDatabaseAdapter() {
-    return drizzleAdapter(this.database, {
-      provider: 'pg',
-      usePlural: true,
+    return authAdapter({
+      userRepo: this.userRepository,
       debugLogs: this.configService.databaseLogger,
-      schema,
     });
   }
 
@@ -153,17 +154,26 @@ export class AuthConfig {
         const html = verificationEmail({
           url,
           userName: user.email,
-          companyName: 'Gadain',
+          companyName: this.configService.appConfig.appName,
         });
-        const res = await this.emailService.sendEmail({
+
+        const emailConfirmTitle = 'Verify your email address';
+
+        await this.mailerService.sendMail({
           to: user.email,
-          subject: 'Verify your email address',
+          subject: emailConfirmTitle,
           html,
         });
 
-        if (res.error) {
-          this.logger.error('Failed to send verification email :>> ', res.error);
-        }
+        // const res = await this.emailService.sendEmail({
+        //   to: user.email,
+        //   subject: emailConfirmTitle,
+        //   html,
+        // });
+
+        // if (res.error) {
+        //   this.logger.error('Failed to send verification email :>> ', res.error);
+        // }
       },
     };
   }
@@ -197,7 +207,6 @@ export class AuthConfig {
           getTempName: (phoneNumber: string) => `User-${phoneNumber.slice(-4)}`,
         },
       }),
-      oneTap(),
       sso(),
       multiSession({ maximumSessions: this.configService.authConfig.maximumSessions }),
       admin(),
