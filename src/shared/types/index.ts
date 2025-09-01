@@ -1,2 +1,2 @@
+export * from '../repositories/user.types';
 export * from './redis.types';
-export * from './user.types';

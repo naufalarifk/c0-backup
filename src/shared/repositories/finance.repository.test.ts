@@ -1,5 +1,5 @@
-import { runFinanceRepositoryTestSuite } from './finance-repository-test-suite';
-import { InMemoryCryptogadaiRepository } from './in-memory-cryptogadai-repository';
+import { runFinanceRepositoryTestSuite } from './finance.repository-test-suite';
+import { InMemoryCryptogadaiRepository } from './in-memory-cryptogadai.repository';
 
 runFinanceRepositoryTestSuite(
   async function () {
