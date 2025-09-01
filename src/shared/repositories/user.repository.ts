@@ -53,7 +53,7 @@ import {
   assertPropStringOrNumber,
   setAssertPropValue,
 } from '../utils/assertions';
-import { BaseRepository } from './base-repository';
+import { BaseRepository } from './base.repository';
 
 /**
  * UserRepository <- BaseRepository
@@ -78,6 +78,10 @@ export abstract class UserRepository extends BaseRepository {
         callbackURL,
       } = data;
 
+      if (id) {
+        console.warn('Creating user with specific ID is not supported.', id);
+      }
+
       // Handle field mapping: email_address maps to email column
       const emailValue = email_address || email;
 
@@ -94,7 +98,7 @@ export abstract class UserRepository extends BaseRepository {
       const user = rows[0];
       assertDefined(user);
       assertPropString(user, 'email');
-      assertPropStringOrNumber(user, 'profile_picture');
+      assertPropNullableStringOrNumber(user, 'profile_picture');
 
       // If original data had email_address, return it as email_address in response
       if (email_address) {
@@ -111,6 +115,7 @@ export abstract class UserRepository extends BaseRepository {
 
       return user;
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -297,6 +302,7 @@ export abstract class UserRepository extends BaseRepository {
       await tx.commitTransaction();
       return returnValue;
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -337,6 +343,7 @@ export abstract class UserRepository extends BaseRepository {
       await tx.commitTransaction();
       return [];
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -368,6 +375,7 @@ export abstract class UserRepository extends BaseRepository {
       await tx.commitTransaction();
       return null;
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -396,6 +404,7 @@ export abstract class UserRepository extends BaseRepository {
       await tx.commitTransaction();
       return [];
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -991,6 +1000,7 @@ export abstract class UserRepository extends BaseRepository {
       await tx.commitTransaction();
       return returnValue;
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -1097,6 +1107,7 @@ export abstract class UserRepository extends BaseRepository {
 
       await tx.commitTransaction();
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -1151,6 +1162,7 @@ export abstract class UserRepository extends BaseRepository {
         userId: String(kyc.user_id),
       };
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -1241,6 +1253,7 @@ export abstract class UserRepository extends BaseRepository {
         verifiedDate: kyc.verified_date,
       };
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -1279,6 +1292,7 @@ export abstract class UserRepository extends BaseRepository {
         rejectedDate: kyc.rejected_date,
       };
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -1353,6 +1367,7 @@ export abstract class UserRepository extends BaseRepository {
         businessName: application.business_name,
       };
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -1397,6 +1412,7 @@ export abstract class UserRepository extends BaseRepository {
         applicationId: String(applicationId),
       };
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -1434,6 +1450,7 @@ export abstract class UserRepository extends BaseRepository {
         rejectedDate: application.rejected_date,
       };
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -1478,6 +1495,7 @@ export abstract class UserRepository extends BaseRepository {
         role: invitation.role,
       };
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -1527,6 +1545,7 @@ export abstract class UserRepository extends BaseRepository {
         acceptedDate: new Date(updatedInvitation.accepted_date),
       };
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -1567,6 +1586,7 @@ export abstract class UserRepository extends BaseRepository {
         rejectedDate: invitation.rejected_date,
       };
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -1606,6 +1626,7 @@ export abstract class UserRepository extends BaseRepository {
         role: row.institution_role,
       };
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -1642,6 +1663,7 @@ export abstract class UserRepository extends BaseRepository {
         removed: true,
       };
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -1767,6 +1789,7 @@ export abstract class UserRepository extends BaseRepository {
         businessName: application.business_name,
       };
     } catch (error) {
+      console.error('UserRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }

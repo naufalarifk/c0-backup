@@ -1,4 +1,3 @@
-import { unknownErrorToString } from '../utils';
 import {
   assertArrayOf,
   assertDefined,
@@ -45,7 +44,7 @@ import {
   UserViewsInvoiceDetailsResult,
   UserViewsWithdrawalBeneficiariesParams,
   UserViewsWithdrawalBeneficiariesResult,
-} from './finance-type';
+} from './finance.types';
 import { UserRepository } from './user.repository';
 
 /**

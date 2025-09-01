@@ -2,7 +2,7 @@ import { rejects } from 'node:assert';
 import { equal, ok, throws } from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it, suite } from 'node:test';
 
-import { BaseRepository } from './base-repository';
+import { BaseRepository } from './base.repository';
 
 export async function runBaseRepositoryTestSuite(
   createRepo: () => Promise<BaseRepository>,

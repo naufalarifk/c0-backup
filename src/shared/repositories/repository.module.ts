@@ -5,7 +5,7 @@ import { Pool } from 'pg';
 
 import { AppConfigService } from '../services/app-config.service';
 import { CryptogadaiRepository } from './cryptogadai.repository';
-import { PgRedisCryptogadaiRepository } from './pg-redis-cryptogadai-repository';
+import { PgRedisCryptogadaiRepository } from './pg-redis-cryptogadai.repository';
 
 @Module({
   providers: [
