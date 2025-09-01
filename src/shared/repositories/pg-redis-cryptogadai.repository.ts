@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { Redis } from 'ioredis';
 import { Pool, PoolClient } from 'pg';
 
-import { DbRepository } from './base-repository';
+import { DbRepository } from './base.repository';
 import { CryptogadaiRepository } from './cryptogadai.repository';
 
 export class PgRedisDbRepository extends DbRepository {

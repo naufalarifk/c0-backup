@@ -1,7 +1,7 @@
 import { equal, ok } from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it, suite } from 'node:test';
 
-import { FinanceRepository } from './finance-repository';
+import { FinanceRepository } from './finance.repository';
 
 export async function runFinanceRepositoryTestSuite(
   createRepo: () => Promise<FinanceRepository>,

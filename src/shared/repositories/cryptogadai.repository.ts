@@ -1,4 +1,4 @@
-import { FinanceRepository } from './finance-repository';
+import { FinanceRepository } from './finance.repository';
 
 /**
  * CryptogadaiRepository <- AdminRepository <- LoanRepository <- FinanceRepository <- UserRepository <- DatabaseRepository
