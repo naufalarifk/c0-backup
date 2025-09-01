@@ -5,7 +5,6 @@ import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
-import { AppController } from './app.controller';
 import { AuthConfig } from './modules/auth/auth.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { BlockchainsModule } from './modules/blockchains/blockchains.module';
@@ -47,7 +46,6 @@ import { SharedModule } from './shared/shared.module';
 
     BlockchainsModule,
   ],
-  controllers: [AppController],
   providers: [
     // Global guards
     {

@@ -1,7 +1,6 @@
 import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { AppController } from './app.controller';
 import { AppConfigService } from './shared/services/app-config.service';
 
 describe('AppModule', () => {
@@ -42,7 +41,6 @@ describe('AppModule', () => {
         }),
       ],
       providers: [
-        AppController,
         {
           provide: AppConfigService,
           useValue: mockConfigService,
@@ -59,11 +57,6 @@ describe('AppModule', () => {
 
   it('should be defined', () => {
     expect(module).toBeDefined();
-  });
-
-  it('should have AppController', () => {
-    const controller = module.get<AppController>(AppController);
-    expect(controller).toBeDefined();
   });
 
   it('should have AppConfigService', () => {
