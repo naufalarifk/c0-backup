@@ -60,6 +60,177 @@ export async function runUserRepositoryTestSuite(
         equal(result.profilePictureUrl, null);
         equal(result.updatedDate, updateDate);
       });
+
+      it('should view user profile with basic information', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Profile Test User',
+          email: 'profile-test@example.com',
+          emailVerified: true,
+        });
+
+        const result = await repo.userViewsProfile({ userId: user.id });
+
+        equal(result.id, String(user.id));
+        equal(result.name, 'Profile Test User');
+        equal(result.email, 'profile-test@example.com');
+        equal(result.emailVerified, true);
+        equal(result.role, 'User');
+        equal(result.twoFactorEnabled, false);
+        equal(result.userType, 'Undecided');
+        equal(result.institutionUserId, null);
+        equal(result.institutionRole, null);
+        equal(result.kycId, null);
+        equal(result.kycStatus, 'none');
+        equal(result.businessName, null);
+        equal(result.businessType, null);
+        ok(result.createdAt instanceof Date);
+        ok(result.updatedAt instanceof Date);
+      });
+
+      it('should view user profile with updated profile picture', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Picture Test User',
+          email: 'picture-test@example.com',
+          emailVerified: true,
+        });
+
+        // Update profile with picture
+        await repo.userUpdatesProfile({
+          id: user.id,
+          fullName: 'Picture Test User Updated',
+          profilePictureUrl: 'https://example.com/picture.jpg',
+          updateDate: new Date('2024-01-01T00:00:00Z'),
+        });
+
+        const result = await repo.userViewsProfile({ userId: user.id });
+
+        equal(result.id, String(user.id));
+        equal(result.name, 'Picture Test User Updated');
+        equal(result.profilePicture, 'https://example.com/picture.jpg');
+      });
+
+      it('should view user profile with KYC status', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'KYC Profile Test',
+          email: 'kyc-profile-test@example.com',
+          emailVerified: true,
+        });
+
+        // User decides type and submits KYC
+        await repo.userDecidesUserType({
+          userId: user.id,
+          userType: 'Individual',
+          decisionDate: new Date('2024-01-01T00:00:00Z'),
+        });
+
+        await repo.userSubmitsKyc({
+          userId: user.id,
+          idCardPhoto: '/path/to/id-card.jpg',
+          selfiePhoto: '/path/to/selfie.jpg',
+          selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
+          nik: '1234567890123456',
+          fullName: 'KYC Profile Test',
+          birthCity: 'Jakarta',
+          birthDate: new Date('1990-01-01'),
+          province: 'DKI Jakarta',
+          city: 'Jakarta',
+          district: 'Central Jakarta',
+          subdistrict: 'Menteng',
+          address: 'Jl. Example No. 123',
+          postalCode: '12345',
+          phoneNumber: '+6281234567890',
+          submissionDate: new Date('2024-01-01T00:00:00Z'),
+        });
+
+        const result = await repo.userViewsProfile({ userId: user.id });
+
+        equal(result.id, String(user.id));
+        equal(result.userType, 'Individual');
+        equal(result.kycStatus, 'pending');
+        ok(result.userTypeSelectedDate instanceof Date);
+      });
+
+      it('should view user profile with institution information', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Institution Test User',
+          email: 'institution-test@example.com',
+          emailVerified: true,
+        });
+
+        const institutionOwner = await repo.betterAuthCreateUser({
+          name: 'Institution Owner',
+          email: 'owner-test@example.com',
+          emailVerified: true,
+        });
+
+        // Add user to institution
+        await repo.adminAddUserToInstitution({
+          userId: user.id,
+          institutionId: institutionOwner.id,
+          role: 'Finance',
+          assignedDate: new Date('2024-01-01T00:00:00Z'),
+        });
+
+        const result = await repo.userViewsProfile({ userId: user.id });
+
+        equal(result.id, String(user.id));
+        equal(result.institutionUserId, String(institutionOwner.id));
+        equal(result.institutionRole, 'Finance');
+      });
+
+      it('should view user profile with verified KYC status', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Verified KYC User',
+          email: 'verified-kyc@example.com',
+          emailVerified: true,
+        });
+
+        const admin = await repo.betterAuthCreateUser({
+          name: 'Admin User',
+          email: 'admin-verified@example.com',
+          emailVerified: true,
+        });
+
+        // User decides type and submits KYC
+        await repo.userDecidesUserType({
+          userId: user.id,
+          userType: 'Individual',
+          decisionDate: new Date('2024-01-01T00:00:00Z'),
+        });
+
+        const kyc = await repo.userSubmitsKyc({
+          userId: user.id,
+          idCardPhoto: '/path/to/id-card.jpg',
+          selfiePhoto: '/path/to/selfie.jpg',
+          selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
+          nik: '1234567890123456',
+          fullName: 'Verified KYC User',
+          birthCity: 'Jakarta',
+          birthDate: new Date('1990-01-01'),
+          province: 'DKI Jakarta',
+          city: 'Jakarta',
+          district: 'Central Jakarta',
+          subdistrict: 'Menteng',
+          address: 'Jl. Example No. 123',
+          postalCode: '12345',
+          phoneNumber: '+6281234567890',
+          submissionDate: new Date('2024-01-01T00:00:00Z'),
+        });
+
+        // Admin approves KYC
+        await repo.adminApprovesKYCParam({
+          kycId: kyc.id,
+          verifierUserId: admin.id,
+          approvalDate: new Date('2024-01-02T00:00:00Z'),
+        });
+
+        const result = await repo.userViewsProfile({ userId: user.id });
+
+        equal(result.id, String(user.id));
+        equal(result.kycStatus, 'verified');
+        equal(result.kycId, kyc.id);
+        equal(result.userType, 'Individual');
+      });
     });
 
     describe('User KYC Management', function () {
