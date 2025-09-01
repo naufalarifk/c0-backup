@@ -80,36 +80,12 @@ export abstract class FinanceRepository extends UserRepository {
     return {
       accounts: accounts.map(function (account: unknown) {
         assertDefined(account, 'Account is undefined');
-        assertPropStringOrNumber(
-          account,
-          'id',
-          `Expect account id to string or number, got ${unknownErrorToString(account)}`,
-        );
-        assertPropStringOrNumber(
-          account,
-          'user_id',
-          `Expect account user_id to string or number, got ${unknownErrorToString(account)}`,
-        );
-        assertPropString(
-          account,
-          'currency_blockchain_key',
-          `Expect account currency_blockchain_key to string, got ${unknownErrorToString(account)}`,
-        );
-        assertPropString(
-          account,
-          'currency_token_id',
-          `Expect account currency_token_id to string, got ${unknownErrorToString(account)}`,
-        );
-        assertPropStringOrNumber(
-          account,
-          'balance',
-          `Expect account balance to string or number, got ${unknownErrorToString(account)}`,
-        );
-        assertPropString(
-          account,
-          'account_type',
-          `Expect account account_type to string, got ${unknownErrorToString(account)}`,
-        );
+        assertPropStringOrNumber(account, 'id');
+        assertPropStringOrNumber(account, 'user_id');
+        assertPropString(account, 'currency_blockchain_key');
+        assertPropString(account, 'currency_token_id');
+        assertPropStringOrNumber(account, 'balance');
+        assertPropString(account, 'account_type');
         return {
           id: String(account.id),
           userId: String(account.user_id),
@@ -139,11 +115,7 @@ export abstract class FinanceRepository extends UserRepository {
 
     const countRow = Array.isArray(countResult) ? countResult[0] : countResult;
     assertDefined(countRow, 'Count query failed');
-    assertPropStringOrNumber(
-      countRow,
-      'total',
-      `Expect total to be string or number, got ${unknownErrorToString(countRow)}`,
-    );
+    assertPropStringOrNumber(countRow, 'total');
     const totalCount = Number(countRow.total);
 
     const rows = await this.sql`
@@ -172,46 +144,14 @@ export abstract class FinanceRepository extends UserRepository {
     return {
       mutations: mutations.map(function (mutation: unknown) {
         assertDefined(mutation, 'Mutation is undefined');
-        assertPropStringOrNumber(
-          mutation,
-          'id',
-          `Expect mutation id to string or number, got ${unknownErrorToString(mutation)}`,
-        );
-        assertPropStringOrNumber(
-          mutation,
-          'account_id',
-          `Expect mutation account_id to string or number, got ${unknownErrorToString(mutation)}`,
-        );
-        assertPropString(
-          mutation,
-          'mutation_type',
-          `Expect mutation mutation_type to string, got ${unknownErrorToString(mutation)}`,
-        );
-        assertPropDate(
-          mutation,
-          'mutation_date',
-          `Expect mutation mutation_date to be Date, got ${unknownErrorToString(mutation)}`,
-        );
-        assertPropStringOrNumber(
-          mutation,
-          'amount',
-          `Expect mutation amount to string or number, got ${unknownErrorToString(mutation)}`,
-        );
-        assertPropNullableString(
-          mutation,
-          'invoice_id',
-          `Expect mutation invoice_id to be string or null, got ${unknownErrorToString(mutation)}`,
-        );
-        assertPropNullableString(
-          mutation,
-          'withdrawal_id',
-          `Expect mutation withdrawal_id to be string or null, got ${unknownErrorToString(mutation)}`,
-        );
-        assertPropNullableString(
-          mutation,
-          'invoice_payment_id',
-          `Expect mutation invoice_payment_id to be string or null, got ${unknownErrorToString(mutation)}`,
-        );
+        assertPropStringOrNumber(mutation, 'id');
+        assertPropStringOrNumber(mutation, 'account_id');
+        assertPropString(mutation, 'mutation_type');
+        assertPropDate(mutation, 'mutation_date');
+        assertPropStringOrNumber(mutation, 'amount');
+        assertPropNullableString(mutation, 'invoice_id');
+        assertPropNullableString(mutation, 'withdrawal_id');
+        assertPropNullableString(mutation, 'invoice_payment_id');
         return {
           id: String(mutation.id),
           accountId: String(mutation.account_id),
@@ -233,7 +173,7 @@ export abstract class FinanceRepository extends UserRepository {
   async platformCreatesUserAccount(
     params: PlatformCreatesUserAccountParams,
   ): Promise<PlatformCreatesUserAccountResult> {
-    const { userId, currencyBlockchainKey, currencyTokenId, accountType = 'user' } = params;
+    const { userId, currencyBlockchainKey, currencyTokenId, accountType = 'User' } = params;
 
     const tx = await this.beginTransaction();
     try {
@@ -259,36 +199,12 @@ export abstract class FinanceRepository extends UserRepository {
 
       const account = rows[0];
       assertDefined(account, 'Account creation failed');
-      assertPropStringOrNumber(
-        account,
-        'id',
-        `Expect account id to string or number, got ${unknownErrorToString(account)}`,
-      );
-      assertPropStringOrNumber(
-        account,
-        'user_id',
-        `Expect account user_id to string or number, got ${unknownErrorToString(account)}`,
-      );
-      assertPropString(
-        account,
-        'currency_blockchain_key',
-        `Expect account currency_blockchain_key to string, got ${unknownErrorToString(account)}`,
-      );
-      assertPropString(
-        account,
-        'currency_token_id',
-        `Expect account currency_token_id to string, got ${unknownErrorToString(account)}`,
-      );
-      assertPropStringOrNumber(
-        account,
-        'balance',
-        `Expect account balance to string or number, got ${unknownErrorToString(account)}`,
-      );
-      assertPropString(
-        account,
-        'account_type',
-        `Expect account account_type to string, got ${unknownErrorToString(account)}`,
-      );
+      assertPropStringOrNumber(account, 'id');
+      assertPropStringOrNumber(account, 'user_id');
+      assertPropString(account, 'currency_blockchain_key');
+      assertPropString(account, 'currency_token_id');
+      assertPropStringOrNumber(account, 'balance');
+      assertPropString(account, 'account_type');
 
       await tx.commitTransaction();
 
@@ -333,6 +249,7 @@ export abstract class FinanceRepository extends UserRepository {
           wallet_derivation_path,
           wallet_address,
           invoice_type,
+          draft_date,
           invoice_date,
           due_date
         )
@@ -345,6 +262,7 @@ export abstract class FinanceRepository extends UserRepository {
           ${walletAddress},
           ${invoiceType},
           ${invoiceDate.toISOString()},
+          ${invoiceDate.toISOString()},
           ${dueDate?.toISOString()}
         )
         RETURNING id, user_id, wallet_address, invoice_type, status, invoiced_amount, paid_amount, invoice_date, due_date
@@ -352,51 +270,15 @@ export abstract class FinanceRepository extends UserRepository {
 
       const invoice = rows[0];
       assertDefined(invoice, 'Invoice creation failed');
-      assertPropStringOrNumber(
-        invoice,
-        'id',
-        `Expect invoice id to string or number, got ${unknownErrorToString(invoice)}`,
-      );
-      assertPropStringOrNumber(
-        invoice,
-        'user_id',
-        `Expect invoice user_id to string or number, got ${unknownErrorToString(invoice)}`,
-      );
-      assertPropString(
-        invoice,
-        'wallet_address',
-        `Expect invoice wallet_address to string, got ${unknownErrorToString(invoice)}`,
-      );
-      assertPropString(
-        invoice,
-        'invoice_type',
-        `Expect invoice invoice_type to string, got ${unknownErrorToString(invoice)}`,
-      );
-      assertPropString(
-        invoice,
-        'status',
-        `Expect invoice status to string, got ${unknownErrorToString(invoice)}`,
-      );
-      assertPropStringOrNumber(
-        invoice,
-        'invoiced_amount',
-        `Expect invoice invoiced_amount to string or number, got ${unknownErrorToString(invoice)}`,
-      );
-      assertPropStringOrNumber(
-        invoice,
-        'paid_amount',
-        `Expect invoice paid_amount to string or number, got ${unknownErrorToString(invoice)}`,
-      );
-      assertPropDate(
-        invoice,
-        'invoice_date',
-        `Expect invoice invoice_date to be Date, got ${unknownErrorToString(invoice)}`,
-      );
-      assertPropNullableDate(
-        invoice,
-        'due_date',
-        `Expect invoice due_date to be Date or null, got ${unknownErrorToString(invoice)}`,
-      );
+      assertPropStringOrNumber(invoice, 'id');
+      assertPropStringOrNumber(invoice, 'user_id');
+      assertPropString(invoice, 'wallet_address');
+      assertPropString(invoice, 'invoice_type');
+      assertPropString(invoice, 'status');
+      assertPropStringOrNumber(invoice, 'invoiced_amount');
+      assertPropStringOrNumber(invoice, 'paid_amount');
+      assertPropDate(invoice, 'invoice_date');
+      assertPropNullableDate(invoice, 'due_date');
 
       await tx.commitTransaction();
 
@@ -442,31 +324,11 @@ export abstract class FinanceRepository extends UserRepository {
 
       const payment = rows[0];
       assertDefined(payment, 'Invoice payment recording failed');
-      assertPropStringOrNumber(
-        payment,
-        'id',
-        `Expect payment id to string or number, got ${unknownErrorToString(payment)}`,
-      );
-      assertPropStringOrNumber(
-        payment,
-        'invoice_id',
-        `Expect payment invoice_id to string or number, got ${unknownErrorToString(payment)}`,
-      );
-      assertPropString(
-        payment,
-        'payment_hash',
-        `Expect payment payment_hash to string, got ${unknownErrorToString(payment)}`,
-      );
-      assertPropStringOrNumber(
-        payment,
-        'amount',
-        `Expect payment amount to string or number, got ${unknownErrorToString(payment)}`,
-      );
-      assertPropDate(
-        payment,
-        'payment_date',
-        `Expect payment payment_date to be Date, got ${unknownErrorToString(payment)}`,
-      );
+      assertPropStringOrNumber(payment, 'id');
+      assertPropStringOrNumber(payment, 'invoice_id');
+      assertPropString(payment, 'payment_hash');
+      assertPropStringOrNumber(payment, 'amount');
+      assertPropDate(payment, 'payment_date');
 
       await tx.commitTransaction();
       return {
@@ -504,26 +366,10 @@ export abstract class FinanceRepository extends UserRepository {
 
       const invoice = rows[0];
       assertDefined(invoice, 'Invoice not found or update failed');
-      assertPropStringOrNumber(
-        invoice,
-        'id',
-        `Expect invoice id to string or number, got ${unknownErrorToString(invoice)}`,
-      );
-      assertPropString(
-        invoice,
-        'status',
-        `Expect invoice status to string, got ${unknownErrorToString(invoice)}`,
-      );
-      assertPropDate(
-        invoice,
-        'expired_date',
-        `Expect invoice expired_date to be Date or null, got ${unknownErrorToString(invoice)}`,
-      );
-      assertPropDate(
-        invoice,
-        'notified_date',
-        `Expect invoice notified_date to be Date or null, got ${unknownErrorToString(invoice)}`,
-      );
+      assertPropStringOrNumber(invoice, 'id');
+      assertPropString(invoice, 'status');
+      assertPropDate(invoice, 'expired_date');
+      assertPropDate(invoice, 'notified_date');
 
       await tx.commitTransaction();
 
@@ -569,71 +415,19 @@ export abstract class FinanceRepository extends UserRepository {
 
     const invoice = rows[0];
     assertDefined(invoice, 'Invoice not found');
-    assertPropStringOrNumber(
-      invoice,
-      'id',
-      `Expect invoice id to string or number, got ${unknownErrorToString(invoice)}`,
-    );
-    assertPropStringOrNumber(
-      invoice,
-      'user_id',
-      `Expect invoice user_id to string or number, got ${unknownErrorToString(invoice)}`,
-    );
-    assertPropString(
-      invoice,
-      'currency_blockchain_key',
-      `Expect invoice currency_blockchain_key to string, got ${unknownErrorToString(invoice)}`,
-    );
-    assertPropString(
-      invoice,
-      'currency_token_id',
-      `Expect invoice currency_token_id to string, got ${unknownErrorToString(invoice)}`,
-    );
-    assertPropString(
-      invoice,
-      'wallet_address',
-      `Expect invoice wallet_address to string, got ${unknownErrorToString(invoice)}`,
-    );
-    assertPropString(
-      invoice,
-      'invoice_type',
-      `Expect invoice invoice_type to string, got ${unknownErrorToString(invoice)}`,
-    );
-    assertPropString(
-      invoice,
-      'status',
-      `Expect invoice status to string, got ${unknownErrorToString(invoice)}`,
-    );
-    assertPropStringOrNumber(
-      invoice,
-      'invoiced_amount',
-      `Expect invoice invoiced_amount to string or number, got ${unknownErrorToString(invoice)}`,
-    );
-    assertPropStringOrNumber(
-      invoice,
-      'paid_amount',
-      `Expect invoice paid_amount to string or number, got ${unknownErrorToString(invoice)}`,
-    );
-    assertPropDate(
-      invoice,
-      'invoice_date',
-      `Expect invoice invoice_date to be Date, got ${unknownErrorToString(invoice)}`,
-    );
-    assertPropNullableDate(
-      invoice,
-      'due_date',
-      `Expect invoice due_date to be Date or null, got ${unknownErrorToString(invoice)}`,
-    );
-    assertPropNullableDate(
-      invoice,
-      'expired_date',
-      `Expect invoice expired_date to be Date or null, got ${unknownErrorToString(invoice)}`,
-    );
-    assertPropNullableDate(
-      invoice,
-      'paid_date',
-      `Expect invoice paid_date to be Date or null, got ${unknownErrorToString(invoice)}`,
-    );
+    assertPropStringOrNumber(invoice, 'id');
+    assertPropStringOrNumber(invoice, 'user_id');
+    assertPropString(invoice, 'currency_blockchain_key');
+    assertPropString(invoice, 'currency_token_id');
+    assertPropString(invoice, 'wallet_address');
+    assertPropString(invoice, 'invoice_type');
+    assertPropString(invoice, 'status');
+    assertPropStringOrNumber(invoice, 'invoiced_amount');
+    assertPropStringOrNumber(invoice, 'paid_amount');
+    assertPropDate(invoice, 'invoice_date');
+    assertPropNullableDate(invoice, 'due_date');
+    assertPropNullableDate(invoice, 'expired_date');
+    assertPropNullableDate(invoice, 'paid_date');
 
     return {
       id: String(invoice.id),
@@ -678,31 +472,11 @@ export abstract class FinanceRepository extends UserRepository {
 
       const beneficiary = rows[0];
       assertDefined(beneficiary, 'Beneficiary registration failed');
-      assertPropStringOrNumber(
-        beneficiary,
-        'id',
-        `Expect beneficiary id to string or number, got ${unknownErrorToString(beneficiary)}`,
-      );
-      assertPropStringOrNumber(
-        beneficiary,
-        'user_id',
-        `Expect beneficiary user_id to string or number, got ${unknownErrorToString(beneficiary)}`,
-      );
-      assertPropString(
-        beneficiary,
-        'currency_blockchain_key',
-        `Expect beneficiary currency_blockchain_key to string, got ${unknownErrorToString(beneficiary)}`,
-      );
-      assertPropString(
-        beneficiary,
-        'currency_token_id',
-        `Expect beneficiary currency_token_id to string, got ${unknownErrorToString(beneficiary)}`,
-      );
-      assertPropString(
-        beneficiary,
-        'address',
-        `Expect beneficiary address to string, got ${unknownErrorToString(beneficiary)}`,
-      );
+      assertPropStringOrNumber(beneficiary, 'id');
+      assertPropStringOrNumber(beneficiary, 'user_id');
+      assertPropString(beneficiary, 'currency_blockchain_key');
+      assertPropString(beneficiary, 'currency_token_id');
+      assertPropString(beneficiary, 'address');
 
       await tx.commitTransaction();
 
@@ -746,36 +520,12 @@ export abstract class FinanceRepository extends UserRepository {
 
       const withdrawal = rows[0];
       assertDefined(withdrawal, 'Withdrawal request failed');
-      assertPropStringOrNumber(
-        withdrawal,
-        'id',
-        `Expect withdrawal id to string or number, got ${unknownErrorToString(withdrawal)}`,
-      );
-      assertPropStringOrNumber(
-        withdrawal,
-        'beneficiary_id',
-        `Expect withdrawal beneficiary_id to string or number, got ${unknownErrorToString(withdrawal)}`,
-      );
-      assertPropStringOrNumber(
-        withdrawal,
-        'amount',
-        `Expect withdrawal amount to string or number, got ${unknownErrorToString(withdrawal)}`,
-      );
-      assertPropStringOrNumber(
-        withdrawal,
-        'request_amount',
-        `Expect withdrawal request_amount to string or number, got ${unknownErrorToString(withdrawal)}`,
-      );
-      assertPropString(
-        withdrawal,
-        'status',
-        `Expect withdrawal status to string, got ${unknownErrorToString(withdrawal)}`,
-      );
-      assertPropDate(
-        withdrawal,
-        'request_date',
-        `Expect withdrawal request_date to be Date, got ${unknownErrorToString(withdrawal)}`,
-      );
+      assertPropStringOrNumber(withdrawal, 'id');
+      assertPropStringOrNumber(withdrawal, 'beneficiary_id');
+      assertPropStringOrNumber(withdrawal, 'amount');
+      assertPropStringOrNumber(withdrawal, 'request_amount');
+      assertPropString(withdrawal, 'status');
+      assertPropDate(withdrawal, 'request_date');
 
       await tx.commitTransaction();
 
@@ -816,31 +566,11 @@ export abstract class FinanceRepository extends UserRepository {
 
       const withdrawal = rows[0];
       assertDefined(withdrawal, 'Withdrawal not found or update failed');
-      assertPropStringOrNumber(
-        withdrawal,
-        'id',
-        `Expect withdrawal id to string or number, got ${unknownErrorToString(withdrawal)}`,
-      );
-      assertPropString(
-        withdrawal,
-        'status',
-        `Expect withdrawal status to string, got ${unknownErrorToString(withdrawal)}`,
-      );
-      assertPropString(
-        withdrawal,
-        'sent_hash',
-        `Expect withdrawal sent_hash to string, got ${unknownErrorToString(withdrawal)}`,
-      );
-      assertPropStringOrNumber(
-        withdrawal,
-        'sent_amount',
-        `Expect withdrawal sent_amount to string or number, got ${unknownErrorToString(withdrawal)}`,
-      );
-      assertPropDate(
-        withdrawal,
-        'sent_date',
-        `Expect withdrawal sent_date to be Date, got ${unknownErrorToString(withdrawal)}`,
-      );
+      assertPropStringOrNumber(withdrawal, 'id');
+      assertPropString(withdrawal, 'status');
+      assertPropString(withdrawal, 'sent_hash');
+      assertPropStringOrNumber(withdrawal, 'sent_amount');
+      assertPropDate(withdrawal, 'sent_date');
 
       await tx.commitTransaction();
 
@@ -878,21 +608,9 @@ export abstract class FinanceRepository extends UserRepository {
 
       const withdrawal = rows[0];
       assertDefined(withdrawal, 'Withdrawal not found or update failed');
-      assertPropStringOrNumber(
-        withdrawal,
-        'id',
-        `Expect withdrawal id to string or number, got ${unknownErrorToString(withdrawal)}`,
-      );
-      assertPropString(
-        withdrawal,
-        'status',
-        `Expect withdrawal status to string, got ${unknownErrorToString(withdrawal)}`,
-      );
-      assertPropDate(
-        withdrawal,
-        'confirmed_date',
-        `Expect withdrawal confirmed_date to be Date, got ${unknownErrorToString(withdrawal)}`,
-      );
+      assertPropStringOrNumber(withdrawal, 'id');
+      assertPropString(withdrawal, 'status');
+      assertPropDate(withdrawal, 'confirmed_date');
 
       await tx.commitTransaction();
 
@@ -929,26 +647,10 @@ export abstract class FinanceRepository extends UserRepository {
 
       const withdrawal = rows[0];
       assertDefined(withdrawal, 'Withdrawal not found or update failed');
-      assertPropStringOrNumber(
-        withdrawal,
-        'id',
-        `Expect withdrawal id to string or number, got ${unknownErrorToString(withdrawal)}`,
-      );
-      assertPropString(
-        withdrawal,
-        'status',
-        `Expect withdrawal status to string, got ${unknownErrorToString(withdrawal)}`,
-      );
-      assertPropDate(
-        withdrawal,
-        'failed_date',
-        `Expect withdrawal failed_date to be Date, got ${unknownErrorToString(withdrawal)}`,
-      );
-      assertPropString(
-        withdrawal,
-        'failure_reason',
-        `Expect withdrawal failure_reason to string, got ${unknownErrorToString(withdrawal)}`,
-      );
+      assertPropStringOrNumber(withdrawal, 'id');
+      assertPropString(withdrawal, 'status');
+      assertPropDate(withdrawal, 'failed_date');
+      assertPropString(withdrawal, 'failure_reason');
 
       await tx.commitTransaction();
 
@@ -986,21 +688,9 @@ export abstract class FinanceRepository extends UserRepository {
 
       const withdrawal = rows[0];
       assertDefined(withdrawal, 'Withdrawal not found or update failed');
-      assertPropStringOrNumber(
-        withdrawal,
-        'id',
-        `Expect withdrawal id to string or number, got ${unknownErrorToString(withdrawal)}`,
-      );
-      assertPropString(
-        withdrawal,
-        'status',
-        `Expect withdrawal status to string, got ${unknownErrorToString(withdrawal)}`,
-      );
-      assertPropDate(
-        withdrawal,
-        'failure_refund_approved_date',
-        `Expect withdrawal failure_refund_approved_date to be Date, got ${unknownErrorToString(withdrawal)}`,
-      );
+      assertPropStringOrNumber(withdrawal, 'id');
+      assertPropString(withdrawal, 'status');
+      assertPropDate(withdrawal, 'failure_refund_approved_date');
 
       await tx.commitTransaction();
 
@@ -1038,21 +728,9 @@ export abstract class FinanceRepository extends UserRepository {
 
       const withdrawal = rows[0];
       assertDefined(withdrawal, 'Withdrawal not found or update failed');
-      assertPropStringOrNumber(
-        withdrawal,
-        'id',
-        `Expect withdrawal id to string or number, got ${unknownErrorToString(withdrawal)}`,
-      );
-      assertPropString(
-        withdrawal,
-        'status',
-        `Expect withdrawal status to string, got ${unknownErrorToString(withdrawal)}`,
-      );
-      assertPropDate(
-        withdrawal,
-        'failure_refund_rejected_date',
-        `Expect withdrawal failure_refund_rejected_date to be Date, got ${unknownErrorToString(withdrawal)}`,
-      );
+      assertPropStringOrNumber(withdrawal, 'id');
+      assertPropString(withdrawal, 'status');
+      assertPropDate(withdrawal, 'failure_refund_rejected_date');
 
       await tx.commitTransaction();
 
@@ -1089,31 +767,11 @@ export abstract class FinanceRepository extends UserRepository {
     return {
       beneficiaries: beneficiaries.map(function (beneficiary: unknown) {
         assertDefined(beneficiary, 'Beneficiary record is undefined');
-        assertPropStringOrNumber(
-          beneficiary,
-          'id',
-          `Expect beneficiary id to string or number, got ${unknownErrorToString(beneficiary)}`,
-        );
-        assertPropStringOrNumber(
-          beneficiary,
-          'user_id',
-          `Expect beneficiary user_id to string or number, got ${unknownErrorToString(beneficiary)}`,
-        );
-        assertPropString(
-          beneficiary,
-          'currency_blockchain_key',
-          `Expect beneficiary currency_blockchain_key to string, got ${unknownErrorToString(beneficiary)}`,
-        );
-        assertPropString(
-          beneficiary,
-          'currency_token_id',
-          `Expect beneficiary currency_token_id to string, got ${unknownErrorToString(beneficiary)}`,
-        );
-        assertPropString(
-          beneficiary,
-          'address',
-          `Expect beneficiary address to string, got ${unknownErrorToString(beneficiary)}`,
-        );
+        assertPropStringOrNumber(beneficiary, 'id');
+        assertPropStringOrNumber(beneficiary, 'user_id');
+        assertPropString(beneficiary, 'currency_blockchain_key');
+        assertPropString(beneficiary, 'currency_token_id');
+        assertPropString(beneficiary, 'address');
         return {
           id: String(beneficiary.id),
           userId: String(beneficiary.user_id),
@@ -1156,56 +814,16 @@ export abstract class FinanceRepository extends UserRepository {
     return {
       exchangeRates: exchangeRates.map(function (rate: unknown) {
         assertDefined(rate, 'Exchange rate record is undefined');
-        assertPropStringOrNumber(
-          rate,
-          'id',
-          `Expect rate id to string or number, got ${unknownErrorToString(rate)}`,
-        );
-        assertPropStringOrNumber(
-          rate,
-          'price_feed_id',
-          `Expect rate price_feed_id to string or number, got ${unknownErrorToString(rate)}`,
-        );
-        assertPropStringOrNumber(
-          rate,
-          'bid_price',
-          `Expect rate bid_price to string or number, got ${unknownErrorToString(rate)}`,
-        );
-        assertPropStringOrNumber(
-          rate,
-          'ask_price',
-          `Expect rate ask_price to string or number, got ${unknownErrorToString(rate)}`,
-        );
-        assertPropDate(
-          rate,
-          'retrieval_date',
-          `Expect rate retrieval_date to be Date, got ${unknownErrorToString(rate)}`,
-        );
-        assertPropDate(
-          rate,
-          'source_date',
-          `Expect rate source_date to be Date, got ${unknownErrorToString(rate)}`,
-        );
-        assertPropString(
-          rate,
-          'blockchain_key',
-          `Expect rate blockchain_key to string, got ${unknownErrorToString(rate)}`,
-        );
-        assertPropString(
-          rate,
-          'base_currency_token_id',
-          `Expect rate base_currency_token_id to string, got ${unknownErrorToString(rate)}`,
-        );
-        assertPropString(
-          rate,
-          'quote_currency_token_id',
-          `Expect rate quote_currency_token_id to string, got ${unknownErrorToString(rate)}`,
-        );
-        assertPropString(
-          rate,
-          'source',
-          `Expect rate source to string, got ${unknownErrorToString(rate)}`,
-        );
+        assertPropStringOrNumber(rate, 'id');
+        assertPropStringOrNumber(rate, 'price_feed_id');
+        assertPropStringOrNumber(rate, 'bid_price');
+        assertPropStringOrNumber(rate, 'ask_price');
+        assertPropDate(rate, 'retrieval_date');
+        assertPropDate(rate, 'source_date');
+        assertPropString(rate, 'blockchain_key');
+        assertPropString(rate, 'base_currency_token_id');
+        assertPropString(rate, 'quote_currency_token_id');
+        assertPropString(rate, 'source');
         return {
           id: String(rate.id),
           priceFeedId: String(rate.price_feed_id),
@@ -1249,36 +867,12 @@ export abstract class FinanceRepository extends UserRepository {
 
       const exchangeRate = rows[0];
       assertDefined(exchangeRate, 'Exchange rate update failed');
-      assertPropStringOrNumber(
-        exchangeRate,
-        'id',
-        `Expect exchange rate id to string or number, got ${unknownErrorToString(exchangeRate)}`,
-      );
-      assertPropStringOrNumber(
-        exchangeRate,
-        'price_feed_id',
-        `Expect exchange rate price_feed_id to string or number, got ${unknownErrorToString(exchangeRate)}`,
-      );
-      assertPropStringOrNumber(
-        exchangeRate,
-        'bid_price',
-        `Expect exchange rate bid_price to string or number, got ${unknownErrorToString(exchangeRate)}`,
-      );
-      assertPropStringOrNumber(
-        exchangeRate,
-        'ask_price',
-        `Expect exchange rate ask_price to string or number, got ${unknownErrorToString(exchangeRate)}`,
-      );
-      assertPropDate(
-        exchangeRate,
-        'retrieval_date',
-        `Expect exchange rate retrieval_date to be Date, got ${unknownErrorToString(exchangeRate)}`,
-      );
-      assertPropDate(
-        exchangeRate,
-        'source_date',
-        `Expect exchange rate source_date to be Date, got ${unknownErrorToString(exchangeRate)}`,
-      );
+      assertPropStringOrNumber(exchangeRate, 'id');
+      assertPropStringOrNumber(exchangeRate, 'price_feed_id');
+      assertPropStringOrNumber(exchangeRate, 'bid_price');
+      assertPropStringOrNumber(exchangeRate, 'ask_price');
+      assertPropDate(exchangeRate, 'retrieval_date');
+      assertPropDate(exchangeRate, 'source_date');
 
       await tx.commitTransaction();
 
@@ -1298,22 +892,27 @@ export abstract class FinanceRepository extends UserRepository {
 
   // Minimal test helpers for test suite only
   async systemCreatesTestUsers(params: {
-    users: Array<{ id: string; email: string; name: string; role?: string }>;
+    users: Array<{ email: string; name: string; role?: string }>;
   }) {
     const tx = await this.beginTransaction();
     try {
+      const createdUsers: Array<{ id: string; email: string; name: string; role: string }> = [];
       for (const user of params.users) {
-        await this.sql`
-          INSERT INTO users (id, email, email_verified, role, user_type, name)
-          VALUES (${user.id}, ${user.email}, true, ${user.role ?? 'User'}, 'Individual', ${user.name})
-          ON CONFLICT (id) DO UPDATE SET
-            email = EXCLUDED.email,
-            name = EXCLUDED.name,
-            role = EXCLUDED.role
+        const result = await this.sql`
+          INSERT INTO users (email, email_verified, role, user_type, name)
+          VALUES (${user.email}, true, ${user.role ?? 'User'}, 'Individual', ${user.name})
+          RETURNING id, email, name, role
         `;
+        const row = result[0] as { id: number; email: string; name: string; role: string };
+        createdUsers.push({
+          id: String(row.id),
+          email: row.email,
+          name: row.name,
+          role: row.role,
+        });
       }
       await tx.commitTransaction();
-      return { usersCreated: params.users.length };
+      return { users: createdUsers };
     } catch (error) {
       await tx.rollbackTransaction();
       throw error;
@@ -1454,11 +1053,7 @@ export abstract class FinanceRepository extends UserRepository {
 
     const row = rows[0];
     assertDefined(row, 'Price feed is undefined');
-    assertPropStringOrNumber(
-      row,
-      'id',
-      `Expect price feed id to be string or number, got ${unknownErrorToString(row)}`,
-    );
+    assertPropStringOrNumber(row, 'id');
 
     return { id: String(row.id) };
   }

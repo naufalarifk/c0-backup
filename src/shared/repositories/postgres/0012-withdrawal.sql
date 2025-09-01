@@ -2,33 +2,30 @@
 
 CREATE TABLE IF NOT EXISTS beneficiaries (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL REFERENCES users (id),
   currency_blockchain_key VARCHAR(64) NOT NULL,
   currency_token_id VARCHAR(64) NOT NULL,
   address VARCHAR(64) NOT NULL,
-  FOREIGN KEY (user_id) REFERENCES users (id),
   FOREIGN KEY (currency_blockchain_key, currency_token_id) REFERENCES currencies (blockchain_key, token_id)
 );
 
 CREATE TABLE IF NOT EXISTS withdrawals (
   id BIGSERIAL PRIMARY KEY,
-  beneficiary_id BIGINT NOT NULL,
+  beneficiary_id BIGINT NOT NULL REFERENCES beneficiaries (id),
   amount BIGINT NOT NULL,
   request_date TIMESTAMP NOT NULL,
-  request_amount BIGINT NOT NULL,
+  request_amount DECIMAL(78, 0) NOT NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'Requested',
   sent_date TIMESTAMP,
-  sent_amount BIGINT, -- for future compatibility when withdrawal fee is applied
+  sent_amount DECIMAL(78, 0), -- for future compatibility when withdrawal fee is applied
   sent_hash VARCHAR(64) UNIQUE,
   confirmed_date TIMESTAMP,
   failed_date TIMESTAMP,
   failure_reason TEXT,
-  failure_refund_reviewer_user_id BIGINT,
+  failure_refund_reviewer_user_id BIGINT REFERENCES users (id),
   failure_refund_approved_date TIMESTAMP,
   failure_refund_rejected_date TIMESTAMP,
   failure_refund_rejection_reason TEXT,
-  FOREIGN KEY (beneficiary_id) REFERENCES beneficiaries (id),
-  FOREIGN KEY (failure_refund_reviewer_user_id) REFERENCES users (id),
   CHECK (
     -- Status validation
     status IN ('Requested', 'Sent', 'Confirmed', 'Failed', 'RefundApproved', 'RefundRejected') AND
@@ -50,15 +47,8 @@ CREATE TABLE IF NOT EXISTS withdrawals (
 
 --- DEPENDENCY ---
 
-ALTER TABLE account_mutations ADD COLUMN IF NOT EXISTS withdrawal_id BIGINT;
-ALTER TABLE account_mutations DROP CONSTRAINT IF EXISTS fk_account_mutations_withdrawal;
-ALTER TABLE account_mutations ADD CONSTRAINT fk_account_mutations_withdrawal
-  FOREIGN KEY (withdrawal_id) REFERENCES withdrawals (id);
-
-ALTER TABLE notifications ADD COLUMN IF NOT EXISTS withdrawal_id BIGINT;
-ALTER TABLE notifications DROP CONSTRAINT IF EXISTS fk_notifications_withdrawal;
-ALTER TABLE notifications ADD CONSTRAINT fk_notifications_withdrawal
-  FOREIGN KEY (withdrawal_id) REFERENCES withdrawals (id);
+ALTER TABLE account_mutations ADD COLUMN IF NOT EXISTS withdrawal_id BIGINT REFERENCES withdrawals (id);
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS withdrawal_id BIGINT REFERENCES withdrawals (id);
 
 --- TRIGGER ---
 
@@ -327,7 +317,7 @@ CREATE OR REPLACE FUNCTION enhanced_withdrawal_state_validation()
 RETURNS TRIGGER AS $$
 DECLARE
   beneficiary_record RECORD;
-  total_pending_amount BIGINT;
+  total_pending_amount DECIMAL(78, 0);
   account_balance BIGINT;
 BEGIN
   -- Get beneficiary information

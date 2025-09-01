@@ -2,7 +2,7 @@
 
 CREATE TABLE IF NOT EXISTS institution_applications (
   id BIGSERIAL PRIMARY KEY,
-  applicant_user_id BIGINT NOT NULL,
+  applicant_user_id BIGINT NOT NULL REFERENCES users (id),
 
   -- Basic business information
   business_name VARCHAR(160) NOT NULL,
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS institution_applications (
   submitted_date TIMESTAMP NOT NULL,
 
   -- Review process
-  reviewer_user_id BIGINT,
+  reviewer_user_id BIGINT REFERENCES users (id),
   review_started_date TIMESTAMP,
   verified_date TIMESTAMP,
   rejected_date TIMESTAMP,
@@ -66,9 +66,6 @@ CREATE TABLE IF NOT EXISTS institution_applications (
 
   -- Administrative notes
   internal_notes TEXT, -- For admin use
-
-  FOREIGN KEY (applicant_user_id) REFERENCES users (id),
-  FOREIGN KEY (reviewer_user_id) REFERENCES users (id),
 
   CHECK (
     status IN ('Submitted', 'UnderReview', 'Verified', 'Rejected') AND
@@ -94,8 +91,8 @@ COMMENT ON TABLE institution_applications IS 'Complete institution application w
 
 CREATE TABLE IF NOT EXISTS institution_invitations (
   id BIGSERIAL PRIMARY KEY,
-  institution_user_id BIGINT NOT NULL,
-  target_user_id BIGINT NOT NULL,
+  institution_user_id BIGINT NOT NULL REFERENCES users (id),
+  target_user_id BIGINT NOT NULL REFERENCES users (id),
   role VARCHAR(32) NOT NULL CHECK (role IN ('Owner', 'Finance')),
   status VARCHAR(20) NOT NULL DEFAULT 'Sent',
   invited_date TIMESTAMP NOT NULL,
@@ -103,8 +100,6 @@ CREATE TABLE IF NOT EXISTS institution_invitations (
   rejected_date TIMESTAMP,
   rejection_reason TEXT,
   expires_date TIMESTAMP NOT NULL,
-  FOREIGN KEY (institution_user_id) REFERENCES users (id),
-  FOREIGN KEY (target_user_id) REFERENCES users (id),
   CHECK (
     status IN ('Sent', 'Accepted', 'Rejected', 'Expired') AND
     -- Ensure invitation is not both accepted and rejected
@@ -124,31 +119,11 @@ CREATE TABLE IF NOT EXISTS institution_invitations (
 
 -- DEPENDENCY --
 
-ALTER TABLE notifications ADD COLUMN IF NOT EXISTS institution_application_id BIGINT;
-ALTER TABLE notifications DROP CONSTRAINT IF EXISTS fk_notifications_institution_application;
-ALTER TABLE notifications ADD CONSTRAINT fk_notifications_institution_application
-  FOREIGN KEY (institution_application_id) REFERENCES institution_applications (id);
-
-
---- VIEW ---
-
-CREATE OR REPLACE VIEW institution_application_status AS
-SELECT
-  ia.*,
-  applicant_auth.email as applicant_email,
-  applicant_auth.name as applicant_name,
-  reviewer_auth.email as reviewer_email,
-  reviewer_auth.name as reviewer_name,
-  EXTRACT(days FROM NOW() - ia.submitted_date) as days_since_submission
-FROM institution_applications ia
-JOIN users applicant_auth ON ia.applicant_user_id = applicant_auth.id
-LEFT JOIN users reviewer_auth ON ia.reviewer_user_id = reviewer_auth.id;
-
-COMMENT ON VIEW institution_application_status IS 'Institution applications with review status and timeline';
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS institution_application_id BIGINT REFERENCES institution_applications (id);
 
 --- TRIGGER --
 
-CREATE OR REPLACE FUNCTION validate_institution_application_documents()
+CREATE OR REPLACE FUNCTION indonesian_institution_application_documents_validation()
 RETURNS TRIGGER AS $$
 BEGIN
   -- Validate that user has selected Institution user type
@@ -192,32 +167,35 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER validate_institution_application_documents_trigger
+CREATE OR REPLACE TRIGGER indonesian_institution_application_documents_validation_trigger
 BEFORE INSERT OR UPDATE ON institution_applications
 FOR EACH ROW
-EXECUTE FUNCTION validate_institution_application_documents();
+EXECUTE FUNCTION indonesian_institution_application_documents_validation();
 
-CREATE OR REPLACE FUNCTION create_institution_on_approval()
+CREATE OR REPLACE FUNCTION apply_institution_approval()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Update status when review starts
-  IF NEW.review_started_date IS NOT NULL AND (OLD.review_started_date IS NULL OR OLD.review_started_date != NEW.review_started_date) THEN
+  IF OLD.review_started_date IS NOT NULL AND OLD.review_started_date != NEW.review_started_date THEN
+    RAISE EXCEPTION 'Cannot modify review_started_date once set';
+  END IF;
+
+  IF OLD.review_started_date IS NULL AND NEW.review_started_date IS NOT NULL THEN
     NEW.status = 'UnderReview';
   END IF;
 
-  -- Only process when application is being approved (verified_date is set)
-  IF NEW.verified_date IS NOT NULL AND (OLD.verified_date IS NULL OR OLD.verified_date != NEW.verified_date) THEN
-    -- Update status to Verified
+  IF OLD.verified_date IS NOT NULL OR OLD.rejected_date IS NOT NULL THEN
+    RAISE EXCEPTION 'Cannot modify an application that has already been verified or rejected';
+  END IF;
+
+  IF OLD.verified_date IS NULL AND NEW.verified_date IS NOT NULL THEN
+
     NEW.status = 'Verified';
 
-    -- Update the applicant user to become institution owner
-    -- Set institution_user_id to self-reference and role as Owner
     UPDATE users
     SET institution_user_id = NEW.applicant_user_id,
         institution_role = 'Owner'
     WHERE id = NEW.applicant_user_id;
 
-    -- Create notification for approval
     INSERT INTO notifications (
       user_id,
       type,
@@ -236,11 +214,10 @@ BEGIN
 
   END IF;
 
-  -- Process application rejection
-  IF NEW.rejected_date IS NOT NULL AND (OLD.rejected_date IS NULL OR OLD.rejected_date != NEW.rejected_date) THEN
-    -- Update status to Rejected
+  IF OLD.rejected_date IS NULL AND NEW.rejected_date IS NOT NULL THEN
+
     NEW.status = 'Rejected';
-    -- Create notification for rejection
+
     INSERT INTO notifications (
       user_id,
       type,
@@ -261,74 +238,17 @@ BEGIN
       NEW.id,
       NEW.rejected_date
     );
+
   END IF;
 
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER create_institution_on_approval_trigger
+CREATE OR REPLACE TRIGGER apply_institution_approval_trigger
 BEFORE UPDATE ON institution_applications
 FOR EACH ROW
-EXECUTE FUNCTION create_institution_on_approval();
-
-CREATE OR REPLACE FUNCTION update_user_on_institution_invitation_acceptance()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Only process when invitation is being accepted (accepted_date is set)
-  IF NEW.accepted_date IS NOT NULL AND (OLD.accepted_date IS NULL OR OLD.accepted_date != NEW.accepted_date) THEN
-    -- Update status to Accepted
-    NEW.status = 'Accepted';
-    -- Update the target user to join the institution
-    UPDATE users
-    SET institution_user_id = NEW.institution_user_id,
-        institution_role = NEW.role
-    WHERE id = NEW.target_user_id;
-
-    -- Create notification for acceptance
-    INSERT INTO notifications (
-      user_id,
-      type,
-      title,
-      content,
-      creation_date
-    ) VALUES (
-      NEW.target_user_id,
-      'InstitutionMemberAccepted',
-      'Institution Invitation Accepted',
-      'You have successfully joined the institution as ' || NEW.role || '.',
-      NEW.accepted_date
-    );
-  END IF;
-
-  -- Process invitation rejection
-  IF NEW.rejected_date IS NOT NULL AND (OLD.rejected_date IS NULL OR OLD.rejected_date != NEW.rejected_date) THEN
-    -- Update status to Rejected
-    NEW.status = 'Rejected';
-    -- Create notification for rejection
-    INSERT INTO notifications (
-      user_id,
-      type,
-      title,
-      content,
-      creation_date
-    ) VALUES (
-      NEW.target_user_id,
-      'InstitutionMemberRejected',
-      'Institution Invitation Rejected',
-      CASE
-        WHEN NEW.rejection_reason IS NOT NULL THEN
-          'You have declined the institution invitation. Reason: ' || NEW.rejection_reason
-        ELSE
-          'You have declined the institution invitation.'
-      END,
-      NEW.rejected_date
-    );
-  END IF;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+EXECUTE FUNCTION apply_institution_approval();
 
 CREATE OR REPLACE FUNCTION validate_institution_invitation()
 RETURNS TRIGGER AS $$
@@ -396,7 +316,7 @@ BEGIN
     SELECT 1 FROM loans l
     JOIN loan_applications la ON l.loan_application_id = la.id
     WHERE la.borrower_user_id = NEW.target_user_id
-    AND l.status IN ('originated', 'active', 'ltv_breach', 'pending_liquidation')
+    AND l.status IN ('originated', 'Active', 'ltv_breach', 'pending_liquidation')
   ) THEN
     RAISE EXCEPTION 'Target user has active loans and cannot be invited to an institution';
   END IF;
@@ -409,6 +329,67 @@ CREATE OR REPLACE TRIGGER validate_institution_invitation_trigger
 BEFORE INSERT ON institution_invitations
 FOR EACH ROW
 EXECUTE FUNCTION validate_institution_invitation();
+
+CREATE OR REPLACE FUNCTION update_user_on_institution_invitation_acceptance()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF OLD.accepted_date IS NOT NULL OR OLD.rejected_date IS NOT NULL THEN
+    RAISE EXCEPTION 'Cannot modify an invitation that has already been accepted or rejected';
+  END IF;
+
+  IF OLD.accepted_date IS NULL AND NEW.accepted_date IS NOT NULL THEN
+
+    NEW.status = 'Accepted';
+
+    UPDATE users
+    SET institution_user_id = NEW.institution_user_id,
+        institution_role = NEW.role
+    WHERE id = NEW.target_user_id;
+
+    INSERT INTO notifications (
+      user_id,
+      type,
+      title,
+      content,
+      creation_date
+    ) VALUES (
+      NEW.target_user_id,
+      'InstitutionMemberAccepted',
+      'Institution Invitation Accepted',
+      'You have successfully joined the institution as ' || NEW.role || '.',
+      NEW.accepted_date
+    );
+
+  END IF;
+
+  IF OLD.rejected_date IS NULL AND NEW.rejected_date IS NOT NULL THEN
+
+    NEW.status = 'Rejected';
+
+    INSERT INTO notifications (
+      user_id,
+      type,
+      title,
+      content,
+      creation_date
+    ) VALUES (
+      NEW.target_user_id,
+      'InstitutionMemberRejected',
+      'Institution Invitation Rejected',
+      CASE
+        WHEN NEW.rejection_reason IS NOT NULL THEN
+          'You have declined the institution invitation. Reason: ' || NEW.rejection_reason
+        ELSE
+          'You have declined the institution invitation.'
+      END,
+      NEW.rejected_date
+    );
+
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE TRIGGER update_user_on_institution_invitation_acceptance_trigger
 BEFORE UPDATE ON institution_invitations

@@ -36,14 +36,6 @@ CREATE TABLE IF NOT EXISTS users (
   business_name VARCHAR(160),
   business_type VARCHAR(100),
 
-  -- Account status management
-  access_status VARCHAR(32) DEFAULT 'active' CHECK (access_status IN ('active', 'suspended')),
-  suspension_reason TEXT,
-  suspension_date TIMESTAMP,
-  suspension_admin_user_id BIGINT,
-  reactivation_reason TEXT,
-  reactivation_date TIMESTAMP,
-  reactivation_admin_user_id BIGINT,
   CHECK (
     email IS NOT NULL AND
     (two_factor_enabled = false OR (two_factor_secret IS NOT NULL AND two_factor_backup_codes IS NOT NULL))
@@ -52,8 +44,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Add self-referencing foreign key for institution hierarchy
 -- DROP CONSTRAINT fk_users_institution_user;
--- ALTER TABLE users ADD CONSTRAINT fk_users_institution_user
---   FOREIGN KEY (institution_user_id) REFERENCES users (id);
+-- ALTER TABLE users ADD CONSTRAINT fk_users_institution_user FOREIGN KEY (institution_user_id) REFERENCES users (id);
 
 -- The session is stored in Redis
 -- CREATE TABLE IF NOT EXISTS auth_sessions (

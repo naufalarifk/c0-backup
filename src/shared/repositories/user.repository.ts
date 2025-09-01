@@ -39,8 +39,9 @@ import {
   UserUpdatesProfileResult,
   UserViewKYCSStatusResult,
   UserViewKYCStatusParams,
+  UserViewsProfileParams,
+  UserViewsProfileResult,
 } from '../types';
-import { unknownErrorToString } from '../utils';
 import {
   assertArrayOf,
   assertDefined,
@@ -82,8 +83,7 @@ export abstract class UserRepository extends BaseRepository {
 
       const user = rows[0];
       assertDefined(user);
-      assertPropDefined(user, 'email', 'User email is undefined');
-      assertPropString(user, 'email', `Expect user id to string, got ${typeof user.email}`);
+      assertPropString(user, 'email');
 
       // If original data had email_address, return it as email_address in response
       if (email_address) {
@@ -241,7 +241,7 @@ export abstract class UserRepository extends BaseRepository {
     if (hasEmailAddressField) {
       users.forEach(user => {
         assertDefined(user);
-        assertPropDefined(user, 'email', 'User email is undefined');
+        assertPropDefined(user, 'email');
         setAssertPropValue(user, 'email_address', user.email);
       });
     }
@@ -541,41 +541,13 @@ export abstract class UserRepository extends BaseRepository {
     if (!row) return null;
 
     assertDefined(row);
-    assertPropStringOrNumber(
-      row,
-      'id',
-      `Expect user id to string, got ${unknownErrorToString(row)}`,
-    );
-    assertPropStringOrNumber(
-      row,
-      'user_id',
-      `Expect user user_id to string, got ${unknownErrorToString(row)}`,
-    );
-    assertPropStringOrNumber(
-      row,
-      'account_id',
-      `Expect user account_id to string, got ${unknownErrorToString(row)}`,
-    );
-    assertPropStringOrNumber(
-      row,
-      'provider_id',
-      `Expect user provider_id to string, got ${unknownErrorToString(row)}`,
-    );
-    assertPropNullableString(
-      row,
-      'access_token',
-      `Expect user access_token to string, got ${unknownErrorToString(row)}`,
-    );
-    assertPropNullableString(
-      row,
-      'refresh_token',
-      `Expect user refresh_token to string, got ${unknownErrorToString(row)}`,
-    );
-    assertPropString(
-      row,
-      'password',
-      `Expect user password to string, got ${unknownErrorToString(row)}`,
-    );
+    assertPropStringOrNumber(row, 'id');
+    assertPropStringOrNumber(row, 'user_id');
+    assertPropStringOrNumber(row, 'account_id');
+    assertPropStringOrNumber(row, 'provider_id');
+    assertPropNullableString(row, 'access_token');
+    assertPropNullableString(row, 'refresh_token');
+    assertPropString(row, 'password');
 
     return {
       id: String(row.id),
@@ -606,41 +578,13 @@ export abstract class UserRepository extends BaseRepository {
 
     const mapRowToAccount = function (row: unknown) {
       assertDefined(row);
-      assertPropStringOrNumber(
-        row,
-        'id',
-        `Expect user id to string, got ${unknownErrorToString(row)}`,
-      );
-      assertPropStringOrNumber(
-        row,
-        'user_id',
-        `Expect user user_id to string, got ${unknownErrorToString(row)}`,
-      );
-      assertPropStringOrNumber(
-        row,
-        'account_id',
-        `Expect user account_id to string, got ${unknownErrorToString(row)}`,
-      );
-      assertPropStringOrNumber(
-        row,
-        'provider_id',
-        `Expect user provider_id to string, got ${unknownErrorToString(row)}`,
-      );
-      assertPropNullableString(
-        row,
-        'access_token',
-        `Expect user access_token to string, got ${unknownErrorToString(row)}`,
-      );
-      assertPropNullableString(
-        row,
-        'refresh_token',
-        `Expect user refresh_token to string, got ${unknownErrorToString(row)}`,
-      );
-      assertPropString(
-        row,
-        'password',
-        `Expect user password to string, got ${unknownErrorToString(row)}`,
-      );
+      assertPropStringOrNumber(row, 'id');
+      assertPropStringOrNumber(row, 'user_id');
+      assertPropStringOrNumber(row, 'account_id');
+      assertPropStringOrNumber(row, 'provider_id');
+      assertPropNullableString(row, 'access_token');
+      assertPropNullableString(row, 'refresh_token');
+      assertPropString(row, 'password');
       return {
         id: String(row.id),
         userId: row.user_id ? String(row.user_id) : undefined,
@@ -752,41 +696,13 @@ export abstract class UserRepository extends BaseRepository {
     if (!row) return null;
 
     assertDefined(row);
-    assertPropStringOrNumber(
-      row,
-      'id',
-      `Expect user id to string, got ${unknownErrorToString(row)}`,
-    );
-    assertPropStringOrNumber(
-      row,
-      'user_id',
-      `Expect user user_id to string, got ${unknownErrorToString(row)}`,
-    );
-    assertPropStringOrNumber(
-      row,
-      'account_id',
-      `Expect user account_id to string, got ${unknownErrorToString(row)}`,
-    );
-    assertPropStringOrNumber(
-      row,
-      'provider_id',
-      `Expect user provider_id to string, got ${unknownErrorToString(row)}`,
-    );
-    assertPropNullableString(
-      row,
-      'access_token',
-      `Expect user access_token to string, got ${unknownErrorToString(row)}`,
-    );
-    assertPropNullableString(
-      row,
-      'refresh_token',
-      `Expect user refresh_token to string, got ${unknownErrorToString(row)}`,
-    );
-    assertPropString(
-      row,
-      'password',
-      `Expect user password to string, got ${unknownErrorToString(row)}`,
-    );
+    assertPropStringOrNumber(row, 'id');
+    assertPropStringOrNumber(row, 'user_id');
+    assertPropStringOrNumber(row, 'account_id');
+    assertPropStringOrNumber(row, 'provider_id');
+    assertPropNullableString(row, 'access_token');
+    assertPropNullableString(row, 'refresh_token');
+    assertPropString(row, 'password');
 
     return {
       id: String(row.id),
@@ -1044,21 +960,9 @@ export abstract class UserRepository extends BaseRepository {
 
       const user = rows[0];
       assertDefined(user, 'User not found or update failed');
-      assertPropStringOrNumber(
-        user,
-        'id',
-        `Expect user id to string, got ${unknownErrorToString(user)}`,
-      );
-      assertPropString(
-        user,
-        'name',
-        `Expect user name to string, got ${unknownErrorToString(user)}`,
-      );
-      assertPropNullableString(
-        user,
-        'profile_picture',
-        `Expect user profile_picture to string, got ${unknownErrorToString(user)}`,
-      );
+      assertPropStringOrNumber(user, 'id');
+      assertPropString(user, 'name');
+      assertPropNullableString(user, 'profile_picture');
 
       const returnValue: UserUpdatesProfileResult = {
         id: String(user.id),
@@ -1073,6 +977,85 @@ export abstract class UserRepository extends BaseRepository {
       await tx.rollbackTransaction();
       throw error;
     }
+  }
+
+  /**
+   * userViewsProfile
+   * Returns user profile data based on the user schema
+   */
+  async userViewsProfile(params: UserViewsProfileParams): Promise<UserViewsProfileResult> {
+    const { userId } = params;
+
+    const rows = await this.sql`
+      SELECT id, name, email, email_verified, profile_picture, role,
+             two_factor_enabled,
+             created_date, updated_date,
+             user_type, user_type_selected_date,
+             institution_user_id, institution_role,
+             kyc_id, business_name, business_type
+      FROM users
+      WHERE id = ${userId}
+      LIMIT 1
+    `;
+
+    const user = rows[0];
+    assertDefined(user);
+    assertPropStringOrNumber(user, 'id');
+
+    // Get KYC status using existing helper; default to 'none' if not available
+    let kycStatus: 'none' | 'pending' | 'verified' | 'rejected' = 'none';
+    try {
+      const kyc = await this.userViewsKYCStatus({ userId });
+      if (kyc && kyc.status) kycStatus = kyc.status;
+    } catch (err) {
+      // ignore and keep default
+    }
+
+    return {
+      id: String(user.id),
+      name: 'name' in user && typeof user.name === 'string' ? user.name : undefined,
+      email: 'email' in user && typeof user.email === 'string' ? user.email : undefined,
+      emailVerified: 'email_verified' in user ? !!user.email_verified : false,
+      profilePicture:
+        'profile_picture' in user && typeof user.profile_picture === 'string'
+          ? user.profile_picture
+          : undefined,
+      role:
+        'role' in user && typeof user.role === 'string'
+          ? (user.role as 'System' | 'Admin' | 'User')
+          : 'User',
+      twoFactorEnabled: 'two_factor_enabled' in user ? !!user.two_factor_enabled : false,
+      createdAt:
+        'created_date' in user && user.created_date instanceof Date ? user.created_date : undefined,
+      updatedAt:
+        'updated_date' in user && user.updated_date instanceof Date ? user.updated_date : undefined,
+      userType:
+        'user_type' in user && typeof user.user_type === 'string'
+          ? (user.user_type as 'Undecided' | 'Individual' | 'Institution')
+          : 'Undecided',
+      userTypeSelectedDate:
+        'user_type_selected_date' in user && user.user_type_selected_date instanceof Date
+          ? user.user_type_selected_date
+          : undefined,
+      institutionUserId:
+        'institution_user_id' in user && user.institution_user_id
+          ? String(user.institution_user_id)
+          : null,
+      institutionRole:
+        'institution_role' in user && typeof user.institution_role === 'string'
+          ? (user.institution_role as 'Owner' | 'Finance')
+          : null,
+      kycId: 'kyc_id' in user && user.kyc_id ? String(user.kyc_id) : null,
+      kycStatus,
+      businessName:
+        'business_name' in user && typeof user.business_name === 'string'
+          ? user.business_name
+          : null,
+      businessType:
+        'business_type' in user && typeof user.business_type === 'string'
+          ? user.business_type
+          : null,
+    };
   }
 
   // Mandatory choise between KYC or Institution Application
@@ -1140,17 +1123,9 @@ export abstract class UserRepository extends BaseRepository {
       `;
 
       const kyc = rows[0];
-      assertDefined(kyc, 'KYC submission failed');
-      assertPropStringOrNumber(
-        kyc,
-        'id',
-        `Expect kyc id to string, got ${unknownErrorToString(kyc)}`,
-      );
-      assertPropStringOrNumber(
-        kyc,
-        'user_id',
-        `Expect kyc user_id to string, got ${unknownErrorToString(kyc)}`,
-      );
+      assertDefined(kyc);
+      assertPropStringOrNumber(kyc, 'id');
+      assertPropStringOrNumber(kyc, 'user_id');
 
       await tx.commitTransaction();
 
@@ -1185,16 +1160,8 @@ export abstract class UserRepository extends BaseRepository {
     }
 
     const kyc = kycs[0];
-    assertPropStringOrNumber(
-      kyc,
-      'id',
-      `Expect kyc id to string, got ${unknownErrorToString(kyc)}`,
-    );
-    assertPropStringOrNumber(
-      kyc,
-      'user_id',
-      `Expect kyc user_id to string, got ${unknownErrorToString(kyc)}`,
-    );
+    assertPropStringOrNumber(kyc, 'id');
+    assertPropStringOrNumber(kyc, 'user_id');
 
     let status: 'none' | 'pending' | 'verified' | 'rejected';
     if ('verified_date' in kyc && kyc.verified_date) {
@@ -1245,21 +1212,9 @@ export abstract class UserRepository extends BaseRepository {
 
       const kyc = rows[0];
       assertDefined(kyc, 'KYC not found or already processed');
-      assertPropStringOrNumber(
-        kyc,
-        'id',
-        `Expect kyc id to string, got ${unknownErrorToString(kyc)}`,
-      );
-      assertPropStringOrNumber(
-        kyc,
-        'user_id',
-        `Expect kyc user_id to string, got ${unknownErrorToString(kyc)}`,
-      );
-      assertPropDate(
-        kyc,
-        'verified_date',
-        `Expect kyc verified_date to Date, got ${unknownErrorToString(kyc)}`,
-      );
+      assertPropStringOrNumber(kyc, 'id');
+      assertPropStringOrNumber(kyc, 'user_id');
+      assertPropDate(kyc, 'verified_date');
 
       await tx.commitTransaction();
 
@@ -1295,21 +1250,9 @@ export abstract class UserRepository extends BaseRepository {
 
       const kyc = rows[0];
       assertDefined(kyc, 'KYC not found or already processed');
-      assertPropStringOrNumber(
-        kyc,
-        'id',
-        `Expect kyc id to string, got ${unknownErrorToString(kyc)}`,
-      );
-      assertPropStringOrNumber(
-        kyc,
-        'user_id',
-        `Expect kyc user_id to string, got ${unknownErrorToString(kyc)}`,
-      );
-      assertPropDate(
-        kyc,
-        'rejected_date',
-        `Expect kyc rejected_date to Date, got ${unknownErrorToString(kyc)}`,
-      );
+      assertPropStringOrNumber(kyc, 'id');
+      assertPropStringOrNumber(kyc, 'user_id');
+      assertPropDate(kyc, 'rejected_date');
 
       await tx.commitTransaction();
 
@@ -1337,27 +1280,11 @@ export abstract class UserRepository extends BaseRepository {
     return {
       kycs: kycs.map(function (kyc: unknown) {
         assertDefined(kyc);
-        assertPropStringOrNumber(
-          kyc,
-          'id',
-          `Expect kyc id to string, got ${unknownErrorToString(kyc)}`,
-        );
-        assertPropStringOrNumber(
-          kyc,
-          'user_id',
-          `Expect kyc user_id to string, got ${unknownErrorToString(kyc)}`,
-        );
-        assertPropString(
-          kyc,
-          'name',
-          `Expect kyc name to string, got ${unknownErrorToString(kyc)}`,
-        );
-        assertPropString(kyc, 'nik', `Expect kyc nik to string, got ${unknownErrorToString(kyc)}`);
-        assertPropDate(
-          kyc,
-          'submitted_date',
-          `Expect kyc submitted_date to Date, got ${unknownErrorToString(kyc)}`,
-        );
+        assertPropStringOrNumber(kyc, 'id');
+        assertPropStringOrNumber(kyc, 'user_id');
+        assertPropString(kyc, 'name');
+        assertPropString(kyc, 'nik');
+        assertPropDate(kyc, 'submitted_date');
         return {
           id: String(kyc.id),
           userId: String(kyc.user_id),
@@ -1397,21 +1324,9 @@ export abstract class UserRepository extends BaseRepository {
 
       const application = rows[0];
       assertDefined(application, 'Institution application failed');
-      assertPropStringOrNumber(
-        application,
-        'id',
-        `Expect application id to string, got ${unknownErrorToString(application)}`,
-      );
-      assertPropStringOrNumber(
-        application,
-        'applicant_user_id',
-        `Expect application applicant_user_id to string, got ${unknownErrorToString(application)}`,
-      );
-      assertPropString(
-        application,
-        'business_name',
-        `Expect application business_name to string, got ${unknownErrorToString(application)}`,
-      );
+      assertPropStringOrNumber(application, 'id');
+      assertPropStringOrNumber(application, 'applicant_user_id');
+      assertPropString(application, 'business_name');
 
       await tx.commitTransaction();
 
@@ -1447,21 +1362,9 @@ export abstract class UserRepository extends BaseRepository {
 
       const application = rows[0];
       assertDefined(application, 'Application not found or already processed');
-      assertPropStringOrNumber(
-        application,
-        'id',
-        `Expect application id to string, got ${unknownErrorToString(application)}`,
-      );
-      assertPropStringOrNumber(
-        application,
-        'applicant_user_id',
-        `Expect application applicant_user_id to string, got ${unknownErrorToString(application)}`,
-      );
-      assertPropString(
-        application,
-        'business_name',
-        `Expect application business_name to string, got ${unknownErrorToString(application)}`,
-      );
+      assertPropStringOrNumber(application, 'id');
+      assertPropStringOrNumber(application, 'applicant_user_id');
+      assertPropString(application, 'business_name');
 
       // Update application status (trigger will handle user update)
       await tx.sql`
@@ -1505,16 +1408,8 @@ export abstract class UserRepository extends BaseRepository {
 
       const application = rows[0];
       assertDefined(application, 'Application not found or already processed');
-      assertPropStringOrNumber(
-        application,
-        'id',
-        `Expect application id to string, got ${unknownErrorToString(application)}`,
-      );
-      assertPropDate(
-        application,
-        'rejected_date',
-        `Expect application rejected_date to Date, got ${unknownErrorToString(application)}`,
-      );
+      assertPropStringOrNumber(application, 'id');
+      assertPropDate(application, 'rejected_date');
 
       await tx.commitTransaction();
       return {
@@ -1552,26 +1447,10 @@ export abstract class UserRepository extends BaseRepository {
 
       const invitation = rows[0];
       assertDefined(invitation, 'Institution invitation failed');
-      assertPropStringOrNumber(
-        invitation,
-        'id',
-        `Expect invitation id to string, got ${unknownErrorToString(invitation)}`,
-      );
-      assertPropStringOrNumber(
-        invitation,
-        'institution_user_id',
-        `Expect invitation institution_user_id to string, got ${unknownErrorToString(invitation)}`,
-      );
-      assertPropStringOrNumber(
-        invitation,
-        'target_user_id',
-        `Expect invitation target_user_id to string, got ${unknownErrorToString(invitation)}`,
-      );
-      assertPropString(
-        invitation,
-        'role',
-        `Expect invitation role to string, got ${unknownErrorToString(invitation)}`,
-      );
+      assertPropStringOrNumber(invitation, 'id');
+      assertPropStringOrNumber(invitation, 'institution_user_id');
+      assertPropStringOrNumber(invitation, 'target_user_id');
+      assertPropString(invitation, 'role');
 
       await tx.commitTransaction();
 
@@ -1619,21 +1498,9 @@ export abstract class UserRepository extends BaseRepository {
 
       const updatedInvitation = updatedInvitationRows[0];
       assertDefined(updatedInvitation, 'Failed to update invitation status');
-      assertPropStringOrNumber(
-        updatedInvitation,
-        'id',
-        `Expect invitation id to string, got ${unknownErrorToString(updatedInvitation)}`,
-      );
-      assertPropStringOrNumber(
-        updatedInvitation,
-        'institution_user_id',
-        `Expect invitation institution_user_id to string, got ${unknownErrorToString(updatedInvitation)}`,
-      );
-      assertPropDate(
-        updatedInvitation,
-        'accepted_date',
-        `Expect invitation accepted_date to Date, got ${unknownErrorToString(updatedInvitation)}`,
-      );
+      assertPropStringOrNumber(updatedInvitation, 'id');
+      assertPropStringOrNumber(updatedInvitation, 'institution_user_id');
+      assertPropDate(updatedInvitation, 'accepted_date');
 
       await tx.commitTransaction();
 
@@ -1673,16 +1540,8 @@ export abstract class UserRepository extends BaseRepository {
 
       const invitation = rows[0];
       assertDefined(invitation, 'Invitation not found or already processed');
-      assertPropStringOrNumber(
-        invitation,
-        'id',
-        `Expect invitation id to string, got ${unknownErrorToString(invitation)}`,
-      );
-      assertPropDate(
-        invitation,
-        'rejected_date',
-        `Expect invitation rejected_date to be string, got ${unknownErrorToString(invitation)}`,
-      );
+      assertPropStringOrNumber(invitation, 'id');
+      assertPropDate(invitation, 'rejected_date');
 
       await tx.commitTransaction();
 
@@ -1718,21 +1577,9 @@ export abstract class UserRepository extends BaseRepository {
 
       const row = Array.isArray(rows) ? rows[0] : rows;
       assertDefined(row, 'Failed to add user to institution');
-      assertPropStringOrNumber(
-        row,
-        'id',
-        `Expect user id to string, got ${unknownErrorToString(row)}`,
-      );
-      assertPropStringOrNumber(
-        row,
-        'institution_user_id',
-        `Expect institution_user_id to string, got ${unknownErrorToString(row)}`,
-      );
-      assertPropString(
-        row,
-        'institution_role',
-        `Expect institution_role to string, got ${unknownErrorToString(row)}`,
-      );
+      assertPropStringOrNumber(row, 'id');
+      assertPropStringOrNumber(row, 'institution_user_id');
+      assertPropString(row, 'institution_role');
 
       await tx.commitTransaction();
 
@@ -1769,11 +1616,7 @@ export abstract class UserRepository extends BaseRepository {
 
       const row = rows[0];
       assertDefined(row, 'Failed to remove user from institution');
-      assertPropStringOrNumber(
-        row,
-        'id',
-        `Expect user id to string, got ${unknownErrorToString(row)}`,
-      );
+      assertPropStringOrNumber(row, 'id');
 
       await tx.commitTransaction();
 
@@ -1796,11 +1639,7 @@ export abstract class UserRepository extends BaseRepository {
     const rows = await this.sql`SELECT kyc_id FROM users WHERE id = ${userId}`;
     const user = rows[0];
     assertDefined(user, 'User not found');
-    assertPropStringOrNumber(
-      user,
-      'kyc_id',
-      `Expect user kyc_id to string or null, got ${unknownErrorToString(user)}`,
-    );
+    assertPropStringOrNumber(user, 'kyc_id');
 
     return {
       userId: String(userId),
@@ -1842,31 +1681,11 @@ export abstract class UserRepository extends BaseRepository {
     return {
       notifications: notifications.map(function (notification: unknown) {
         assertDefined(notification);
-        assertPropString(
-          notification,
-          'type',
-          `Expect notification type to string, got ${unknownErrorToString(notification)}`,
-        );
-        assertPropString(
-          notification,
-          'title',
-          `Expect notification title to string, got ${unknownErrorToString(notification)}`,
-        );
-        assertPropString(
-          notification,
-          'content',
-          `Expect notification content to string, got ${unknownErrorToString(notification)}`,
-        );
-        assertPropNullableStringOrNumber(
-          notification,
-          'user_kyc_id',
-          `Expect notification user_kyc_id to string or null, got ${unknownErrorToString(notification)}`,
-        );
-        assertPropNullableStringOrNumber(
-          notification,
-          'institution_application_id',
-          `Expect notification institution_application_id to string or null, got ${unknownErrorToString(notification)}`,
-        );
+        assertPropString(notification, 'type');
+        assertPropString(notification, 'title');
+        assertPropString(notification, 'content');
+        assertPropNullableStringOrNumber(notification, 'user_kyc_id');
+        assertPropNullableStringOrNumber(notification, 'institution_application_id');
         return {
           type: notification.type,
           title: notification.title,
@@ -1919,21 +1738,9 @@ export abstract class UserRepository extends BaseRepository {
 
       const application = rows[0];
       assertDefined(application, 'Institution application creation failed');
-      assertPropStringOrNumber(
-        application,
-        'id',
-        `Expect application id to string, got ${unknownErrorToString(application)}`,
-      );
-      assertPropStringOrNumber(
-        application,
-        'applicant_user_id',
-        `Expect application applicant_user_id to string, got ${unknownErrorToString(application)}`,
-      );
-      assertPropString(
-        application,
-        'business_name',
-        `Expect application business_name to string, got ${unknownErrorToString(application)}`,
-      );
+      assertPropStringOrNumber(application, 'id');
+      assertPropStringOrNumber(application, 'applicant_user_id');
+      assertPropString(application, 'business_name');
 
       await tx.commitTransaction();
 

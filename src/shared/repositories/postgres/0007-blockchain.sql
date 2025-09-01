@@ -12,10 +12,11 @@ CREATE TABLE IF NOT EXISTS blockchains (
 
 -- Insert supported blockchains as defined in SRS-CD-v2.3-EN.md Section 1.2.1
 INSERT INTO blockchains (key, name, short_name, image) VALUES
-  ('eip155:1', 'Ethereum Mainnet', 'ETH', 'https://cryptologos.cc/logos/ethereum-eth-logo.png'),
   ('bip122:000000000019d6689c085ae165831e93', 'Bitcoin', 'BTC', 'https://cryptologos.cc/logos/bitcoin-btc-logo.png'),
+  ('eip155:1', 'Ethereum Mainnet', 'ETH', 'https://cryptologos.cc/logos/ethereum-eth-logo.png'),
   ('eip155:56', 'Binance Smart Chain', 'BSC', 'https://cryptologos.cc/logos/bnb-bnb-logo.png'),
-  ('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp', 'Solana', 'SOL', 'https://cryptologos.cc/logos/solana-sol-logo.png')
+  ('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp', 'Solana', 'SOL', 'https://cryptologos.cc/logos/solana-sol-logo.png'),
+  ('crosschain', 'Blockchain', 'Blockchain', 'https://cryptologos.cc/logos/bitcoin-btc-logo.png')
 ON CONFLICT (key) DO UPDATE SET
   name = EXCLUDED.name,
   short_name = EXCLUDED.short_name,
