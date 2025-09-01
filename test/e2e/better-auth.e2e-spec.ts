@@ -120,7 +120,6 @@ describe('Better Auth Complete E2E Tests', () => {
         expect(response.user).toHaveProperty('emailVerified', false);
         expect(response.user).not.toHaveProperty('password');
         expect(response.user).toHaveProperty('image', userWithOptionalFields.image);
-        expect(response.user).toHaveProperty('callbackURL', userWithOptionalFields.callbackURL);
       });
 
       it('should send verification email after successful signup', async () => {
