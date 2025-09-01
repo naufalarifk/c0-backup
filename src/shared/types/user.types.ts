@@ -255,3 +255,28 @@ export type SystemCreatesInstitutionApplicationWithValidationResult = {
   applicantUserId: string;
   businessName: string;
 };
+
+// User profile viewing types
+export type UserViewsProfileParams = {
+  userId: string;
+};
+
+export type UserViewsProfileResult = {
+  id: string;
+  name?: string;
+  email?: string;
+  emailVerified: boolean;
+  profilePicture?: string;
+  role: 'System' | 'Admin' | 'User';
+  twoFactorEnabled: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  userType: 'Undecided' | 'Individual' | 'Institution';
+  userTypeSelectedDate?: Date;
+  institutionUserId?: string | null;
+  institutionRole?: 'Owner' | 'Finance' | null;
+  kycId?: string | null;
+  kycStatus: 'none' | 'pending' | 'verified' | 'rejected';
+  businessName?: string | null;
+  businessType?: string | null;
+};

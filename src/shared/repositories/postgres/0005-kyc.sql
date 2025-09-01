@@ -3,8 +3,7 @@
 CREATE TABLE IF NOT EXISTS user_kycs (
   id BIGSERIAL PRIMARY KEY,
   user_id BIGINT REFERENCES users (id),
-  status VARCHAR(20) NOT NULL DEFAULT 'Submitted',
-  submitted_date TIMESTAMP NOT NULL,
+
   id_card_photo TEXT NOT NULL,
   selfie_photo TEXT NOT NULL,
   selfie_with_id_card_photo TEXT NOT NULL,
@@ -19,6 +18,9 @@ CREATE TABLE IF NOT EXISTS user_kycs (
   address TEXT NOT NULL,
   postal_code VARCHAR(10) NOT NULL,
   phone_number VARCHAR(15) NOT NULL,
+
+  status VARCHAR(20) NOT NULL DEFAULT 'Submitted',
+  submitted_date TIMESTAMP NOT NULL,
   verifier_user_id BIGINT REFERENCES users (id),
   verified_date TIMESTAMP,
   rejected_date TIMESTAMP,
@@ -40,22 +42,14 @@ CREATE TABLE IF NOT EXISTS user_kycs (
 
 --- DEPENDENCY ---
 
-ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_id BIGINT;
-ALTER TABLE users DROP CONSTRAINT IF EXISTS fk_users_kyc;
-ALTER TABLE users ADD CONSTRAINT fk_users_kyc
-  FOREIGN KEY (kyc_id) REFERENCES user_kycs (id);
-
-ALTER TABLE notifications ADD COLUMN IF NOT EXISTS user_kyc_id BIGINT;
-ALTER TABLE notifications DROP CONSTRAINT IF EXISTS fk_notifications_user_kyc;
-ALTER TABLE notifications ADD CONSTRAINT fk_notifications_user_kyc
-  FOREIGN KEY (user_kyc_id) REFERENCES user_kycs (id);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_id BIGINT REFERENCES user_kycs (id);
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS user_kyc_id BIGINT REFERENCES user_kycs (id);
 
 --- TRIGGER ---
 
 CREATE OR REPLACE FUNCTION validate_kyc_submission()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Validate that user has selected Individual user type
   IF NOT EXISTS (
     SELECT 1 FROM users
     WHERE id = NEW.user_id
@@ -76,13 +70,18 @@ EXECUTE FUNCTION validate_kyc_submission();
 CREATE OR REPLACE FUNCTION update_user_kyc_on_approval()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- KYC is verified
-  IF NEW.verified_date IS NOT NULL AND (OLD.verified_date IS NULL OR OLD.verified_date != NEW.verified_date) THEN
-    -- Update status to Verified
+  IF OLD.verified_date IS NOT NULL OR OLD.rejected_date IS NOT NULL THEN
+    RAISE EXCEPTION 'Cannot modify a KYC application that has already been verified or rejected';
+  END IF;
+
+  IF OLD.verified_date IS NULL AND NEW.verified_date IS NOT NULL THEN
+
     NEW.status = 'Verified';
+
     UPDATE users
     SET kyc_id = NEW.id
     WHERE id = NEW.user_id;
+
     INSERT INTO notifications (
       user_id,
       type,
@@ -98,12 +97,13 @@ BEGIN
       NEW.id,
       NEW.verified_date
     );
+
   END IF;
 
-  -- KYC is rejected
-  IF NEW.rejected_date IS NOT NULL AND (OLD.rejected_date IS NULL OR OLD.rejected_date != NEW.rejected_date) THEN
-    -- Update status to Rejected
+  IF OLD.rejected_date IS NULL AND NEW.rejected_date IS NOT NULL THEN
+
     NEW.status = 'Rejected';
+
     INSERT INTO notifications (
       user_id,
       type,
@@ -124,6 +124,7 @@ BEGIN
       NEW.id,
       NEW.rejected_date
     );
+
   END IF;
 
   RETURN NEW;
