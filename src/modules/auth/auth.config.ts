@@ -47,7 +47,7 @@ export class AuthConfig {
       emailVerification: this.createEmailVerificationConfig(),
       emailAndPassword: {
         enabled: true,
-        requireEmailVerification: true, // Always require email verification for consistent testing
+        requireEmailVerification: this.configService.isProduction,
       },
       socialProviders: this.createSocialProvidersConfig(),
       plugins: this.createPlugins(),

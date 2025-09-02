@@ -809,13 +809,9 @@ describe('Better Auth Complete E2E Tests', () => {
       // Step 4: Verify email by clicking the link
       const verificationPath = extractPathAfterHost(verificationUrl!);
       expect(verificationPath).toBeDefined();
-      console.log('Verification path:', verificationPath);
-
       const verificationResponse = await request(app.getHttpServer())
         .get(verificationPath!)
         .expect(302);
-
-      console.log('Verification response headers:', verificationResponse.headers);
       expect(verificationResponse.headers.location).toBeDefined();
 
       // Step 5: Sign in with verified email
@@ -826,9 +822,6 @@ describe('Better Auth Complete E2E Tests', () => {
         },
         returnHeaders: true,
       });
-
-      // Add debug logging
-      console.log('Signin Response:', JSON.stringify(signinResponse.response, null, 2));
 
       // Validate signin response
       expect(signinResponse.response).toHaveProperty('token');
