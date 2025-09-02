@@ -95,6 +95,7 @@
     "@types/nodemailer": "^7.0.1",
     "@types/pg": "^8.15.5",
     "@types/supertest": "^6.0.2",
+    "axios": "^1.11.0",
     "drizzle-kit": "^0.31.4",
     "jest": "^30.0.0",
     "lefthook": "^1.12.3",
