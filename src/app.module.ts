@@ -5,6 +5,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
+import { HealthcheckController } from './healthcheck.controller';
 import { AuthConfig } from './modules/auth/auth.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { BlockchainsModule } from './modules/blockchains/blockchains.module';
@@ -56,5 +57,6 @@ import { SharedModule } from './shared/shared.module';
       useClass: ThrottlerGuard,
     },
   ],
+  controllers: [HealthcheckController],
 })
 export class AppModule {}
