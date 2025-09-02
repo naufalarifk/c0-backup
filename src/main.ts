@@ -1,12 +1,6 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
 
-import {
-  ClassSerializerInterceptor,
-  HttpStatus,
-  Logger,
-  UnprocessableEntityException,
-  ValidationPipe,
-} from '@nestjs/common';
+import { ClassSerializerInterceptor, Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 
@@ -16,8 +10,11 @@ import morgan from 'morgan';
 
 import { AppModule } from './app.module';
 import docs from './docs';
+import { GlobalExceptionFilter } from './shared/filters';
+import { ResolvePromisesInterceptor } from './shared/interceptors';
 import { AppConfigService } from './shared/services/app-config.service';
 import { SharedModule } from './shared/shared.module';
+import validationOptions from './shared/utils/validation-options';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter(), {
@@ -67,18 +64,14 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   app.enableVersioning();
 
-  app.useGlobalInterceptors(new ClassSerializerInterceptor(reflector));
+  app.useGlobalFilters(new GlobalExceptionFilter());
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
-      transform: true,
-      dismissDefaultMessages: true,
-      forbidNonWhitelisted: true,
-      exceptionFactory: errors => new UnprocessableEntityException(errors),
-    }),
+  app.useGlobalInterceptors(
+    new ResolvePromisesInterceptor(),
+    new ClassSerializerInterceptor(reflector),
   );
+
+  app.useGlobalPipes(new ValidationPipe(validationOptions));
 
   if (configService.documentationEnabled) {
     await docs(app);

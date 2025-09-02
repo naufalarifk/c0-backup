@@ -2,7 +2,7 @@ import type { BetterAuthOptions } from 'better-auth';
 import type { DrizzleDB } from '../../shared/database/database.module';
 import type { AuthModuleOptions } from './auth.module';
 
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Module } from '@nestjs/common';
 
 import { expo } from '@better-auth/expo';
 import { sso } from '@better-auth/sso';
@@ -48,6 +48,25 @@ export class AuthConfig {
       emailAndPassword: {
         enabled: true,
         requireEmailVerification: this.configService.isProduction,
+        sendResetPassword: async ({ user, url }) => {
+          const html = verificationEmail({
+            url,
+            userName: user.email,
+            companyName: this.configService.appConfig.appName,
+          });
+
+          const emailConfirmTitle = 'Reset your password';
+
+          await this.mailerService.sendMail({
+            to: user.email,
+            subject: emailConfirmTitle,
+            html,
+          });
+        },
+        // biome-ignore lint/suspicious/useAwait: <explanation>
+        async onPasswordReset(data, request) {
+          console.log('Password reset for user:', data);
+        },
       },
       socialProviders: this.createSocialProvidersConfig(),
       plugins: this.createPlugins(),
