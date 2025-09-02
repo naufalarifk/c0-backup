@@ -148,6 +148,7 @@ CREATE OR REPLACE FUNCTION post_account_mutation_on_invoice_prepaid()
 RETURNS TRIGGER AS $$
 BEGIN
   IF TG_OP = 'INSERT' AND NEW.prepaid_amount > 0 THEN
+
     INSERT INTO account_mutation_entries (
       user_id,
       currency_blockchain_key,
@@ -165,13 +166,21 @@ BEGIN
       NEW.invoice_date,
       -NEW.prepaid_amount
     );
+
     UPDATE account_mutations
     SET invoice_id = NEW.id
-    WHERE invoice_id IS NULL
-      AND account_mutations.user_id = NEW.user_id
+    FROM accounts
+    WHERE account_mutations.account_id = accounts.id
+      AND account_mutations.invoice_id IS NULL
       AND account_mutations.mutation_type = 'InvoicePrepaid'
-      AND account_mutations.mutation_date = NEW.invoice_date;
+      AND account_mutations.mutation_date = NEW.invoice_date
+      AND accounts.user_id = NEW.user_id
+      AND accounts.currency_blockchain_key = COALESCE(NEW.account_blockchain_key, NEW.currency_blockchain_key)
+      AND accounts.currency_token_id = COALESCE(NEW.account_token_id, NEW.currency_token_id)
+      AND accounts.account_type = 'User';
+
   END IF;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -327,10 +336,15 @@ BEGIN
 
     UPDATE account_mutations
     SET invoice_id = NEW.id
-    WHERE invoice_id IS NULL
-      AND account_mutations.user_id = invoice_record.user_id
+    FROM accounts
+    WHERE account_mutations.account_id = accounts.id
+      AND account_mutations.invoice_id IS NULL
       AND account_mutations.mutation_type = 'InvoiceReceived'
-      AND account_mutations.mutation_date = NEW.paid_date;
+      AND account_mutations.mutation_date = NEW.paid_date
+      AND accounts.user_id = invoice_record.user_id
+      AND accounts.currency_blockchain_key = COALESCE(invoice_record.account_blockchain_key, invoice_record.currency_blockchain_key)
+      AND accounts.currency_token_id = COALESCE(invoice_record.account_token_id, invoice_record.currency_token_id)
+      AND accounts.account_type = 'User';
 
   END IF;
 

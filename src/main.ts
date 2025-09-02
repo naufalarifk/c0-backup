@@ -1,4 +1,5 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import type { Request } from 'express';
 
 import { ClassSerializerInterceptor, Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
@@ -59,7 +60,15 @@ async function bootstrap() {
     }),
   );
   app.use(compression());
-  app.use(morgan('combined'));
+  app.use(
+    morgan('combined', {
+      skip(req: Request, res) {
+        const url = req.originalUrl || req.url || '';
+        // Disable access logging for the healthcheck endpoint to keep logs clean
+        return /^(\/api)?\/health(\/|$)/.test(url);
+      },
+    }),
+  );
 
   app.setGlobalPrefix('api');
   app.enableVersioning();
