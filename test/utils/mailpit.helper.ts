@@ -30,13 +30,17 @@ export interface MailpitResponse {
 }
 
 export class MailpitHelper {
-  private static readonly BASE_URL = 'http://localhost:8025/api/v1';
+  private static getBaseUrl(): string {
+    const host = process.env.MAIL_HOST || 'localhost';
+    const port = process.env.MAIL_HTTP_PORT || '8025';
+    return `http://${host}:${port}/api/v1`;
+  }
 
   /**
    * Fetch all messages from Mailpit
    */
   static async getAllMessages(): Promise<MailpitMessage[]> {
-    const response = await fetch(`${this.BASE_URL}/messages`);
+    const response = await fetch(`${this.getBaseUrl()}/messages`);
     invariant(response.ok, `Failed to fetch emails: ${response.statusText}`);
 
     const data: MailpitResponse = await response.json();
@@ -60,7 +64,7 @@ export class MailpitHelper {
    * Get email content by message ID
    */
   static async getEmailContent(messageId: string): Promise<MailpitMessage> {
-    const response = await fetch(`${this.BASE_URL}/message/${messageId}`);
+    const response = await fetch(`${this.getBaseUrl()}/message/${messageId}`);
     invariant(response.ok, `Failed to fetch email content: ${response.statusText}`);
 
     return response.json();
@@ -70,7 +74,7 @@ export class MailpitHelper {
    * Clear all messages from Mailpit
    */
   static async clearAllMessages(): Promise<void> {
-    const response = await fetch(`${this.BASE_URL}/messages`, {
+    const response = await fetch(`${this.getBaseUrl()}/messages`, {
       method: 'DELETE',
     });
 
@@ -126,7 +130,7 @@ export class MailpitHelper {
    * Search messages by criteria
    */
   static async searchMessages(query: string): Promise<MailpitMessage[]> {
-    const response = await fetch(`${this.BASE_URL}/search?query=${encodeURIComponent(query)}`);
+    const response = await fetch(`${this.getBaseUrl()}/search?query=${encodeURIComponent(query)}`);
     invariant(response.ok, `Failed to search emails: ${response.statusText}`);
 
     const data: MailpitResponse = await response.json();
