@@ -1,6 +1,7 @@
 onlyBuiltDependencies:
   - '@nestjs/core'
   - '@scarf/scarf'
+  - bufferutil
   - cpu-features
   - esbuild
   - lefthook
@@ -8,3 +9,4 @@ onlyBuiltDependencies:
   - protobufjs
   - ssh2
   - unrs-resolver
+  - utf-8-validate
