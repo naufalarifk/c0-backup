@@ -9,6 +9,7 @@ import request from 'supertest';
 
 import { AppModule } from '../../src/app.module';
 import { AuthService } from '../../src/modules/auth/auth.service';
+import MailContainer from '../setup/mail-container';
 import { TestContainerSetup } from '../setup/test-containers';
 import {
   extractPathAfterHost,
@@ -26,18 +27,26 @@ describe('Better Auth Complete E2E Tests', () => {
   let authService: AuthService;
   let moduleFixture: TestingModule;
   let testUser: TestUser;
+  let mailContainer: MailContainer;
 
   // Setup dan cleanup untuk seluruh test suite
   beforeAll(async () => {
     // Ensure containers are started before accessing them
     await TestContainerSetup.ensureContainersStarted();
+    mailContainer = new MailContainer();
+    await mailContainer.start();
 
     process.env.BETTER_AUTH_URL = 'http://localhost:3000';
     process.env.DATABASE_URL = TestContainerSetup.getPostgresConnectionString();
+    process.env.DATABASE_LOGGER = 'false';
+
     process.env.REDIS_HOST = TestContainerSetup.getRedisConfig().host;
     process.env.REDIS_PORT = String(TestContainerSetup.getRedisConfig().port);
     process.env.REDIS_PASSWORD = TestContainerSetup.getRedisConfig().password;
-    process.env.DATABASE_LOGGER = 'false';
+
+    process.env.MAIL_HOST = mailContainer.getHost();
+    process.env.MAIL_SMTP_PORT = String(mailContainer.getSmtpPort());
+    process.env.MAIL_HTTP_PORT = String(mailContainer.getHttpPort());
 
     moduleFixture = await Test.createTestingModule({
       imports: [AppModule],
@@ -46,7 +55,7 @@ describe('Better Auth Complete E2E Tests', () => {
     app = moduleFixture.createNestApplication();
     authService = moduleFixture.get<AuthService>(AuthService);
     await app.init();
-  });
+  }, 60_000);
 
   beforeEach(() => {
     // Reset test state before each test
@@ -55,6 +64,7 @@ describe('Better Auth Complete E2E Tests', () => {
 
   afterAll(async () => {
     // Cleanup test data, close connections, etc.
+    // await mailContainer.stop();
     await MailpitHelper.clearAllMessages();
   });
 

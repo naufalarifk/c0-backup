@@ -91,7 +91,7 @@ export class AppConfigService {
       apiKey: this.getString('RESEND_API_KEY'),
       from: this.getString('EMAIL_FROM'),
       host: this.getString('MAIL_HOST'),
-      port: this.getNumber('MAIL_PORT'),
+      port: this.getNumber('MAIL_SMTP_PORT'),
       user: this.getString('MAIL_USER'),
       pass: this.getString('MAIL_PASSWORD'),
       ignoreTLS: this.getBoolean('MAIL_IGNORE_TLS'),
@@ -99,7 +99,7 @@ export class AppConfigService {
       requireTLS: this.getBoolean('MAIL_REQUIRE_TLS'),
       defaultEmail: this.getString('MAIL_DEFAULT_EMAIL'),
       defaultName: this.getString('MAIL_DEFAULT_NAME'),
-      clientPort: this.getNumber('MAIL_CLIENT_PORT'),
+      clientPort: this.getNumber('MAIL_HTTP_PORT'),
     };
   }
 
