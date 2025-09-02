@@ -418,11 +418,16 @@ BEGIN
 
       UPDATE account_mutations
       SET loan_offer_id = NEW.loan_offer_id
-      WHERE loan_offer_id IS NULL
-        AND account_mutations.user_id = loan_offer_record.lender_user_id
+      FROM accounts
+      WHERE account_mutations.account_id = accounts.id
+        AND account_mutations.loan_offer_id IS NULL
         AND account_mutations.mutation_type = 'LoanOfferPrincipalEscrowed'
-        AND account_mutations.mutation_date = NEW.paid_date;
-      
+        AND account_mutations.mutation_date = NEW.paid_date
+        AND accounts.user_id = loan_offer_record.lender_user_id
+        AND accounts.currency_blockchain_key = loan_offer_record.principal_currency_blockchain_key
+        AND accounts.currency_token_id = loan_offer_record.principal_currency_token_id
+        AND accounts.account_type = 'User';
+
       -- Add corresponding credit to platform escrow account
       INSERT INTO account_mutation_entries (
         user_id,
@@ -444,10 +449,15 @@ BEGIN
 
       UPDATE account_mutations
       SET loan_offer_id = NEW.loan_offer_id
-      WHERE loan_offer_id IS NULL
-        AND account_mutations.user_id = 1 -- Platform user_id
+      FROM accounts
+      WHERE account_mutations.account_id = accounts.id
+        AND account_mutations.loan_offer_id IS NULL
         AND account_mutations.mutation_type = 'LoanPrincipalFunded'
-        AND account_mutations.mutation_date = NEW.paid_date;
+        AND account_mutations.mutation_date = NEW.paid_date
+        AND accounts.user_id = 1 -- Platform user_id
+        AND accounts.currency_blockchain_key = loan_offer_record.principal_currency_blockchain_key
+        AND accounts.currency_token_id = loan_offer_record.principal_currency_token_id
+        AND accounts.account_type = 'PlatformEscrow';
       
     END IF;
   END IF;

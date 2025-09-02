@@ -76,17 +76,20 @@ CREATE OR REPLACE VIEW account_mutation_entries AS
 
 CREATE OR REPLACE FUNCTION record_account_mutation_entry()
 RETURNS TRIGGER AS $$
-DECLARE
-  account_id BIGINT;
 BEGIN
   INSERT INTO accounts (user_id, currency_blockchain_key, currency_token_id, account_type)
   VALUES (NEW.user_id, NEW.currency_blockchain_key, NEW.currency_token_id, NEW.account_type)
-  ON CONFLICT (user_id, currency_blockchain_key, currency_token_id, account_type) DO NOTHING
-  RETURNING id INTO account_id;
+  ON CONFLICT (user_id, currency_blockchain_key, currency_token_id, account_type) DO NOTHING;
 
   INSERT INTO account_mutations (account_id, mutation_type, mutation_date, amount)
   VALUES (
-    account_id,
+    (
+      SELECT id FROM accounts
+      WHERE user_id = NEW.user_id
+        AND currency_blockchain_key = NEW.currency_blockchain_key
+        AND currency_token_id = NEW.currency_token_id
+        AND account_type = NEW.account_type
+    ),
     NEW.mutation_type,
     NEW.mutation_date,
     NEW.amount
@@ -178,7 +181,19 @@ INSERT INTO currencies (
    '0', '0', 60.0, 75.0, 70.0, 60.0, '0'), -- SOL as collateral: 50% max LTV (CONF-002)
   -- Generic USD Token, the platform requires user to hold cross chain USD-Pegged Token
   ('crosschain', 'iso4217:usd', 'USD Token', 'USD', 6, 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
-   '0', '0', 0, 0, 0, 0, '0') -- For internal calculations only
+   '0', '0', 0, 0, 0, 0, '0'),
+  -- Generic Bitcoin, this currency refer to bitcoin generic BTC.
+  ('crosschain', 'slip44:0', 'Bitcoin', 'BTC', 8, 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+   '0', '0', 0, 0, 0, 0, '0'),
+  -- Generic Ethereum, this currency refer to ethereum generic ETH.
+  ('crosschain', 'slip44:60', 'Ethereum', 'ETH', 18, 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
+   '0', '0', 0, 0, 0, 0, '0'),
+  -- Generic BNB Coin, this currency refer to binance generic BNB Coin.
+  ('crosschain', 'slip44:714', 'Binance Coin', 'BNB', 18, 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
+   '0', '0', 0, 0, 0, 0, '0'),
+  -- Generic Solana, this currency refer to solana generic SOL.
+  ('crosschain', 'slip44:501', 'Solana', 'SOL', 9, 'https://cryptologos.cc/logos/solana-sol-logo.png',
+   '0', '0', 0, 0, 0, 0, '0')
 ON CONFLICT (blockchain_key, token_id) DO UPDATE SET
   min_loan_principal_amount = EXCLUDED.min_loan_principal_amount,
   max_loan_principal_amount = EXCLUDED.max_loan_principal_amount,
