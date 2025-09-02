@@ -972,49 +972,50 @@ export async function runFinanceRepositoryTestSuite(
         await repo.systemCreatesTestPriceFeeds({
           priceFeeds: [
             {
-              blockchainKey: 'eip155:56',
-              baseCurrencyTokenId: 'slip44:714',
-              quoteCurrencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+              blockchainKey: 'crosschain',
+              baseCurrencyTokenId: 'slip44:60',
+              quoteCurrencyTokenId: 'iso4217:usd',
               source: 'binance',
             },
             {
-              blockchainKey: 'eip155:56',
-              baseCurrencyTokenId: 'slip44:714',
-              quoteCurrencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+              blockchainKey: 'crosschain',
+              baseCurrencyTokenId: 'slip44:60',
+              quoteCurrencyTokenId: 'iso4217:usd',
               source: 'coinbase',
             },
             {
-              blockchainKey: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+              blockchainKey: 'crosschain',
+              baseCurrencyTokenId: 'slip44:714',
+              quoteCurrencyTokenId: 'iso4217:usd',
+              source: 'coinbase',
+            },
+            {
+              blockchainKey: 'crosschain',
               baseCurrencyTokenId: 'slip44:501',
-              quoteCurrencyTokenId: 'token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-              source: 'coingecko',
+              quoteCurrencyTokenId: 'iso4217:usd',
+              source: 'binance',
             },
           ],
         });
 
-        const ethPriceFeedResult = await repo.systemFindsTestPriceFeedId({
-          blockchainKey: 'eip155:56',
-          baseCurrencyTokenId: 'slip44:60',
-          quoteCurrencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-        });
-        const ethPriceFeedId = ethPriceFeedResult.id;
-
         const ethBinancePriceFeedResult = await repo.systemFindsTestPriceFeedId({
-          blockchainKey: 'eip155:56',
+          blockchainKey: 'crosschain',
           baseCurrencyTokenId: 'slip44:60',
-          quoteCurrencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          quoteCurrencyTokenId: 'iso4217:usd',
+          source: 'binance',
         });
         const ethBinancePriceFeedId = ethBinancePriceFeedResult.id;
 
+        const ethCoinbasePriceFeedResult = await repo.systemFindsTestPriceFeedId({
+          blockchainKey: 'crosschain',
+          baseCurrencyTokenId: 'slip44:60',
+          quoteCurrencyTokenId: 'iso4217:usd',
+          source: 'coinbase',
+        });
+        const ethCoinbasePriceFeedId = ethCoinbasePriceFeedResult.id;
+
         await repo.systemCreatesTestExchangeRates({
           exchangeRates: [
-            {
-              priceFeedId: ethPriceFeedId,
-              bidPrice: '3000.00',
-              askPrice: '3010.00',
-              retrievalDate: '2024-01-01T10:00:00Z',
-              sourceDate: '2024-01-01T09:59:30Z',
-            },
             {
               priceFeedId: ethBinancePriceFeedId,
               bidPrice: '2999.00',
@@ -1022,26 +1023,33 @@ export async function runFinanceRepositoryTestSuite(
               retrievalDate: '2024-01-01T10:00:00Z',
               sourceDate: '2024-01-01T09:59:30Z',
             },
+            {
+              priceFeedId: ethCoinbasePriceFeedId,
+              bidPrice: '3000.00',
+              askPrice: '3010.00',
+              retrievalDate: '2024-01-01T10:00:00Z',
+              sourceDate: '2024-01-01T09:59:30Z',
+            },
           ],
         });
 
         const result = await repo.platformRetrievesExchangeRates({
-          blockchainKey: 'eip155:56',
+          blockchainKey: 'crosschain',
           baseCurrencyTokenId: 'slip44:60',
         });
 
         equal(result.exchangeRates.length, 2);
-        const rate = result.exchangeRates.find(r => r.source === 'binance');
-        ok(rate, 'Binance rate should exist');
-        equal(rate.blockchain, 'eip155:56');
-        equal(rate.baseCurrency, 'slip44:60');
-        equal(rate.quoteCurrency, 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d');
-        equal(rate.bidPrice, '3000.000000000000');
-        equal(rate.askPrice, '3010.000000000000');
-        equal(rate.source, 'binance');
-        equal(typeof rate.id, 'string');
-        ok(rate.retrievalDate instanceof Date);
-        ok(rate.sourceDate instanceof Date);
+        const binanceRate = result.exchangeRates.find(r => r.source === 'binance');
+        ok(binanceRate, 'Binance rate should exist');
+        equal(binanceRate.blockchain, 'crosschain');
+        equal(binanceRate.baseCurrency, 'slip44:60');
+        equal(binanceRate.quoteCurrency, 'iso4217:usd');
+        equal(binanceRate.bidPrice, '2999.000000000000');
+        equal(binanceRate.askPrice, '3009.000000000000');
+        equal(binanceRate.source, 'binance');
+        equal(typeof binanceRate.id, 'string');
+        ok(binanceRate.retrievalDate instanceof Date);
+        ok(binanceRate.sourceDate instanceof Date);
       });
 
       it('should retrieve all exchange rates without filters', async function () {
@@ -1049,33 +1057,33 @@ export async function runFinanceRepositoryTestSuite(
         await repo.systemCreatesTestPriceFeeds({
           priceFeeds: [
             {
-              blockchainKey: 'eip155:56',
+              blockchainKey: 'crosschain',
               baseCurrencyTokenId: 'slip44:60',
-              quoteCurrencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+              quoteCurrencyTokenId: 'iso4217:usd',
               source: 'binance',
             },
             {
-              blockchainKey: 'eip155:56',
+              blockchainKey: 'crosschain',
               baseCurrencyTokenId: 'slip44:714',
-              quoteCurrencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-              source: 'coinbase',
+              quoteCurrencyTokenId: 'iso4217:usd',
+              source: 'binance',
             },
           ],
         });
 
         const ethPriceFeedId = (
           await repo.systemFindsTestPriceFeedId({
-            blockchainKey: 'eip155:56',
+            blockchainKey: 'crosschain',
             baseCurrencyTokenId: 'slip44:60',
-            quoteCurrencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+            quoteCurrencyTokenId: 'iso4217:usd',
           })
         ).id;
 
         const bnbPriceFeedId = (
           await repo.systemFindsTestPriceFeedId({
-            blockchainKey: 'eip155:56',
+            blockchainKey: 'crosschain',
             baseCurrencyTokenId: 'slip44:714',
-            quoteCurrencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+            quoteCurrencyTokenId: 'iso4217:usd',
           })
         ).id;
 
@@ -1123,9 +1131,9 @@ export async function runFinanceRepositoryTestSuite(
         await repo.systemCreatesTestPriceFeeds({
           priceFeeds: [
             {
-              blockchainKey: 'eip155:56',
+              blockchainKey: 'crosschain',
               baseCurrencyTokenId: 'slip44:60',
-              quoteCurrencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+              quoteCurrencyTokenId: 'iso4217:usd',
               source: 'binance',
             },
           ],
@@ -1133,9 +1141,9 @@ export async function runFinanceRepositoryTestSuite(
 
         // Get the price feed
         const priceFeedResult = await repo.systemFindsTestPriceFeedId({
-          blockchainKey: 'eip155:56',
+          blockchainKey: 'crosschain',
           baseCurrencyTokenId: 'slip44:60',
-          quoteCurrencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          quoteCurrencyTokenId: 'iso4217:usd',
         });
         const priceFeedId = priceFeedResult.id;
 

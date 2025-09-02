@@ -1038,12 +1038,16 @@ export abstract class FinanceRepository extends UserRepository {
     blockchainKey: string;
     baseCurrencyTokenId: string;
     quoteCurrencyTokenId: string;
+    source?: string;
   }) {
+    const sourceParam = params.source ?? null;
+
     const rows = await this.sql`
       SELECT id FROM price_feeds
       WHERE blockchain_key = ${params.blockchainKey}
-      AND base_currency_token_id = ${params.baseCurrencyTokenId}
-      AND quote_currency_token_id = ${params.quoteCurrencyTokenId}
+        AND base_currency_token_id = ${params.baseCurrencyTokenId}
+        AND quote_currency_token_id = ${params.quoteCurrencyTokenId}
+        AND (${sourceParam}::text IS NULL OR source = ${sourceParam})
     `;
 
     if (rows.length === 0) {
