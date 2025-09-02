@@ -182,16 +182,16 @@ INSERT INTO currencies (
   -- Generic USD Token, the platform requires user to hold cross chain USD-Pegged Token
   ('crosschain', 'iso4217:usd', 'USD Token', 'USD', 6, 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
    '0', '0', 0, 0, 0, 0, '0'),
-  -- Generic Bitcoin, this currency refer to bitcoin generic BTC.
+  -- Generic Bitcoin, this currency refers to bitcoin generic BTC.
   ('crosschain', 'slip44:0', 'Bitcoin', 'BTC', 8, 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
    '0', '0', 0, 0, 0, 0, '0'),
-  -- Generic Ethereum, this currency refer to ethereum generic ETH.
+  -- Generic Ethereum, this currency refers to ethereum generic ETH.
   ('crosschain', 'slip44:60', 'Ethereum', 'ETH', 18, 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
    '0', '0', 0, 0, 0, 0, '0'),
-  -- Generic BNB Coin, this currency refer to binance generic BNB Coin.
+  -- Generic BNB Coin, this currency refers to binance generic BNB Coin.
   ('crosschain', 'slip44:714', 'Binance Coin', 'BNB', 18, 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
    '0', '0', 0, 0, 0, 0, '0'),
-  -- Generic Solana, this currency refer to solana generic SOL.
+  -- Generic Solana, this currency refers to solana generic SOL.
   ('crosschain', 'slip44:501', 'Solana', 'SOL', 9, 'https://cryptologos.cc/logos/solana-sol-logo.png',
    '0', '0', 0, 0, 0, 0, '0')
 ON CONFLICT (blockchain_key, token_id) DO UPDATE SET
