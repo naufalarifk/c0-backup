@@ -1,3 +1,5 @@
+import './tracing';
+
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Request } from 'express';
 
@@ -12,8 +14,9 @@ import morgan from 'morgan';
 import { AppModule } from './app.module';
 import docs from './docs';
 import { GlobalExceptionFilter } from './shared/filters';
-import { ResolvePromisesInterceptor } from './shared/interceptors';
+import { ResolvePromisesInterceptor, TelemetryInterceptor } from './shared/interceptors';
 import { AppConfigService } from './shared/services/app-config.service';
+import { TelemetryService } from './shared/services/telemetry.service';
 import { SharedModule } from './shared/shared.module';
 import validationOptions from './shared/utils/validation-options';
 
@@ -25,6 +28,7 @@ async function bootstrap() {
   const reflector = app.get(Reflector);
   const logger = new Logger(bootstrap.name);
   const configService = app.select(SharedModule).get(AppConfigService);
+  const telemetryService = app.select(SharedModule).get(TelemetryService);
 
   app.enableCors({
     origin: configService.appConfig.allowedOrigins,
@@ -62,7 +66,7 @@ async function bootstrap() {
   app.use(compression());
   app.use(
     morgan('combined', {
-      skip(req: Request, res) {
+      skip(req: Request, _res) {
         const url = req.originalUrl || req.url || '';
         // Disable access logging for the healthcheck endpoint to keep logs clean
         return /^(\/api)?\/health(\/|$)/.test(url);
@@ -76,6 +80,7 @@ async function bootstrap() {
   app.useGlobalFilters(new GlobalExceptionFilter());
 
   app.useGlobalInterceptors(
+    new TelemetryInterceptor(telemetryService),
     new ResolvePromisesInterceptor(),
     new ClassSerializerInterceptor(reflector),
   );

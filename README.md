@@ -1,11 +1,12 @@
-# 🚀 Gadain Backend API
+# 🚀 CryptoGadai Backend API
 
-> NestJS backend application with Better Auth, Drizzle ORM, and comprehensive development tooling
+> NestJS backend application with Better Auth, Drizzle ORM, blockchain integration, and comprehensive financial services
 
 [![NestJS](https://img.shields.io/badge/NestJS-v11-red?logo=nestjs)](https://nestjs.com)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?logo=typescript)](https://typescriptlang.org)
 [![Drizzle](https://img.shields.io/badge/Drizzle-ORM-green?logo=drizzle)](https://orm.drizzle.team)
 [![Better Auth](https://img.shields.io/badge/Better-Auth-purple)](https://better-auth.com)
+[![BullMQ](https://img.shields.io/badge/BullMQ-Queue-orange)](https://docs.bullmq.io)
 
 ## � **Table of Contents**
 
@@ -25,12 +26,15 @@
 
 ## 📖 **Overview**
 
-A comprehensive NestJS backend application featuring:
+A comprehensive NestJS backend application for cryptocurrency and financial services featuring:
 - **Authentication**: Better Auth with SSO support (Google OAuth)
-- **Database**: PostgreSQL with Drizzle ORM
+- **Database**: PostgreSQL with Drizzle ORM and advanced repository patterns
+- **Blockchain Integration**: Multi-blockchain wallet support (Bitcoin, Ethereum, Solana)
+- **Financial Services**: Loan management, KYC verification, and transaction processing
+- **Queue System**: BullMQ for background job processing
 - **Code Quality**: Automated formatting, linting, and git hooks
 - **Documentation**: Swagger UI and Scalar API Reference
-- **Development**: Docker containerization and VSCode workspace
+- **Development**: Docker containerization with mail testing via Mailpit
 
 ## 🛠 **Tech Stack**
 
@@ -40,10 +44,14 @@ A comprehensive NestJS backend application featuring:
 | **Language** | TypeScript 5.7 |
 | **Database** | PostgreSQL + Drizzle ORM |
 | **Authentication** | Better Auth |
+| **Queue System** | BullMQ + Redis |
+| **Blockchain** | Bitcoin, Ethereum, Solana SDKs |
+| **Wallet Management** | HD Wallets (BIP32/BIP39) |
 | **Code Quality** | Biome (formatter + linter) |
 | **Git Hooks** | Lefthook |
 | **Package Manager** | pnpm |
 | **Containerization** | Docker + Docker Compose |
+| **Email Testing** | Mailpit |
 
 ## 🚀 **Quick Start**
 
@@ -298,7 +306,7 @@ src/
 │       ├── auth-app-config.service.ts
 │       └── types/           # Auth-specific types
 ├── shared/                  # Shared modules
-│   ├── database/           # Database configuration
+│   ├── repositories/       # Use-case based interface for interacting with Database
 │   └── modules/            # Shared NestJS modules
 ├── lib/                    # Utility libraries
 │   ├── email/              # Email service

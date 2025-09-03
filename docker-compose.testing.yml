@@ -9,14 +9,23 @@ x-backend-env: &backend-env
     exp://192.168.0.103:8081,\
     exp://192.168.0.106:8081,\
     exp://192.168.0.100:8081,\
-    https://cg-api.fh47.my.id"
-  BETTER_AUTH_URL: https://cg-api.fh47.my.id
+    ${PROTOCOL:-https}://${API_DOMAIN:-cg-api.fh47.my.id}"
+  BETTER_AUTH_URL: ${PROTOCOL:-https}://${API_DOMAIN:-cg-api.fh47.my.id}
   DATABASE_URL: postgresql://postgres:postgres@postgres:5432/cryptogadai
   REDIS_HOST: redis
   REDIS_PORT: 6379
   MAIL_HOST: mailpit
   GOOGLE_CLIENT_SECRET: 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
   GOOGLE_CLIENT_ID: 442461506062-rgpbj94u778lpcfv5hg5rue6fpveddt6.apps.googleusercontent.com
+  # OpenTelemetry Configuration
+  OTEL_SERVICE_NAME: cryptogadai-backend
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_TRACES_EXPORTER: otlp
+  OTEL_METRICS_EXPORTER: otlp
+  OTEL_LOGS_EXPORTER: otlp
+  OTEL_NODE_RESOURCE_DETECTORS: env,host,os,process
+
 
 x-backend-base: &backend-base
   image: cg/backend
@@ -37,15 +46,22 @@ services:
       - --accesslog
       - --api.dashboard=true
       - --api.insecure=true
-      - --certificatesresolvers.cgresolver.acme.email=webmaster@cryptogadai.com
-      - --certificatesresolvers.cgresolver.acme.storage=/letsencrypt/acme.json
-      - --certificatesresolvers.cgresolver.acme.tlschallenge=true
       - --entrypoints.web.address=:80
       - --entryPoints.websecure.address=:443
       - --log.level=DEBUG
       - --providers.docker
       - --providers.docker.exposedbydefault=false
       - --providers.docker.network=cg-public-network
+      # Metrics configuration
+      - --metrics.prometheus=true
+      - --metrics.prometheus.addrouterslabels=true
+      - --metrics.prometheus.addServicesLabels=true
+      - --entrypoints.metrics.address=:8082
+      - --metrics.prometheus.entrypoint=metrics
+      # Conditional SSL configuration
+      - ${SSL_DISABLED:+--certificatesresolvers.cgresolver.acme.email=${ACME_EMAIL:-webmaster@cryptogadai.com}}
+      - ${SSL_DISABLED:+--certificatesresolvers.cgresolver.acme.storage=/letsencrypt/acme.json}
+      - ${SSL_DISABLED:+--certificatesresolvers.cgresolver.acme.tlschallenge=true}
     depends_on:
       api: { condition: service_healthy }
       mailpit: { condition: service_healthy }
@@ -55,15 +71,19 @@ services:
     ports:
       - 443:443
       - 80:80
+      - 8081:8081
+      - 8082:8082
     networks:
       - cg-private-network
       - cg-public-network
     labels:
       - traefik.enable=true
-      - traefik.http.routers.cg-traefik-dashboard.entrypoints=websecure
-      - traefik.http.routers.cg-traefik-dashboard.rule=Host(`cg-traefik.fh47.my.id`)
-      - traefik.http.routers.cg-traefik-dashboard.tls.certresolver=cgresolver
+      - traefik.http.routers.cg-traefik-dashboard.rule=Host(`${TRAEFIK_DOMAIN:-cg-traefik.fh47.my.id}`)
       - traefik.http.routers.cg-traefik-dashboard.service=api@internal
+      # Conditional SSL labels
+      - ${SSL_DISABLED:+traefik.http.routers.cg-traefik-dashboard.entrypoints=websecure}
+      - ${SSL_DISABLED:+traefik.http.routers.cg-traefik-dashboard.tls.certresolver=cgresolver}
+      - ${SSL_DISABLED:-traefik.http.routers.cg-traefik-dashboard.entrypoints=web}
 
   api:
     <<: *backend-base
@@ -82,10 +102,12 @@ services:
       - cg-public-network
     labels:
       - traefik.enable=true
-      - traefik.http.routers.cg-api.entrypoints=websecure
-      - traefik.http.routers.cg-api.rule=Host(`cg-api.fh47.my.id`)
-      - traefik.http.routers.cg-api.tls.certresolver=cgresolver
+      - traefik.http.routers.cg-api.rule=Host(`${API_DOMAIN:-cg-api.fh47.my.id}`)
       - traefik.http.services.cg-api.loadbalancer.server.port=3100
+      # Conditional SSL labels
+      - ${SSL_DISABLED:+traefik.http.routers.cg-api.entrypoints=websecure}
+      - ${SSL_DISABLED:+traefik.http.routers.cg-api.tls.certresolver=cgresolver}
+      - ${SSL_DISABLED:-traefik.http.routers.cg-api.entrypoints=web}
 
   postgres:
     image: postgres:17.6-alpine3.22
@@ -131,14 +153,103 @@ services:
       - cg-public-network
     labels:
       - traefik.enable=true
-      - traefik.http.routers.cg-mailpit.entrypoints=websecure
-      - traefik.http.routers.cg-mailpit.rule=Host(`cg-mail.fh47.my.id`)
-      - traefik.http.routers.cg-mailpit.tls.certresolver=cgresolver
+      - traefik.http.routers.cg-mailpit.rule=Host(`${MAILPIT_DOMAIN:-cg-mail.fh47.my.id}`)
       - traefik.http.services.cg-mailpit.loadbalancer.server.port=8025
+      # Conditional SSL labels
+      - ${SSL_DISABLED:+traefik.http.routers.cg-mailpit.entrypoints=websecure}
+      - ${SSL_DISABLED:+traefik.http.routers.cg-mailpit.tls.certresolver=cgresolver}
+      - ${SSL_DISABLED:-traefik.http.routers.cg-mailpit.entrypoints=web}
+
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./config/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    depends_on:
+      - jaeger
+      - prometheus
+    networks:
+      - cg-private-network
+    labels:
+      - traefik.enable=false
+
+  # Jaeger for distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.64.0
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+      JAEGER_DISABLED_: false
+    networks:
+      - cg-private-network
+      - cg-public-network
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.cg-jaeger.rule=Host(`${JAEGER_DOMAIN:-cg-jaeger.fh47.my.id}`)
+      - traefik.http.services.cg-jaeger.loadbalancer.server.port=16686
+      # Conditional SSL labels
+      - ${SSL_DISABLED:+traefik.http.routers.cg-jaeger.entrypoints=websecure}
+      - ${SSL_DISABLED:+traefik.http.routers.cg-jaeger.tls.certresolver=cgresolver}
+      - ${SSL_DISABLED:-traefik.http.routers.cg-jaeger.entrypoints=web}
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - cg-private-network
+      - cg-public-network
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.cg-prometheus.rule=Host(`${PROMETHEUS_DOMAIN:-cg-prometheus.fh47.my.id}`)
+      - traefik.http.services.cg-prometheus.loadbalancer.server.port=9090
+      # Conditional SSL labels
+      - ${SSL_DISABLED:+traefik.http.routers.cg-prometheus.entrypoints=websecure}
+      - ${SSL_DISABLED:+traefik.http.routers.cg-prometheus.tls.certresolver=cgresolver}
+      - ${SSL_DISABLED:-traefik.http.routers.cg-prometheus.entrypoints=web}
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana-oss:11.4.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: false
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./config/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
+      - jaeger
+    networks:
+      - cg-private-network
+      - cg-public-network
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.cg-grafana.rule=Host(`${GRAFANA_DOMAIN:-cg-grafana.fh47.my.id}`)
+      - traefik.http.services.cg-grafana.loadbalancer.server.port=3000
+      # Conditional SSL labels
+      - ${SSL_DISABLED:+traefik.http.routers.cg-grafana.entrypoints=websecure}
+      - ${SSL_DISABLED:+traefik.http.routers.cg-grafana.tls.certresolver=cgresolver}
+      - ${SSL_DISABLED:-traefik.http.routers.cg-grafana.entrypoints=web}
 
 volumes:
   postgres-volume:
   redis-volume:
+  prometheus-data:
+  grafana-data:
 
 networks:
   cg-private-network:
