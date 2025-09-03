@@ -19,6 +19,87 @@ export async function runUserRepositoryTestSuite(
     });
 
     describe('User Profile Management', function () {
+      it('should create user with image field and return it', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'John Doe',
+          email: 'john@example.com',
+          emailVerified: true,
+          image: 'https://example.com/avatar.jpg',
+        });
+
+        equal(user.name, 'John Doe');
+        equal(user.email, 'john@example.com');
+        equal(user.image, 'https://example.com/avatar.jpg');
+        equal(user.emailVerified, true);
+      });
+
+      it('should create user without image field and return null', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Jane Doe',
+          email: 'jane@example.com',
+          emailVerified: true,
+        });
+
+        equal(user.name, 'Jane Doe');
+        equal(user.email, 'jane@example.com');
+        equal(user.image, null);
+      });
+
+      it('should find user by ID and include image field', async function () {
+        const createdUser = await repo.betterAuthCreateUser({
+          name: 'Test User',
+          email: 'test@example.com',
+          emailVerified: true,
+          image: 'https://example.com/test.jpg',
+        });
+
+        const foundUser = await repo.betterAuthFindOneUser([
+          { field: 'id', value: createdUser.id },
+        ]);
+
+        equal(foundUser.id, createdUser.id);
+        equal(foundUser.name, 'Test User');
+        equal(foundUser.image, 'https://example.com/test.jpg');
+      });
+
+      it('should update user and include image field in response', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Update Test',
+          email: 'update@example.com',
+          emailVerified: true,
+        });
+
+        const updatedUser = await repo.betterAuthUpdateUser([{ field: 'id', value: user.id }], {
+          name: 'Updated Name',
+          image: 'https://example.com/updated.jpg',
+        });
+
+        equal(updatedUser.name, 'Updated Name');
+        equal(updatedUser.image, 'https://example.com/updated.jpg');
+      });
+
+      it('should find many users and include image field', async function () {
+        await repo.betterAuthCreateUser({
+          name: 'Many Test 1',
+          email: 'many1@example.com',
+          emailVerified: true,
+          image: 'https://example.com/many1.jpg',
+        });
+
+        await repo.betterAuthCreateUser({
+          name: 'Many Test 2',
+          email: 'many2@example.com',
+          emailVerified: true,
+          image: 'https://example.com/many2.jpg',
+        });
+
+        const users = await repo.betterAuthFindManyUsers();
+
+        ok(users.length >= 2, 'Should find at least 2 users');
+        const hasImageField = users.some(u => u.image !== undefined);
+        ok(hasImageField, 'Users should have image field');
+      });
+
       it('should update user profile with full name and profile picture', async function () {
         // First create a user via Better Auth
         const user = await repo.betterAuthCreateUser({

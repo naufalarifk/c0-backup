@@ -92,20 +92,17 @@ export abstract class UserRepository extends BaseRepository {
       const rows = await tx.sql`
         INSERT INTO users (name, profile_picture, email, email_verified, created_date, updated_date)
         VALUES (${name}, ${image}, ${emailValue}, ${emailVerified}, ${createdAtUtc}, ${updatedAtUtc})
-        RETURNING id, name, profile_picture, email, email_verified as "emailVerified", created_date as "createdAt", updated_date as "updatedAt";
+        RETURNING id, name, profile_picture as "image", email, email_verified as "emailVerified", created_date as "createdAt", updated_date as "updatedAt";
       `;
 
       const user = rows[0];
       assertDefined(user);
       assertPropString(user, 'email');
-      assertPropNullableStringOrNumber(user, 'profile_picture');
+      assertPropNullableStringOrNumber(user, 'image');
 
       // If original data had email_address, return it as email_address in response
       if (email_address) {
         setAssertPropValue(user, 'email_address', user.email);
-      }
-      if (image) {
-        setAssertPropValue(user, 'image', user.profile_picture);
       }
       if (callbackURL) {
         setAssertPropValue(user, 'callbackURL', callbackURL);
@@ -132,14 +129,14 @@ export abstract class UserRepository extends BaseRepository {
     let rows: Array<unknown> = [];
     if (idCondition) {
       rows = await this.sql`
-        SELECT id, name, email, email_verified as "emailVerified",
+        SELECT id, name, profile_picture as "image", email, email_verified as "emailVerified",
                created_date as "createdAt", updated_date as "updatedAt"
         FROM users
         WHERE id = ${idCondition.value}
       `;
     } else if (emailCondition) {
       rows = await this.sql`
-        SELECT id, name, email, email_verified as "emailVerified",
+        SELECT id, name, profile_picture as "image", email, email_verified as "emailVerified",
                created_date as "createdAt", updated_date as "updatedAt"
         FROM users
         WHERE email = ${emailCondition.value}
@@ -178,7 +175,7 @@ export abstract class UserRepository extends BaseRepository {
     let users: Array<unknown> = [];
     if (!where || where.length === 0) {
       users = await this.sql`
-        SELECT id, name, email, email_verified as "emailVerified",
+        SELECT id, name, profile_picture as "image", email, email_verified as "emailVerified",
                created_date as "createdAt", updated_date as "updatedAt"
         FROM users
         ORDER BY created_date DESC
@@ -193,7 +190,7 @@ export abstract class UserRepository extends BaseRepository {
       if (idCondition && idCondition.operator === 'in') {
         const ids = idCondition.value;
         users = await this.sql`
-          SELECT id, name, email, email_verified as "emailVerified",
+          SELECT id, name, profile_picture as "image", email, email_verified as "emailVerified",
                  created_date as "createdAt", updated_date as "updatedAt"
           FROM users
           WHERE id = ANY(${ids})
@@ -205,7 +202,7 @@ export abstract class UserRepository extends BaseRepository {
         if (emailCondition.operator === 'contains') {
           const searchTerm = `%${emailCondition.value}%`;
           users = await this.sql`
-            SELECT id, name, email, email_verified as "emailVerified",
+            SELECT id, name, profile_picture as "image", email, email_verified as "emailVerified",
                    created_date as "createdAt", updated_date as "updatedAt"
             FROM users
             WHERE email LIKE ${searchTerm}
@@ -215,7 +212,7 @@ export abstract class UserRepository extends BaseRepository {
           `;
         } else {
           users = await this.sql`
-            SELECT id, name, email, email_verified as "emailVerified",
+            SELECT id, name, profile_picture as "image", email, email_verified as "emailVerified",
                    created_date as "createdAt", updated_date as "updatedAt"
             FROM users
             WHERE email = ${emailCondition.value}
@@ -228,7 +225,7 @@ export abstract class UserRepository extends BaseRepository {
         if (nameCondition.operator === 'contains') {
           const searchTerm = `%${nameCondition.value}%`;
           users = await this.sql`
-            SELECT id, name, email, email_verified as "emailVerified",
+            SELECT id, name, profile_picture as "image", email, email_verified as "emailVerified",
                    created_date as "createdAt", updated_date as "updatedAt"
             FROM users
             WHERE name LIKE ${searchTerm}
@@ -238,7 +235,7 @@ export abstract class UserRepository extends BaseRepository {
           `;
         } else {
           users = await this.sql`
-            SELECT id, name, email, email_verified as "emailVerified",
+            SELECT id, name, profile_picture as "image", email, email_verified as "emailVerified",
                    created_date as "createdAt", updated_date as "updatedAt"
             FROM users
             WHERE name = ${nameCondition.value}
@@ -249,7 +246,7 @@ export abstract class UserRepository extends BaseRepository {
         }
       } else {
         users = await this.sql`
-          SELECT id, name, email, email_verified as "emailVerified",
+          SELECT id, name, profile_picture as "image", email, email_verified as "emailVerified",
                  created_date as "createdAt", updated_date as "updatedAt"
           FROM users
           ORDER BY created_date DESC
@@ -279,7 +276,7 @@ export abstract class UserRepository extends BaseRepository {
         return null;
       }
 
-      const { name, email, emailVerified, createdAt, updatedAt } = update;
+      const { name, email, emailVerified, createdAt, updatedAt, image } = update;
 
       // Convert Dates to UTC milliseconds for database storage if they exist
       const createdAtUtc = createdAt ? new Date(createdAt ?? Date.now()) : null;
@@ -290,10 +287,11 @@ export abstract class UserRepository extends BaseRepository {
         SET name = COALESCE(${name}, name),
             email = COALESCE(${email}, email),
             email_verified = COALESCE(${emailVerified}, email_verified),
+            profile_picture = COALESCE(${image}, profile_picture),
             created_date = COALESCE(${createdAtUtc}, created_date),
             updated_date = COALESCE(${updatedAtUtc}, updated_date)
         WHERE id = ${where.find(w => w.field === 'id')?.value}
-        RETURNING id, name, email, email_verified as "emailVerified",
+        RETURNING id, name, profile_picture as "image", email, email_verified as "emailVerified",
                  created_date as "createdAt", updated_date as "updatedAt"
       `;
 
@@ -316,7 +314,7 @@ export abstract class UserRepository extends BaseRepository {
         return [];
       }
 
-      const { name, email, emailVerified, createdAt, updatedAt } = update;
+      const { name, email, emailVerified, createdAt, updatedAt, image } = update;
 
       // Convert Dates to UTC milliseconds for database storage if they exist
       const createdAtUtc = createdAt ? new Date(createdAt ?? Date.now()) : null;
@@ -330,10 +328,11 @@ export abstract class UserRepository extends BaseRepository {
           SET name = COALESCE(${name}, name),
               email = COALESCE(${email}, email),
               email_verified = COALESCE(${emailVerified}, email_verified),
+              profile_picture = COALESCE(${image}, profile_picture),
               created_date = COALESCE(${createdAtUtc}, created_date),
               updated_date = COALESCE(${updatedAtUtc}, updated_date)
           WHERE id = ${idCondition.value}
-          RETURNING id, name, email, email_verified as "emailVerified",
+          RETURNING id, name, profile_picture as "image", email, email_verified as "emailVerified",
                    created_date as "createdAt", updated_date as "updatedAt"
         `;
         await tx.commitTransaction();
@@ -362,7 +361,7 @@ export abstract class UserRepository extends BaseRepository {
         const rows = await tx.sql`
           DELETE FROM users
           WHERE id = ${idCondition.value}
-          RETURNING id, name, email, email_verified as "emailVerified",
+          RETURNING id, name, profile_picture as "image", email, email_verified as "emailVerified",
                    created_date as "createdAt", updated_date as "updatedAt"
         `;
 
@@ -394,7 +393,7 @@ export abstract class UserRepository extends BaseRepository {
         const rows = await tx.sql`
           DELETE FROM users
           WHERE id = ${idCondition.value}
-          RETURNING id, name, email, email_verified as "emailVerified",
+          RETURNING id, name, profile_picture as "image", email, email_verified as "emailVerified",
                    created_date as "createdAt", updated_date as "updatedAt"
         `;
         await tx.commitTransaction();
@@ -794,6 +793,13 @@ export abstract class UserRepository extends BaseRepository {
 
     await this.set(`verification:${verificationId}`, verification, ttl);
 
+    // Also store a direct mapping from token value -> verification id so we can
+    // efficiently lookup verifications by token value (Better Auth sometimes
+    // queries by value).
+    if (value) {
+      await this.set(`verification:value:${value}`, verificationId, ttl);
+    }
+
     // For multiple verifications per identifier, store in a list
     const listKey = `verification:list:${identifier}`;
     const existingList = ((await this.get(listKey)) as Array<any>) || [];
@@ -837,6 +843,18 @@ export abstract class UserRepository extends BaseRepository {
         if (verification) {
           return verification;
         }
+      } else if (condition.field === 'value' || condition.field === 'token') {
+        // Better Auth sometimes queries verifications by the token value itself.
+        // Support lookup by value -> id mapping stored at verification:value:{value}
+        const mappedId = await this.get(`verification:value:${condition.value}`);
+        if (mappedId) {
+          const verification = await this.get(`verification:${String(mappedId)}`);
+          if (verification) return verification;
+        }
+        // Fallback: try direct key by value (in case some implementations store the
+        // token under a value key)
+        const direct = await this.get(`verification:value:${condition.value}`);
+        if (direct && typeof direct === 'object') return direct;
       }
     }
 
@@ -907,7 +925,18 @@ export abstract class UserRepository extends BaseRepository {
     // Update in Redis
     await this.set(`verification:${verification.id}`, updatedVerification, ttl);
     if (verification.identifier) {
-      await this.set(`verification:identifier:${verification.identifier}`, verification.id, ttl);
+      await this.set(
+        `verification:list:${verification.identifier}`,
+        (await this.get(`verification:list:${verification.identifier}`)) as any[],
+      );
+    }
+
+    // If the value (token) changed, update the value -> id mapping
+    if (verification.value && verification.value !== updatedVerification.value) {
+      await this.del(`verification:value:${verification.value}`);
+    }
+    if (updatedVerification.value) {
+      await this.set(`verification:value:${updatedVerification.value}`, verification.id, ttl);
     }
 
     return updatedVerification;
@@ -938,6 +967,11 @@ export abstract class UserRepository extends BaseRepository {
       } else {
         await this.del(listKey);
       }
+    }
+
+    // Remove value -> id mapping if exists
+    if (verification.value) {
+      await this.del(`verification:value:${verification.value}`);
     }
 
     return verification;
