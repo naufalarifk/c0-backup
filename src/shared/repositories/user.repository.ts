@@ -279,14 +279,19 @@ export abstract class UserRepository extends BaseRepository {
       const { name, email, emailVerified, createdAt, updatedAt, image } = update;
 
       // Convert Dates to UTC milliseconds for database storage if they exist
-      const createdAtUtc = createdAt ? new Date(createdAt ?? Date.now()) : null;
-      const updatedAtUtc = updatedAt ? new Date(updatedAt ?? Date.now()) : null;
+      const createdAtUtc = createdAt ? new Date(createdAt ?? Date.now()) : new Date();
+      const updatedAtUtc = updatedAt ? new Date(updatedAt ?? Date.now()) : new Date();
 
       const rows = await tx.sql`
         UPDATE users
         SET name = COALESCE(${name}, name),
             email = COALESCE(${email}, email),
-            email_verified = COALESCE(${emailVerified}, email_verified),
+            email_verified = COALESCE(${emailVerified}, 0),
+            email_verified_date = CASE
+              WHEN ${emailVerified} = 1 AND email_verified_date IS NULL THEN ${updatedAtUtc}
+              WHEN ${emailVerified} = 0 THEN NULL
+              ELSE email_verified_date
+            END,
             profile_picture = COALESCE(${image}, profile_picture),
             created_date = COALESCE(${createdAtUtc}, created_date),
             updated_date = COALESCE(${updatedAtUtc}, updated_date)

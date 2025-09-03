@@ -42,7 +42,7 @@ export class TelemetryInterceptor implements NestInterceptor {
     return this.telemetryService.withTraceContext(span, () =>
       next.handle().pipe(
         tap({
-          next: data => {
+          next: _data => {
             const duration = Date.now() - startTime;
             const statusCode = response.statusCode;
 
@@ -52,7 +52,9 @@ export class TelemetryInterceptor implements NestInterceptor {
             // Update span
             span.setAttributes({
               'http.status_code': statusCode,
-              ...(response.get('Content-Length') ? { 'http.response.size': parseInt(response.get('Content-Length'), 10) } : {}),
+              ...(response.get('Content-Length')
+                ? { 'http.response.size': parseInt(response.get('Content-Length') ?? '0', 10) }
+                : {}),
             });
 
             span.setStatus({ code: SpanStatusCode.OK });
@@ -65,11 +67,15 @@ export class TelemetryInterceptor implements NestInterceptor {
 
             // Record metrics
             this.telemetryService.recordHttpRequest(method, route, statusCode, duration);
-            this.telemetryService.recordError(error.name || error.constructor?.name || 'Error', 'http', {
-              method,
-              route,
-              status_code: statusCode.toString(),
-            });
+            this.telemetryService.recordError(
+              error.name || error.constructor?.name || 'Error',
+              'http',
+              {
+                method,
+                route,
+                status_code: statusCode.toString(),
+              },
+            );
 
             // Update span
             span.setAttributes({

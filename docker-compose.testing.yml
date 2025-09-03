@@ -58,10 +58,12 @@ services:
       - --metrics.prometheus.addServicesLabels=true
       - --entrypoints.metrics.address=:8082
       - --metrics.prometheus.entrypoint=metrics
-      # Conditional SSL configuration
-      - ${SSL_DISABLED:+--certificatesresolvers.cgresolver.acme.email=${ACME_EMAIL:-webmaster@cryptogadai.com}}
-      - ${SSL_DISABLED:+--certificatesresolvers.cgresolver.acme.storage=/letsencrypt/acme.json}
-      - ${SSL_DISABLED:+--certificatesresolvers.cgresolver.acme.tlschallenge=true}
+      # Conditional SSL configuration: enable cert resolver and TLS by default
+      # (use letsencrypt resolver when SSL_DISABLED is not set). If SSL_DISABLED
+      # is set, these flags are omitted and HTTP (web) is used instead.
+      - ${SSL_DISABLED:---certificatesresolvers.cgresolver.acme.email=webmaster@cryptogadai.com}
+      - ${SSL_DISABLED:---certificatesresolvers.cgresolver.acme.storage=/letsencrypt/acme.json}
+      - ${SSL_DISABLED:---certificatesresolvers.cgresolver.acme.tlschallenge=true}
     depends_on:
       api: { condition: service_healthy }
       mailpit: { condition: service_healthy }
@@ -80,10 +82,11 @@ services:
       - traefik.enable=true
       - traefik.http.routers.cg-traefik-dashboard.rule=Host(`${TRAEFIK_DOMAIN:-cg-traefik.fh47.my.id}`)
       - traefik.http.routers.cg-traefik-dashboard.service=api@internal
-      # Conditional SSL labels
-      - ${SSL_DISABLED:+traefik.http.routers.cg-traefik-dashboard.entrypoints=websecure}
-      - ${SSL_DISABLED:+traefik.http.routers.cg-traefik-dashboard.tls.certresolver=cgresolver}
-      - ${SSL_DISABLED:-traefik.http.routers.cg-traefik-dashboard.entrypoints=web}
+      # Conditional SSL labels: use websecure + cert resolver by default; when
+      # SSL_DISABLED is set fall back to plain web entrypoint.
+      - ${SSL_DISABLED:-traefik.http.routers.cg-traefik-dashboard.entrypoints=websecure}
+      - ${SSL_DISABLED:-traefik.http.routers.cg-traefik-dashboard.tls.certresolver=cgresolver}
+      - ${SSL_DISABLED:+traefik.http.routers.cg-traefik-dashboard.entrypoints=web}
 
   api:
     <<: *backend-base
@@ -104,10 +107,11 @@ services:
       - traefik.enable=true
       - traefik.http.routers.cg-api.rule=Host(`${API_DOMAIN:-cg-api.fh47.my.id}`)
       - traefik.http.services.cg-api.loadbalancer.server.port=3100
-      # Conditional SSL labels
-      - ${SSL_DISABLED:+traefik.http.routers.cg-api.entrypoints=websecure}
-      - ${SSL_DISABLED:+traefik.http.routers.cg-api.tls.certresolver=cgresolver}
-      - ${SSL_DISABLED:-traefik.http.routers.cg-api.entrypoints=web}
+      # Conditional SSL labels: enable TLS by default, fallback to web when
+      # SSL_DISABLED is set.
+      - ${SSL_DISABLED:-traefik.http.routers.cg-api.entrypoints=websecure}
+      - ${SSL_DISABLED:-traefik.http.routers.cg-api.tls.certresolver=cgresolver}
+      - ${SSL_DISABLED:+traefik.http.routers.cg-api.entrypoints=web}
 
   postgres:
     image: postgres:17.6-alpine3.22
@@ -155,10 +159,11 @@ services:
       - traefik.enable=true
       - traefik.http.routers.cg-mailpit.rule=Host(`${MAILPIT_DOMAIN:-cg-mail.fh47.my.id}`)
       - traefik.http.services.cg-mailpit.loadbalancer.server.port=8025
-      # Conditional SSL labels
-      - ${SSL_DISABLED:+traefik.http.routers.cg-mailpit.entrypoints=websecure}
-      - ${SSL_DISABLED:+traefik.http.routers.cg-mailpit.tls.certresolver=cgresolver}
-      - ${SSL_DISABLED:-traefik.http.routers.cg-mailpit.entrypoints=web}
+      # Conditional SSL labels: enable TLS by default, fallback to web when
+      # SSL_DISABLED is set.
+      - ${SSL_DISABLED:-traefik.http.routers.cg-mailpit.entrypoints=websecure}
+      - ${SSL_DISABLED:-traefik.http.routers.cg-mailpit.tls.certresolver=cgresolver}
+      - ${SSL_DISABLED:+traefik.http.routers.cg-mailpit.entrypoints=web}
 
   # OpenTelemetry Collector
   otel-collector:
@@ -187,10 +192,11 @@ services:
       - traefik.enable=true
       - traefik.http.routers.cg-jaeger.rule=Host(`${JAEGER_DOMAIN:-cg-jaeger.fh47.my.id}`)
       - traefik.http.services.cg-jaeger.loadbalancer.server.port=16686
-      # Conditional SSL labels
-      - ${SSL_DISABLED:+traefik.http.routers.cg-jaeger.entrypoints=websecure}
-      - ${SSL_DISABLED:+traefik.http.routers.cg-jaeger.tls.certresolver=cgresolver}
-      - ${SSL_DISABLED:-traefik.http.routers.cg-jaeger.entrypoints=web}
+      # Conditional SSL labels: enable TLS by default, fallback to web when
+      # SSL_DISABLED is set.
+      - ${SSL_DISABLED:-traefik.http.routers.cg-jaeger.entrypoints=websecure}
+      - ${SSL_DISABLED:-traefik.http.routers.cg-jaeger.tls.certresolver=cgresolver}
+      - ${SSL_DISABLED:+traefik.http.routers.cg-jaeger.entrypoints=web}
 
   # Prometheus for metrics
   prometheus:
@@ -213,10 +219,11 @@ services:
       - traefik.enable=true
       - traefik.http.routers.cg-prometheus.rule=Host(`${PROMETHEUS_DOMAIN:-cg-prometheus.fh47.my.id}`)
       - traefik.http.services.cg-prometheus.loadbalancer.server.port=9090
-      # Conditional SSL labels
-      - ${SSL_DISABLED:+traefik.http.routers.cg-prometheus.entrypoints=websecure}
-      - ${SSL_DISABLED:+traefik.http.routers.cg-prometheus.tls.certresolver=cgresolver}
-      - ${SSL_DISABLED:-traefik.http.routers.cg-prometheus.entrypoints=web}
+      # Conditional SSL labels: enable TLS by default, fallback to web when
+      # SSL_DISABLED is set.
+      - ${SSL_DISABLED:-traefik.http.routers.cg-prometheus.entrypoints=websecure}
+      - ${SSL_DISABLED:-traefik.http.routers.cg-prometheus.tls.certresolver=cgresolver}
+      - ${SSL_DISABLED:+traefik.http.routers.cg-prometheus.entrypoints=web}
 
   # Grafana for visualization
   grafana:
@@ -240,10 +247,11 @@ services:
       - traefik.enable=true
       - traefik.http.routers.cg-grafana.rule=Host(`${GRAFANA_DOMAIN:-cg-grafana.fh47.my.id}`)
       - traefik.http.services.cg-grafana.loadbalancer.server.port=3000
-      # Conditional SSL labels
-      - ${SSL_DISABLED:+traefik.http.routers.cg-grafana.entrypoints=websecure}
-      - ${SSL_DISABLED:+traefik.http.routers.cg-grafana.tls.certresolver=cgresolver}
-      - ${SSL_DISABLED:-traefik.http.routers.cg-grafana.entrypoints=web}
+      # Conditional SSL labels: enable TLS by default, fallback to web when
+      # SSL_DISABLED is set.
+      - ${SSL_DISABLED:-traefik.http.routers.cg-grafana.entrypoints=websecure}
+      - ${SSL_DISABLED:-traefik.http.routers.cg-grafana.tls.certresolver=cgresolver}
+      - ${SSL_DISABLED:+traefik.http.routers.cg-grafana.entrypoints=web}
 
 volumes:
   postgres-volume:
