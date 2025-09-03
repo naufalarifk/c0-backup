@@ -1,0 +1,1518 @@
+openapi: 3.0.3
+info:
+  title: CryptoGadai User Management API
+  description: API specification for user management features using Better Auth with NestJS integration, including authentication, profile management, KYC verification, and institution management
+  version: 2.0.0
+  contact:
+    name: CryptoGadai Development Team
+servers:
+  - url: https://api.cryptogadai.com/api
+    description: Production server
+  - url: https://staging-api.cryptogadai.com/api
+    description: Staging server
+
+paths:
+
+  # User Type Selection
+  /users/type-selection:
+    post:
+      tags: [User Profile]
+      summary: Select user type
+      description: Mandatory user type selection after registration (Individual or Institution)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userType]
+              properties:
+                userType:
+                  type: string
+                  enum: [Individual, Institution]
+                  description: User type selection
+      responses:
+        '200':
+          description: User type selected successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userType:
+                    type: string
+                    enum: [Individual, Institution]
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: User type already selected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userType:
+                    type: string
+                    enum: [Individual, Institution]
+                  message:
+                    type: string
+
+  # User Profile Management
+  /users/profile:
+    get:
+      tags: [User Profile]
+      summary: Get user profile
+      description: Retrieves user profile information and available actions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      tags: [User Profile]
+      summary: Update user profile
+      description: Updates user profile information and optionally profile picture
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 160
+                profilePicture:
+                  type: string
+                  format: binary
+                  description: Image file, max 5MB
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      profilePictureUrl:
+                        type: string
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '413':
+          $ref: '#/components/responses/FileTooLarge'
+
+  # KYC Management
+  /users/kyc/submit:
+    post:
+      tags: [KYC Verification]
+      summary: Submit KYC verification
+      description: Submits KYC documents and information for verification
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [nik, name, birthCity, birthDate, province, city, district, subdistrict, address, postalCode, phoneNumber, idCardPhoto, selfiePhoto, selfieWithIdCardPhoto]
+              properties:
+                nik:
+                  type: string
+                  pattern: '^[0-9]{16}$'
+                  description: 16-digit NIK
+                name:
+                  type: string
+                  maxLength: 160
+                  description: Full name as it appears on ID card
+                birthCity:
+                  type: string
+                  maxLength: 100
+                birthDate:
+                  type: string
+                  format: date
+                province:
+                  type: string
+                  maxLength: 100
+                city:
+                  type: string
+                  maxLength: 100
+                district:
+                  type: string
+                  maxLength: 100
+                subdistrict:
+                  type: string
+                  maxLength: 100
+                address:
+                  type: string
+                postalCode:
+                  type: string
+                  pattern: '^[0-9]{5}$'
+                phoneNumber:
+                  type: string
+                  maxLength: 15
+                idCardPhoto:
+                  type: string
+                  format: binary
+                selfiePhoto:
+                  type: string
+                  format: binary
+                selfieWithIdCardPhoto:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: KYC submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  kycSubmission:
+                    $ref: '#/components/schemas/KYCSubmission'
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/DuplicateNIK'
+
+  /users/kyc/status:
+    get:
+      tags: [KYC Verification]
+      summary: Get KYC status
+      description: Retrieves current KYC verification status
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: KYC status retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  kycStatus:
+                    type: string
+                    enum: [pending, verified, rejected]
+                    description: Current KYC status
+                  submission:
+                    $ref: '#/components/schemas/KYCSubmission'
+                  canResubmit:
+                    type: boolean
+
+
+  # Institution Management
+  /institutions/apply:
+    post:
+      tags: [Institution Management]
+      summary: Apply for institution account
+      description: Submits institution registration application
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [businessName, registrationNumber, npwpNumber, businessType, province, city, district, subdistrict, address, postalCode, npwpDocument, registrationDocument, deedOfEstablishment, domicileCertificate, directorIdCard]
+              properties:
+                businessName:
+                  type: string
+                  maxLength: 160
+                registrationNumber:
+                  type: string
+                  maxLength: 50
+                  description: NIB or TDP number
+                npwpNumber:
+                  type: string
+                  pattern: '^[0-9]{2}\\.[0-9]{3}\\.[0-9]{3}\\.[0-9]-[0-9]{3}\\.[0-9]{3}$'
+                  maxLength: 20
+                  description: NPWP number in format XX.XXX.XXX.X-XXX.XXX
+                businessType:
+                  type: string
+                  maxLength: 100
+                businessDescription:
+                  type: string
+                  description: Optional business description
+                province:
+                  type: string
+                  maxLength: 100
+                city:
+                  type: string
+                  maxLength: 100
+                district:
+                  type: string
+                  maxLength: 100
+                subdistrict:
+                  type: string
+                  maxLength: 100
+                address:
+                  type: string
+                  description: Complete business address
+                postalCode:
+                  type: string
+                  pattern: '^[0-9]{5,10}$'
+                  maxLength: 10
+                directorName:
+                  type: string
+                  maxLength: 160
+                  description: Name of company director/owner
+                directorPosition:
+                  type: string
+                  maxLength: 100
+                  default: Director
+                  description: Position of the director
+                npwpDocument:
+                  type: string
+                  format: binary
+                  description: NPWP document (PDF/Image, max 10MB)
+                registrationDocument:
+                  type: string
+                  format: binary
+                  description: Company registration document (PDF/Image, max 10MB)
+                deedOfEstablishment:
+                  type: string
+                  format: binary
+                  description: Deed of establishment document (PDF/Image, max 10MB)
+                # domicileCertificate:
+                #   type: string
+                #   format: binary
+                #   description: Company domicile certificate (PDF/Image, max 10MB)
+                directorIdCard:
+                  type: string
+                  format: binary
+                  description: Director's ID card (PDF/Image, max 10MB)
+                ministryApprovalDocument:
+                  type: string
+                  format: binary
+                  description: Optional ministry approval document (PDF/Image, max 10MB)
+                businessLicense:
+                  type: string
+                  format: binary
+                  description: Optional additional business license (PDF/Image, max 10MB)
+      responses:
+        '201':
+          description: Application submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  application:
+                    $ref: '#/components/schemas/InstitutionApplication'
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/BusinessNameExists'
+
+
+  /institutions/{institutionId}/invitations:
+    post:
+      tags: [Institution Management]
+      summary: Invite institution member
+      description: Invites a user to join institution
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: institutionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userEmail, role]
+              properties:
+                userEmail:
+                  type: string
+                  format: email
+                role:
+                  type: string
+                  enum: [Finance]
+                message:
+                  type: string
+                  description: Optional invitation message
+      responses:
+        '201':
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invitation:
+                    $ref: '#/components/schemas/InstitutionInvitation'
+        '400':
+          $ref: '#/components/responses/UserNotFound'
+        '409':
+          $ref: '#/components/responses/UserAlreadyMember'
+
+  /institutions/invitations/{id}/accept:
+    post:
+      tags: [Institution Management]
+      summary: Accept institution invitation
+      description: Accepts a institution invitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Invitation accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  institution:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        format: int64
+                      businessName:
+                        type: string
+                      role:
+                        type: string
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/InvitationExpired'
+
+  # Notification Management
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List user notifications
+      description: Retrieve paginated list of notifications for authenticated user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (1-based)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of notifications per page (max 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: type
+          in: query
+          description: Filter by notification type
+          schema:
+            type: string
+            enum: [
+              # Authentication notifications
+              'UserRegistered', 'EmailVerificationSent', 'EmailVerified', 'PasswordResetRequested',
+              'PasswordResetCompleted', 'TwoFactorEnabled', 'TwoFactorDisabled', 'LoginFromNewDevice', 'SuspiciousLoginAttempt',
+              # KYC notifications
+              'UserKycVerified', 'UserKycRejected',
+              # Institution notifications
+              'InstitutionApplicationVerified', 'InstitutionApplicationRejected', 'InstitutionMemberInvited',
+              'InstitutionMemberAccepted', 'InstitutionMemberRejected',
+              # Invoice notifications
+              'InvoiceCreated', 'InvoiceDue', 'InvoiceExpired', 'InvoicePartiallyPaid', 'InvoicePaid',
+              # Loan notifications
+              'LoanOfferPublished', 'LoanApplicationPublished', 'LoanApplicationMatched', 'LoanOfferMatched',
+              'LoanApplicationApproved', 'LoanApplicationRejected', 'LoanOfferClosed', 'LoanDisbursement',
+              'LoanActivated', 'LoanRepaymentDue', 'LoanRepaymentCompleted', 'LoanRepaymentReceived',
+              'LoanRepaymentFailed', 'LoanLiquidation', 'LoanLtvBreach',
+              # Withdrawal notifications
+              'WithdrawalRequested', 'WithdrawalRefunded', 'WithdrawalRefundApproved', 'WithdrawalRefundRejected',
+              # Enhanced loan notifications
+              'LiquidationWarning', 'LiquidationCompleted',
+              # System notifications
+              'PlatformMaintenanceNotice', 'SecurityAlert'
+            ]
+        - name: unreadOnly
+          in: query
+          description: Filter to show only unread notifications
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Notifications retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark notification as read
+      description: Mark a specific notification as read
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Notification marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Notification marked as read"
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notifications/mark-all-read:
+    patch:
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      description: Mark all unread notifications as read for authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: All notifications marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "All notifications marked as read"
+                  updatedCount:
+                    type: integer
+                    description: Number of notifications that were updated
+
+  /notifications/{id}:
+    delete:
+      tags: [Notifications]
+      summary: Delete notification
+      description: Delete a specific notification
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Notification deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Notification deleted"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/UserAlreadyMember'
+
+  /institutions/invitations/{id}/reject:
+    post:
+      tags: [Institution Management]
+      summary: Reject institution invitation
+      description: Rejects a institution invitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Optional rejection reason
+      responses:
+        '200':
+          description: Invitation rejected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: better-auth.session_token
+      description: Better Auth session cookie
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    BetterAuthUser:
+      type: object
+      description: Better Auth user schema compatible with CryptoGadai
+      properties:
+        id:
+          type: string
+          description: UUID user identifier
+          example: "clx7k2m3n0000w8g4h9s1c7y2"
+        name:
+          type: string
+          description: User's full name
+          nullable: true
+        email:
+          type: string
+          format: email
+          description: User's email address
+        emailVerified:
+          type: boolean
+          description: Whether email is verified
+        image:
+          type: string
+          format: uri
+          description: User's profile image URL
+          nullable: true
+        role:
+          type: string
+          enum: [Admin, User]
+          default: User
+          description: User role in CryptoGadai system
+        twoFactorEnabled:
+          type: boolean
+          description: Whether 2FA is enabled
+          default: false
+        createdAt:
+          type: string
+          format: date-time
+          description: User creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: User last update timestamp
+        
+        # CryptoGadai-specific fields
+        institutionId:
+          type: integer
+          format: int64
+          nullable: true
+          description: Associated institution ID
+        institutionRole:
+          type: string
+          enum: [Owner, Finance]
+          nullable: true
+          description: Role within institution
+        kycId:
+          type: integer
+          format: int64
+          nullable: true
+          description: KYC verification record ID
+        kycStatus:
+          type: string
+          enum: [pending, verified, rejected]
+          description: KYC verification status (none status handled at application level)
+
+    BetterAuthSession:
+      type: object
+      description: Better Auth session information
+      properties:
+        id:
+          type: string
+          description: Session ID
+        token:
+          type: string
+          description: Session token
+        userId:
+          type: string
+          description: User ID associated with session
+        expiresAt:
+          type: string
+          format: date-time
+          description: Session expiration time
+        ipAddress:
+          type: string
+          nullable: true
+          description: IP address of the session
+        userAgent:
+          type: string
+          nullable: true
+          description: User agent string
+        createdAt:
+          type: string
+          format: date-time
+          description: Session creation time
+        updatedAt:
+          type: string
+          format: date-time
+          description: Session last update time
+        
+        # CryptoGadai-specific session fields
+        activeOrganizationId:
+          type: string
+          nullable: true
+          description: Active organization context
+        activeTeamId:
+          type: string
+          nullable: true
+          description: Active team context
+
+    UserProfile:
+      type: object
+      deprecated: true
+      description: Legacy user profile schema (use BetterAuthUser instead)
+      properties:
+        id:
+          type: integer
+          format: int64
+        role:
+          type: string
+          enum: [User]
+        email:
+          type: string
+          format: email
+          nullable: true
+        emailVerifiedDate:
+          type: string
+          format: date-time
+          nullable: true
+        name:
+          type: string
+          nullable: true
+        profilePictureUrl:
+          type: string
+          nullable: true
+        googleId:
+          type: string
+          nullable: true
+        userType:
+          type: string
+          enum: [Individual, Institution]
+          description: User type selection (mandatory after registration)
+          nullable: true
+        kycId:
+          type: integer
+          format: int64
+          nullable: true
+        kycStatus:
+          type: string
+          enum: [none, pending, verified, rejected]
+          description: Current KYC status
+        institutionId:
+          type: integer
+          format: int64
+          nullable: true
+        institutionRole:
+          type: string
+          enum: [Owner, Finance]
+          nullable: true
+        twoFaEnabled:
+          type: boolean
+        createdDate:
+          type: string
+          format: date-time
+        lastLoginDate:
+          type: string
+          format: date-time
+          nullable: true
+
+    PortfolioAnalytics:
+      type: object
+      properties:
+        totalPortfolioValue:
+          type: object
+          properties:
+            amount:
+              type: string
+              description: Total portfolio value in USD
+              example: "125000.50"
+            currency:
+              type: string
+              example: "USD"
+            lastUpdated:
+              type: string
+              format: date-time
+        performanceMetrics:
+          type: object
+          properties:
+            dailyChange:
+              type: object
+              properties:
+                amount:
+                  type: string
+                  example: "1234.56"
+                percentage:
+                  type: number
+                  example: 5.2
+            weeklyTrend:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  value:
+                    type: string
+        assetBreakdown:
+          type: object
+          properties:
+            cryptoAssets:
+              type: object
+              properties:
+                percentage:
+                  type: number
+                  example: 70.0
+                value:
+                  type: string
+                  example: "87500.00"
+            stablecoins:
+              type: object
+              properties:
+                percentage:
+                  type: number
+                  example: 20.0
+                value:
+                  type: string
+                  example: "25000.00"
+            activeLoanCollateral:
+              type: object
+              properties:
+                percentage:
+                  type: number
+                  example: 10.0
+                value:
+                  type: string
+                  example: "12500.00"
+        loanMetrics:
+          type: object
+          properties:
+            activeBorrowedLoans:
+              type: object
+              properties:
+                count:
+                  type: integer
+                  example: 3
+                totalPrincipal:
+                  type: string
+                  example: "50000.00"
+                totalCollateral:
+                  type: string
+                  example: "65000.00"
+                averageLTV:
+                  type: number
+                  example: 0.77
+            activeLentLoans:
+              type: object
+              properties:
+                count:
+                  type: integer
+                  example: 5
+                totalPrincipal:
+                  type: string
+                  example: "75000.00"
+                expectedInterest:
+                  type: string
+                  example: "6750.00"
+            riskLevels:
+              type: object
+              properties:
+                normal:
+                  type: integer
+                  example: 6
+                warning:
+                  type: integer
+                  example: 1
+                critical:
+                  type: integer
+                  example: 1
+
+    KYCSubmission:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          description: Current KYC status (derived from time-based verification fields)
+          enum: [pending, verified, rejected]
+          readOnly: true
+        submittedDate:
+          type: string
+          format: date-time
+        verifiedDate:
+          type: string
+          format: date-time
+          nullable: true
+        rejectedDate:
+          type: string
+          format: date-time
+          nullable: true
+        rejectionReason:
+          type: string
+          nullable: true
+
+    KYCSubmissionSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        userName:
+          type: string
+        submittedDate:
+          type: string
+          format: date-time
+        timeInQueue:
+          type: string
+          description: Duration in hours
+
+    KYCSubmissionDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        nik:
+          type: string
+        name:
+          type: string
+          description: Full name as registered
+        birthCity:
+          type: string
+        birthDate:
+          type: string
+          format: date
+        province:
+          type: string
+        city:
+          type: string
+        district:
+          type: string
+        subdistrict:
+          type: string
+        address:
+          type: string
+        postalCode:
+          type: string
+          maxLength: 10
+        phoneNumber:
+          type: string
+        idCardPhotoUrl:
+          type: string
+          description: Signed URL for ID card photo
+        selfiePhotoUrl:
+          type: string
+          description: Signed URL for selfie photo
+        selfieWithIdCardPhotoUrl:
+          type: string
+          description: Signed URL for selfie with ID card photo
+        submittedDate:
+          type: string
+          format: date-time
+
+    InstitutionApplication:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        businessName:
+          type: string
+        submittedDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          description: Current application status (derived from time-based approval fields)
+          enum: [Submitted, UnderReview, Verified, Rejected]
+          readOnly: true
+
+    InstitutionApplicationSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        businessName:
+          type: string
+        applicantName:
+          type: string
+        submittedDate:
+          type: string
+          format: date-time
+
+    Institution:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        businessName:
+          type: string
+        verifiedDate:
+          type: string
+          format: date-time
+
+    InstitutionInvitation:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userEmail:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [Finance]
+        invitedDate:
+          type: string
+          format: date-time
+
+    NotificationsResponse:
+      type: object
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+        unreadCount:
+          type: integer
+          description: Total count of unread notifications
+          example: 5
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 123
+        type:
+          type: string
+          enum: [
+            # Authentication notifications
+            'UserRegistered', 'EmailVerificationSent', 'EmailVerified', 'PasswordResetRequested',
+            'PasswordResetCompleted', 'TwoFactorEnabled', 'TwoFactorDisabled', 'LoginFromNewDevice', 'SuspiciousLoginAttempt',
+            # KYC notifications
+            'UserKycVerified', 'UserKycRejected',
+            # Institution notifications
+            'InstitutionApplicationVerified', 'InstitutionApplicationRejected', 'InstitutionMemberInvited',
+            'InstitutionMemberAccepted', 'InstitutionMemberRejected',
+            # Invoice notifications
+            'InvoiceCreated', 'InvoiceDue', 'InvoiceExpired', 'InvoicePartiallyPaid', 'InvoicePaid',
+            # Loan notifications
+            'LoanOfferPublished', 'LoanApplicationPublished', 'LoanApplicationMatched', 'LoanOfferMatched',
+            'LoanApplicationApproved', 'LoanApplicationRejected', 'LoanOfferClosed', 'LoanDisbursement',
+            'LoanActivated', 'LoanRepaymentDue', 'LoanRepaymentCompleted', 'LoanRepaymentReceived',
+            'LoanRepaymentFailed', 'LoanLiquidation', 'LoanLtvBreach',
+            # Withdrawal notifications
+            'WithdrawalRequested', 'WithdrawalRefunded', 'WithdrawalRefundApproved', 'WithdrawalRefundRejected',
+            # Enhanced loan notifications
+            'LiquidationWarning', 'LiquidationCompleted',
+            # System notifications
+            'PlatformMaintenanceNotice', 'SecurityAlert'
+          ]
+          description: Type of notification matching database enum
+          example: "LoanRepaymentDue"
+        title:
+          type: string
+          description: Notification title/subject
+          example: "Loan Repayment Due Tomorrow"
+        content:
+          type: string
+          description: Notification body content
+          example: "Your loan payment of $500 is due tomorrow. Please ensure sufficient balance."
+        isRead:
+          type: boolean
+          description: Whether the notification has been read
+          example: false
+        readDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the notification was read
+          example: null
+        createdAt:
+          type: string
+          format: date-time
+          description: When the notification was created
+          example: "2024-03-15T10:30:00Z"
+
+    # Common Schemas
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number (1-based)
+          example: 1
+          minimum: 1
+        limit:
+          type: integer
+          description: Number of items per page
+          example: 20
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          description: Total number of items across all pages
+          example: 150
+          minimum: 0
+        totalPages:
+          type: integer
+          description: Total number of pages
+          example: 8
+          minimum: 0
+        hasNext:
+          type: boolean
+          description: Whether there are more pages after current
+          example: true
+        hasPrev:
+          type: boolean
+          description: Whether there are pages before current
+          example: false
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+        - hasNext
+        - hasPrev
+
+    Currency:
+      type: object
+      properties:
+        blockchainKey:
+          type: string
+          description: CAIP-2 compliant blockchain identifier
+          example: "eip155:1"
+          maxLength: 64
+        tokenId:
+          type: string
+          description: Token identifier within the blockchain
+          example: "slip44:60"
+          maxLength: 64
+        name:
+          type: string
+          description: Human-readable currency name
+          example: "Ethereum"
+        symbol:
+          type: string
+          description: Currency symbol/ticker
+          example: "ETH"
+        decimals:
+          type: integer
+          description: Number of decimal places for precision
+          example: 18
+          minimum: 0
+          maximum: 18
+        logoUrl:
+          type: string
+          format: uri
+          description: URL to currency logo image
+          example: "https://assets.cryptogadai.com/currencies/eth.png"
+      required:
+        - blockchainKey
+        - tokenId
+        - name
+        - symbol
+        - decimals
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+              example: "VALIDATION_ERROR"
+            message:
+              type: string
+              description: Human-readable error message
+              example: "Request validation failed"
+            details:
+              type: object
+              description: Additional error details
+              additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-08-13T15:30:00Z"
+        requestId:
+          type: string
+          format: uuid
+          description: Request ID for tracking
+      required:
+        - success
+        - error
+        - timestamp
+
+  responses:
+    Unauthorized:
+      description: Authentication required or token invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "INVALID_TOKEN"
+            message: "Token expired or invalid"
+
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "VALIDATION_ERROR"
+            message: "Request validation failed"
+            details:
+              email: "Invalid format"
+
+    EmailExists:
+      description: Email already registered
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "EMAIL_EXISTS"
+            message: "Email already registered"
+
+    InvalidToken:
+      description: Token expired or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "INVALID_TOKEN"
+            message: "Token expired or invalid"
+
+    EmailAlreadyVerified:
+      description: Email already verified
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "EMAIL_ALREADY_VERIFIED"
+            message: "Email already verified"
+
+    InvalidCredentials:
+      description: Invalid email or password
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "INVALID_CREDENTIALS"
+            message: "Invalid email or password"
+
+    EmailNotVerified:
+      description: Email verification required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "EMAIL_NOT_VERIFIED"
+            message: "Please verify your email"
+
+    AccountLocked:
+      description: Account temporarily locked
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - type: object
+                properties:
+                  retryAfter:
+                    type: integer
+                    description: Seconds until retry allowed
+          example:
+            error: "ACCOUNT_LOCKED"
+            message: "Account temporarily locked"
+            retryAfter: 900
+
+    RateLimited:
+      description: Too many attempts
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - type: object
+                properties:
+                  retryAfter:
+                    type: integer
+                    description: Seconds until retry allowed
+          example:
+            error: "RATE_LIMIT_EXCEEDED"
+            message: "Too many attempts"
+            retryAfter: 300
+
+    Invalid2FA:
+      description: Invalid 2FA code
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "INVALID_2FA_CODE"
+            message: "Invalid 2FA code"
+
+    TwoFAAttemptsExceeded:
+      description: 2FA attempts exceeded
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - type: object
+                properties:
+                  lockoutTime:
+                    type: integer
+                    description: Seconds until retry allowed
+          example:
+            error: "2FA_ATTEMPTS_EXCEEDED"
+            message: "Too many 2FA attempts"
+            lockoutTime: 300
+
+    InvalidGoogleToken:
+      description: Invalid Google ID token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "INVALID_GOOGLE_TOKEN"
+            message: "Invalid Google ID token"
+
+    EmailLinkedDifferentProvider:
+      description: Email exists with different sign-in method
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "EMAIL_LINKED_DIFFERENT_PROVIDER"
+            message: "Email exists with different sign-in method"
+
+    GoogleAccountAlreadyLinked:
+      description: Google account already linked to another user
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "GOOGLE_ACCOUNT_ALREADY_LINKED"
+            message: "Google account linked to another user"
+
+    EmailAlreadyExists:
+      description: Email already exists
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "EMAIL_ALREADY_EXISTS"
+            message: "Email is already registered"
+
+    TwoFAAlreadyEnabled:
+      description: 2FA is already enabled
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "2FA_ALREADY_ENABLED"
+            message: "2FA is already enabled"
+
+    InvalidTOTPCode:
+      description: Invalid TOTP code
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "INVALID_TOTP_CODE"
+            message: "Invalid TOTP code"
+
+    FileTooLarge:
+      description: File exceeds size limit
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "FILE_TOO_LARGE"
+            message: "Profile picture must be under 5MB"
+
+    DuplicateNIK:
+      description: NIK already in system
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "DUPLICATE_NIK"
+            message: "NIK already registered"
+
+    InsufficientPermissions:
+      description: User lacks required permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "INSUFFICIENT_PERMISSIONS"
+            message: "Insufficient privileges"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "NOT_FOUND"
+            message: "Resource not found"
+
+    BusinessNameExists:
+      description: Business name already registered
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "BUSINESS_NAME_EXISTS"
+            message: "Business name already registered"
+
+    UserNotFound:
+      description: User not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "USER_NOT_FOUND"
+            message: "User with email not found"
+
+    UserAlreadyMember:
+      description: User is already institution member
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "USER_ALREADY_MEMBER"
+            message: "User is already institution member"
+
+    InvitationExpired:
+      description: Invitation has expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "INVITATION_EXPIRED"
+            message: "Invitation has expired"
+
+    InvalidOAuthCallback:
+      description: OAuth callback error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "OAUTH_CALLBACK_ERROR"
+            message: "OAuth authentication failed"
+
+tags:
+  - name: User Profile
+    description: User profile management and updates
+  - name: KYC Verification
+    description: Know Your Customer verification process
+  - name: Institution Management
+    description: Institution registration and member management

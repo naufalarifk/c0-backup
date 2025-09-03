@@ -1,0 +1,938 @@
+openapi: 3.0.3
+info:
+  title: CryptoGadai Loan Management API
+  version: 1.0.0
+  description: |
+    Complete API specification for the CryptoGadai loan management system.
+    
+    This API handles:
+    - Loan offer creation and management
+    - Loan application submission and tracking  
+    - Loan lifecycle management (disbursement, repayment, liquidation)
+    - LTV monitoring and valuation
+    - Background processing workflows
+    
+servers:
+  - url: https://api.cryptogadai.com/v1
+    description: Production server
+  - url: https://staging-api.cryptogadai.com/v1
+    description: Staging server
+  - url: http://localhost:3000/api/v1
+    description: Local development server
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Loan Offers
+    description: Lender loan offer management
+  - name: Loan Applications
+    description: Borrower loan application management
+  - name: Loans
+    description: Active loan contract management
+  - name: Valuations
+    description: LTV monitoring and collateral valuation
+  - name: Admin
+    description: Administrative loan management functions
+
+paths:
+  # Loan Offers
+  /loan-offers:
+    post:
+      tags: [Loan Offers]
+      summary: Create new loan offer
+      description: |
+        Create a new loan offer with specified terms. The offer will be unpublished 
+        until the principal funding invoice is paid.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLoanOfferRequest'
+      responses:
+        '201':
+          description: Loan offer created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanOfferResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/InsufficientBalance'
+
+    get:
+      tags: [Loan Offers]
+      summary: List available loan offers
+      description: Retrieve paginated list of published loan offers available for matching
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: collateralBlockchainKey
+          in: query
+          schema:
+            type: string
+            description: Filter by collateral blockchain key
+        - name: collateralTokenId
+          in: query
+          schema:
+            type: string
+            description: Filter by collateral token ID
+        - name: principalBlockchainKey
+          in: query
+          schema:
+            type: string
+            description: Filter by principal blockchain key
+        - name: principalTokenId
+          in: query
+          schema:
+            type: string
+            description: Filter by principal token ID
+      responses:
+        '200':
+          description: List of loan offers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanOfferListResponse'
+
+  /loan-offers/my-offers:
+    get:
+      tags: [Loan Offers]
+      summary: Get my loan offers
+      description: Retrieve all loan offers created by the authenticated lender
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Lender's loan offers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanOfferListResponse'
+
+  /loan-offers/{id}:
+    patch:
+      tags: [Loan Offers]
+      summary: Update loan offer
+      description: Update loan offer status (pause, resume, close)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLoanOfferRequest'
+      responses:
+        '200':
+          description: Loan offer updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanOfferResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Loan Applications
+  /loan-applications/calculate:
+    post:
+      tags: [Loan Applications]
+      summary: Calculate loan application requirements
+      description: |
+        Calculate required collateral amount and generate preview for loan application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanCalculationRequest'
+      responses:
+        '200':
+          description: Loan calculation results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanCalculationResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /loan-applications:
+    post:
+      tags: [Loan Applications]
+      summary: Create loan application
+      description: |
+        Create a new loan application. Requires collateral deposit to be published.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLoanApplicationRequest'
+      responses:
+        '201':
+          description: Loan application created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanApplicationResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/InsufficientBalance'
+
+  /loan-applications/my-applications:
+    get:
+      tags: [Loan Applications]
+      summary: Get my loan applications
+      description: Retrieve all loan applications created by the authenticated borrower
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Borrower's loan applications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanApplicationListResponse'
+
+  /loan-applications/{id}:
+    patch:
+      tags: [Loan Applications]
+      summary: Update loan application
+      description: Update loan application (cancel, extend, modify terms)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLoanApplicationRequest'
+      responses:
+        '200':
+          description: Loan application updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanApplicationResponse'
+
+  # Loans
+  /loans:
+    get:
+      tags: [Loans]
+      summary: List loans
+      description: Get loans for authenticated user (as borrower or lender)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [borrower, lender]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, repaid, liquidated]
+      responses:
+        '200':
+          description: List of loans
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanListResponse'
+
+  /loans/{id}:
+    get:
+      tags: [Loans]
+      summary: Get loan details
+      description: Retrieve detailed information about a specific loan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Loan details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /loans/{id}/repay:
+    post:
+      tags: [Loans]
+      summary: Process loan repayment
+      description: Process repayment for an active loan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanRepaymentRequest'
+      responses:
+        '200':
+          description: Repayment processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanRepaymentResponse'
+
+  # Valuations
+  /loans/{id}/valuations:
+    get:
+      tags: [Valuations]
+      summary: Get loan valuation history
+      description: Retrieve LTV ratio history for a loan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Loan valuation history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanValuationListResponse'
+
+  # Admin endpoints
+  /admin/loans/matching/trigger:
+    post:
+      tags: [Admin]
+      summary: Trigger loan matching
+      description: Manually trigger the loan matching algorithm
+      responses:
+        '200':
+          description: Matching triggered successfully
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+    # Loan Offer Schemas
+    CreateLoanOfferRequest:
+      type: object
+      required:
+        - principalBlockchainKey
+        - principalTokenId
+        - totalAmount
+        - acceptedCollaterals
+        - interestRate
+        - termOptions
+        - minLoanAmount
+        - maxLoanAmount
+        - liquidationMode
+      properties:
+        principalBlockchainKey:
+          type: string
+          description: Blockchain key for principal currency
+          example: "eip155:1"
+          maxLength: 64
+        principalTokenId:
+          type: string
+          description: Token ID for principal currency
+          example: "erc20:0xdac17f958d2ee523a2206206994597c13d831ec7"
+          maxLength: 64
+        totalAmount:
+          type: string
+          description: Total loan offer amount (18 decimal precision)
+          pattern: '^\d+\.\d{18}$'
+        acceptedCollaterals:
+          type: array
+          items:
+            type: object
+            properties:
+              blockchainKey:
+                type: string
+                maxLength: 64
+              tokenId:
+                type: string
+                maxLength: 64
+            required:
+              - blockchainKey
+              - tokenId
+          description: Accepted collateral currencies
+          example: [{"blockchainKey": "eip155:1", "tokenId": "slip44:60"}, {"blockchainKey": "bip122:000000000019d6689c085ae165831e93", "tokenId": "slip44:0"}]
+        interestRate:
+          type: number
+          minimum: 0
+          maximum: 100
+        termOptions:
+          type: array
+          items:
+            type: integer
+            enum: [1, 3, 6, 12]
+        minLoanAmount:
+          type: string
+          description: Minimum loan amount (18 decimal precision)
+          pattern: '^\d+\.\d{18}$'
+        maxLoanAmount:
+          type: string
+          description: Maximum loan amount (18 decimal precision)
+          pattern: '^\d+\.\d{18}$'
+        liquidationMode:
+          type: string
+          enum: [partial, full]
+
+    UpdateLoanOfferRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [pause, resume, close]
+        closureReason:
+          type: string
+
+    LoanOfferResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        lenderId:
+          type: string
+        principalCurrency:
+          type: string
+        totalAmount:
+          type: string
+        availableAmount:
+          type: string
+        disbursedAmount:
+          type: string
+        interestRate:
+          type: number
+        termOptions:
+          type: array
+          items:
+            type: integer
+        status:
+          type: string
+          description: Current offer status (derived from time-based fields and business logic)
+          enum: [draft, published, paused, closed]
+          readOnly: true
+        createdDate:
+          type: string
+          format: date-time
+        publishedDate:
+          type: string
+          format: date-time
+        fundingInvoice:
+          $ref: '#/components/schemas/Invoice'
+
+    LoanOfferListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            offers:
+              type: array
+              items:
+                $ref: '#/components/schemas/LoanOfferResponse'
+            pagination:
+              $ref: '#/components/schemas/PaginationMeta'
+
+    # Loan Application Schemas
+    LoanCalculationRequest:
+      type: object
+      required:
+        - collateralBlockchainKey
+        - collateralTokenId
+        - principalAmount
+        - principalBlockchainKey
+        - principalTokenId
+      properties:
+        collateralBlockchainKey:
+          type: string
+          description: Blockchain key for collateral
+          example: "eip155:1"
+          maxLength: 64
+        collateralTokenId:
+          type: string
+          description: Token ID for collateral
+          example: "slip44:60"
+          maxLength: 64
+        principalAmount:
+          type: string
+          pattern: '^\d+\.\d{18}$'
+        principalBlockchainKey:
+          type: string
+          description: Blockchain key for principal currency
+          example: "eip155:1"
+          maxLength: 64
+        principalTokenId:
+          type: string
+          description: Token ID for principal currency
+          example: "erc20:0xdac17f958d2ee523a2206206994597c13d831ec7"
+          maxLength: 64
+
+    LoanCalculationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            requiredCollateral:
+              type: string
+            exchangeRate:
+              type: string
+            maxLtvRatio:
+              type: number
+            safetyBuffer:
+              type: number
+            collateralInvoice:
+              $ref: '#/components/schemas/Invoice'
+
+    CreateLoanApplicationRequest:
+      type: object
+      required:
+        - collateralBlockchainKey
+        - collateralTokenId
+        - principalAmount
+        - principalBlockchainKey
+        - principalTokenId
+        - maxInterestRate
+        - termMonths
+        - liquidationMode
+      properties:
+        collateralBlockchainKey:
+          type: string
+          description: Blockchain key for collateral
+          example: "eip155:1"
+          maxLength: 64
+        collateralTokenId:
+          type: string
+          description: Token ID for collateral
+          example: "slip44:60"
+          maxLength: 64
+        principalAmount:
+          type: string
+          pattern: '^\d+\.\d{18}$'
+        principalBlockchainKey:
+          type: string
+          description: Blockchain key for principal currency
+          example: "eip155:1"
+          maxLength: 64
+        principalTokenId:
+          type: string
+          description: Token ID for principal currency
+          example: "erc20:0xdac17f958d2ee523a2206206994597c13d831ec7"
+          maxLength: 64
+        maxInterestRate:
+          type: number
+          minimum: 0
+          maximum: 100
+        termMonths:
+          type: integer
+          enum: [1, 3, 6, 12]
+        liquidationMode:
+          type: string
+          enum: [partial, full]
+        minLtvRatio:
+          type: number
+          minimum: 0
+          maximum: 100
+
+    UpdateLoanApplicationRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [cancel, extend]
+        extendDays:
+          type: integer
+          minimum: 1
+          maximum: 30
+
+    LoanApplicationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        borrowerId:
+          type: string
+        collateralCurrency:
+          type: string
+        principalAmount:
+          type: string
+        status:
+          type: string
+          description: Current application status (derived from time-based fields and business logic)
+          enum: [draft, published, matched, expired, closed]
+          readOnly: true
+        createdDate:
+          type: string
+          format: date-time
+        publishedDate:
+          type: string
+          format: date-time
+        expiryDate:
+          type: string
+          format: date-time
+        collateralInvoice:
+          $ref: '#/components/schemas/Invoice'
+
+    LoanApplicationListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            applications:
+              type: array
+              items:
+                $ref: '#/components/schemas/LoanApplicationResponse'
+            pagination:
+              $ref: '#/components/schemas/PaginationMeta'
+
+    # Loan Schemas
+    LoanResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        borrowerId:
+          type: string
+        lenderId:
+          type: string
+        principalAmount:
+          type: string
+        collateralAmount:
+          type: string
+        interestRate:
+          type: number
+        termMonths:
+          type: integer
+        currentLtv:
+          type: number
+        maxLtvRatio:
+          type: number
+        status:
+          type: string
+          description: Current loan status (derived from time-based fields and business logic)
+          enum: [originated, disbursed, active, repaid, liquidated]
+          readOnly: true
+        originationDate:
+          type: string
+          format: date-time
+        disbursementDate:
+          type: string
+          format: date-time
+        maturityDate:
+          type: string
+          format: date-time
+        repaidDate:
+          type: string
+          format: date-time
+        liquidationDate:
+          type: string
+          format: date-time
+
+    LoanListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            loans:
+              type: array
+              items:
+                $ref: '#/components/schemas/LoanResponse'
+            pagination:
+              $ref: '#/components/schemas/PaginationMeta'
+
+    LoanRepaymentRequest:
+      type: object
+      required:
+        - amount
+      properties:
+        amount:
+          type: string
+          description: Repayment amount (18 decimal precision)
+          pattern: '^\d+\.\d{18}$'
+
+    LoanRepaymentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            repaymentAmount:
+              type: string
+            remainingBalance:
+              type: string
+            collateralReleased:
+              type: string
+            status:
+              type: string
+              description: Current repayment status (derived from business logic)
+              readOnly: true
+
+    # Valuation Schemas
+    LoanValuationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        loanId:
+          type: string
+        valuationDate:
+          type: string
+          format: date-time
+        ltvRatio:
+          type: number
+        collateralValue:
+          type: string
+        exchangeRate:
+          type: string
+
+    LoanValuationListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            valuations:
+              type: array
+              items:
+                $ref: '#/components/schemas/LoanValuationResponse'
+            pagination:
+              $ref: '#/components/schemas/PaginationMeta'
+
+    # Common Schemas
+    Currency:
+      type: object
+      properties:
+        blockchainKey:
+          type: string
+          description: CAIP-2 compliant blockchain identifier
+          example: "eip155:1"
+          maxLength: 64
+        tokenId:
+          type: string
+          description: Token identifier within the blockchain
+          example: "slip44:60"
+          maxLength: 64
+        name:
+          type: string
+          description: Human-readable currency name
+          example: "Ethereum"
+        symbol:
+          type: string
+          description: Currency symbol/ticker
+          example: "ETH"
+        decimals:
+          type: integer
+          description: Number of decimal places for precision
+          example: 18
+          minimum: 0
+          maximum: 18
+        logoUrl:
+          type: string
+          format: uri
+          description: URL to currency logo image
+          example: "https://assets.cryptogadai.com/currencies/eth.png"
+      required:
+        - blockchainKey
+        - tokenId
+        - name
+        - symbol
+        - decimals
+
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: string
+        amount:
+          type: string
+          description: Invoice amount with decimal precision
+          pattern: '^\d+\.\d{18}$'
+        currency:
+          $ref: '#/components/schemas/Currency'
+        walletAddress:
+          type: string
+          description: Payment wallet address
+        expiryDate:
+          type: string
+          format: date-time
+        # Status is derived from time-based fields
+        paidDate:
+          type: string
+          format: date-time
+          nullable: true
+        expiredDate:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - amount
+        - currency
+        - walletAddress
+        - expiryDate
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number (1-based)
+          example: 1
+          minimum: 1
+        limit:
+          type: integer
+          description: Number of items per page
+          example: 20
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          description: Total number of items across all pages
+          example: 150
+          minimum: 0
+        totalPages:
+          type: integer
+          description: Total number of pages
+          example: 8
+          minimum: 0
+        hasNext:
+          type: boolean
+          description: Whether there are more pages after current
+          example: true
+        hasPrev:
+          type: boolean
+          description: Whether there are pages before current
+          example: false
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+        - hasNext
+        - hasPrev
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+              example: "VALIDATION_ERROR"
+            message:
+              type: string
+              description: Human-readable error message
+              example: "Request validation failed"
+            details:
+              type: object
+              description: Additional error details
+              additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-08-13T15:30:00Z"
+        requestId:
+          type: string
+          format: uuid
+          description: Request ID for tracking
+      required:
+        - success
+        - error
+        - timestamp
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: VALIDATION_ERROR
+            requestId: req_abc123
+
+    InsufficientBalance:
+      description: Insufficient balance
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: INSUFFICIENT_BALANCE
+            requestId: req_abc123
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: NOT_FOUND
+            requestId: req_abc123

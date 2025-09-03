@@ -1,0 +1,1525 @@
+openapi: 3.0.3
+info:
+  title: CryptoGadai Finance API
+  description: |
+    CryptoGadai finance, invoice, and withdrawal management system API.
+    
+    This API handles all financial operations including:
+    - Account and balance management
+    - Invoice creation and payment processing
+    - Withdrawal request processing
+    - Transaction history and auditing
+    
+    **Security Requirements:**
+    - All endpoints require authentication
+    - Financial operations require 2FA verification
+    - Large amounts may require additional admin approval
+    
+    **Time-based State Management:**
+    - No status columns are used; instead time-based columns indicate record states
+    - All timestamps are provided by the application layer
+    - Operations are idempotent and support retry mechanisms
+  version: 1.0.0
+  contact:
+    name: CryptoGadai API Support
+    email: api-support@cryptogadai.com
+  license:
+    name: Proprietary
+    url: https://cryptogadai.com/license
+
+servers:
+  - url: https://api.cryptogadai.com/api/v1
+    description: Production server
+  - url: https://staging-api.cryptogadai.com/api/v1
+    description: Staging server
+  - url: http://localhost:3000/api/v1
+    description: Local development server
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Account & Balance Management
+  /accounts/balances:
+    get:
+      tags:
+        - Account Management
+      summary: Get account balances
+      description: |
+        Retrieve all account balances for the authenticated user or institution.
+        
+        **Balance Calculation:**
+        - Current balance = sum of all account mutations
+        - Pending operations are calculated separately
+        - Exchange rates applied for portfolio valuation
+      operationId: getAccountBalances
+      responses:
+        '200':
+          description: Account balances retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountBalancesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accounts/{accountId}/mutations:
+    get:
+      tags:
+        - Account Management
+      summary: Get account transaction history
+      description: |
+        Retrieve transaction history (account mutations) for a specific account.
+        
+        **Mutation Types:**
+        - Invoice operations (invoiceReceived)
+        - Loan operations (borrower and lender perspective)
+        - Withdrawal operations
+        - Platform fee operations
+      operationId: getAccountMutations
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: page
+          in: query
+          description: Page number (1-based)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of mutations per page (max 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: mutationType
+          in: query
+          description: Filter by mutation type
+          schema:
+            $ref: '#/components/schemas/AccountMutationType'
+        - name: fromDate
+          in: query
+          description: Filter mutations from this date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: toDate
+          in: query
+          description: Filter mutations until this date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Account mutations retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountMutationsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Invoice Management
+  /invoices:
+    get:
+      tags:
+        - Invoice Management
+      summary: List invoices
+      description: |
+        Retrieve invoices for the authenticated user or institution.
+        
+        **Invoice States (time-based):**
+        - Active: invoice_date <= now < due_date AND paid_date IS NULL
+        - Paid: paid_date IS NOT NULL
+        - Expired: expired_date IS NOT NULL
+        - Overdue: now > due_date AND paid_date IS NULL AND expired_date IS NULL
+      operationId: listInvoices
+      parameters:
+        - name: page
+          in: query
+          description: Page number (1-based)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of invoices per page (max 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: invoiceType
+          in: query
+          description: Filter by invoice type
+          schema:
+            type: string
+            enum:
+              - loan_collateral
+              - loan_principal
+              - loan_repayment
+              - platform_fee
+              - manual
+        - name: state
+          in: query
+          description: Filter by invoice state
+          schema:
+            type: string
+            enum:
+              - active
+              - paid
+              - expired
+              - overdue
+              - partial
+      responses:
+        '200':
+          description: Invoices retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoicesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Invoice Management
+      summary: Create invoice
+      description: |
+        Create a new invoice for payment collection.
+        
+        **Invoice Creation Process:**
+        1. Validate invoice parameters
+        2. Generate unique HD wallet address
+        3. Create invoice record
+        4. Queue notification job
+        5. Return payment instructions
+      operationId: createInvoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvoiceRequest'
+      responses:
+        '201':
+          description: Invoice created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /invoices/{invoiceId}:
+    get:
+      tags:
+        - Invoice Management
+      summary: Get invoice details
+      description: |
+        Retrieve detailed information about a specific invoice including payment status.
+      operationId: getInvoice
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Invoice details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /invoices/{invoiceId}/payments:
+    get:
+      tags:
+        - Invoice Management
+      summary: Get invoice payments
+      description: |
+        Retrieve all payments made towards a specific invoice.
+      operationId: getInvoicePayments
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Invoice payments retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoicePaymentsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Withdrawal Management
+  /beneficiaries:
+    get:
+      tags:
+        - Withdrawal Management
+      summary: List withdrawal beneficiaries
+      description: |
+        Retrieve all registered withdrawal addresses for the authenticated user or institution.
+      operationId: listBeneficiaries
+      parameters:
+        - name: blockchainKey
+          in: query
+          description: Filter by blockchain key
+          schema:
+            type: string
+            example: "eip155:1"
+        - name: tokenId
+          in: query
+          description: Filter by token ID
+          schema:
+            type: string
+            example: "slip44:60"
+      responses:
+        '200':
+          description: Beneficiaries retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BeneficiariesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Withdrawal Management
+      summary: Register withdrawal beneficiary
+      description: |
+        Register a new withdrawal address for future withdrawals.
+        
+        **Registration Process:**
+        1. Validate address format
+        2. Check address is not blacklisted
+        3. Create beneficiary record
+        4. Send email confirmation requirement
+        5. User confirms via email link
+        6. Activate beneficiary address
+      operationId: createBeneficiary
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBeneficiaryRequest'
+      responses:
+        '201':
+          description: Beneficiary created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BeneficiaryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /withdrawals:
+    get:
+      tags:
+        - Withdrawal Management
+      summary: List withdrawals
+      description: |
+        Retrieve withdrawal history for the authenticated user or institution.
+        
+        **Withdrawal States (time-based):**
+        - Requested: request_date IS NOT NULL AND sent_date IS NULL
+        - Sent: sent_date IS NOT NULL AND confirmed_date IS NULL AND failed_date IS NULL
+        - Confirmed: confirmed_date IS NOT NULL
+        - Failed: failed_date IS NOT NULL
+      operationId: listWithdrawals
+      parameters:
+        - name: page
+          in: query
+          description: Page number (1-based)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of withdrawals per page (max 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: state
+          in: query
+          description: Filter by withdrawal state
+          schema:
+            type: string
+            enum:
+              - requested
+              - sent
+              - confirmed
+              - failed
+      responses:
+        '200':
+          description: Withdrawals retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WithdrawalsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Withdrawal Management
+      summary: Request withdrawal
+      description: |
+        Request a new withdrawal to a registered beneficiary address.
+        
+        **Withdrawal Process:**
+        1. Validate 2FA authentication
+        2. Check sufficient account balance
+        3. Verify withdrawal limits
+        4. Calculate fees
+        5. Create withdrawal record
+        6. Debit account balance
+        7. Queue withdrawal processing
+      operationId: requestWithdrawal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWithdrawalRequest'
+      responses:
+        '201':
+          description: Withdrawal requested successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WithdrawalResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /withdrawals/{withdrawalId}:
+    get:
+      tags:
+        - Withdrawal Management
+      summary: Get withdrawal details
+      description: |
+        Retrieve detailed information about a specific withdrawal.
+      operationId: getWithdrawal
+      parameters:
+        - name: withdrawalId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Withdrawal details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WithdrawalResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /withdrawals/{withdrawalId}/refund:
+    post:
+      tags:
+        - Withdrawal Management
+      summary: Request withdrawal refund
+      description: |
+        Request a refund for a failed withdrawal (admin approval required).
+      operationId: requestWithdrawalRefund
+      parameters:
+        - name: withdrawalId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WithdrawalRefundRequest'
+      responses:
+        '200':
+          description: Refund request submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Exchange Rates
+  /exchange-rates:
+    get:
+      tags:
+        - Exchange Rates
+      summary: Get current exchange rates
+      description: |
+        Retrieve current exchange rates for supported currency pairs.
+      operationId: getExchangeRates
+      parameters:
+        - name: baseBlockchainKey
+          in: query
+          description: Filter by base blockchain key
+          schema:
+            type: string
+        - name: baseTokenId
+          in: query
+          description: Filter by base token ID
+          schema:
+            type: string
+        - name: quoteBlockchainKey
+          in: query
+          description: Filter by quote blockchain key
+          schema:
+            type: string
+        - name: quoteTokenId
+          in: query
+          description: Filter by quote token ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Exchange rates retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeRatesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # Account Management Schemas
+    AccountBalancesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            accounts:
+              type: array
+              items:
+                $ref: '#/components/schemas/AccountBalance'
+            totalPortfolioValue:
+              type: object
+              properties:
+                amount:
+                  type: string
+                  description: Total portfolio value in USD
+                  example: "125000.50"
+                currency:
+                  type: string
+                  example: "USD"
+                lastUpdated:
+                  type: string
+                  format: date-time
+      required:
+        - success
+        - data
+
+    AccountBalance:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 123
+        currency:
+          $ref: '#/components/schemas/Currency'
+        balance:
+          type: string
+          description: Available balance (decimal string)
+          example: "1250.750000000000000000"
+        pendingOperations:
+          type: object
+          properties:
+            pendingWithdrawals:
+              type: string
+              description: Amount reserved for pending withdrawals
+              example: "100.000000000000000000"
+            activeLoanCollaterals:
+              type: string
+              description: Amount locked as loan collateral
+              example: "5000.000000000000000000"
+            reservedAmounts:
+              type: string
+              description: Other reserved amounts
+              example: "0.000000000000000000"
+        lastUpdated:
+          type: string
+          format: date-time
+          example: "2025-08-11T10:30:00Z"
+      required:
+        - id
+        - currency
+        - balance
+        - pendingOperations
+        - lastUpdated
+
+    AccountMutationsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            mutations:
+              type: array
+              items:
+                $ref: '#/components/schemas/AccountMutation'
+            pagination:
+              $ref: '#/components/schemas/PaginationMeta'
+      required:
+        - success
+        - data
+
+    AccountMutation:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 456
+        mutationType:
+          $ref: '#/components/schemas/AccountMutationType'
+        mutationDate:
+          type: string
+          format: date-time
+          example: "2025-08-11T09:15:00Z"
+        amount:
+          type: string
+          description: Mutation amount (positive = credit, negative = debit)
+          example: "1000.000000000000000000"
+        description:
+          type: string
+          description: Human-readable description of the mutation
+          example: "Loan principal disbursement for loan #789"
+        referenceId:
+          type: integer
+          format: int64
+          description: ID of related entity (invoice, loan, withdrawal, etc.)
+          example: 789
+        referenceType:
+          type: string
+          description: Type of related entity
+          example: "loan"
+        balanceAfter:
+          type: string
+          description: Account balance after this mutation
+          example: "2250.750000000000000000"
+      required:
+        - id
+        - mutationType
+        - mutationDate
+        - amount
+        - description
+
+    AccountMutationType:
+      type: string
+      enum:
+        # Invoice operations
+        - invoiceReceived
+        # Loan operations - borrower perspective
+        - loanCollateralDeposit
+        - loanApplicationCollateralEscrowed
+        - loanPrincipalDisbursement
+        - loanDisbursementReceived
+        - loanPrincipalDisbursementFee
+        - loanRepayment
+        - loanCollateralRelease
+        - loanCollateralReturned
+        - loanCollateralReleased
+        - loanLiquidationRelease
+        - loanLiquidationSurplus
+        - loanLiquidationReleaseFee
+        # Loan operations - lender perspective
+        - loanPrincipalFunded
+        - loanOfferPrincipalEscrowed
+        - loanPrincipalReturned
+        - loanPrincipalReturnedFee
+        - loanInterestReceived
+        - loanRepaymentReceived
+        - loanLiquidationRepayment
+        # Loan operations - platform perspective
+        - loanDisbursementPrincipal
+        - loanDisbursementFee
+        - loanRedeliveryFee
+        - loanLiquidationFee
+        - loanLiquidationCollateralUsed
+        # Withdrawal operations
+        - withdrawalRequested
+        - withdrawalRefunded
+        # Platform fee operations
+        - platformFeeCharged
+        - platformFeeRefunded
+
+    # Invoice Management Schemas
+    InvoicesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            invoices:
+              type: array
+              items:
+                $ref: '#/components/schemas/Invoice'
+            pagination:
+              $ref: '#/components/schemas/PaginationMeta'
+      required:
+        - success
+        - data
+
+    InvoiceResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Invoice'
+      required:
+        - success
+        - data
+
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 789
+        currency:
+          $ref: '#/components/schemas/Currency'
+        invoicedAmount:
+          type: string
+          description: Total amount to be paid (18 decimal precision)
+          example: "5000.000000000000000000"
+          pattern: '^\d+\.\d{18}$'
+        paidAmount:
+          type: string
+          description: Amount already paid (18 decimal precision)
+          example: "5000.000000000000000000"
+          pattern: '^\d+\.\d{18}$'
+        walletAddress:
+          type: string
+          description: Payment wallet address
+          example: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"
+        invoiceType:
+          type: string
+          description: Type of invoice
+          example: "loan_collateral"
+        invoiceDate:
+          type: string
+          format: date-time
+          example: "2025-08-11T08:00:00Z"
+        dueDate:
+          type: string
+          format: date-time
+          example: "2025-08-18T08:00:00Z"
+        paidDate:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2025-08-11T09:15:00Z"
+        expiredDate:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        notifiedDate:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2025-08-11T08:01:00Z"
+        state:
+          type: string
+          description: Current invoice state (derived from time-based fields, not stored)
+          enum:
+            - active
+            - paid
+            - expired
+            - overdue
+            - partial
+          example: "paid"
+          readOnly: true
+        paymentInstructions:
+          type: object
+          properties:
+            qrCode:
+              type: string
+              description: QR code for mobile payments
+              example: "bitcoin:bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh?amount=5000"
+            networkInfo:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Bitcoin"
+                confirmationBlocks:
+                  type: integer
+                  description: Required confirmation blocks
+                  example: 6
+                estimatedConfirmationTime:
+                  type: string
+                  description: Estimated confirmation time
+                  example: "60 minutes"
+      required:
+        - id
+        - currency
+        - invoicedAmount
+        - paidAmount
+        - walletAddress
+        - invoiceType
+        - invoiceDate
+        - dueDate
+        - state
+
+    CreateInvoiceRequest:
+      type: object
+      properties:
+        blockchainKey:
+          type: string
+          description: CAIP-2 compliant blockchain identifier
+          example: "eip155:1"
+          maxLength: 64
+        tokenId:
+          type: string
+          description: Token identifier within the blockchain
+          example: "slip44:60"
+          maxLength: 64
+        invoicedAmount:
+          type: string
+          description: Amount to invoice (18 decimal precision)
+          example: "1000.000000000000000000"
+          pattern: '^\d+\.\d{18}$'
+        invoiceType:
+          type: string
+          description: Type of invoice
+          enum:
+            - loan_collateral
+            - loan_principal
+            - loan_repayment
+            - platform_fee
+            - manual
+          example: "loan_collateral"
+        dueDate:
+          type: string
+          format: date-time
+          description: Invoice due date (ISO 8601)
+          example: "2025-08-18T23:59:59Z"
+        description:
+          type: string
+          description: Optional invoice description
+          example: "Collateral deposit for loan application #123"
+      required:
+        - blockchainKey
+        - tokenId
+        - invoicedAmount
+        - invoiceType
+        - dueDate
+
+    InvoicePaymentsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            payments:
+              type: array
+              items:
+                $ref: '#/components/schemas/InvoicePayment'
+            totalPaid:
+              type: string
+              description: Total amount paid
+              example: "5000.000000000000000000"
+      required:
+        - success
+        - data
+
+    InvoicePayment:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 101
+        paymentDate:
+          type: string
+          format: date-time
+          example: "2025-08-11T09:15:00Z"
+        paymentHash:
+          type: string
+          description: Blockchain transaction hash
+          example: "a1b2c3d4e5f6789..."
+        amount:
+          type: string
+          description: Payment amount (18 decimal precision)
+          example: "5000.000000000000000000"
+          pattern: '^\d+\.\d{18}$'
+        confirmations:
+          type: integer
+          description: Number of blockchain confirmations
+          example: 12
+        blockchainExplorerUrl:
+          type: string
+          description: Link to view transaction on blockchain explorer
+          example: "https://etherscan.io/tx/a1b2c3d4e5f6789..."
+      required:
+        - id
+        - paymentDate
+        - paymentHash
+        - amount
+        - confirmations
+
+    # Withdrawal Management Schemas
+    BeneficiariesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            beneficiaries:
+              type: array
+              items:
+                $ref: '#/components/schemas/Beneficiary'
+      required:
+        - success
+        - data
+
+    BeneficiaryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Beneficiary'
+      required:
+        - success
+        - data
+
+    Beneficiary:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 202
+        currency:
+          $ref: '#/components/schemas/Currency'
+        address:
+          type: string
+          description: Withdrawal address
+          example: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
+        label:
+          type: string
+          description: User-friendly label for the address
+          example: "My Hardware Wallet"
+        createdDate:
+          type: string
+          format: date-time
+          example: "2025-08-01T12:00:00Z"
+        verifiedDate:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2025-08-01T12:30:00Z"
+        isActive:
+          type: boolean
+          description: Whether the beneficiary is active for withdrawals
+          example: true
+      required:
+        - id
+        - currency
+        - address
+        - createdDate
+        - isActive
+
+    CreateBeneficiaryRequest:
+      type: object
+      properties:
+        blockchainKey:
+          type: string
+          description: CAIP-2 compliant blockchain identifier
+          example: "eip155:1"
+          maxLength: 64
+        tokenId:
+          type: string
+          description: Token identifier within the blockchain
+          example: "slip44:60"
+          maxLength: 64
+        address:
+          type: string
+          description: Withdrawal address
+          example: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
+        label:
+          type: string
+          description: User-friendly label for the address
+          example: "My Hardware Wallet"
+      required:
+        - blockchainKey
+        - tokenId
+        - address
+
+    WithdrawalsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            withdrawals:
+              type: array
+              items:
+                $ref: '#/components/schemas/Withdrawal'
+            pagination:
+              $ref: '#/components/schemas/PaginationMeta'
+      required:
+        - success
+        - data
+
+    WithdrawalResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Withdrawal'
+      required:
+        - success
+        - data
+
+    Withdrawal:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 303
+        beneficiary:
+          $ref: '#/components/schemas/Beneficiary'
+        requestAmount:
+          type: string
+          description: Requested withdrawal amount (18 decimal precision)
+          example: "1000.000000000000000000"
+          pattern: '^\d+\.\d{18}$'
+        sentAmount:
+          type: string
+          description: Actual amount sent (after fees)
+          nullable: true
+          example: "995.000000000000000000"
+        networkFee:
+          type: string
+          description: Network transaction fee
+          nullable: true
+          example: "5.000000000000000000"
+        platformFee:
+          type: string
+          description: Platform withdrawal fee
+          nullable: true
+          example: "0.000000000000000000"
+        requestDate:
+          type: string
+          format: date-time
+          example: "2025-08-11T14:00:00Z"
+        sentDate:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2025-08-11T14:15:00Z"
+        sentHash:
+          type: string
+          description: Blockchain transaction hash
+          nullable: true
+          example: "def456789abc..."
+        confirmedDate:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2025-08-11T15:00:00Z"
+        failedDate:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        failureReason:
+          type: string
+          nullable: true
+          example: null
+        state:
+          type: string
+          description: Current withdrawal state (derived from time-based fields, not stored)
+          enum:
+            - requested
+            - sent
+            - confirmed
+            - failed
+          example: "confirmed"
+          readOnly: true
+        blockchainExplorerUrl:
+          type: string
+          description: Link to view transaction on blockchain explorer
+          nullable: true
+          example: "https://etherscan.io/tx/def456789abc..."
+        estimatedConfirmationTime:
+          type: string
+          description: Estimated confirmation time
+          nullable: true
+          example: "30 minutes"
+      required:
+        - id
+        - beneficiary
+        - requestAmount
+        - requestDate
+        - state
+
+    CreateWithdrawalRequest:
+      type: object
+      properties:
+        beneficiaryId:
+          type: integer
+          format: int64
+          description: ID of registered beneficiary
+          example: 202
+        amount:
+          type: string
+          description: Withdrawal amount (18 decimal precision)
+          example: "1000.000000000000000000"
+          pattern: '^\d+\.\d{18}$'
+        twoFactorCode:
+          type: string
+          description: 2FA authentication code
+          example: "123456"
+      required:
+        - beneficiaryId
+        - amount
+        - twoFactorCode
+
+    WithdrawalRefundRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: Reason for requesting refund
+          example: "Transaction failed due to insufficient gas"
+      required:
+        - reason
+
+    # Exchange Rates Schemas
+    ExchangeRatesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            exchangeRates:
+              type: array
+              items:
+                $ref: '#/components/schemas/ExchangeRate'
+            lastUpdated:
+              type: string
+              format: date-time
+              example: "2025-08-11T15:30:00Z"
+      required:
+        - success
+        - data
+
+    ExchangeRate:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 404
+        baseAsset:
+          $ref: '#/components/schemas/Currency'
+        quoteAsset:
+          $ref: '#/components/schemas/Currency'
+        bidPrice:
+          type: string
+          description: Bid price (decimal string)
+          example: "2450.750000000000000000"
+        askPrice:
+          type: string
+          description: Ask price (decimal string)
+          example: "2451.250000000000000000"
+        midPrice:
+          type: string
+          description: Mid price ((bid + ask) / 2)
+          example: "2451.000000000000000000"
+        source:
+          type: string
+          description: Price data source
+          example: "coinbase"
+        sourceDate:
+          type: string
+          format: date-time
+          description: Timestamp from price source
+          example: "2025-08-11T15:29:45Z"
+        retrievalDate:
+          type: string
+          format: date-time
+          description: Timestamp when price was retrieved
+          example: "2025-08-11T15:30:00Z"
+      required:
+        - id
+        - baseAsset
+        - quoteAsset
+        - bidPrice
+        - askPrice
+        - midPrice
+        - source
+        - sourceDate
+        - retrievalDate
+
+    # Common Schemas
+    Currency:
+      type: object
+      properties:
+        blockchainKey:
+          type: string
+          description: CAIP-2 compliant blockchain identifier
+          example: "eip155:1"
+          maxLength: 64
+        tokenId:
+          type: string
+          description: Token identifier within the blockchain
+          example: "slip44:60"
+          maxLength: 64
+        name:
+          type: string
+          description: Human-readable currency name
+          example: "Ethereum"
+        symbol:
+          type: string
+          description: Currency symbol/ticker
+          example: "ETH"
+        decimals:
+          type: integer
+          description: Number of decimal places for precision
+          example: 18
+          minimum: 0
+          maximum: 18
+        logoUrl:
+          type: string
+          format: uri
+          description: URL to currency logo image
+          example: "https://assets.cryptogadai.com/currencies/eth.png"
+      required:
+        - blockchainKey
+        - tokenId
+        - name
+        - symbol
+        - decimals
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number (1-based)
+          example: 1
+          minimum: 1
+        limit:
+          type: integer
+          description: Number of items per page
+          example: 20
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          description: Total number of items across all pages
+          example: 150
+          minimum: 0
+        totalPages:
+          type: integer
+          description: Total number of pages
+          example: 8
+          minimum: 0
+        hasNext:
+          type: boolean
+          description: Whether there are more pages after current
+          example: true
+        hasPrev:
+          type: boolean
+          description: Whether there are pages before current
+          example: false
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+        - hasNext
+        - hasPrev
+
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Operation completed successfully"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-08-11T15:30:00Z"
+      required:
+        - success
+        - message
+        - timestamp
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+              example: "INSUFFICIENT_BALANCE"
+            message:
+              type: string
+              description: Human-readable error message
+              example: "Insufficient account balance for withdrawal"
+            details:
+              type: object
+              description: Additional error details
+              additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-08-11T15:30:00Z"
+      required:
+        - success
+        - error
+        - timestamp
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "VALIDATION_ERROR"
+            message:
+              type: string
+              example: "Request validation failed"
+            validation_errors:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                    description: Field name that failed validation
+                    example: "amount"
+                  message:
+                    type: string
+                    description: Validation error message
+                    example: "Amount must be greater than 0"
+                  code:
+                    type: string
+                    description: Validation error code
+                    example: "MIN_VALUE"
+                required:
+                  - field
+                  - message
+                  - code
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-08-11T15:30:00Z"
+      required:
+        - success
+        - error
+        - timestamp
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Unauthorized - authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ValidationError:
+      description: Validation error - invalid request data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Account Management
+    description: Account balance and transaction history operations
+  - name: Invoice Management
+    description: Invoice creation, payment tracking, and management
+  - name: Withdrawal Management
+    description: Withdrawal request processing and beneficiary management
+  - name: Exchange Rates
+    description: Current exchange rates for supported currency pairs
