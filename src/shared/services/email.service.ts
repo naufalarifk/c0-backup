@@ -17,7 +17,7 @@ export class EmailService {
 
   constructor(private readonly configService: AppConfigService) {
     const { apiKey, from } = this.configService.emailConfig;
-    this.defaultFrom = `${this.configService.appConfig.appName} <${from}>`;
+    this.defaultFrom = `${this.configService.appConfig.name} <${from}>`;
     this.resend = new Resend(apiKey);
   }
 

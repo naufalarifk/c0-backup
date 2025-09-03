@@ -2,7 +2,7 @@ import type { BetterAuthOptions } from 'better-auth';
 import type { DrizzleDB } from '../../shared/database/database.module';
 import type { AuthModuleOptions } from './auth.module';
 
-import { Inject, Injectable, Logger, Module } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { expo } from '@better-auth/expo';
 import { sso } from '@better-auth/sso';
@@ -19,6 +19,7 @@ import { RedisService } from '../../shared/services/redis.service';
 import { TwilioService } from '../../shared/services/twilio.service';
 import { authAdapter } from './auth.adapter';
 import { RESERVED_USERNAMES } from './auth.constants';
+import { forgotPasswordEmail } from './template/forget-password';
 import { verificationEmail } from './template/verification-email';
 
 @Injectable()
@@ -48,11 +49,21 @@ export class AuthConfig {
       emailAndPassword: {
         enabled: true,
         requireEmailVerification: this.configService.isProduction,
-        sendResetPassword: async ({ user, url }) => {
-          const html = verificationEmail({
+        sendResetPassword: async ({ user, url, token }) => {
+          const isDev = this.configService.isDevelopment;
+          const parsed = new URL(url);
+
+          const callbackURL = parsed.searchParams.get('callbackURL');
+
+          const deepLink = isDev
+            ? `${this.configService.appConfig.expoUrl}${callbackURL}?token=${token}`
+            : `${this.configService.appConfig.scheme}${callbackURL}?token=${token}`;
+
+          const html = forgotPasswordEmail({
             url,
             userName: user.email,
-            companyName: this.configService.appConfig.appName,
+            companyName: this.configService.appConfig.name,
+            deepLink,
           });
 
           const emailConfirmTitle = 'Reset your password';
@@ -62,10 +73,6 @@ export class AuthConfig {
             subject: emailConfirmTitle,
             html,
           });
-        },
-        // biome-ignore lint/suspicious/useAwait: <explanation>
-        async onPasswordReset(data, request) {
-          console.log('Password reset for user:', data);
         },
       },
       socialProviders: this.createSocialProvidersConfig(),
@@ -84,11 +91,7 @@ export class AuthConfig {
           trustedProviders: ['google'],
         },
       },
-      trustedOrigins: [
-        'exp://192.168.0.109:8081', // Development
-        'crypto-gadai://', // Production scheme from app.json
-        // Add your production URL
-      ],
+      trustedOrigins: this.configService.appConfig.allowedOrigins,
       rateLimit: {
         enabled: true,
         ...this.configService.throttlerConfigs,
@@ -163,10 +166,21 @@ export class AuthConfig {
       sendOnSignUp: true,
       autoSignInAfterVerification: true,
       sendVerificationEmail: async ({ user, url }) => {
+        const isDev = this.configService.isDevelopment;
+        const parsed = new URL(url);
+
+        const callbackURL = parsed.searchParams.get('callbackURL');
+        const token = parsed.searchParams.get('token');
+
+        const deepLink = isDev
+          ? `${this.configService.appConfig.expoUrl}${callbackURL}?token=${token}`
+          : `${this.configService.appConfig.scheme}${callbackURL}?token=${token}`;
+
         const html = verificationEmail({
           url,
           userName: user.email,
-          companyName: this.configService.appConfig.appName,
+          companyName: this.configService.appConfig.name,
+          deepLink,
         });
 
         const emailConfirmTitle = 'Verify your email address';

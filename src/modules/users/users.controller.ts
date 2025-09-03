@@ -33,7 +33,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @UseGuards(AuthGuard)
-  @Patch(':id/role')
+  @Patch('role')
   @ApiOperation({
     summary: 'Set role',
     description:
@@ -65,16 +65,9 @@ export class UsersController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Authentication required',
   })
-  async selectUserType(
-    @Session() session: AuthSession,
-    @Param('id') id: string,
-    @Body() selectUserTypeDto: UpdateUserDto,
-  ) {
-    if (session.user.id !== id && session.user.role !== 'Admin') {
-      throw new ForbiddenException('Not allowed to update this user');
-    }
-
-    return await this.usersService.setUserType(id, selectUserTypeDto.role!);
+  selectUserType(@Session() session: AuthSession, @Body() selectUserTypeDto: UpdateUserDto) {
+    const userId = session.user.id;
+    return this.usersService.setUserType(userId, selectUserTypeDto.role!);
   }
 
   @Post()

@@ -174,8 +174,12 @@ export class AppConfigService {
   get appConfig() {
     return {
       port: this.getString('PORT', '3000'),
-      appName: this.getString('APP_NAME', 'Gadain'),
-      allowedOrigins: this.getString('ALLOWED_ORIGINS').split(','),
+      name: this.getString('APP_NAME', 'Gadain'),
+      scheme: this.getString('APP_SCHEME', 'crypto-gadai://'),
+      expoUrl: this.getString('APP_EXPO_URL', 'exp://192.168.0.111:8081/--'),
+      allowedOrigins: this.getString('ALLOWED_ORIGINS')
+        .split(',')
+        .map(origin => origin.trim()),
     };
   }
 

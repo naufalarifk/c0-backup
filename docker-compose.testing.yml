@@ -1,11 +1,22 @@
 x-backend-env: &backend-env
   PORT: 3100
-  ALLOWED_ORIGINS: https://cg-api.fh47.my.id
+  APP_SCHEME: crypto-gadai
+  ALLOWED_ORIGINS: "\
+    http://localhost:8081,\
+    http://localhost:3000,\
+    crypto-gadai://*,\
+    exp://192.168.0.111:8081,\
+    exp://192.168.0.103:8081,\
+    exp://192.168.0.106:8081,\
+    exp://192.168.0.100:8081,\
+    https://cg-api.fh47.my.id"
   BETTER_AUTH_URL: https://cg-api.fh47.my.id
   DATABASE_URL: postgresql://postgres:postgres@postgres:5432/cryptogadai
   REDIS_HOST: redis
   REDIS_PORT: 6379
   MAIL_HOST: mailpit
+  GOOGLE_CLIENT_SECRET: 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
+  GOOGLE_CLIENT_ID: 442461506062-rgpbj94u778lpcfv5hg5rue6fpveddt6.apps.googleusercontent.com
 
 x-backend-base: &backend-base
   image: cg/backend
