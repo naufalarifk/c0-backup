@@ -21,7 +21,7 @@ scrape_configs:
   # OpenTelemetry Collector metrics (application metrics from Prometheus exporter)
   - job_name: 'otel-collector-metrics'
     static_configs:
-      - targets: ['otel-collector:8887']
+      - targets: ['cg-backend-otel-collector-1:8887']
     scrape_interval: 10s
     scrape_timeout: 5s
     metrics_path: /metrics
@@ -33,7 +33,7 @@ scrape_configs:
   # OpenTelemetry Collector internal telemetry metrics
   - job_name: 'otel-collector-internal'
     static_configs:
-      - targets: ['otel-collector:8889']
+      - targets: ['cg-backend-otel-collector-1:8889']
     scrape_interval: 15s
     scrape_timeout: 5s
     metrics_path: /metrics
@@ -43,17 +43,8 @@ scrape_configs:
         target_label: component
         replacement: 'otel-collector-internal'
 
-  # Application metrics (if your NestJS app exposes metrics directly)
-  - job_name: 'cryptogadai-backend'
-    static_configs:
-      - targets: ['api:3100']
-    scrape_interval: 15s
-    scrape_timeout: 10s
-    metrics_path: /metrics
-    metric_relabel_configs:
-      - source_labels: [__name__]
-        target_label: service
-        replacement: 'cryptogadai-backend'
+  # Application metrics via OpenTelemetry Collector (removed direct scraping)
+  # All application metrics now flow through otel-collector:8887
 
   # Traefik metrics
   - job_name: 'traefik'
