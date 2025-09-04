@@ -33,10 +33,20 @@ datasources:
         filterByTraceID: false
         filterBySpanID: false
 
-  # Loki datasource for logs (optional - can be added later)
-  # - name: Loki
-  #   type: loki
-  #   access: proxy
-  #   url: http://loki:3100
-  #   uid: loki-uid
-  #   editable: true
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    uid: loki-uid
+    editable: true
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        - name: TraceID
+          label: trace_id
+          url: '$${__value.raw}'
+          datasourceUid: jaeger-uid
+        - name: trace_id
+          label: trace_id
+          url: '$${__value.raw}'
+          datasourceUid: jaeger-uid
