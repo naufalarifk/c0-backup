@@ -13,7 +13,7 @@ import { Request, Response } from 'express';
 export class WalletExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(WalletExceptionFilter.name);
 
-  catch(exception: Error, host: ArgumentsHost) {
+  catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
@@ -31,9 +31,9 @@ export class WalletExceptionFilter implements ExceptionFilter {
         typeof exceptionResponse === 'string'
           ? exceptionResponse
           : (exceptionResponse as Error).message || message;
-    } else if (exception.message) {
+    } else if ((exception as Error).message) {
       // Handle specific Wallet errors
-      const errorMessage = exception.message.toLowerCase();
+      const errorMessage = (exception as Error).message.toLowerCase();
 
       if (errorMessage.includes('wallet not found')) {
         status = HttpStatus.NOT_FOUND;
@@ -79,7 +79,7 @@ export class WalletExceptionFilter implements ExceptionFilter {
         errorCode = 'DUPLICATE_RESOURCE';
       } else if (errorMessage.includes('validation') || errorMessage.includes('invalid')) {
         status = HttpStatus.BAD_REQUEST;
-        message = exception.message;
+        message = (exception as Error).message;
         errorCode = 'VALIDATION_ERROR';
       } else if (errorMessage.includes('timeout')) {
         status = HttpStatus.REQUEST_TIMEOUT;
@@ -90,7 +90,7 @@ export class WalletExceptionFilter implements ExceptionFilter {
         message = 'Blockchain network unavailable';
         errorCode = 'BLOCKCHAIN_NETWORK_ERROR';
       } else {
-        message = exception.message;
+        message = (exception as Error).message;
       }
     }
 
@@ -104,7 +104,10 @@ export class WalletExceptionFilter implements ExceptionFilter {
     };
 
     // Log the error details
-    this.logger.error(`${request.method} ${request.url} - ${status} - ${message}`, exception.stack);
+    this.logger.error(
+      `${request.method} ${request.url} - ${status} - ${message}`,
+      (exception as Error).stack,
+    );
 
     response.status(status).json(errorResponse);
   }
