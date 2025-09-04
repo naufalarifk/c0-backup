@@ -5,11 +5,20 @@ WORKDIR /app
 RUN corepack enable
 RUN corepack prepare pnpm@10 --activate
 
+# Use an explicit pnpm store path so we can mount and cache it with BuildKit
+ENV PNPM_HOME=/pnpm
+ENV PNPM_STORE_PATH=/pnpm/store
+
 COPY ./package.json ./
 COPY ./pnpm-lock.yaml ./
 COPY ./pnpm-workspace.yaml ./
 
-RUN pnpm install --frozen-lockfile --ignore-scripts
+# Use BuildKit inline cache mount so the pnpm store is reused between builds.
+# When building, enable BuildKit (DOCKER_BUILDKIT=1) and you can also export
+# the cache to the host with buildx flags (--cache-to / --cache-from) to
+# persist a host-side pnpm store between CI/machine and container builds.
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+	pnpm install --frozen-lockfile --ignore-scripts
 
 COPY ./nest-cli.json ./
 COPY ./tsconfig.build.json ./
@@ -22,7 +31,8 @@ RUN pnpm run build
 # After building, install only production dependencies in the builder so we can
 # copy them into the final image. This ensures no devDependencies (from the
 # workspace or root) are pulled into the runtime image.
-RUN pnpm install --frozen-lockfile --ignore-scripts --prod --filter .
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+	pnpm install --frozen-lockfile --ignore-scripts --prod --filter .
 
 FROM node:24.7.0-alpine3.22
 
