@@ -1,74 +1,239 @@
-/** biome-ignore-all lint/suspicious/useAwait: <explanation> */
-/** biome-ignore-all lint/suspicious/noExplicitAny: <explanation> */
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
 
+import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { CreateKycDto } from './dto/create-kyc.dto';
 import { UpdateKycDto } from './dto/update-kyc.dto';
 
 @Injectable()
 export class KycService {
-  async getKycByUserId(userId: string) {
-    // Logic untuk mendapatkan data KYC berdasarkan userId
-    return {
-      userId,
-      status: 'pending',
-      submittedAt: new Date(),
-      documents: [],
-    };
+  private readonly logger = new Logger(KycService.name);
+
+  constructor(private readonly userRepo: CryptogadaiRepository) {}
+
+  getKycByUserId(userId: string) {
+    // Return KYC status that matches KycStatusResponseDto format
+    return this.userRepo.userViewsKYCStatus({ userId });
   }
 
   async createKyc(userId: string, createKycDto: CreateKycDto) {
-    // Logic untuk membuat KYC baru
-    return {
+    // 1. Get current user KYC status to enforce security policies
+    const kycStatus = await this.userRepo.userViewsKYCStatus({ userId });
+
+    // 2. Security check: Prevent duplicate or unauthorized submissions
+    if (kycStatus.id) {
+      switch (kycStatus.status) {
+        case 'pending':
+          // Block: KYC is pending verification
+          throw new ConflictException(
+            'KYC submission is already pending review. Please wait for verification.',
+          );
+        case 'verified':
+          // Block: KYC is already approved
+          throw new ConflictException('KYC is already verified. No need for resubmission.');
+        case 'rejected':
+          // Allow: User can resubmit after rejection
+          this.logger.warn(`User ${userId} resubmitting KYC after previous rejection`);
+          break;
+        default:
+          // Block: Unknown status or other active submission
+          throw new ConflictException('User already has an active KYC submission');
+      }
+    }
+
+    // 3. Validate and sanitize input data before processing
+    this.validateKycData(createKycDto);
+
+    // 4. Log security audit trail for KYC submission attempt
+    this.logger.log(`KYC submission attempt for user: ${userId}`, {
       userId,
+      timestamp: new Date().toISOString(),
+      action: 'kyc_submission',
+    });
+
+    // 5. Prepare KYC data with server-side metadata and submit to repository
+    const kycData = {
       ...createKycDto,
-      status: 'pending',
-      createdAt: new Date(),
+      userId,
+      submissionDate: new Date(), // Server-generated timestamp, not exposed in API contract
+    };
+
+    const res = await this.userRepo.userSubmitsKyc(kycData);
+
+    // 6. Log successful KYC submission for audit purposes
+    this.logger.log(`KYC submitted successfully for user: ${userId}`, {
+      userId,
+      kycId: res.id,
+      timestamp: new Date().toISOString(),
+      action: 'kyc_submitted',
+    });
+
+    // 7. Return response in expected DTO format
+    return {
+      id: res.id,
+      userId: res.userId,
+      fullName: createKycDto.fullName,
+      nik: createKycDto.nik,
+      submissionDate: kycData.submissionDate,
+      status: 'pending' as const,
     };
   }
 
-  async updateKyc(userId: string, updateKycDto: UpdateKycDto) {
-    // Logic untuk update KYC
-    return {
+  updateKyc(userId: string, updateKycDto: UpdateKycDto) {
+    // Logic untuk update KYC - currently not implemented
+    return Promise.resolve({
       userId,
       ...updateKycDto,
       updatedAt: new Date(),
-    };
+    });
   }
 
-  async verifyKyc(userId: string) {
-    // Logic untuk verifikasi KYC
-    return {
+  verifyKyc(userId: string) {
+    // Logic untuk verifikasi KYC - currently not implemented
+    return Promise.resolve({
       userId,
       status: 'verified',
       verifiedAt: new Date(),
-    };
+    });
   }
 
-  async rejectKyc(userId: string, reason: string) {
-    // Logic untuk reject KYC
-    return {
+  rejectKyc(userId: string, reason: string) {
+    // Logic untuk reject KYC - currently not implemented
+    return Promise.resolve({
       userId,
       status: 'rejected',
       reason,
       rejectedAt: new Date(),
-    };
+    });
   }
 
-  async getDocuments(userId: string) {
-    // Logic untuk mendapatkan dokumen KYC
-    return {
+  getDocuments(userId: string) {
+    // Logic untuk mendapatkan dokumen KYC - currently not implemented
+    return Promise.resolve({
       userId,
       documents: [],
-    };
+    });
   }
 
-  async uploadDocument(userId: string, documentData: any) {
-    // Logic untuk upload dokumen
-    return {
+  uploadDocument(userId: string, documentData: Record<string, unknown>) {
+    // Logic untuk upload dokumen - currently not implemented
+    return Promise.resolve({
       userId,
       documentId: 'doc_123',
       uploadedAt: new Date(),
-    };
+    });
+  }
+
+  /**
+   * Validates KYC data for security and business rules
+   */
+  private validateKycData(data: CreateKycDto): void {
+    // Validate NIK (Indonesian National ID)
+    if (!this.validateNik(data.nik)) {
+      throw new BadRequestException('Invalid NIK format. Must be 16 digits.');
+    }
+
+    // Validate phone number
+    if (!this.validatePhoneNumber(data.phoneNumber)) {
+      throw new BadRequestException('Invalid phone number format.');
+    }
+
+    // Validate postal code
+    if (!this.validatePostalCode(data.postalCode)) {
+      throw new BadRequestException('Invalid postal code format.');
+    }
+
+    // Validate birth date
+    if (!this.validateBirthDate(data.birthDate)) {
+      throw new BadRequestException('Invalid birth date. Must be in the past and reasonable age.');
+    }
+
+    // Validate photos (basic size and format check)
+    this.validatePhotoData(data.idCardPhoto, 'ID Card Photo');
+    this.validatePhotoData(data.selfiePhoto, 'Selfie Photo');
+    this.validatePhotoData(data.selfieWithIdCardPhoto, 'Selfie with ID Card Photo');
+
+    // Validate name format
+    if (!this.validateName(data.fullName)) {
+      throw new BadRequestException('Invalid name format.');
+    }
+  }
+
+  private validateNik(nik: string): boolean {
+    // NIK must be exactly 16 digits
+    const nikRegex = /^\d{16}$/;
+    return nikRegex.test(nik);
+  }
+
+  private validatePhoneNumber(phone: string): boolean {
+    // Indonesian phone number format: +62 or 0, followed by 8-13 digits
+    const phoneRegex = /^(\+62|62|0)[8-9]\d{7,11}$/;
+    return phoneRegex.test(phone.replace(/\s|-/g, ''));
+  }
+
+  private validatePostalCode(postalCode: string): boolean {
+    // Indonesian postal code: 5 digits
+    const postalRegex = /^\d{5}$/;
+    return postalRegex.test(postalCode);
+  }
+
+  private validateBirthDate(birthDate: Date): boolean {
+    const date = new Date(birthDate);
+    const now = new Date();
+    const minAge = 17; // Minimum age for KYC
+    const maxAge = 120; // Maximum reasonable age
+
+    // Check if date is valid
+    if (isNaN(date.getTime())) return false;
+
+    // Check if date is not in the future
+    if (date > now) return false;
+
+    // Check age range
+    const age = now.getFullYear() - date.getFullYear();
+    return age >= minAge && age <= maxAge;
+  }
+
+  private validateName(name: string): boolean {
+    // Name should contain only letters, spaces, and common punctuation
+    // Minimum 2 characters, maximum 100 characters
+    const nameRegex = /^[a-zA-Z\s.'-]{2,100}$/;
+    return nameRegex.test(name.trim());
+  }
+
+  private validatePhotoData(photoData: string, photoType: string): void {
+    if (!photoData) {
+      throw new BadRequestException(`${photoType} is required.`);
+    }
+
+    // Check if it's a base64 string
+    if (photoData.startsWith('data:image/')) {
+      const base64Data = photoData.split(',')[1];
+      if (!base64Data) {
+        throw new BadRequestException(`Invalid ${photoType} format.`);
+      }
+
+      // Check base64 size (max 10MB)
+      const maxSizeBytes = 10 * 1024 * 1024; // 10MB
+      const sizeBytes = (base64Data.length * 3) / 4;
+      if (sizeBytes > maxSizeBytes) {
+        throw new BadRequestException(`${photoType} size exceeds 10MB limit.`);
+      }
+
+      // Check if it's a valid image format
+      const mimeType = photoData.split(';')[0].split(':')[1];
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      if (!allowedTypes.includes(mimeType)) {
+        throw new BadRequestException(`${photoType} must be JPEG or PNG format.`);
+      }
+    } else if (photoData.startsWith('http')) {
+      // URL validation
+      try {
+        new URL(photoData);
+      } catch {
+        throw new BadRequestException(`Invalid ${photoType} URL format.`);
+      }
+    } else {
+      throw new BadRequestException(`Invalid ${photoType} format. Must be base64 or URL.`);
+    }
   }
 }
