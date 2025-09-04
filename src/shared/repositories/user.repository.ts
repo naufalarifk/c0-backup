@@ -286,10 +286,10 @@ export abstract class UserRepository extends BaseRepository {
         UPDATE users
         SET name = COALESCE(${name}, name),
             email = COALESCE(${email}, email),
-            email_verified = COALESCE(${emailVerified}, 0),
+            email_verified = COALESCE(${emailVerified !== undefined ? Boolean(emailVerified) : undefined}, email_verified),
             email_verified_date = CASE
-              WHEN ${emailVerified} = 1 AND email_verified_date IS NULL THEN ${updatedAtUtc}
-              WHEN ${emailVerified} = 0 THEN NULL
+              WHEN ${emailVerified !== undefined ? Boolean(emailVerified) : false} = true AND email_verified_date IS NULL THEN ${updatedAtUtc}
+              WHEN ${emailVerified !== undefined ? Boolean(emailVerified) : false} = false THEN NULL
               ELSE email_verified_date
             END,
             profile_picture = COALESCE(${image}, profile_picture),
