@@ -102,9 +102,9 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "rate(http_requests_total{job=\"cryptogadai-backend\"}[5m])",
+          "expr": "rate(traefik_service_requests_total{service=\"cg-api@docker\"}[5m])",
           "interval": "",
-          "legendFormat": "{{method}} {{route}}",
+          "legendFormat": "{{method}} {{service}}",
           "refId": "A"
         }
       ],
@@ -191,7 +191,7 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "histogram_quantile(0.95, rate(http_request_duration_ms_bucket{job=\"cryptogadai-backend\"}[5m]))",
+          "expr": "histogram_quantile(0.95, rate(traefik_service_request_duration_seconds_bucket{service=\"cg-api@docker\"}[5m]))",
           "interval": "",
           "legendFormat": "95th percentile",
           "refId": "A"
@@ -201,7 +201,7 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "histogram_quantile(0.50, rate(http_request_duration_ms_bucket{job=\"cryptogadai-backend\"}[5m]))",
+          "expr": "histogram_quantile(0.50, rate(traefik_service_request_duration_seconds_bucket{service=\"cg-api@docker\"}[5m]))",
           "interval": "",
           "legendFormat": "50th percentile",
           "refId": "B"
@@ -263,9 +263,9 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "sum by (status_code) (increase(http_requests_total{job=\"cryptogadai-backend\"}[5m]))",
+          "expr": "sum by (code) (increase(traefik_service_requests_total{service=\"cg-api@docker\"}[5m]))",
           "interval": "",
-          "legendFormat": "{{status_code}}",
+          "legendFormat": "{{code}}",
           "refId": "A"
         }
       ],
@@ -352,10 +352,30 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "process_resident_memory_bytes{job=\"cryptogadai-backend\"}",
+          "expr": "process_resident_memory_bytes{job=\"prometheus\"}",
           "interval": "",
-          "legendFormat": "Memory Usage",
+          "legendFormat": "Prometheus Memory",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-uid"
+          },
+          "expr": "process_resident_memory_bytes{job=\"traefik\"}",
+          "interval": "",
+          "legendFormat": "Traefik Memory",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-uid"
+          },
+          "expr": "otelcol_process_memory_rss_bytes{job=\"otel-collector-internal\"}",
+          "interval": "",
+          "legendFormat": "OTel Collector Memory",
+          "refId": "C"
         }
       ],
       "title": "Memory Usage",
@@ -441,10 +461,30 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "rate(process_cpu_seconds_total{job=\"cryptogadai-backend\"}[5m]) * 100",
+          "expr": "rate(process_cpu_seconds_total{job=\"prometheus\"}[5m]) * 100",
           "interval": "",
-          "legendFormat": "CPU Usage",
+          "legendFormat": "Prometheus CPU",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-uid"
+          },
+          "expr": "rate(process_cpu_seconds_total{job=\"traefik\"}[5m]) * 100",
+          "interval": "",
+          "legendFormat": "Traefik CPU",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-uid"
+          },
+          "expr": "rate(otelcol_process_cpu_seconds_total{job=\"otel-collector-internal\"}[5m]) * 100",
+          "interval": "",
+          "legendFormat": "OTel Collector CPU",
+          "refId": "C"
         }
       ],
       "title": "CPU Usage",
@@ -530,9 +570,9 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "otelcol_processor_batch_batch_send_size_count{job=\"otel-collector-internal\"}",
+          "expr": "otelcol_exporter_queue_size{job=\"otel-collector-internal\"}",
           "interval": "",
-          "legendFormat": "Batches Sent",
+          "legendFormat": "Queue Size",
           "refId": "A"
         },
         {
@@ -540,9 +580,9 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "otelcol_receiver_accepted_spans_total{job=\"otel-collector-internal\"}",
+          "expr": "rate(otelcol_process_uptime_seconds_total{job=\"otel-collector-internal\"}[5m])",
           "interval": "",
-          "legendFormat": "Spans Received",
+          "legendFormat": "Uptime",
           "refId": "B"
         }
       ],

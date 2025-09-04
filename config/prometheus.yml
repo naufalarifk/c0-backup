@@ -21,7 +21,7 @@ scrape_configs:
   # OpenTelemetry Collector metrics (application metrics from Prometheus exporter)
   - job_name: 'otel-collector-metrics'
     static_configs:
-      - targets: ['cg-backend-otel-collector-1:8887']
+      - targets: ['otel-collector:8887']
     scrape_interval: 10s
     scrape_timeout: 5s
     metrics_path: /metrics
@@ -33,7 +33,7 @@ scrape_configs:
   # OpenTelemetry Collector internal telemetry metrics
   - job_name: 'otel-collector-internal'
     static_configs:
-      - targets: ['cg-backend-otel-collector-1:8889']
+      - targets: ['otel-collector:8889']
     scrape_interval: 15s
     scrape_timeout: 5s
     metrics_path: /metrics
@@ -43,8 +43,9 @@ scrape_configs:
         target_label: component
         replacement: 'otel-collector-internal'
 
-  # Application metrics via OpenTelemetry Collector (removed direct scraping)
+  # Application metrics via OpenTelemetry Collector (replaced direct scraping)
   # All application metrics now flow through otel-collector:8887
+  # Note: The job name "cryptogadai-backend" will be added by OTel Collector
 
   # Traefik metrics
   - job_name: 'traefik'

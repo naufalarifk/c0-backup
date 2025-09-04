@@ -17,8 +17,9 @@ x-backend-env: &backend-env
   MAIL_HOST: mailpit
   GOOGLE_CLIENT_SECRET: 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
   GOOGLE_CLIENT_ID: 442461506062-rgpbj94u778lpcfv5hg5rue6fpveddt6.apps.googleusercontent.com
-  # OpenTelemetry Configuration
-  OTEL_SERVICE_NAME: cryptogadai-backend
+  # OpenTelemetry Configuration - Critical: Use NODE_OPTIONS for proper initialization order
+  NODE_OPTIONS: "--import ./dist/telemetry.js"
+  OTEL_SERVICE_NAME: cryptogladai-backend
   OTEL_SERVICE_VERSION: 1.0.0
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
   OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
@@ -26,6 +27,8 @@ x-backend-env: &backend-env
   OTEL_METRICS_EXPORTER: otlp
   OTEL_LOGS_EXPORTER: otlp
   OTEL_NODE_RESOURCE_DETECTORS: env,host,os,process,container
+  # Enable both old and new semantic conventions for compatibility
+  OTEL_SEMCONV_STABILITY_OPT_IN: http/dup
   # OTEL_PROMETHEUS_PORT: 9464  # Removed: Using OTel Collector instead
   OTEL_METRIC_EXPORT_INTERVAL: 30000
 

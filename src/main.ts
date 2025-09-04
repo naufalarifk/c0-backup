@@ -1,5 +1,3 @@
-import './tracing';
-
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Request } from 'express';
 

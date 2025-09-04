@@ -38,7 +38,7 @@ processors:
 
 exporters:
   otlp/jaeger:
-    endpoint: cg-backend-jaeger-1:4317
+    endpoint: jaeger:4317
     tls:
       insecure: true
 
@@ -48,7 +48,9 @@ exporters:
       environment: testing
 
   debug:
-    verbosity: basic
+    verbosity: detailed
+    sampling_initial: 5
+    sampling_thereafter: 1000
 
 service:
   pipelines:

@@ -1,7 +1,8 @@
+import { metrics } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
-import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { HostMetrics } from '@opentelemetry/host-metrics';
 import { NestInstrumentation } from '@opentelemetry/instrumentation-nestjs-core';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
@@ -108,10 +109,18 @@ const otelSdk = new NodeSDK({
 // Start the SDK
 otelSdk.start();
 
+// Initialize host metrics for system monitoring using the global MeterProvider
+const hostMetrics = new HostMetrics({
+  meterProvider: metrics.getMeterProvider(),
+});
+hostMetrics.start();
+
 console.log('OpenTelemetry SDK started successfully');
+console.log('Host metrics collection started');
 
 // Graceful shutdown
 async function gracefulShutdown() {
+  console.log('Shutting down OpenTelemetry...');
   return await otelSdk
     .shutdown()
     .then(() => console.log('OpenTelemetry terminated'))
