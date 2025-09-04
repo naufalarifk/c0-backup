@@ -11,7 +11,7 @@ x-backend-env: &backend-env
     exp://192.168.0.105:8081,\
     ${PROTOCOL:-https}://${API_DOMAIN:-cg-api.fh47.my.id}"
   BETTER_AUTH_URL: ${PROTOCOL:-https}://${API_DOMAIN:-cg-api.fh47.my.id}
-  DATABASE_URL: postgresql://postgres:postgres@postgres:5432/cryptogadai
+  DATABSE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/cryptogadai}
   REDIS_HOST: redis
   REDIS_PORT: 6379
   MAIL_HOST: mailpit
@@ -19,12 +19,15 @@ x-backend-env: &backend-env
   GOOGLE_CLIENT_ID: 442461506062-rgpbj94u778lpcfv5hg5rue6fpveddt6.apps.googleusercontent.com
   # OpenTelemetry Configuration
   OTEL_SERVICE_NAME: cryptogadai-backend
+  OTEL_SERVICE_VERSION: 1.0.0
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
   OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
   OTEL_TRACES_EXPORTER: otlp
   OTEL_METRICS_EXPORTER: otlp
   OTEL_LOGS_EXPORTER: otlp
-  OTEL_NODE_RESOURCE_DETECTORS: env,host,os,process
+  OTEL_NODE_RESOURCE_DETECTORS: env,host,os,process,container
+  # OTEL_PROMETHEUS_PORT: 9464  # Removed: Using OTel Collector instead
+  OTEL_METRIC_EXPORT_INTERVAL: 30000
 
 x-backend-base: &backend-base
   image: cg/backend

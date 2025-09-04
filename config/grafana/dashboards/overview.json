@@ -12,7 +12,7 @@
       }
     ]
   },
-  "description": "Overview dashboard for CryptoGadAI Backend observability stack",
+  "description": "Overview dashboard for CryptoGadai Backend observability stack",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "gnetId": null,
@@ -567,7 +567,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "CryptoGadAI Backend Overview",
+  "title": "CryptoGadai Backend Overview",
   "uid": "cryptogadai-overview",
   "version": 1
 }

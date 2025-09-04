@@ -38,7 +38,7 @@ processors:
 
 exporters:
   otlp/jaeger:
-    endpoint: jaeger:4317
+    endpoint: cg-backend-jaeger-1:4317
     tls:
       insecure: true
 
