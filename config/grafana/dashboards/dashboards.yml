@@ -1,0 +1,24 @@
+apiVersion: 1
+
+providers:
+  # Dashboard provider for local JSON files
+  - name: 'default'
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+
+  # Dashboard provider for OpenTelemetry dashboards
+  - name: 'opentelemetry'
+    orgId: 1
+    folder: 'OpenTelemetry'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/opentelemetry
