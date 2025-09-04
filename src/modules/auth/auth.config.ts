@@ -166,21 +166,10 @@ export class AuthConfig {
       sendOnSignUp: true,
       autoSignInAfterVerification: true,
       sendVerificationEmail: async ({ user, url }) => {
-        const isDev = this.configService.isDevelopment;
-        const parsed = new URL(url);
-
-        const callbackURL = parsed.searchParams.get('callbackURL');
-        const token = parsed.searchParams.get('token');
-
-        const deepLink = isDev
-          ? `${this.configService.appConfig.expoUrl}${callbackURL}?token=${token}`
-          : `${this.configService.appConfig.scheme}${callbackURL}?token=${token}`;
-
         const html = verificationEmail({
           url,
           userName: user.email,
           companyName: this.configService.appConfig.name,
-          deepLink,
         });
 
         const emailConfirmTitle = 'Verify your email address';
@@ -191,15 +180,15 @@ export class AuthConfig {
           html,
         });
 
-        // const res = await this.emailService.sendEmail({
-        //   to: user.email,
-        //   subject: emailConfirmTitle,
-        //   html,
-        // });
+        //   // const res = await this.emailService.sendEmail({
+        //   //   to: user.email,
+        //   //   subject: emailConfirmTitle,
+        //   //   html,
+        //   // });
 
-        // if (res.error) {
-        //   this.logger.error('Failed to send verification email :>> ', res.error);
-        // }
+        //   // if (res.error) {
+        //   //   this.logger.error('Failed to send verification email :>> ', res.error);
+        //   // }
       },
     };
   }

@@ -1,6 +1,7 @@
 x-backend-env: &backend-env
   PORT: 3100
   APP_SCHEME: crypto-gadai
+  APP_EXPO_DEV_URL: exp://192.168.0.111:8081
   ALLOWED_ORIGINS: "\
     http://localhost:8081,\
     http://localhost:3000,\

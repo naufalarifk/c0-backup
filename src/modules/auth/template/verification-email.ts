@@ -1,10 +1,5 @@
-export const verificationEmail = (data: {
-  url: string;
-  deepLink: string;
-  userName: string;
-  companyName: string;
-}) => {
-  const { url, userName, companyName, deepLink } = data;
+export const verificationEmail = (data: { url: string; userName: string; companyName: string }) => {
+  const { url, userName, companyName } = data;
 
   return `
 <!DOCTYPE html>
@@ -172,19 +167,14 @@ export const verificationEmail = (data: {
             </div>
 
             <div class="verification-button">
-                <a href="${deepLink}" class="btn">
+                <a href="${url}" class="btn">
                     Verify Email Address
                 </a>
             </div>
 
             <div class="alternative-link">
-                <p><strong>Having trouble with the buttons?</strong> Copy and paste one of these links into your browser:</p>
-
-                <p style="margin-top: 15px; font-weight: 600; color: #475569;">For Web Browser:</p>
-                <code><a href="${url}">${url}</a></code>
-
-                <p style="margin-top: 15px; font-weight: 600; color: #475569;">For Mobile App:</p>
-                <code><a href="${deepLink}">${deepLink}</a></code>
+                <p><strong>Button not working?</strong> Copy and paste this link into your browser:</p>
+                <code><a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a></code>
             </div>
 
             <div class="security-note">
