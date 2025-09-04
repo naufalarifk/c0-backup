@@ -23,13 +23,20 @@ export class PgRedisDbRepository extends DbRepository {
   }
 
   async rawQuery(queryText: string, params: unknown[]): Promise<Array<unknown>> {
-    const normalizedParams = params.map(function (param) {
-      if (param === undefined) return null;
-      return param;
-    });
-    console.debug('SQL', queryText, normalizedParams);
-    const result = await this.poolClient.query(queryText, normalizedParams);
-    return result.rows;
+    try {
+      const normalizedParams = params.map(function (param) {
+        if (param === undefined) return null;
+        return param;
+      });
+      console.debug('SQL QUERY', queryText, normalizedParams);
+      const result = await this.poolClient.query(queryText, normalizedParams);
+      const rows = Array.isArray(result?.rows) ? result.rows : [result.rows];
+      console.debug('SQL RESULT', rows);
+      return rows;
+    } catch (error) {
+      console.error('SQL ERROR', error);
+      throw error;
+    }
   }
 
   async commitTransaction(): Promise<void> {
@@ -96,13 +103,20 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
   }
 
   async rawQuery(queryText: string, params: unknown[]): Promise<Array<unknown>> {
-    const normalizedParams = params.map(function (param) {
-      if (param === undefined) return null;
-      return param;
-    });
-    console.debug('SQL', queryText, normalizedParams);
-    const result = await this.#pool.query(queryText, normalizedParams);
-    return result.rows;
+    try {
+      const normalizedParams = params.map(function (param) {
+        if (param === undefined) return null;
+        return param;
+      });
+      console.debug('SQL QUERY', queryText, normalizedParams);
+      const result = await this.#pool.query(queryText, normalizedParams);
+      const rows = Array.isArray(result?.rows) ? result.rows : [result.rows];
+      console.debug('SQL RESULT', rows);
+      return rows;
+    } catch (error) {
+      console.error('SQL ERROR', error);
+      throw error;
+    }
   }
 
   async beginTransaction(): Promise<PgRedisDbRepository> {

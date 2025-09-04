@@ -1,4 +1,4 @@
-/** biome-ignore-all lint/suspicious/noExplicitAny: <explanation> */
+/** biome-ignore-all lint/suspicious/noExplicitAny: integration */
 import type { AdapterDebugLogs } from 'better-auth/adapters';
 
 import { BetterAuthError } from 'better-auth';
@@ -23,7 +23,8 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
       debugLogs,
     },
     adapter: () => ({
-      create({ model, data }) {
+      create({ model, data, ...others }) {
+        console.debug('AuthAdapter:create', { model, data, ...others });
         if (model === 'user') {
           return userRepo.betterAuthCreateUser(data);
         } else if (model === 'session') {
@@ -38,7 +39,8 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
           );
         }
       },
-      update({ model, update, where }) {
+      update({ model, update, where, ...others }) {
+        console.debug('AuthAdapter:update', { model, update, where, ...others });
         if (model === 'user') {
           // Field mapping handled in repository methods
           return userRepo.betterAuthUpdateUser(where, update);
@@ -50,7 +52,8 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
           throw new BetterAuthError(`Unsupported updating data with model: ${model}`);
         }
       },
-      updateMany({ model, update, where }) {
+      updateMany({ model, update, where, ...others }) {
+        console.debug('AuthAdapter:updateMany', { model, update, where, ...others });
         if (model === 'user') {
           // Field mapping handled in repository methods
           return userRepo.betterAuthUpdateManyUsers(where, update);
@@ -63,7 +66,8 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
           throw new BetterAuthError(`Unsupported updateMany for model: ${model}`);
         }
       },
-      async delete({ model, where }) {
+      async delete({ model, where, ...others }) {
+        console.debug('AuthAdapter:delete', { model, where, ...others });
         if (model === 'user') {
           // Field mapping handled in repository methods
           const deleted = await userRepo.betterAuthDeleteUser(where);
@@ -76,7 +80,8 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
           throw new BetterAuthError(`Unsupported deleting data with model: ${model}`);
         }
       },
-      deleteMany({ model, where }) {
+      deleteMany({ model, where, ...others }) {
+        console.debug('AuthAdapter:deleteMany', { model, where, ...others });
         if (model === 'user') {
           // Field mapping handled in repository methods
           return userRepo.betterAuthDeleteManyUsers(where);
@@ -88,7 +93,8 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
           throw new BetterAuthError(`Unsupported deleteMany for model: ${model}`);
         }
       },
-      async findOne({ model, where, select }) {
+      async findOne({ model, where, select, ...others }) {
+        console.debug('AuthAdapter:findOne', { model, where, select, ...others });
         if (model === 'user') {
           // Field mapping handled in repository methods
           const user = await userRepo.betterAuthFindOneUser(where);
@@ -117,7 +123,8 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
           throw new BetterAuthError(`Unsupported findOne for model: ${model}`);
         }
       },
-      findMany({ model, where, limit, offset, sortBy }) {
+      findMany({ model, where, limit, offset, sortBy, ...others }) {
+        console.debug('AuthAdapter:findMany', { model, where, limit, offset, sortBy, ...others });
         if (model === 'user') {
           // Field mapping handled in repository methods
           return userRepo.betterAuthFindManyUsers(where, limit, offset, sortBy) as any;
@@ -129,7 +136,8 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
           throw new BetterAuthError(`Unsupported findMany for model: ${model}`);
         }
       },
-      async count({ model, where }) {
+      async count({ model, where, ...others }) {
+        console.debug('AuthAdapter:count', { model, where, ...others });
         if (model === 'user') {
           // Field mapping handled in repository methods
           const results = await userRepo.betterAuthFindManyUsers(where);
