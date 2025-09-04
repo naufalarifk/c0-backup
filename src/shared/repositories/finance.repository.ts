@@ -898,8 +898,8 @@ export abstract class FinanceRepository extends UserRepository {
       const createdUsers: Array<{ id: string; email: string; name: string; role: string }> = [];
       for (const user of params.users) {
         const result = await this.sql`
-          INSERT INTO users (email, email_verified, role, user_type, name)
-          VALUES (${user.email}, true, ${user.role ?? 'User'}, 'Individual', ${user.name})
+          INSERT INTO users (email, email_verified_date, role, user_type, name)
+          VALUES (${user.email}, ${new Date()}, ${user.role ?? 'User'}, 'Individual', ${user.name})
           RETURNING id, email, name, role
         `;
         const row = result[0] as { id: number; email: string; name: string; role: string };

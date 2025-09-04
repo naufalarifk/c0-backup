@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS users (
 
   -- Authentication credentials
   email TEXT UNIQUE NOT NULL,
-  email_verified BOOLEAN DEFAULT false,
   email_verified_date TIMESTAMP,
   created_date TIMESTAMP DEFAULT NOW(),
   updated_date TIMESTAMP DEFAULT NOW(),
@@ -15,7 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   google_id TEXT UNIQUE,
 
   -- Two-factor authentication fields (for 2FA plugin)
-  two_factor_enabled BOOLEAN DEFAULT false,
+  two_factor_enabled_date TIMESTAMP DEFAULT NULL,
   two_factor_secret TEXT,
   two_factor_backup_codes TEXT[],
 
@@ -38,7 +37,7 @@ CREATE TABLE IF NOT EXISTS users (
 
   CHECK (
     email IS NOT NULL AND
-    (two_factor_enabled = false OR (two_factor_secret IS NOT NULL AND two_factor_backup_codes IS NOT NULL))
+    (two_factor_enabled_date IS NULL OR (two_factor_secret IS NOT NULL AND two_factor_backup_codes IS NOT NULL))
   )
 );
 
@@ -84,6 +83,6 @@ CREATE TABLE IF NOT EXISTS auth_verifications (
 );
 
 -- this assume the users id will be 1. This is important because we use id 1 to indicate the system user
-INSERT INTO users (email, email_verified, two_factor_enabled, two_factor_secret, two_factor_backup_codes, role, name, profile_picture)
-VALUES ('system@platform', true, true, 'invalid_secret_is_imposible_to_verify', ARRAY['invalid_code_is_imposible_to_verify'], 'System', 'System Platform', '')
+INSERT INTO users (email, two_factor_enabled_date, two_factor_secret, two_factor_backup_codes, role, name, profile_picture)
+VALUES ('system@platform', NOW(), 'invalid_secret_is_imposible_to_verify', ARRAY['invalid_code_is_imposible_to_verify'], 'System', 'System Platform', '')
 ON CONFLICT (email) DO NOTHING;

@@ -24,11 +24,8 @@ export class PgRedisDbRepository extends DbRepository {
 
   async rawQuery(queryText: string, params: unknown[]): Promise<Array<unknown>> {
     const normalizedParams = params.map(function (param) {
-      if (typeof param === 'boolean') {
-        return param ? 1 : 0;
-      } else {
-        return param;
-      }
+      if (param === undefined) return null;
+      return param;
     });
     console.debug('SQL', queryText, normalizedParams);
     const result = await this.poolClient.query(queryText, normalizedParams);
@@ -100,11 +97,8 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
 
   async rawQuery(queryText: string, params: unknown[]): Promise<Array<unknown>> {
     const normalizedParams = params.map(function (param) {
-      if (typeof param === 'boolean') {
-        return param ? 1 : 0;
-      } else {
-        return param;
-      }
+      if (param === undefined) return null;
+      return param;
     });
     console.debug('SQL', queryText, normalizedParams);
     const result = await this.#pool.query(queryText, normalizedParams);
