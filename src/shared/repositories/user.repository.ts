@@ -1,5 +1,6 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: any */
 /** biome-ignore-all lint/correctness/noUnusedVariables: any */
+
 import { v7 } from 'uuid';
 
 import {
@@ -51,6 +52,7 @@ import {
   assertPropNullableStringOrNumber,
   assertPropString,
   assertPropStringOrNumber,
+  isDefined,
   setAssertPropValue,
 } from '../utils/assertions';
 import { BaseRepository } from './base.repository';
@@ -90,9 +92,9 @@ export abstract class UserRepository extends BaseRepository {
       const updatedAtUtc = new Date(updatedAt ?? Date.now());
 
       const rows = await tx.sql`
-        INSERT INTO users (name, profile_picture, email, email_verified, created_date, updated_date)
-        VALUES (${name}, ${image}, ${emailValue}, ${emailVerified}, ${createdAtUtc}, ${updatedAtUtc})
-        RETURNING id, name, profile_picture as "image", email, email_verified as "emailVerified", created_date as "createdAt", updated_date as "updatedAt";
+        INSERT INTO users (name, profile_picture, email, created_date, updated_date)
+        VALUES (${name}, ${image}, ${emailValue}, ${createdAtUtc}, ${updatedAtUtc})
+        RETURNING id, name, profile_picture as "image", email, created_date as "createdAt", updated_date as "updatedAt";
       `;
 
       const user = rows[0];
@@ -129,14 +131,14 @@ export abstract class UserRepository extends BaseRepository {
     let rows: Array<unknown> = [];
     if (idCondition) {
       rows = await this.sql`
-        SELECT id, name, profile_picture as "image", email, email_verified as "emailVerified",
+        SELECT id, name, profile_picture as "image", email, email_verified_date as "emailVerifiedDate",
                created_date as "createdAt", updated_date as "updatedAt"
         FROM users
         WHERE id = ${idCondition.value}
       `;
     } else if (emailCondition) {
       rows = await this.sql`
-        SELECT id, name, profile_picture as "image", email, email_verified as "emailVerified",
+        SELECT id, name, profile_picture as "image", email, email_verified_date as "emailVerifiedDate",
                created_date as "createdAt", updated_date as "updatedAt"
         FROM users
         WHERE email = ${emailCondition.value}
@@ -159,6 +161,9 @@ export abstract class UserRepository extends BaseRepository {
           setAssertPropValue(user, 'email_address', user.email);
         }
       }
+      if ('emailVerifiedDate' in user) {
+        setAssertPropValue(user, 'emailVerified', !!user.emailVerifiedDate);
+      }
       return user;
     }
     return null;
@@ -175,7 +180,7 @@ export abstract class UserRepository extends BaseRepository {
     let users: Array<unknown> = [];
     if (!where || where.length === 0) {
       users = await this.sql`
-        SELECT id, name, profile_picture as "image", email, email_verified as "emailVerified",
+        SELECT id, name, profile_picture as "image", email, email_verified_date as "emailVerifiedDate",
                created_date as "createdAt", updated_date as "updatedAt"
         FROM users
         ORDER BY created_date DESC
@@ -190,7 +195,7 @@ export abstract class UserRepository extends BaseRepository {
       if (idCondition && idCondition.operator === 'in') {
         const ids = idCondition.value;
         users = await this.sql`
-          SELECT id, name, profile_picture as "image", email, email_verified as "emailVerified",
+          SELECT id, name, profile_picture as "image", email, email_verified_date as "emailVerifiedDate",
                  created_date as "createdAt", updated_date as "updatedAt"
           FROM users
           WHERE id = ANY(${ids})
@@ -202,7 +207,7 @@ export abstract class UserRepository extends BaseRepository {
         if (emailCondition.operator === 'contains') {
           const searchTerm = `%${emailCondition.value}%`;
           users = await this.sql`
-            SELECT id, name, profile_picture as "image", email, email_verified as "emailVerified",
+            SELECT id, name, profile_picture as "image", email, email_verified_date as "emailVerifiedDate",
                    created_date as "createdAt", updated_date as "updatedAt"
             FROM users
             WHERE email LIKE ${searchTerm}
@@ -212,7 +217,7 @@ export abstract class UserRepository extends BaseRepository {
           `;
         } else {
           users = await this.sql`
-            SELECT id, name, profile_picture as "image", email, email_verified as "emailVerified",
+            SELECT id, name, profile_picture as "image", email, email_verified_date as "emailVerifiedDate",
                    created_date as "createdAt", updated_date as "updatedAt"
             FROM users
             WHERE email = ${emailCondition.value}
@@ -225,7 +230,7 @@ export abstract class UserRepository extends BaseRepository {
         if (nameCondition.operator === 'contains') {
           const searchTerm = `%${nameCondition.value}%`;
           users = await this.sql`
-            SELECT id, name, profile_picture as "image", email, email_verified as "emailVerified",
+            SELECT id, name, profile_picture as "image", email, email_verified_date as "emailVerifiedDate",
                    created_date as "createdAt", updated_date as "updatedAt"
             FROM users
             WHERE name LIKE ${searchTerm}
@@ -235,7 +240,7 @@ export abstract class UserRepository extends BaseRepository {
           `;
         } else {
           users = await this.sql`
-            SELECT id, name, profile_picture as "image", email, email_verified as "emailVerified",
+            SELECT id, name, profile_picture as "image", email, email_verified_date as "emailVerifiedDate",
                    created_date as "createdAt", updated_date as "updatedAt"
             FROM users
             WHERE name = ${nameCondition.value}
@@ -246,7 +251,7 @@ export abstract class UserRepository extends BaseRepository {
         }
       } else {
         users = await this.sql`
-          SELECT id, name, profile_picture as "image", email, email_verified as "emailVerified",
+          SELECT id, name, profile_picture as "image", email, email_verified_date as "emailVerifiedDate",
                  created_date as "createdAt", updated_date as "updatedAt"
           FROM users
           ORDER BY created_date DESC
@@ -258,10 +263,15 @@ export abstract class UserRepository extends BaseRepository {
 
     // Add email_address field if original query used email_address
     if (hasEmailAddressField) {
-      users.forEach(user => {
+      users.forEach(function (user) {
         assertDefined(user);
         assertPropDefined(user, 'email');
         setAssertPropValue(user, 'email_address', user.email);
+        setAssertPropValue(
+          user,
+          'emailVerified',
+          'emailVerifiedDate' in user && !!user.emailVerifiedDate,
+        );
       });
     }
 
@@ -286,24 +296,34 @@ export abstract class UserRepository extends BaseRepository {
         UPDATE users
         SET name = COALESCE(${name}, name),
             email = COALESCE(${email}, email),
-            email_verified = COALESCE(${emailVerified}, 0),
             email_verified_date = CASE
-              WHEN ${emailVerified} = 1 AND email_verified_date IS NULL THEN ${updatedAtUtc}
-              WHEN ${emailVerified} = 0 THEN NULL
+              WHEN ${emailVerified ? 1 : 0} = 1 AND email_verified_date IS NULL THEN ${updatedAtUtc}
+              WHEN ${emailVerified ? 1 : 0} = 0 THEN NULL
               ELSE email_verified_date
             END,
             profile_picture = COALESCE(${image}, profile_picture),
             created_date = COALESCE(${createdAtUtc}, created_date),
             updated_date = COALESCE(${updatedAtUtc}, updated_date)
         WHERE id = ${where.find(w => w.field === 'id')?.value}
-        RETURNING id, name, profile_picture as "image", email, email_verified as "emailVerified",
+        RETURNING id, name, profile_picture as "image", email, email_verified_date as "emailVerifiedDate",
                  created_date as "createdAt", updated_date as "updatedAt"
       `;
 
-      const returnValue = rows.length > 0 ? rows[0] : null;
+      assertArrayOf(rows, function (row) {
+        assertDefined(row);
+        setAssertPropValue(
+          row,
+          'emailVerified',
+          'emailVerifiedDate' in row && !!row.emailVerifiedDate,
+        );
+        return row;
+      });
+
+      const row = rows.length > 0 ? rows[0] : null;
 
       await tx.commitTransaction();
-      return returnValue;
+
+      return row;
     } catch (error) {
       console.error('UserRepository', error);
       await tx.rollbackTransaction();
@@ -332,15 +352,28 @@ export abstract class UserRepository extends BaseRepository {
           UPDATE users
           SET name = COALESCE(${name}, name),
               email = COALESCE(${email}, email),
-              email_verified = COALESCE(${emailVerified}, email_verified),
               profile_picture = COALESCE(${image}, profile_picture),
+              email_verified_date = CASE
+                WHEN ${emailVerified ? 1 : 0} = 1 AND email_verified_date IS NULL THEN ${updatedAtUtc}
+                WHEN ${emailVerified ? 1 : 0} = 0 THEN NULL
+                ELSE email_verified_date
+              END,
               created_date = COALESCE(${createdAtUtc}, created_date),
               updated_date = COALESCE(${updatedAtUtc}, updated_date)
           WHERE id = ${idCondition.value}
-          RETURNING id, name, profile_picture as "image", email, email_verified as "emailVerified",
+          RETURNING id, name, profile_picture as "image", email, email_verified_date as "emailVerifiedDate",
                    created_date as "createdAt", updated_date as "updatedAt"
         `;
         await tx.commitTransaction();
+        assertArrayOf(rows, function (row) {
+          assertDefined(row);
+          setAssertPropValue(
+            row,
+            'emailVerified',
+            'emailVerifiedDate' in row && !!row.emailVerifiedDate,
+          );
+          return row;
+        });
         return rows;
       }
 
@@ -366,14 +399,20 @@ export abstract class UserRepository extends BaseRepository {
         const rows = await tx.sql`
           DELETE FROM users
           WHERE id = ${idCondition.value}
-          RETURNING id, name, profile_picture as "image", email, email_verified as "emailVerified",
+          RETURNING id, name, profile_picture as "image", email, email_verified_date as "emailVerifiedDate",
                    created_date as "createdAt", updated_date as "updatedAt"
         `;
 
-        const returnValue = rows.length > 0 ? rows[0] : null;
+        const row = rows.length > 0 ? rows[0] : null;
+        assertDefined(row);
+        setAssertPropValue(
+          row,
+          'emailVerified',
+          'emailVerifiedDate' in row && !!row.emailVerifiedDate,
+        );
 
         await tx.commitTransaction();
-        return returnValue;
+        return row;
       }
 
       await tx.commitTransaction();
@@ -398,10 +437,19 @@ export abstract class UserRepository extends BaseRepository {
         const rows = await tx.sql`
           DELETE FROM users
           WHERE id = ${idCondition.value}
-          RETURNING id, name, profile_picture as "image", email, email_verified as "emailVerified",
+          RETURNING id, name, profile_picture as "image", email, email_verified_date as "emailVerifiedDate",
                    created_date as "createdAt", updated_date as "updatedAt"
         `;
         await tx.commitTransaction();
+        assertArrayOf(rows, function (row) {
+          assertDefined(row);
+          setAssertPropValue(
+            row,
+            'emailVerified',
+            'emailVerifiedDate' in row && !!row.emailVerifiedDate,
+          );
+          return row;
+        });
         return rows;
       }
 
@@ -1023,11 +1071,15 @@ export abstract class UserRepository extends BaseRepository {
         RETURNING id, name, profile_picture, updated_date;
       `;
 
+      assertArrayOf(rows, function (row) {
+        assertDefined(row, 'User not found or update failed');
+        assertPropStringOrNumber(row, 'id');
+        assertPropString(row, 'name');
+        assertPropNullableString(row, 'profile_picture');
+        return row;
+      });
+
       const user = rows[0];
-      assertDefined(user, 'User not found or update failed');
-      assertPropStringOrNumber(user, 'id');
-      assertPropString(user, 'name');
-      assertPropNullableString(user, 'profile_picture');
 
       const returnValue: UserUpdatesProfileResult = {
         id: String(user.id),
@@ -1053,8 +1105,8 @@ export abstract class UserRepository extends BaseRepository {
     const { userId } = params;
 
     const rows = await this.sql`
-      SELECT id, name, email, email_verified, profile_picture, role,
-             two_factor_enabled,
+      SELECT id, name, email, email_verified_date, profile_picture, role,
+             two_factor_enabled_date,
              created_date, updated_date,
              user_type, user_type_selected_date,
              institution_user_id, institution_role,
@@ -1081,7 +1133,7 @@ export abstract class UserRepository extends BaseRepository {
       id: String(user.id),
       name: 'name' in user && typeof user.name === 'string' ? user.name : undefined,
       email: 'email' in user && typeof user.email === 'string' ? user.email : undefined,
-      emailVerified: 'email_verified' in user ? !!user.email_verified : false,
+      emailVerified: 'email_verified_date' in user ? !!user.email_verified_date : false,
       profilePicture:
         'profile_picture' in user && typeof user.profile_picture === 'string'
           ? user.profile_picture
@@ -1090,7 +1142,7 @@ export abstract class UserRepository extends BaseRepository {
         'role' in user && typeof user.role === 'string'
           ? (user.role as 'System' | 'Admin' | 'User')
           : 'User',
-      twoFactorEnabled: 'two_factor_enabled' in user ? !!user.two_factor_enabled : false,
+      twoFactorEnabled: 'two_factor_enabled_date' in user ? !!user.two_factor_enabled_date : false,
       createdAt:
         'created_date' in user && user.created_date instanceof Date ? user.created_date : undefined,
       updatedAt:
@@ -1651,11 +1703,15 @@ export abstract class UserRepository extends BaseRepository {
         throw new Error('Failed to add user to institution');
       }
 
+      assertArrayOf(rows, function (row) {
+        assertDefined(row, 'Failed to add user to institution');
+        assertPropStringOrNumber(row, 'id');
+        assertPropStringOrNumber(row, 'institution_user_id');
+        assertPropString(row, 'institution_role');
+        return row;
+      });
+
       const row = Array.isArray(rows) ? rows[0] : rows;
-      assertDefined(row, 'Failed to add user to institution');
-      assertPropStringOrNumber(row, 'id');
-      assertPropStringOrNumber(row, 'institution_user_id');
-      assertPropString(row, 'institution_role');
 
       await tx.commitTransaction();
 
@@ -1685,6 +1741,12 @@ export abstract class UserRepository extends BaseRepository {
         RETURNING id;
       `;
 
+      assertArrayOf(rows, function (row) {
+        assertDefined(row, 'Failed to remove user from institution');
+        assertPropStringOrNumber(row, 'id');
+        return row;
+      });
+
       if (rows.length === 0) {
         const returnValue = { userId, removed: false };
         await tx.commitTransaction();
@@ -1692,8 +1754,6 @@ export abstract class UserRepository extends BaseRepository {
       }
 
       const row = rows[0];
-      assertDefined(row, 'Failed to remove user from institution');
-      assertPropStringOrNumber(row, 'id');
 
       await tx.commitTransaction();
 

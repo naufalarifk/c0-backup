@@ -18,11 +18,16 @@ export function isPropDefined(
   );
 }
 
+export function isDefined(value: unknown): value is NonNullable<typeof value> {
+  return value !== undefined && value !== null;
+}
+
 export function assertDefined(
   value: unknown,
   message?: string,
 ): asserts value is NonNullable<typeof value> {
-  ok(value !== undefined && value !== null, message || 'Value is not defined');
+  if (isDefined(value)) return;
+  throw new Error(message || 'Value is not defined');
 }
 
 export function assertArray(value: unknown, message?: string): asserts value is unknown[] {
