@@ -1,6 +1,7 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: any */
 /** biome-ignore-all lint/correctness/noUnusedVariables: any */
 
+import { CleanedWhere } from 'better-auth/adapters';
 import { v7 } from 'uuid';
 
 import {
@@ -278,7 +279,7 @@ export abstract class UserRepository extends BaseRepository {
     return users;
   }
 
-  async betterAuthUpdateUser(where: any[], update: any): Promise<any> {
+  async betterAuthUpdateUser(where: CleanedWhere[], update: any): Promise<any> {
     const tx = await this.beginTransaction();
     try {
       if (!Array.isArray(where) || where.length === 0) {

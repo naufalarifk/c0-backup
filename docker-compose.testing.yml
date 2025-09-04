@@ -7,8 +7,8 @@ x-backend-env: &backend-env
     http://localhost:3000,\
     crypto-gadai://*,\
     exp://192.168.0.101:8081,\
+    exp://192.168.0.103:8081,\
     exp://192.168.0.105:8081,\
-    exp://192.168.160.151:8081,\
     ${PROTOCOL:-https}://${API_DOMAIN:-cg-api.fh47.my.id}"
   BETTER_AUTH_URL: ${PROTOCOL:-https}://${API_DOMAIN:-cg-api.fh47.my.id}
   DATABASE_URL: postgresql://postgres:postgres@postgres:5432/cryptogadai
