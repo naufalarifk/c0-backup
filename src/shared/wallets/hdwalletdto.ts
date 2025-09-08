@@ -225,6 +225,16 @@ export class SignBitcoinTransactionDto {
   feeRate?: number;
 }
 
+export class InstanceClassDto {
+  @ApiProperty({
+    description: 'The derived path for the instance',
+    example: 'btc',
+  })
+  @IsNotEmpty({ message: 'Derived path is required' })
+  @IsString({ message: 'Derived path must be either "btc", "eth", or "sol"' })
+  derivedPath: 'btc' | 'eth' | 'sol';
+}
+
 export class SignEthereumTransactionDto {
   @ApiProperty({
     description: 'Recipient address',

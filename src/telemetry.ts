@@ -1,10 +1,13 @@
 import { metrics } from '@opentelemetry/api';
+import * as logsAPI from '@opentelemetry/api-logs';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { HostMetrics } from '@opentelemetry/host-metrics';
 import { NestInstrumentation } from '@opentelemetry/instrumentation-nestjs-core';
 import { resourceFromAttributes } from '@opentelemetry/resources';
+import { BatchLogRecordProcessor, LoggerProvider } from '@opentelemetry/sdk-logs';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import {
@@ -15,16 +18,33 @@ import {
   SEMRESATTRS_SERVICE_NAMESPACE,
 } from '@opentelemetry/semantic-conventions';
 
+// Configure resource attributes (shared across all telemetry signals)
+const resource = resourceFromAttributes({
+  [ATTR_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME || 'cryptogadai-backend',
+  [ATTR_SERVICE_VERSION]: process.env.OTEL_SERVICE_VERSION || '1.0.0',
+  [SEMRESATTRS_SERVICE_INSTANCE_ID]: process.env.HOSTNAME || process.pid.toString(),
+  [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: process.env.NODE_ENV || 'development',
+  [SEMRESATTRS_SERVICE_NAMESPACE]: 'cryptogadai',
+});
+
+// Configure log exporter and processor
+const logExporter = new OTLPLogExporter({
+  url:
+    process.env.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT ||
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT ||
+    'http://localhost:4318/v1/logs',
+  headers: process.env.OTEL_EXPORTER_OTLP_HEADERS
+    ? JSON.parse(process.env.OTEL_EXPORTER_OTLP_HEADERS)
+    : {},
+});
+
+// Create and configure the log record processor
+const logRecordProcessor = new BatchLogRecordProcessor(logExporter);
+
 // Initialize OpenTelemetry SDK
 const otelSdk = new NodeSDK({
-  // Configure resource attributes
-  resource: resourceFromAttributes({
-    [ATTR_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME || 'cryptogadai-backend',
-    [ATTR_SERVICE_VERSION]: process.env.OTEL_SERVICE_VERSION || '1.0.0',
-    [SEMRESATTRS_SERVICE_INSTANCE_ID]: process.env.HOSTNAME || process.pid.toString(),
-    [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: process.env.NODE_ENV || 'development',
-    [SEMRESATTRS_SERVICE_NAMESPACE]: 'cryptogadai',
-  }),
+  // Use shared resource
+  resource,
 
   // Configure trace exporter
   traceExporter: new OTLPTraceExporter({
@@ -106,21 +126,102 @@ const otelSdk = new NodeSDK({
   ],
 });
 
-// Start the SDK
-otelSdk.start();
-
 // Initialize host metrics for system monitoring using the global MeterProvider
 const hostMetrics = new HostMetrics({
   meterProvider: metrics.getMeterProvider(),
 });
 hostMetrics.start();
 
+otelSdk.start();
+
+const loggerProvider = new LoggerProvider({
+  resource,
+  processors: [logRecordProcessor],
+});
+
+logsAPI.logs.setGlobalLoggerProvider(loggerProvider);
+
+const logger = logsAPI.logs.getLogger('nestjs-console', '1.0.0');
+
+const originalConsole = {
+  log: console.log,
+  error: console.error,
+  warn: console.warn,
+  info: console.info,
+  debug: console.debug,
+};
+
+function createLogRecord(level: string, message: string, ...args: unknown[]) {
+  const timestamp = Date.now();
+  const fullMessage = args.length > 0 ? `${message} ${args.join(' ')}` : message;
+
+  logger.emit({
+    timestamp,
+    severityNumber: getSeverityNumber(level),
+    severityText: level.toUpperCase(),
+    body: fullMessage,
+    attributes: {
+      source: 'nestjs-console',
+      'log.level': level,
+      'service.name': process.env.OTEL_SERVICE_NAME || 'cryptogadai-backend',
+      'service.version': process.env.OTEL_SERVICE_VERSION || '1.0.0',
+    },
+  });
+}
+
+function getSeverityNumber(level: string): number {
+  switch (level) {
+    case 'debug':
+      return 5; // DEBUG
+    case 'info':
+      return 9; // INFO
+    case 'warn':
+      return 13; // WARN
+    case 'error':
+      return 17; // ERROR
+    default:
+      return 9; // INFO as default
+  }
+}
+
+console.log = function (message?: unknown, ...args: unknown[]) {
+  const msg = String(message || '');
+  createLogRecord('info', msg, ...args);
+  originalConsole.log(message, ...args);
+};
+
+console.error = function (message?: unknown, ...args: unknown[]) {
+  const msg = String(message || '');
+  createLogRecord('error', msg, ...args);
+  originalConsole.error(message, ...args);
+};
+
+console.warn = function (message?: unknown, ...args: unknown[]) {
+  const msg = String(message || '');
+  createLogRecord('warn', msg, ...args);
+  originalConsole.warn(message, ...args);
+};
+
+console.info = function (message?: unknown, ...args: unknown[]) {
+  const msg = String(message || '');
+  createLogRecord('info', msg, ...args);
+  originalConsole.info(message, ...args);
+};
+
+console.debug = function (message?: unknown, ...args: unknown[]) {
+  const msg = String(message || '');
+  createLogRecord('debug', msg, ...args);
+  originalConsole.debug(message, ...args);
+};
+
 console.log('OpenTelemetry SDK started successfully');
 console.log('Host metrics collection started');
+console.log('Console logging instrumentation initialized');
 
 // Graceful shutdown
 async function gracefulShutdown() {
   console.log('Shutting down OpenTelemetry...');
+
   return await otelSdk
     .shutdown()
     .then(() => console.log('OpenTelemetry terminated'))

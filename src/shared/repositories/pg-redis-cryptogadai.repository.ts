@@ -40,11 +40,21 @@ export class PgRedisDbRepository extends DbRepository {
   }
 
   async commitTransaction(): Promise<void> {
-    await this.poolClient.query('COMMIT;');
+    try {
+      await this.poolClient.query('COMMIT;');
+    } finally {
+      // CRITICAL: Release client back to pool after committing
+      this.poolClient.release();
+    }
   }
 
   async rollbackTransaction(): Promise<void> {
-    await this.poolClient.query('ROLLBACK;');
+    try {
+      await this.poolClient.query('ROLLBACK;');
+    } finally {
+      // CRITICAL: Release client back to pool after rollback
+      this.poolClient.release();
+    }
   }
 }
 
@@ -56,6 +66,27 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
     super();
     this.#pool = pool;
     this.#redis = redis;
+
+    // Add pool error handling and monitoring
+    this.#pool.on('error', (err, client) => {
+      console.error('Unexpected error on idle client', err);
+    });
+
+    this.#pool.on('connect', client => {
+      console.debug('New client connected to database');
+    });
+
+    this.#pool.on('acquire', client => {
+      console.debug(
+        `Client acquired from pool. Total: ${this.#pool.totalCount}, Idle: ${this.#pool.idleCount}, Waiting: ${this.#pool.waitingCount}`,
+      );
+    });
+
+    this.#pool.on('release', (err, client) => {
+      console.debug(
+        `Client released to pool. Total: ${this.#pool.totalCount}, Idle: ${this.#pool.idleCount}, Waiting: ${this.#pool.waitingCount}`,
+      );
+    });
   }
 
   async connect(): Promise<void> {
@@ -79,9 +110,14 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
 
     const client = await this.#pool.connect();
 
-    for (const schemaPath of schemaPaths) {
-      const schemaSqlQueries = await readFile(schemaPath, { encoding: 'utf-8' });
-      await client.query(schemaSqlQueries);
+    try {
+      for (const schemaPath of schemaPaths) {
+        const schemaSqlQueries = await readFile(schemaPath, { encoding: 'utf-8' });
+        await client.query(schemaSqlQueries);
+      }
+    } finally {
+      // CRITICAL: Always release the client back to the pool
+      client.release();
     }
   }
 
@@ -109,7 +145,14 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
         return param;
       });
       console.debug('SQL QUERY', queryText, normalizedParams);
-      const result = await this.#pool.query(queryText, normalizedParams);
+
+      // Add query timeout to prevent hanging
+      const queryPromise = this.#pool.query(queryText, normalizedParams);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Query timeout after 10 seconds')), 10000);
+      });
+
+      const result = await Promise.race([queryPromise, timeoutPromise]);
       const rows = Array.isArray(result?.rows) ? result.rows : [result.rows];
       console.debug('SQL RESULT', rows);
       return rows;

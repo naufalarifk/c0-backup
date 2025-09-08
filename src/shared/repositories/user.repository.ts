@@ -166,14 +166,14 @@ export abstract class UserRepository extends BaseRepository {
       if (idCondition) {
         rows = await this.sql`
           SELECT id, name, profile_picture as "image", email, email_verified_date,
-                 created_date, updated_date
+            created_date, updated_date
           FROM users
           WHERE id = ${idCondition.value}
         `;
       } else if (emailCondition) {
         rows = await this.sql`
           SELECT id, name, profile_picture as "image", email, email_verified_date,
-                 created_date, updated_date
+            created_date, updated_date
           FROM users
           WHERE email = ${emailCondition.value}
         `;

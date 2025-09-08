@@ -1,0 +1,107 @@
+# Loki 3.5 Configuration for Testing Environment - Updated for 2025
+auth_enabled: false
+
+# Server configuration
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9095
+  log_level: info
+
+# Common configuration for all components
+common:
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+# Schema configuration - using modern tsdb format with v13 for structured metadata support
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+# Distributor configuration
+distributor:
+  ring:
+    kvstore:
+      store: inmemory
+
+# Ingester configuration - removed deprecated fields
+ingester:
+  lifecycler:
+    ring:
+      kvstore:
+        store: inmemory
+  chunk_idle_period: 5m
+  chunk_retain_period: 30s
+  # flush_on_shutdown removed - deprecated in Loki 3.5
+
+# Updated limits configuration - enable structured metadata for OTLP
+limits_config:
+  allow_structured_metadata: true
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  ingestion_rate_mb: 10
+  ingestion_burst_size_mb: 20
+  split_queries_by_interval: 15m
+  max_query_parallelism: 32
+  volume_enabled: true
+  # OTLP Configuration for mapping attributes to labels and structured metadata
+  otlp_config:
+    resource_attributes:
+      attributes_config:
+        - action: index_label
+          attributes:
+            - service_name
+            - service_version
+            - deployment_environment
+        - action: structured_metadata
+          regex: ".*"
+
+# Query range configuration for better performance - updated for Loki 3.5
+query_range:
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 500
+        ttl: 24h
+
+# Frontend configuration
+frontend:
+  max_outstanding_per_tenant: 2048
+  compress_responses: true
+
+# Ruler configuration - disabled for single binary mode
+ruler:
+  enable_api: false
+  storage:
+    type: local
+    local:
+      directory: /loki/rules
+
+# Compactor configuration - updated for Loki 3.5
+compactor:
+  working_directory: /loki/compactor
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  retention_delete_worker_count: 150
+  delete_request_store: filesystem
+
+# Query scheduler configuration for single binary deployments
+query_scheduler:
+  max_outstanding_requests_per_tenant: 2048
+
+# Analytics configuration  
+analytics:
+  reporting_enabled: false
