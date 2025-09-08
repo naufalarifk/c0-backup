@@ -5,7 +5,6 @@ CREATE TABLE IF NOT EXISTS user_kycs (
   user_id BIGINT REFERENCES users (id),
 
   id_card_photo TEXT NOT NULL,
-  selfie_photo TEXT NOT NULL,
   selfie_with_id_card_photo TEXT NOT NULL,
   nik VARCHAR(16) NOT NULL,
   name VARCHAR(160) NOT NULL,
@@ -39,6 +38,8 @@ CREATE TABLE IF NOT EXISTS user_kycs (
     (status = 'Rejected' AND rejected_date IS NOT NULL AND verified_date IS NULL)
   )
 );
+
+ALTER TABLE user_kycs DROP COLUMN IF EXISTS selfie_photo;
 
 --- DEPENDENCY ---
 
