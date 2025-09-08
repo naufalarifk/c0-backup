@@ -28,49 +28,10 @@ jobs:
 
       - name: Setup SSH
         run: |
-          mkdir -p ~/.ssh
-          # Normalize the secret value to handle common paste/encoding issues:
-          # - remove surrounding single/double quotes if present
-          # - convert literal "\n" sequences into real newlines
-          # - strip CR (\r) characters
-          # This makes the step robust whether the secret was pasted as multiline
-          # or as a single-line with escaped newlines.
-          KEY_RAW="$SSH_PRIVATE_KEY"
-
-          # Strip surrounding quotes if the entire value is wrapped in ' or "
-          if [[ "$KEY_RAW" == '"'*'"' ]] || [[ "$KEY_RAW" == "'"*"'" ]]; then
-            KEY_RAW=${KEY_RAW:1:-1}
-          fi
-
-          # Convert literal backslash-n sequences to real newlines and remove CRs.
-          # printf '%b' expands backslash escapes; this is useful to turn "\\n" into actual newlines.
-          KEY_NORMALIZED=$(printf '%b' "$KEY_RAW" | sed 's/\r$//')
-
-          # Determine key type and write to file
-          if printf '%s' "$KEY_NORMALIZED" | grep -q "BEGIN OPENSSH PRIVATE KEY"; then
-            echo "$KEY_NORMALIZED" > ~/.ssh/id_ed25519
-            chmod 600 ~/.ssh/id_ed25519
-            SSH_KEY_PATH=~/.ssh/id_ed25519
-          elif printf '%s' "$KEY_NORMALIZED" | grep -q "BEGIN RSA PRIVATE KEY"; then
-            echo "$KEY_NORMALIZED" > ~/.ssh/id_rsa
-            chmod 600 ~/.ssh/id_rsa
-            SSH_KEY_PATH=~/.ssh/id_rsa
-          else
-            echo "Unsupported SSH key format"
-            # print a masked diagnostic of the first line so the maintainer can see what the runner sees
-            printf '%s' "$KEY_NORMALIZED" | sed -n '1p' | sed -n 'l'
-            exit 1
-          fi
-
-          # Add host fingerprint if provided, otherwise add to known_hosts
-          if [ -n "$SSH_HOST_FINGERPRINT" ]; then
-            echo "$SSH_HOST_FINGERPRINT" >> ~/.ssh/known_hosts
-          elif [ -n "$SSH_HOST" ]; then
-            ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-          fi
-          
-          # Export SSH_KEY_PATH for use in subsequent steps
-          echo "SSH_KEY_PATH=$SSH_KEY_PATH" >> $GITHUB_ENV
+          mkdir -p $HOME/.ssh
+          echo "$SSH_PRIVATE_KEY" > $HOME/.ssh/id_ed25519
+          chmod 600 $HOME/.ssh/id_ed25519
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> $HOME/.ssh/known_hosts 2>/dev/null || true
         shell: bash
 
       - name: Rsync repository to remote server
@@ -86,14 +47,14 @@ jobs:
             --exclude ".DS_Store" \
             --exclude "coverage/" \
             --exclude ".nyc_output/" \
-            -e "ssh -i $SSH_KEY_PATH -p $SSH_PORT -o StrictHostKeyChecking=yes -o ConnectTimeout=30 -o ServerAliveInterval=60" \
+            -e "ssh -i $HOME/.ssh/id_ed25519 -p $SSH_PORT -o StrictHostKeyChecking=yes -o ConnectTimeout=30 -o ServerAliveInterval=60" \
             ./ "$SSH_USER@$SSH_HOST:/root/cg/"
         shell: bash
         timeout-minutes: 10
 
       - name: Deploy Docker Compose
         run: |
-          ssh -i $SSH_KEY_PATH -p "$SSH_PORT" -o StrictHostKeyChecking=yes -o ConnectTimeout=30 -o ServerAliveInterval=60 "$SSH_USER@$SSH_HOST" << 'EOF'
+          ssh -i $HOME/.ssh/id_ed25519 -p "$SSH_PORT" -o StrictHostKeyChecking=yes -o ConnectTimeout=30 -o ServerAliveInterval=60 "$SSH_USER@$SSH_HOST" << 'EOF'
             set -euo pipefail
             cd /root/cg
             
