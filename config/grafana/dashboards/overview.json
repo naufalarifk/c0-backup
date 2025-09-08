@@ -12,7 +12,7 @@
       }
     ]
   },
-  "description": "Overview dashboard for CryptoGadai Backend observability stack",
+  "description": "Overview dashboard for CryptoGadai NestJS Backend application metrics",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "gnetId": null,
@@ -102,13 +102,23 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
+          "expr": "rate(http_server_requests_total{service_name=\"cryptogadai-backend\"}[5m])",
+          "interval": "",
+          "legendFormat": "{{method}} {{route}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-uid"
+          },
           "expr": "rate(traefik_service_requests_total{service=\"cg-api@docker\"}[5m])",
           "interval": "",
-          "legendFormat": "{{method}} {{service}}",
-          "refId": "A"
+          "legendFormat": "Traefik {{method}}",
+          "refId": "B"
         }
       ],
-      "title": "HTTP Request Rate",
+      "title": "HTTP Request Rate (NestJS + Traefik)",
       "type": "timeseries"
     },
     {
@@ -191,9 +201,9 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "histogram_quantile(0.95, rate(traefik_service_request_duration_seconds_bucket{service=\"cg-api@docker\"}[5m]))",
+          "expr": "histogram_quantile(0.95, rate(http_server_request_duration_seconds_bucket{service_name=\"cryptogadai-backend\"}[5m]))",
           "interval": "",
-          "legendFormat": "95th percentile",
+          "legendFormat": "NestJS 95th percentile",
           "refId": "A"
         },
         {
@@ -201,13 +211,23 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "histogram_quantile(0.50, rate(traefik_service_request_duration_seconds_bucket{service=\"cg-api@docker\"}[5m]))",
+          "expr": "histogram_quantile(0.50, rate(http_server_request_duration_seconds_bucket{service_name=\"cryptogadai-backend\"}[5m]))",
           "interval": "",
-          "legendFormat": "50th percentile",
+          "legendFormat": "NestJS 50th percentile",
           "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-uid"
+          },
+          "expr": "histogram_quantile(0.95, rate(traefik_service_request_duration_seconds_bucket{service=\"cg-api@docker\"}[5m]))",
+          "interval": "",
+          "legendFormat": "Traefik 95th percentile",
+          "refId": "C"
         }
       ],
-      "title": "HTTP Request Duration",
+      "title": "HTTP Request Duration (NestJS + Traefik)",
       "type": "timeseries"
     },
     {
@@ -263,13 +283,13 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "sum by (code) (increase(traefik_service_requests_total{service=\"cg-api@docker\"}[5m]))",
+          "expr": "sum by (http_status_code) (increase(http_server_requests_total{service_name=\"cryptogadai-backend\"}[5m]))",
           "interval": "",
-          "legendFormat": "{{code}}",
+          "legendFormat": "{{http_status_code}}",
           "refId": "A"
         }
       ],
-      "title": "HTTP Status Codes",
+      "title": "HTTP Status Codes (NestJS)",
       "type": "piechart"
     },
     {
@@ -352,10 +372,20 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
+          "expr": "process_runtime_jvm_memory_usage_after_last_gc_bytes{job=\"cryptogadai-backend\"}",
+          "interval": "",
+          "legendFormat": "NestJS Memory Usage",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-uid"
+          },
           "expr": "process_resident_memory_bytes{job=\"prometheus\"}",
           "interval": "",
           "legendFormat": "Prometheus Memory",
-          "refId": "A"
+          "refId": "B"
         },
         {
           "datasource": {
@@ -365,7 +395,7 @@
           "expr": "process_resident_memory_bytes{job=\"traefik\"}",
           "interval": "",
           "legendFormat": "Traefik Memory",
-          "refId": "B"
+          "refId": "C"
         },
         {
           "datasource": {
@@ -375,10 +405,10 @@
           "expr": "otelcol_process_memory_rss_bytes{job=\"otel-collector-internal\"}",
           "interval": "",
           "legendFormat": "OTel Collector Memory",
-          "refId": "C"
+          "refId": "D"
         }
       ],
-      "title": "Memory Usage",
+      "title": "Memory Usage (Application + Infrastructure)",
       "type": "timeseries"
     },
     {
@@ -461,10 +491,20 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
+          "expr": "rate(process_cpu_seconds_total{job=\"cryptogadai-backend\"}[5m]) * 100",
+          "interval": "",
+          "legendFormat": "NestJS CPU",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-uid"
+          },
           "expr": "rate(process_cpu_seconds_total{job=\"prometheus\"}[5m]) * 100",
           "interval": "",
           "legendFormat": "Prometheus CPU",
-          "refId": "A"
+          "refId": "B"
         },
         {
           "datasource": {
@@ -474,7 +514,7 @@
           "expr": "rate(process_cpu_seconds_total{job=\"traefik\"}[5m]) * 100",
           "interval": "",
           "legendFormat": "Traefik CPU",
-          "refId": "B"
+          "refId": "C"
         },
         {
           "datasource": {
@@ -484,10 +524,10 @@
           "expr": "rate(otelcol_process_cpu_seconds_total{job=\"otel-collector-internal\"}[5m]) * 100",
           "interval": "",
           "legendFormat": "OTel Collector CPU",
-          "refId": "C"
+          "refId": "D"
         }
       ],
-      "title": "CPU Usage",
+      "title": "CPU Usage (Application + Infrastructure)",
       "type": "timeseries"
     },
     {
@@ -584,10 +624,278 @@
           "interval": "",
           "legendFormat": "Uptime",
           "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-uid"
+          },
+          "expr": "otelcol_exporter_send_failed_spans_total{job=\"otel-collector-internal\"}",
+          "interval": "",
+          "legendFormat": "Failed Spans",
+          "refId": "C"
         }
       ],
       "title": "OpenTelemetry Collector Stats",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-uid"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 25
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-uid"
+          },
+          "expr": "db_client_connections_usage{service_name=\"cryptogadai-backend\", db_system=\"postgresql\"}",
+          "interval": "",
+          "legendFormat": "Active Connections",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-uid"
+          },
+          "expr": "db_client_connections_idle{service_name=\"cryptogadai-backend\", db_system=\"postgresql\"}",
+          "interval": "",
+          "legendFormat": "Idle Connections",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-uid"
+          },
+          "expr": "rate(db_client_connections_wait_seconds_total{service_name=\"cryptogadai-backend\", db_system=\"postgresql\"}[5m])",
+          "interval": "",
+          "legendFormat": "Connection Wait Time",
+          "refId": "C"
+        }
+      ],
+      "title": "Database Connections (PostgreSQL)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-uid"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 25
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-uid"
+          },
+          "expr": "histogram_quantile(0.95, rate(db_client_queries_duration_seconds_bucket{service_name=\"cryptogadai-backend\", db_system=\"postgresql\"}[5m]))",
+          "interval": "",
+          "legendFormat": "95th percentile",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-uid"
+          },
+          "expr": "histogram_quantile(0.50, rate(db_client_queries_duration_seconds_bucket{service_name=\"cryptogadai-backend\", db_system=\"postgresql\"}[5m]))",
+          "interval": "",
+          "legendFormat": "50th percentile",
+          "refId": "B"
+        }
+      ],
+      "title": "Database Query Duration (PostgreSQL)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki-uid"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      },
+      "id": 9,
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": false,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki-uid"
+          },
+          "expr": "{service_name=\"cryptogladai-backend\"} |~ \".*\"",
+          "refId": "A"
+        }
+      ],
+      "title": "API Service Logs",
+      "type": "logs"
     }
   ],
   "refresh": "30s",
@@ -595,8 +903,9 @@
   "style": "dark",
   "tags": [
     "cryptogadai",
+    "nestjs",
     "backend",
-    "observability"
+    "opentelemetry"
   ],
   "templating": {
     "list": []
@@ -607,7 +916,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "CryptoGadai Backend Overview",
-  "uid": "cryptogadai-overview",
+  "title": "CryptoGadai NestJS Backend Overview",
+  "uid": "cryptogadai-nestjs-overview",
   "version": 1
 }
