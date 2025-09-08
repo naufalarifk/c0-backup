@@ -143,6 +143,16 @@ logsAPI.logs.setGlobalLoggerProvider(loggerProvider);
 
 const logger = logsAPI.logs.getLogger('nestjs-console', '1.0.0');
 
+// Environment-based log level filtering
+const LOG_LEVEL = process.env.LOG_LEVEL?.toLowerCase() || 'info';
+const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
+
+function shouldLog(level: string): boolean {
+  const currentLevel = LOG_LEVELS[level as keyof typeof LOG_LEVELS] ?? 1;
+  const configuredLevel = LOG_LEVELS[LOG_LEVEL as keyof typeof LOG_LEVELS] ?? 1;
+  return currentLevel >= configuredLevel;
+}
+
 const originalConsole = {
   log: console.log,
   error: console.error,
@@ -152,8 +162,42 @@ const originalConsole = {
 };
 
 function createLogRecord(level: string, message: string, ...args: unknown[]) {
+  // Filter out OpenTelemetry internal logs to prevent recursive logging
+  const msgStr = String(message || '');
+  if (
+    msgStr.includes('OTLPExportDelegate') ||
+    msgStr.includes('LogRecordImpl') ||
+    msgStr.includes('Instrumentation suppressed') ||
+    msgStr.includes('ResourceImpl') ||
+    msgStr.includes('@opentelemetry/instrumentation-http')
+  ) {
+    return; // Skip OpenTelemetry internal logs
+  }
+
+  // Check if we should log based on configured level
+  if (!shouldLog(level)) {
+    return;
+  }
+
   const timestamp = Date.now();
-  const fullMessage = args.length > 0 ? `${message} ${args.join(' ')}` : message;
+
+  // Properly serialize arguments with size limit
+  const serializedArgs = args.map(arg => {
+    if (typeof arg === 'object' && arg !== null) {
+      try {
+        const jsonStr = JSON.stringify(arg);
+        // Truncate large objects to prevent log bloat
+        return jsonStr.length > 2 ** 24
+          ? jsonStr.substring(0, 2 ** 24) + '...[truncated]'
+          : jsonStr;
+      } catch {
+        return String(arg);
+      }
+    }
+    return String(arg);
+  });
+
+  const fullMessage = args.length > 0 ? `${message} ${serializedArgs.join(' ')}` : message;
 
   logger.emit({
     timestamp,
@@ -210,8 +254,11 @@ console.info = function (message?: unknown, ...args: unknown[]) {
 
 console.debug = function (message?: unknown, ...args: unknown[]) {
   const msg = String(message || '');
-  createLogRecord('debug', msg, ...args);
-  originalConsole.debug(message, ...args);
+  // Use log level filtering instead of environment check
+  if (shouldLog('debug')) {
+    createLogRecord('debug', msg, ...args);
+    originalConsole.debug(message, ...args);
+  }
 };
 
 console.log('OpenTelemetry SDK started successfully');

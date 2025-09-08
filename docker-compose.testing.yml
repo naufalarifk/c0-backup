@@ -78,6 +78,7 @@ services:
       - ./letsencrypt:/letsencrypt
     ports:
       - 80:80
+      - 443:443
     networks:
       - cg-private-network
       - cg-public-network
