@@ -61,6 +61,9 @@ async function bootstrap() {
   app.use(compression());
   app.use(
     morgan('combined', {
+      stream: {
+        write: (message: string) => logger.log(message.trim()),
+      },
       skip(req: Request, _res) {
         const url = req.originalUrl || req.url || '';
         // Disable access logging for the healthcheck endpoint to keep logs clean

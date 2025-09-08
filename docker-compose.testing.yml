@@ -9,6 +9,7 @@ x-backend-env: &backend-env
     exp://192.168.0.101:8081,\
     exp://192.168.0.103:8081,\
     exp://192.168.0.105:8081,\
+    exp://192.168.160.235:8081,\
     ${PROTOCOL:-https}://${API_DOMAIN:-cg-api.fh47.my.id}"
   BETTER_AUTH_URL: ${PROTOCOL:-https}://${API_DOMAIN:-cg-api.fh47.my.id}
   DATABSE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/cryptogadai}
