@@ -23,7 +23,6 @@ export type UserDecidesUserTypeParams = {
 export type UserSubmitsKycParams = {
   userId: string;
   idCardPhoto: string;
-  selfiePhoto: string;
   selfieWithIdCardPhoto: string;
   nik: string;
   fullName: string;

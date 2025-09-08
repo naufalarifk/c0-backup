@@ -1309,7 +1309,6 @@ export abstract class UserRepository extends BaseRepository {
       const {
         userId,
         idCardPhoto,
-        selfiePhoto,
         selfieWithIdCardPhoto,
         nik,
         fullName,
@@ -1327,12 +1326,12 @@ export abstract class UserRepository extends BaseRepository {
 
       const rows = await tx.sql`
         INSERT INTO user_kycs (
-          user_id, submitted_date, id_card_photo, selfie_photo, selfie_with_id_card_photo,
+          user_id, submitted_date, id_card_photo, selfie_with_id_card_photo,
           nik, name, birth_city, birth_date, province, city,
           district, subdistrict, address, postal_code, phone_number
         )
         VALUES (
-          ${userId}, ${submissionDate}, ${idCardPhoto}, ${selfiePhoto}, ${selfieWithIdCardPhoto},
+          ${userId}, ${submissionDate}, ${idCardPhoto}, ${selfieWithIdCardPhoto},
           ${nik}, ${fullName}, ${birthCity}, ${birthDate}, ${province}, ${city},
           ${district}, ${subdistrict}, ${address}, ${postalCode}, ${phoneNumber}
         )

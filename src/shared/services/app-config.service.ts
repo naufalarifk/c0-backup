@@ -186,6 +186,18 @@ export class AppConfigService {
     };
   }
 
+  get minioConfig() {
+    return {
+      endpoint: this.getString('MINIO_ENDPOINT'),
+      accessKey: this.getString('MINIO_ROOT_USER'),
+      secretKey: this.getString('MINIO_ROOT_PASSWORD'),
+      useSSL: this.getBoolean('MINIO_USE_SSL'),
+      defaultBuckets: this.getString('MINIO_DEFAULT_BUCKETS', 'uploads,documents,images')
+        .split(',')
+        .map(bucket => bucket.trim()),
+    };
+  }
+
   private get(key: string): string {
     const value = this.configService.get<string>(key);
 

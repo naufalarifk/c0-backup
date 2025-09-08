@@ -9,6 +9,7 @@ import { AppConfigService } from './services/app-config.service';
 import { CacheService } from './services/cache.service';
 import { EmailService } from './services/email.service';
 import { MailerService } from './services/mailer.service';
+import { MinioService } from './services/minio.service';
 import { RedisService } from './services/redis.service';
 import { TelemetryService } from './services/telemetry.service';
 import { TwilioService } from './services/twilio.service';
@@ -19,6 +20,7 @@ const providers: Provider[] = [
   CacheService,
   EmailService,
   MailerService,
+  MinioService,
   RedisService,
   TelemetryService,
   TwilioService,

@@ -1,6 +1,8 @@
+import type { File } from '../../../shared/types';
 import type { UserSession } from '../../auth/types';
 
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -8,17 +10,19 @@ import {
   HttpStatus,
   Logger,
   Post,
+  UploadedFiles,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
+import { ApiFile } from '../../../shared/decorators/swagger.schema';
 import { Session } from '../../auth/auth.decorator';
 import { AuthGuard } from '../../auth/auth.guard';
-import { CreateKycDto } from './dto/create-kyc.dto';
+import { CreateKycDto, SubmitKycDto } from './dto/create-kyc.dto';
 import { KycStatusResponseDto } from './dto/kyc-status-response.dto';
 import { KycSubmissionResponseDto } from './dto/kyc-submission-response.dto';
 import { KycService } from './kyc.service';
+import { KycFileService } from './kyc-file.service';
 
 @Controller('users/kyc')
 @ApiTags('users')
@@ -26,7 +30,10 @@ import { KycService } from './kyc.service';
 export class KycController {
   private readonly logger = new Logger(KycController.name);
 
-  constructor(private readonly kycService: KycService) {}
+  constructor(
+    private readonly kycService: KycService,
+    private readonly kycFileService: KycFileService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -48,15 +55,11 @@ export class KycController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @Throttle({ default: { limit: 3, ttl: 3600000 } }) // Maximum 3 attempts per hour for security
+  @ApiFile([{ name: 'idCardPhoto' }, { name: 'selfieWithIdCardPhoto' }], { isRequired: true })
   @ApiOperation({
     summary: 'Submit KYC verification documents',
     description:
-      'Submits KYC documents for verification. Users can only have one active KYC submission at a time.',
-  })
-  @ApiBody({
-    type: CreateKycDto,
-    description: 'KYC verification documents and personal information',
+      'Submits KYC documents and personal information for verification. Files are uploaded to storage automatically.',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -65,7 +68,7 @@ export class KycController {
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
-    description: 'Invalid KYC data - validation errors',
+    description: 'Invalid KYC data - validation errors or missing files',
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
@@ -79,43 +82,76 @@ export class KycController {
     status: HttpStatus.TOO_MANY_REQUESTS,
     description: 'Rate limit exceeded - too many KYC submission attempts',
   })
-  submitKyc(
+  async submitKyc(
     @Session() session: UserSession,
-    @Body() createKycDto: CreateKycDto,
+    @UploadedFiles() files: {
+      idCardPhoto: File[];
+      selfieWithIdCardPhoto: File[];
+    },
+    @Body() kycData: SubmitKycDto,
   ): Promise<KycSubmissionResponseDto> {
+    // Validate required files first
+    if (!files?.idCardPhoto?.[0]) {
+      throw new BadRequestException('ID Card Photo is required');
+    }
+    if (!files?.selfieWithIdCardPhoto?.[0]) {
+      throw new BadRequestException('Selfie with ID Card Photo is required');
+    }
+
     // Log KYC submission attempt for security monitoring
     this.logger.log(`KYC submission request from user: ${session.user.id}`, {
       userId: session.user.id,
       timestamp: new Date().toISOString(),
       action: 'kyc_submission_request',
-      userAgent: 'unknown', // You can get this from request headers
+      hasIdCard: !!files.idCardPhoto?.[0],
+      hasSelfieWithId: !!files.selfieWithIdCardPhoto?.[0],
     });
 
-    return this.kycService.createKyc(session.user.id, createKycDto);
+    try {
+      // Upload files to Minio - files are already validated by @ApiFile decorator
+      const [idCardResult, selfieWithIdResult] = await Promise.all([
+        this.kycFileService.uploadFile(
+          files.idCardPhoto[0].buffer,
+          files.idCardPhoto[0].originalname,
+          session.user.id,
+          'id-card',
+          files.idCardPhoto[0].mimetype,
+        ),
+        this.kycFileService.uploadFile(
+          files.selfieWithIdCardPhoto[0].buffer,
+          files.selfieWithIdCardPhoto[0].originalname,
+          session.user.id,
+          'selfie-with-id',
+          files.selfieWithIdCardPhoto[0].mimetype,
+        ),
+      ]);
+
+      // Create KYC data with uploaded file URLs
+      const createKycDto: CreateKycDto = {
+        ...kycData,
+        idCardPhoto: idCardResult.url,
+        selfieWithIdCardPhoto: selfieWithIdResult.url,
+      };
+
+      this.logger.log(`Files uploaded successfully for user: ${session.user.id}`, {
+        userId: session.user.id,
+        idCardUrl: idCardResult.url,
+        selfieWithIdUrl: selfieWithIdResult.url,
+      });
+
+      // Submit KYC data with URLs
+      return await this.kycService.createKyc(session.user.id, createKycDto);
+    } catch (error) {
+      // Business context logging before re-throwing
+      this.logger.error(`KYC submission failed for user ${session.user.id}:`, {
+        error: error.message,
+        userId: session.user.id,
+        action: 'kyc_submission_failed',
+        step: error.message.includes('upload') ? 'file_upload' : 'data_submission',
+      });
+
+      // Re-throw to let NestJS global exception filter handle the response
+      throw error;
+    }
   }
-
-  // @Put()
-  // async updateKyc(@Param('userId') userId: string, @Body() updateKycDto: UpdateKycDto) {
-  //   return await this.kycService.updateKyc(userId, updateKycDto);
-  // }
-
-  // @Post('verify')
-  // async verifyKyc(@Param('userId') userId: string) {
-  //   return await this.kycService.verifyKyc(userId);
-  // }
-
-  // @Post('reject')
-  // async rejectKyc(@Param('userId') userId: string, @Body('reason') reason: string) {
-  //   return await this.kycService.rejectKyc(userId, reason);
-  // }
-
-  // @Get('documents')
-  // async getKycDocuments(@Param('userId') userId: string) {
-  //   return await this.kycService.getDocuments(userId);
-  // }
-
-  // @Post('documents')
-  // async uploadDocument(@Param('userId') userId: string, @Body() documentData: any) {
-  //   return await this.kycService.uploadDocument(userId, documentData);
-  // }
 }

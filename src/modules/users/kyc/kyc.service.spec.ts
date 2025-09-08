@@ -16,7 +16,6 @@ describe('KycService', () => {
   // Helper function for creating valid KYC data
   const createValidKycDto = (overrides: Partial<CreateKycDto> = {}): CreateKycDto => ({
     idCardPhoto: 'data:image/jpeg;base64,validbase64data',
-    selfiePhoto: 'data:image/jpeg;base64,validbase64data',
     selfieWithIdCardPhoto: 'data:image/jpeg;base64,validbase64data',
     nik: '1234567890123456',
     fullName: 'John Doe',
