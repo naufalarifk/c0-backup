@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS user_kycs (
   )
 );
 
+ALTER TABLE user_kycs DROP COLUMN IF EXISTS selfie_photo;
+
 --- DEPENDENCY ---
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_id BIGINT REFERENCES user_kycs (id);

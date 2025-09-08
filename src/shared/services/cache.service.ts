@@ -1,12 +1,13 @@
 import type { CacheOptions } from '../types/redis.types';
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
+import { TelemetryLogger } from '../../telemetry.logger';
 import { RedisService } from './redis.service';
 
 @Injectable()
 export class CacheService {
-  private readonly logger = new Logger(CacheService.name);
+  private readonly logger = new TelemetryLogger(CacheService.name);
   private readonly defaultTTL = 3600; // 1 hour
   private readonly defaultPrefix = 'cache';
 

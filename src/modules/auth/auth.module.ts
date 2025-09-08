@@ -10,7 +10,7 @@ import type {
 import type { Auth } from 'better-auth';
 import type { Application } from 'express';
 
-import { Inject, Logger, Module } from '@nestjs/common';
+import { Inject, Module } from '@nestjs/common';
 import {
   APP_FILTER,
   DiscoveryModule,
@@ -23,6 +23,7 @@ import { toNodeHandler } from 'better-auth/node';
 import { createAuthMiddleware } from 'better-auth/plugins';
 import invariant from 'tiny-invariant';
 
+import { TelemetryLogger } from '../../telemetry.logger';
 import { AuthFilter } from './auth.filter';
 import { AuthMiddleware } from './auth.middleware';
 import { AuthService } from './auth.service';
@@ -106,7 +107,7 @@ const HOOKS = [
   imports: [DiscoveryModule],
 })
 export class AuthModule implements NestModule, OnModuleInit {
-  private readonly logger = new Logger(AuthModule.name);
+  private readonly logger = new TelemetryLogger(AuthModule.name);
 
   constructor(
     @Inject(AUTH_INSTANCE_KEY)

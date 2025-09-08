@@ -8,7 +8,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Logger,
   Post,
   UploadedFiles,
   UseGuards,
@@ -16,6 +15,7 @@ import {
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { ApiFile } from '../../../shared/decorators/swagger.schema';
+import { TelemetryLogger } from '../../../telemetry.logger';
 import { Session } from '../../auth/auth.decorator';
 import { AuthGuard } from '../../auth/auth.guard';
 import { CreateKycDto, SubmitKycDto } from './dto/create-kyc.dto';
@@ -28,7 +28,7 @@ import { KycFileService } from './kyc-file.service';
 @ApiTags('users')
 @UseGuards(AuthGuard)
 export class KycController {
-  private readonly logger = new Logger(KycController.name);
+  private readonly logger = new TelemetryLogger(KycController.name);
 
   constructor(
     private readonly kycService: KycService,

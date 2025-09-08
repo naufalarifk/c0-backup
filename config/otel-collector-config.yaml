@@ -8,6 +8,11 @@ receivers:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - "*"
+          allowed_headers:
+            - "*"
 
 processors:
   batch:
@@ -60,10 +65,9 @@ extensions:
     endpoint: 0.0.0.0:55679
 
 service:
-  # Enable internal telemetry - Updated for 2025 best practices
   telemetry:
     logs:
-      level: info
+      level: debug
     metrics:
       level: detailed
       readers:

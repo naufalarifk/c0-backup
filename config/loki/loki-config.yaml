@@ -73,7 +73,7 @@ query_range:
     cache:
       embedded_cache:
         enabled: true
-        max_size_mb: 500
+        max_size_mb: 256
         ttl: 24h
 
 # Frontend configuration

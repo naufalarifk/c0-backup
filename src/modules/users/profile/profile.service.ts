@@ -1,12 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../../telemetry.logger';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class ProfileService {
-  private readonly logger = new Logger(ProfileService.name);
+  private readonly logger = new TelemetryLogger(ProfileService.name);
 
   constructor(private readonly userRepo: CryptogadaiRepository) {}
 

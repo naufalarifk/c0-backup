@@ -1,10 +1,5 @@
 export type PlatformCreateLoanOfferPrincipalInvoiceParams = {
-  principalBlockchainKey: {
-    key: 'btc' | 'eth' | 'sol';
-    name: string;
-    short_name: string;
-    image: string;
-  };
+  principalBlockchainKey: string;
   principalAmount: number;
   // TODO
 };
