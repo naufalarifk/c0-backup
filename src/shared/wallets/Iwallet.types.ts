@@ -37,7 +37,7 @@ export abstract class IWalletService {
 }
 
 export abstract class IWallet {
-  abstract getAddress(): Promise<string>; // sd fklsjadfjasfdjk lskdfj lsdaflk
+  abstract getAddress(): Promise<string>;
   abstract signTransaction<T>(message: T): Promise<T>;
 }
 
