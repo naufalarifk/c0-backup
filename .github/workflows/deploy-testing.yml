@@ -1,0 +1,145 @@
+name: Deploy to testing
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-testing-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to testing server
+    runs-on: ubuntu-24.04
+    env:
+      SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+      SSH_PORT: ${{ secrets.DEPLOY_PORT }}
+      SSH_USER: ${{ secrets.DEPLOY_USER }}
+      SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+      SSH_HOST_FINGERPRINT: ${{ secrets.DEPLOY_HOST_FINGERPRINT }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          
+          # Determine key type and setup appropriately
+          if echo "$SSH_PRIVATE_KEY" | grep -q "BEGIN OPENSSH PRIVATE KEY"; then
+            echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+            chmod 600 ~/.ssh/id_ed25519
+            SSH_KEY_PATH=~/.ssh/id_ed25519
+          elif echo "$SSH_PRIVATE_KEY" | grep -q "BEGIN RSA PRIVATE KEY"; then
+            echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+            SSH_KEY_PATH=~/.ssh/id_rsa
+          else
+            echo "Unsupported SSH key format"
+            exit 1
+          fi
+          
+          # Add host fingerprint if provided, otherwise add to known_hosts
+          if [ -n "$SSH_HOST_FINGERPRINT" ]; then
+            echo "$SSH_HOST_FINGERPRINT" >> ~/.ssh/known_hosts
+          elif [ -n "$SSH_HOST" ]; then
+            ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          fi
+          
+          # Export SSH_KEY_PATH for use in subsequent steps
+          echo "SSH_KEY_PATH=$SSH_KEY_PATH" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Rsync repository to remote server
+        run: |
+          rsync -avz --delete \
+            --exclude-from=".gitignore" \
+            --exclude ".git/" \
+            --exclude "node_modules/" \
+            --exclude ".env*" \
+            --exclude "*.log" \
+            --exclude ".temp/" \
+            --exclude ".vscode/" \
+            --exclude ".DS_Store" \
+            --exclude "coverage/" \
+            --exclude ".nyc_output/" \
+            -e "ssh -i $SSH_KEY_PATH -p $SSH_PORT -o StrictHostKeyChecking=yes -o ConnectTimeout=30 -o ServerAliveInterval=60" \
+            ./ "$SSH_USER@$SSH_HOST:/root/cg/"
+        shell: bash
+        timeout-minutes: 10
+
+      - name: Deploy Docker Compose
+        run: |
+          ssh -i $SSH_KEY_PATH -p "$SSH_PORT" -o StrictHostKeyChecking=yes -o ConnectTimeout=30 -o ServerAliveInterval=60 "$SSH_USER@$SSH_HOST" << 'EOF'
+            set -euo pipefail
+            cd /root/cg
+            
+            # Stop existing containers gracefully
+            docker compose --file docker-compose.testing.yml down --timeout 30
+            
+            # Build and start new containers
+            docker compose --file docker-compose.testing.yml up --build --force-recreate --detach
+            
+            # Wait for services to be healthy
+            echo "Waiting for services to be healthy..."
+            timeout 300 bash -c 'until docker compose --file docker-compose.testing.yml ps | grep -q "healthy\|running"; do sleep 5; done'
+            
+            # Clean up unused Docker resources
+            docker system prune -f
+            
+            # Show deployment status
+            echo "Deployment completed successfully"
+            docker compose --file docker-compose.testing.yml ps
+          EOF
+        shell: bash
+        timeout-minutes: 15
+
+      - name: Verify deployment
+        run: |
+          ssh -i $SSH_KEY_PATH -p "$SSH_PORT" -o StrictHostKeyChecking=yes -o ConnectTimeout=30 "$SSH_USER@$SSH_HOST" << 'EOF'
+            set -euo pipefail
+            cd /root/cg
+            
+            # Check if containers are running
+            if ! docker compose --file docker-compose.testing.yml ps | grep -q "Up"; then
+              echo "Error: Some containers are not running"
+              docker compose --file docker-compose.testing.yml ps
+              exit 1
+            fi
+            
+            # Check API health endpoint
+            if ! curl -f --max-time 30 http://localhost:3100/api/health; then
+              echo "Error: API health check failed"
+              exit 1
+            fi
+            
+            echo "✅ Deployment verification successful"
+          EOF
+        shell: bash
+        timeout-minutes: 5
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f $SSH_KEY_PATH
+        shell: bash
+
+      - name: Notify deployment result
+        if: always()
+        run: |
+          if [ ${{ job.status }} = 'success' ]; then
+            echo "✅ Deployment to testing completed successfully"
+            echo "Commit: ${{ github.sha }}"
+            echo "Triggered by: ${{ github.actor }}"
+          else
+            echo "❌ Deployment to testing failed"
+            echo "Commit: ${{ github.sha }}"
+            echo "Triggered by: ${{ github.actor }}"
+            echo "Check the logs above for details"
+          fi
+        shell: bash
