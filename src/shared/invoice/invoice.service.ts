@@ -32,18 +32,18 @@ export class InvoiceService implements IInvoiceService {
     const seed = await mnemonicToSeed(mnemonic);
     const masterKey = HDKey.fromMasterSeed(seed);
 
-    const walletService = this.walletFactory.getWalletService(principalBlockchainKey.name);
+    const walletService = this.walletFactory.getWalletService(principalBlockchainKey);
     if (!walletService) {
-      throw new Error(`Unsupported blockchain key: ${principalBlockchainKey.name}`);
+      throw new Error(`Unsupported blockchain key: ${principalBlockchainKey}`);
     }
     const generateWallet = walletService.derivedPathToWallet({
       masterKey,
-      derivationPath: `m/44'/${principalBlockchainKey.name === 'eth' ? "60'" : principalBlockchainKey.name === 'sol' ? "501'" : ''}/0'/0/0`,
+      derivationPath: `m/44'/0'/0'/0/0`,
     });
     console.log('generateWallet', generateWallet);
     return {
       //asked to change to object below
-      principalBlockchainKey: principalBlockchainKey.key,
+      principalBlockchainKey: principalBlockchainKey,
       principalAmount,
     };
   }

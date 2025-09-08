@@ -18,6 +18,8 @@ export abstract class IWalletFactory {
 }
 
 export abstract class IWalletService {
+  abstract get bip44CoinType(): number;
+
   abstract derivedPathToWallet({
     masterKey,
     derivationPath,
@@ -25,6 +27,13 @@ export abstract class IWalletService {
     masterKey: HDKey;
     derivationPath: string;
   }): Promise<IWallet>;
+
+  async createInvoiceWallet(masterKey: HDKey, invoiceId: number): Promise<IWallet> {
+    return await this.derivedPathToWallet({
+      derivationPath: `m/44'/${this.bip44CoinType}'/1200'/0/${invoiceId}`,
+      masterKey,
+    });
+  }
 }
 
 export abstract class IWallet {

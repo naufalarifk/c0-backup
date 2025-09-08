@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { HDKey } from '@scure/bip32';
 import { Connection } from '@solana/web3.js';
 
-import { BaseSolanaWallet } from './BaseSolanaWallet';
+import { BaseSolanaWallet } from './base-solana-wallet';
 import { IWallet, IWalletService } from './Iwallet.types';
 
 class SolanaMainnetWallet extends BaseSolanaWallet {
@@ -16,10 +16,13 @@ class SolanaMainnetWallet extends BaseSolanaWallet {
 }
 
 @Injectable()
-export class SolMainnetWalletService implements IWalletService {
+export class SolMainnetWalletService extends IWalletService {
   private readonly connection: Connection;
-
+  get bip44CoinType(): number {
+    return 501;
+  }
   constructor() {
+    super();
     this.connection = new Connection('https://api.mainnet-beta.solana.com');
   }
 
@@ -29,7 +32,7 @@ export class SolMainnetWalletService implements IWalletService {
   }: {
     masterKey: HDKey;
     derivationPath: string;
-  }): Promise<IWallet> {
+  }): Promise<SolanaMainnetWallet> {
     return new Promise((resolve, reject) => {
       try {
         const { privateKey } = masterKey.derive(derivationPath);
