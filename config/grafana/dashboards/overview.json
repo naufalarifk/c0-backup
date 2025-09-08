@@ -890,7 +890,7 @@
             "type": "loki",
             "uid": "loki-uid"
           },
-          "expr": "{service_name=\"cryptogladai-backend\"} |~ \".*\"",
+          "expr": "{service_name=\"cryptogadai-backend\"} |~ \".*\"",
           "refId": "A"
         }
       ],

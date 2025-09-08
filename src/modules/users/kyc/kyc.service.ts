@@ -1,12 +1,13 @@
-import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../../telemetry.logger';
 import { CreateKycDto } from './dto/create-kyc.dto';
 import { UpdateKycDto } from './dto/update-kyc.dto';
 
 @Injectable()
 export class KycService {
-  private readonly logger = new Logger(KycService.name);
+  private readonly logger = new TelemetryLogger(KycService.name);
 
   constructor(private readonly userRepo: CryptogadaiRepository) {}
 

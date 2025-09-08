@@ -1,18 +1,10 @@
 import type { UserSession } from '../../auth/types';
 
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Logger,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 
+import { TelemetryLogger } from '../../../telemetry.logger';
 import { Session } from '../../auth/auth.decorator';
 import { AuthGuard } from '../../auth/auth.guard';
 import { CreateKycDto } from './dto/create-kyc.dto';
@@ -24,7 +16,7 @@ import { KycService } from './kyc.service';
 @ApiTags('users')
 @UseGuards(AuthGuard)
 export class KycController {
-  private readonly logger = new Logger(KycController.name);
+  private readonly logger = new TelemetryLogger(KycController.name);
 
   constructor(private readonly kycService: KycService) {}
 
