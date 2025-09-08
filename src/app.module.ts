@@ -6,6 +6,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { HealthcheckController } from './healthcheck.controller';
+import { AccountsModule } from './modules/accounts/accounts.module';
 import { AuthConfig } from './modules/auth/auth.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { BlockchainsModule } from './modules/blockchains/blockchains.module';
@@ -45,8 +46,8 @@ import { SharedModule } from './shared/shared.module';
     EventEmitterModule.forRoot(),
 
     // Authentication
+    AccountsModule,
     AuthModule.forRootAsync({ useClass: AuthConfig }),
-
     BlockchainsModule,
     UsersModule,
   ],
