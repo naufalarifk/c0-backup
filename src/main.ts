@@ -16,7 +16,7 @@ import { ResolvePromisesInterceptor, TelemetryInterceptor } from './shared/inter
 import { AppConfigService } from './shared/services/app-config.service';
 import { TelemetryService } from './shared/services/telemetry.service';
 import { SharedModule } from './shared/shared.module';
-import validationOptions from './shared/utils/validation-options';
+import { validationOptions } from './shared/utils';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter(), {
@@ -27,12 +27,6 @@ async function bootstrap() {
   const logger = new Logger(bootstrap.name);
   const configService = app.select(SharedModule).get(AppConfigService);
   const telemetryService = app.select(SharedModule).get(TelemetryService);
-
-  app.enableCors({
-    origin: configService.appConfig.allowedOrigins,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    credentials: true,
-  });
 
   app.use(
     helmet({

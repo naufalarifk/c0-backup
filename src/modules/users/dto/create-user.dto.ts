@@ -4,7 +4,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 import { IsEnum, IsNotEmpty } from 'class-validator';
 
-export enum Role {
+export enum AccountType {
   Individual = 'Individual',
   Institution = 'Institution',
 }
@@ -12,11 +12,11 @@ export enum Role {
 export class CreateUserDto {
   @ApiProperty({
     example: 'Individual',
-    enum: Role,
-    enumName: 'Role',
+    enum: AccountType,
+    enumName: 'AccountType',
     description: 'The type of user account to create',
   })
-  @IsEnum(Role, { message: 'Role must be either Individual or Institution' })
-  @IsNotEmpty({ message: 'Role is required' })
-  role: UserDecidesUserTypeParams['userType'];
+  @IsEnum(AccountType, { message: 'userType must be either Individual or Institution' })
+  @IsNotEmpty({ message: 'userType is required' })
+  userType: UserDecidesUserTypeParams['userType'];
 }

@@ -13,12 +13,10 @@ import { v7 as uuidv7 } from 'uuid';
 import { DRIZZLE_DB } from '../../shared/database/database.module';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../shared/services/app-config.service';
-import { EmailService } from '../../shared/services/email.service';
 import { MailerService } from '../../shared/services/mailer.service';
 import { RedisService } from '../../shared/services/redis.service';
 import { TwilioService } from '../../shared/services/twilio.service';
 import { authAdapter } from './auth.adapter';
-import { RESERVED_USERNAMES } from './auth.constants';
 import { forgotPasswordEmail } from './template/forget-password';
 import { verificationEmail } from './template/verification-email';
 
@@ -29,7 +27,6 @@ export class AuthConfig {
   constructor(
     @Inject(DRIZZLE_DB) readonly _database: DrizzleDB,
     private readonly configService: AppConfigService,
-    readonly _emailService: EmailService,
     private readonly mailerService: MailerService,
     private readonly twilioService: TwilioService,
     private readonly redisService: RedisService,
@@ -42,41 +39,13 @@ export class AuthConfig {
    */
   createAuthOptions(): { auth: Auth; options?: AuthModuleOptions } {
     const options: BetterAuthOptions = {
-      database: this.createDatabaseAdapter(),
-      session: this.createSessionConfig(),
-      secondaryStorage: this.createSecondaryStorage(),
-      emailVerification: this.createEmailVerificationConfig(),
-      emailAndPassword: {
-        enabled: true,
-        requireEmailVerification: this.configService.isProduction,
-        sendResetPassword: async ({ user, url, token }) => {
-          const isDev = this.configService.isDevelopment;
-          const parsed = new URL(url);
-
-          const callbackURL = parsed.searchParams.get('callbackURL');
-
-          const deepLink = isDev
-            ? `${this.configService.appConfig.expoUrl}${callbackURL}?token=${token}`
-            : `${this.configService.appConfig.scheme}${callbackURL}?token=${token}`;
-
-          const html = forgotPasswordEmail({
-            url,
-            userName: user.email,
-            companyName: this.configService.appConfig.name,
-            deepLink,
-          });
-
-          const emailConfirmTitle = 'Reset your password';
-
-          await this.mailerService.sendMail({
-            to: user.email,
-            subject: emailConfirmTitle,
-            html,
-          });
-        },
-      },
-      socialProviders: this.createSocialProvidersConfig(),
-      plugins: this.createPlugins(),
+      database: this.database(),
+      session: this.session(),
+      secondaryStorage: this.secondaryStorage(),
+      emailVerification: this.emailVerification(),
+      emailAndPassword: this.emailAndPassword(),
+      socialProviders: this.configService.socialProviderConfigs,
+      plugins: this.plugins(),
       user: {
         changeEmail: {
           enabled: true,
@@ -99,7 +68,7 @@ export class AuthConfig {
       onAPIError: {
         throw: true,
       },
-      advanced: this.createAdvancedConfig(),
+      advanced: this.advanced(),
     };
 
     return {
@@ -107,14 +76,14 @@ export class AuthConfig {
     };
   }
 
-  private createDatabaseAdapter() {
+  private database(): BetterAuthOptions['database'] {
     return authAdapter({
       userRepo: this.userRepository,
       debugLogs: this.configService.databaseLogger,
     });
   }
 
-  private createSessionConfig(): BetterAuthOptions['session'] {
+  private session(): BetterAuthOptions['session'] {
     const authConfig = this.configService.authConfig;
 
     return {
@@ -129,7 +98,7 @@ export class AuthConfig {
     };
   }
 
-  private createSecondaryStorage(): BetterAuthOptions['secondaryStorage'] {
+  private secondaryStorage(): BetterAuthOptions['secondaryStorage'] {
     return {
       get: async (key: string) => {
         try {
@@ -161,7 +130,7 @@ export class AuthConfig {
     };
   }
 
-  private createEmailVerificationConfig(): BetterAuthOptions['emailVerification'] {
+  private emailVerification(): BetterAuthOptions['emailVerification'] {
     return {
       sendOnSignUp: true,
       autoSignInAfterVerification: true,
@@ -193,23 +162,43 @@ export class AuthConfig {
     };
   }
 
-  private createSocialProvidersConfig(): BetterAuthOptions['socialProviders'] {
+  private emailAndPassword(): BetterAuthOptions['emailAndPassword'] {
     return {
-      google: {
-        prompt: 'select_account consent',
-        accessType: 'offline',
-        ...this.configService.socialProviderConfig.google,
+      enabled: true,
+      requireEmailVerification: this.configService.isProduction,
+      sendResetPassword: async ({ user, url, token }) => {
+        const isDev = this.configService.isDevelopment;
+        const parsed = new URL(url);
+
+        const callbackURL = parsed.searchParams.get('callbackURL');
+
+        const deepLink = isDev
+          ? `${this.configService.appConfig.expoUrl}${callbackURL}?token=${token}`
+          : `${this.configService.appConfig.scheme}${callbackURL}?token=${token}`;
+
+        const html = forgotPasswordEmail({
+          url,
+          userName: user.email,
+          companyName: this.configService.appConfig.name,
+          deepLink,
+        });
+
+        const emailConfirmTitle = 'Reset your password';
+
+        await this.mailerService.sendMail({
+          to: user.email,
+          subject: emailConfirmTitle,
+          html,
+        });
       },
     };
   }
 
-  private createPlugins(): BetterAuthOptions['plugins'] {
+  private plugins(): BetterAuthOptions['plugins'] {
     return [
-      twoFactor(),
-      // username({
-      //   usernameValidator: this.validateUsername.bind(this),
-      //   usernameNormalization: this.normalizeUsername.bind(this),
-      // }),
+      twoFactor({
+        issuer: this.configService.appConfig.name,
+      }),
       phoneNumber({
         sendOTP: async ({ phoneNumber, code }: { phoneNumber: string; code: string }) => {
           await this.twilioService.sendSMS({
@@ -230,7 +219,7 @@ export class AuthConfig {
     ];
   }
 
-  private createAdvancedConfig(): BetterAuthOptions['advanced'] {
+  private advanced(): BetterAuthOptions['advanced'] {
     return {
       cookiePrefix: this.configService.authConfig.cookiePrefix,
       useSecureCookies: true,
@@ -244,12 +233,4 @@ export class AuthConfig {
       },
     };
   }
-
-  // private validateUsername(username: string): boolean {
-  //   return !RESERVED_USERNAMES.includes(username.toLowerCase());
-  // }
-
-  // private normalizeUsername(username: string): string {
-  //   return username.trim().toLowerCase();
-  // }
 }

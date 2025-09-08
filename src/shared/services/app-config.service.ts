@@ -1,4 +1,5 @@
 import type { ThrottlerOptions } from '@nestjs/throttler';
+import type { SocialProviders } from 'better-auth/social-providers';
 import type { RedisOptions } from 'ioredis';
 
 import { Injectable } from '@nestjs/common';
@@ -128,9 +129,11 @@ export class AppConfigService {
     return this.getBoolean('ENABLE_DOCUMENTATION');
   }
 
-  get socialProviderConfig() {
+  get socialProviderConfigs(): SocialProviders {
     return {
       google: {
+        prompt: 'select_account consent',
+        accessType: 'offline',
         clientId: this.getString('GOOGLE_CLIENT_ID'),
         clientSecret: this.getString('GOOGLE_CLIENT_SECRET'),
       },

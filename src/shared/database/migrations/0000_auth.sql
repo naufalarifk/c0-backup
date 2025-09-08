@@ -1,7 +1,7 @@
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'role') THEN
-    CREATE TYPE "public"."role" AS ENUM('admin', 'user', 'corporate');
+    CREATE TYPE "public"."role" AS ENUM('system', 'admin', 'user');
   END IF;
 END $$;
 --> statement-breakpoint

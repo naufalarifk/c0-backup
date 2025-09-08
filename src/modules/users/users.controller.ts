@@ -33,29 +33,24 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @UseGuards(AuthGuard)
-  @Patch('role')
+  @Patch('type-selection')
   @ApiOperation({
-    summary: 'Set role',
+    summary: 'Set account type',
     description:
       'Allows a user to decide their account type (Individual or Institution). This decision can only be made once.',
     operationId: 'setUserType',
   })
-  @ApiParam({
-    name: 'id',
-    description: 'The ID of the user whose type is being set',
-    type: 'string',
-  })
   @ApiBody({
     type: UpdateUserDto,
-    description: 'Role selection data',
+    description: 'Account type selection data',
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Role has been successfully set',
+    description: 'Account type has been successfully set',
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
-    description: 'Invalid role or role already set',
+    description: 'Invalid account type or account type already set',
   })
   @ApiResponse({
     status: HttpStatus.FORBIDDEN,
@@ -67,7 +62,7 @@ export class UsersController {
   })
   selectUserType(@Session() session: AuthSession, @Body() selectUserTypeDto: UpdateUserDto) {
     const userId = session.user.id;
-    return this.usersService.setUserType(userId, selectUserTypeDto.role!);
+    return this.usersService.setUserType(userId, selectUserTypeDto.userType!);
   }
 
   // @Post()
