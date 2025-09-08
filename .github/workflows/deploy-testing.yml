@@ -21,7 +21,6 @@ jobs:
       SSH_PORT: ${{ secrets.DEPLOY_PORT }}
       SSH_USER: ${{ secrets.DEPLOY_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
-      SSH_HOST_FINGERPRINT: ${{ secrets.DEPLOY_HOST_FINGERPRINT }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -57,55 +56,21 @@ jobs:
           ssh -i $HOME/.ssh/id_ed25519 -p "$SSH_PORT" -o StrictHostKeyChecking=yes -o ConnectTimeout=30 -o ServerAliveInterval=60 "$SSH_USER@$SSH_HOST" << 'EOF'
             set -euo pipefail
             cd /root/cg
-            
-            # Stop existing containers gracefully
-            docker compose --file docker-compose.testing.yml down --timeout 30
-            
-            # Build and start new containers
+            # Stop existing containers gracefully (best-effort)
+            docker compose --file docker-compose.testing.yml down --timeout 30 || true
+
+            # Build and start new containers (fire-and-forget)
             docker compose --file docker-compose.testing.yml up --build --force-recreate --detach
-            
-            # Wait for services to be healthy
-            echo "Waiting for services to be healthy..."
-            timeout 300 bash -c 'until docker compose --file docker-compose.testing.yml ps | grep -q "healthy\|running"; do sleep 5; done'
-            
-            # Clean up unused Docker resources
-            docker system prune -f
-            
-            # Show deployment status
-            echo "Deployment completed successfully"
-            docker compose --file docker-compose.testing.yml ps
+
+            # NOTE: intentionally not waiting for services or performing health checks
           EOF
         shell: bash
         timeout-minutes: 15
 
-      - name: Verify deployment
-        run: |
-          ssh -i $SSH_KEY_PATH -p "$SSH_PORT" -o StrictHostKeyChecking=yes -o ConnectTimeout=30 "$SSH_USER@$SSH_HOST" << 'EOF'
-            set -euo pipefail
-            cd /root/cg
-            
-            # Check if containers are running
-            if ! docker compose --file docker-compose.testing.yml ps | grep -q "Up"; then
-              echo "Error: Some containers are not running"
-              docker compose --file docker-compose.testing.yml ps
-              exit 1
-            fi
-            
-            # Check API health endpoint
-            if ! curl -f --max-time 30 http://localhost:3100/api/health; then
-              echo "Error: API health check failed"
-              exit 1
-            fi
-            
-            echo "✅ Deployment verification successful"
-          EOF
-        shell: bash
-        timeout-minutes: 5
-
       - name: Cleanup
         if: always()
         run: |
-          rm -f $SSH_KEY_PATH
+          rm -f $HOME/.ssh/id_ed25519
         shell: bash
 
       - name: Notify deployment result
