@@ -1,8 +1,7 @@
 import { HDKey } from '@scure/bip32';
 import { generateMnemonic as _generateMnemonic, mnemonicToSeed } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
-import { WalletService } from 'src/shared/wallets/wallet.service';
-import { WalletInstanceService } from 'src/shared/wallets/wallet-instance.service';
+import { WalletFactory } from 'src/shared/wallets/Iwallet.service';
 
 import {
   IInvoiceService,
@@ -13,7 +12,7 @@ import {
 type AllowedKeyEntropyBits = 128 | 256;
 
 export class InvoiceService implements IInvoiceService {
-  private readonly walletService: WalletService;
+  private readonly walletFactory: WalletFactory;
   async platformCreateLoanOfferPrincipalInvoice(
     params: PlatformCreateLoanOfferPrincipalInvoiceParams,
   ): Promise<PlatformCreateLoanOfferPrincipalInvoiceResult> {
@@ -33,14 +32,18 @@ export class InvoiceService implements IInvoiceService {
     const seed = await mnemonicToSeed(mnemonic);
     const masterKey = HDKey.fromMasterSeed(seed);
 
-    const walletService = WalletInstanceService.prototype;
-    const generateWallet = walletService
-      .getProvider(principalBlockchainKey)
-      .generateWallet(masterKey, 0, 0);
+    const walletService = this.walletFactory.getWalletService(principalBlockchainKey);
+    if (!walletService) {
+      throw new Error(`Unsupported blockchain key: ${principalBlockchainKey}`);
+    }
+    const generateWallet = walletService.derivedPathToWallet({
+      masterKey,
+      derivationPath: `m/44'/0'/0'/0/0`,
+    });
     console.log('generateWallet', generateWallet);
     return {
       //asked to change to object below
-      principalBlockchainKey: principalBlockchainKey.key,
+      principalBlockchainKey: principalBlockchainKey,
       principalAmount,
     };
   }

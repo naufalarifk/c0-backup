@@ -12,7 +12,6 @@ import { MailerService } from './services/mailer.service';
 import { RedisService } from './services/redis.service';
 import { TelemetryService } from './services/telemetry.service';
 import { TwilioService } from './services/twilio.service';
-import { WalletModule } from './wallets/wallet.module';
 
 const providers: Provider[] = [
   AppConfigService,
@@ -27,7 +26,7 @@ const providers: Provider[] = [
 @Global()
 @Module({
   providers,
-  imports: [CqrsModule, DatabaseModule, RepositoryModule, WalletModule],
+  imports: [CqrsModule, DatabaseModule, RepositoryModule],
   exports: [...providers, CqrsModule, DatabaseModule, RepositoryModule],
 })
 export class SharedModule {}
