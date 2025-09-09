@@ -103,10 +103,10 @@ services:
     <<: *backend-base
     command: node dist/main.js
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/api/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/api/auth/ok || exit 1"]
       interval: 500ms
-      timeout: 10s
-      retries: 20
+      timeout: 30s
+      retries: 60
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -151,6 +151,29 @@ services:
       retries: 20
     volumes:
       - redis-volume:/data
+    networks:
+      - cg-private-network
+    labels:
+      - traefik.enable=false
+
+  vault:
+    image: hashicorp/vault:1.20
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_MODE: dev
+      VAULT_DEV_ROOT_TOKEN_ID: root
+    command: >
+      sh -c "
+        if [ \"$${VAULT_MODE}\" = \"dev\" ]; then
+          vault server -dev -dev-listen-address=0.0.0.0:8200
+        else
+          vault server -config=/vault-config.hcl
+        fi
+      "
+    volumes:
+      - ./vault-config.hcl:/vault-config.hcl
+      - vault-data:/vault/file
     networks:
       - cg-private-network
     labels:
@@ -376,6 +399,7 @@ services:
 volumes:
   postgres-volume:
   redis-volume:
+  vault-data:
   minio-data:
   ghost-data:
   prometheus-data:
