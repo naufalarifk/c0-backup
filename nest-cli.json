@@ -4,9 +4,7 @@
   "sourceRoot": "src",
   "compilerOptions": {
     "deleteOutDir": true,
-    "assets": [
-      { "include": "shared/repositories/postgres/*.sql", "watchAssets": true }
-    ],
+    "assets": ["shared/repositories/postgres/*.sql"],
     "watchAssets": true
   }
 }

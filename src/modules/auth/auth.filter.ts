@@ -2,6 +2,7 @@ import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import type { Response } from 'express';
 
 import { Catch } from '@nestjs/common';
+
 import { APIError } from 'better-auth/api';
 
 @Catch(APIError)

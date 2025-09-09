@@ -1,5 +1,6 @@
 import type { BetterAuthOptions } from 'better-auth';
 import type { DrizzleDB } from '../../shared/database/database.module';
+import type { UserViewsProfileResult } from '../../shared/types';
 import type { AuthModuleOptions } from './auth.module';
 
 import { Inject, Injectable } from '@nestjs/common';
@@ -7,7 +8,14 @@ import { Inject, Injectable } from '@nestjs/common';
 import { expo } from '@better-auth/expo';
 import { sso } from '@better-auth/sso';
 import { Auth, betterAuth } from 'better-auth';
-import { admin, multiSession, openAPI, phoneNumber, twoFactor } from 'better-auth/plugins';
+import {
+  admin,
+  customSession,
+  multiSession,
+  openAPI,
+  phoneNumber,
+  twoFactor,
+} from 'better-auth/plugins';
 import { v7 as uuidv7 } from 'uuid';
 
 import { DRIZZLE_DB } from '../../shared/database/database.module';
@@ -214,6 +222,20 @@ export class AuthConfig {
       }),
       sso(),
       multiSession({ maximumSessions: this.configService.authConfig.maximumSessions }),
+      customSession(async ({ session, user }) => {
+        const rows = (await this.userRepository
+          .sql`SELECT role FROM users WHERE id = ${user.id} LIMIT 1`) as {
+          role: UserViewsProfileResult['role'];
+        }[];
+
+        return {
+          session,
+          user: {
+            ...user,
+            role: rows[0]?.role || 'User',
+          },
+        };
+      }),
       admin(),
       expo(),
       openAPI(),

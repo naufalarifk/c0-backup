@@ -9,6 +9,7 @@ import { RepositoryModule } from './repositories/repository.module';
 import { AppConfigService } from './services/app-config.service';
 import { CacheService } from './services/cache.service';
 import { EmailService } from './services/email.service';
+import { FileValidatorService } from './services/file-validator.service';
 import { MailerService } from './services/mailer.service';
 import { MinioService } from './services/minio.service';
 import { RedisService } from './services/redis.service';
@@ -19,6 +20,7 @@ const providers: Provider[] = [
   AppConfigService,
   CacheService,
   EmailService,
+  FileValidatorService,
   MailerService,
   MinioService,
   RedisService,

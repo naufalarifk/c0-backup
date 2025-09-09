@@ -1,23 +1,22 @@
-import type { CustomDecorator, ExecutionContext } from '@nestjs/common';
+import type { ExecutionContext } from '@nestjs/common';
 import type { createAuthMiddleware } from 'better-auth/api';
 import type { Request } from 'express';
 
-import { createParamDecorator, SetMetadata } from '@nestjs/common';
-
-import { AFTER_HOOK_KEY, BEFORE_HOOK_KEY, HOOK_KEY } from './auth.symbols';
+import { createParamDecorator } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 
 /**
  * Marks a route or a controller as public, allowing unauthenticated access.
  * When applied, the AuthGuard will skip authentication checks.
  */
-export const Public = (): CustomDecorator => SetMetadata('PUBLIC', true);
+export const Public = Reflector.createDecorator<boolean>();
 
 /**
  * Marks a route or a controller as having optional authentication.
  * When applied, the AuthGuard will allow the request to proceed
  * even if no session is present.
  */
-export const Optional = (): CustomDecorator => SetMetadata('OPTIONAL', true);
+export const Optional = Reflector.createDecorator<boolean>();
 
 /**
  * Parameter decorator that extracts the user session from the request.
@@ -40,18 +39,16 @@ export type AuthHookContext = Parameters<Parameters<typeof createAuthMiddleware>
  * Registers a method to be executed before a specific auth route is processed.
  * @param path - The auth route path that triggers this hook (must start with '/')
  */
-export const BeforeHook = (path: `/${string}`): CustomDecorator<symbol> =>
-  SetMetadata(BEFORE_HOOK_KEY, path);
+export const BeforeHook = Reflector.createDecorator<`/${string}`>();
 
 /**
  * Registers a method to be executed after a specific auth route is processed.
  * @param path - The auth route path that triggers this hook (must start with '/')
  */
-export const AfterHook = (path: `/${string}`): CustomDecorator<symbol> =>
-  SetMetadata(AFTER_HOOK_KEY, path);
+export const AfterHook = Reflector.createDecorator<`/${string}`>();
 
 /**
  * Class decorator that marks a provider as containing hook methods.
  * Must be applied to classes that use BeforeHook or AfterHook decorators.
  */
-export const Hook = (): ClassDecorator => SetMetadata(HOOK_KEY, true);
+export const Hook = Reflector.createDecorator<boolean>();
