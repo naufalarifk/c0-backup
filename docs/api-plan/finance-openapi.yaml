@@ -39,6 +39,51 @@ security:
   - BearerAuth: []
 
 paths:
+  # Exchange Rate Management
+  /exchange-rates:
+    get:
+      tags:
+        - Exchange Rates
+      summary: Get current exchange rates
+      description: |
+        Retrieve current exchange rates for supported currency pairs.
+        
+        **Rate Sources:**
+        - Real-time data from configured price feeds
+        - Multiple sources aggregated for accuracy
+        - Bid/ask spreads included for transparency
+      operationId: getExchangeRates
+      parameters:
+        - name: baseCurrency
+          in: query
+          description: Filter by base currency (blockchain_key:token_id format)
+          schema:
+            type: string
+            example: "eip155:1:slip44:60"
+        - name: quoteCurrency
+          in: query
+          description: Filter by quote currency (blockchain_key:token_id format)
+          schema:
+            type: string
+            example: "eip155:56:erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+        - name: source
+          in: query
+          description: Filter by price feed source
+          schema:
+            type: string
+            example: "binance"
+      responses:
+        '200':
+          description: Exchange rates retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeRatesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   # Account & Balance Management
   /accounts/balances:
     get:
@@ -136,134 +181,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  # Invoice Management
-  /invoices:
-    get:
-      tags:
-        - Invoice Management
-      summary: List invoices
-      description: |
-        Retrieve invoices for the authenticated user or institution.
-        
-        **Invoice States (time-based):**
-        - Active: invoice_date <= now < due_date AND paid_date IS NULL
-        - Paid: paid_date IS NOT NULL
-        - Expired: expired_date IS NOT NULL
-        - Overdue: now > due_date AND paid_date IS NULL AND expired_date IS NULL
-      operationId: listInvoices
-      parameters:
-        - name: page
-          in: query
-          description: Page number (1-based)
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: limit
-          in: query
-          description: Number of invoices per page (max 100)
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-        - name: invoiceType
-          in: query
-          description: Filter by invoice type
-          schema:
-            type: string
-            enum:
-              - loan_collateral
-              - loan_principal
-              - loan_repayment
-              - platform_fee
-              - manual
-        - name: state
-          in: query
-          description: Filter by invoice state
-          schema:
-            type: string
-            enum:
-              - active
-              - paid
-              - expired
-              - overdue
-              - partial
-      responses:
-        '200':
-          description: Invoices retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InvoicesResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
-  /invoices/{invoiceId}:
-    get:
-      tags:
-        - Invoice Management
-      summary: Get invoice details
-      description: |
-        Retrieve detailed information about a specific invoice including payment status.
-      operationId: getInvoice
-      parameters:
-        - name: invoiceId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: Invoice details retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InvoiceResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
-  /invoices/{invoiceId}/payments:
-    get:
-      tags:
-        - Invoice Management
-      summary: Get invoice payments
-      description: |
-        Retrieve all payments made towards a specific invoice.
-      operationId: getInvoicePayments
-      parameters:
-        - name: invoiceId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: Invoice payments retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InvoicePaymentsResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
 
   # Withdrawal Management
   /beneficiaries:
@@ -506,47 +423,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  # Exchange Rates
-  /exchange-rates:
-    get:
-      tags:
-        - Exchange Rates
-      summary: Get current exchange rates
-      description: |
-        Retrieve current exchange rates for supported currency pairs.
-      operationId: getExchangeRates
-      parameters:
-        - name: baseBlockchainKey
-          in: query
-          description: Filter by base blockchain key
-          schema:
-            type: string
-        - name: baseTokenId
-          in: query
-          description: Filter by base token ID
-          schema:
-            type: string
-        - name: quoteBlockchainKey
-          in: query
-          description: Filter by quote blockchain key
-          schema:
-            type: string
-        - name: quoteTokenId
-          in: query
-          description: Filter by quote token ID
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Exchange rates retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ExchangeRatesResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
 
 components:
   securitySchemes:
@@ -724,226 +600,6 @@ components:
         # Platform fee operations
         - platformFeeCharged
         - platformFeeRefunded
-
-    # Invoice Management Schemas
-    InvoicesResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: object
-          properties:
-            invoices:
-              type: array
-              items:
-                $ref: '#/components/schemas/Invoice'
-            pagination:
-              $ref: '#/components/schemas/PaginationMeta'
-      required:
-        - success
-        - data
-
-    InvoiceResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          $ref: '#/components/schemas/Invoice'
-      required:
-        - success
-        - data
-
-    Invoice:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-          example: 789
-        currency:
-          $ref: '#/components/schemas/Currency'
-        invoicedAmount:
-          type: string
-          description: Total amount to be paid (18 decimal precision)
-          example: "5000.000000000000000000"
-          pattern: '^\d+\.\d{18}$'
-        paidAmount:
-          type: string
-          description: Amount already paid (18 decimal precision)
-          example: "5000.000000000000000000"
-          pattern: '^\d+\.\d{18}$'
-        walletAddress:
-          type: string
-          description: Payment wallet address
-          example: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"
-        invoiceType:
-          type: string
-          description: Type of invoice
-          example: "loan_collateral"
-        invoiceDate:
-          type: string
-          format: date-time
-          example: "2025-08-11T08:00:00Z"
-        dueDate:
-          type: string
-          format: date-time
-          example: "2025-08-18T08:00:00Z"
-        paidDate:
-          type: string
-          format: date-time
-          nullable: true
-          example: "2025-08-11T09:15:00Z"
-        expiredDate:
-          type: string
-          format: date-time
-          nullable: true
-          example: null
-        notifiedDate:
-          type: string
-          format: date-time
-          nullable: true
-          example: "2025-08-11T08:01:00Z"
-        state:
-          type: string
-          description: Current invoice state (derived from time-based fields, not stored)
-          enum:
-            - active
-            - paid
-            - expired
-            - overdue
-            - partial
-          example: "paid"
-          readOnly: true
-        paymentInstructions:
-          type: object
-          properties:
-            qrCode:
-              type: string
-              description: QR code for mobile payments
-              example: "bitcoin:bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh?amount=5000"
-            networkInfo:
-              type: object
-              properties:
-                name:
-                  type: string
-                  example: "Bitcoin"
-                confirmationBlocks:
-                  type: integer
-                  description: Required confirmation blocks
-                  example: 6
-                estimatedConfirmationTime:
-                  type: string
-                  description: Estimated confirmation time
-                  example: "60 minutes"
-      required:
-        - id
-        - currency
-        - invoicedAmount
-        - paidAmount
-        - walletAddress
-        - invoiceType
-        - invoiceDate
-        - dueDate
-        - state
-
-    CreateInvoiceRequest:
-      type: object
-      properties:
-        blockchainKey:
-          type: string
-          description: CAIP-2 compliant blockchain identifier
-          example: "eip155:1"
-          maxLength: 64
-        tokenId:
-          type: string
-          description: Token identifier within the blockchain
-          example: "slip44:60"
-          maxLength: 64
-        invoicedAmount:
-          type: string
-          description: Amount to invoice (18 decimal precision)
-          example: "1000.000000000000000000"
-          pattern: '^\d+\.\d{18}$'
-        invoiceType:
-          type: string
-          description: Type of invoice
-          enum:
-            - loan_collateral
-            - loan_principal
-            - loan_repayment
-            - platform_fee
-            - manual
-          example: "loan_collateral"
-        dueDate:
-          type: string
-          format: date-time
-          description: Invoice due date (ISO 8601)
-          example: "2025-08-18T23:59:59Z"
-        description:
-          type: string
-          description: Optional invoice description
-          example: "Collateral deposit for loan application #123"
-      required:
-        - blockchainKey
-        - tokenId
-        - invoicedAmount
-        - invoiceType
-        - dueDate
-
-    InvoicePaymentsResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: object
-          properties:
-            payments:
-              type: array
-              items:
-                $ref: '#/components/schemas/InvoicePayment'
-            totalPaid:
-              type: string
-              description: Total amount paid
-              example: "5000.000000000000000000"
-      required:
-        - success
-        - data
-
-    InvoicePayment:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-          example: 101
-        paymentDate:
-          type: string
-          format: date-time
-          example: "2025-08-11T09:15:00Z"
-        paymentHash:
-          type: string
-          description: Blockchain transaction hash
-          example: "a1b2c3d4e5f6789..."
-        amount:
-          type: string
-          description: Payment amount (18 decimal precision)
-          example: "5000.000000000000000000"
-          pattern: '^\d+\.\d{18}$'
-        blockchainExplorerUrl:
-          type: string
-          description: Link to view transaction on blockchain explorer
-          example: "https://etherscan.io/tx/a1b2c3d4e5f6789..."
-      required:
-        - id
-        - paymentDate
-        - paymentHash
-        - amount
 
     # Withdrawal Management Schemas
     BeneficiariesResponse:
@@ -1206,6 +862,7 @@ components:
       required:
         - success
         - data
+
 
     ExchangeRate:
       type: object
@@ -1474,8 +1131,6 @@ components:
 tags:
   - name: Account Management
     description: Account balance and transaction history operations
-  - name: Invoice Management
-    description: Invoice creation, payment tracking, and management
   - name: Withdrawal Management
     description: Withdrawal request processing and beneficiary management
   - name: Exchange Rates

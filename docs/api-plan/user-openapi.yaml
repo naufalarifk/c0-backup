@@ -138,7 +138,7 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [nik, name, birthCity, birthDate, province, city, district, subdistrict, address, postalCode, phoneNumber, idCardPhoto, selfiePhoto, selfieWithIdCardPhoto]
+              required: [nik, name, birthCity, birthDate, province, city, district, subdistrict, address, postalCode, phoneNumber, idCardPhoto, selfieWithIdCardPhoto]
               properties:
                 nik:
                   type: string
@@ -160,14 +160,18 @@ paths:
                 city:
                   type: string
                   maxLength: 100
+                  description: Kabupaten/Kota
                 district:
                   type: string
                   maxLength: 100
+                  description: Kecamatan
                 subdistrict:
                   type: string
                   maxLength: 100
+                  description: Kelurahan/Desa
                 address:
                   type: string
+                  description: Complete residential address
                 postalCode:
                   type: string
                   pattern: '^[0-9]{5}$'
@@ -175,9 +179,6 @@ paths:
                   type: string
                   maxLength: 15
                 idCardPhoto:
-                  type: string
-                  format: binary
-                selfiePhoto:
                   type: string
                   format: binary
                 selfieWithIdCardPhoto:
@@ -239,7 +240,7 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [businessName, registrationNumber, npwpNumber, businessType, province, city, district, subdistrict, address, postalCode, npwpDocument, registrationDocument, deedOfEstablishment, domicileCertificate, directorIdCard]
+              required: [businessName, registrationNumber, npwpNumber, businessType, province, city, district, subdistrict, address, postalCode, npwpDocument, registrationDocument, deedOfEstablishment, domicileCertificate, directorIdCard, ministryApprovalDocument, businessLicense]
               properties:
                 businessName:
                   type: string
@@ -534,35 +535,6 @@ paths:
                     type: integer
                     description: Number of notifications that were updated
 
-  /notifications/{id}:
-    delete:
-      tags: [Notifications]
-      summary: Delete notification
-      description: Delete a specific notification
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: Notification deleted successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Notification deleted"
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/UserAlreadyMember'
 
   /institutions/invitations/{id}/reject:
     post:
@@ -970,9 +942,6 @@ components:
         idCardPhotoUrl:
           type: string
           description: Signed URL for ID card photo
-        selfiePhotoUrl:
-          type: string
-          description: Signed URL for selfie photo
         selfieWithIdCardPhotoUrl:
           type: string
           description: Signed URL for selfie with ID card photo

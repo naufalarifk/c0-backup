@@ -1,0 +1,2397 @@
+openapi: 3.0.3
+info:
+  title: CryptoGladai Admin API
+  description: |
+    Administrative API for CryptoGladai platform management.
+    
+    This API provides comprehensive administrative capabilities for:
+    - KYC verification and user management
+    - Institution application review and approval
+    - Platform configuration management
+    - Financial operations monitoring
+    - Loan portfolio management
+    - System health monitoring
+    
+    **Security Requirements:**
+    - All endpoints require session-based authentication with httpOnly cookies
+    - Only users with role='Admin' can access these endpoints
+    - Mandatory 2FA verification for all admin operations
+    - All administrative actions are logged for audit purposes
+    
+    **Administrative Capabilities:**
+    - Complete platform oversight and control
+    - User lifecycle management
+    - Business verification and onboarding
+    - System configuration and risk management
+    - Financial monitoring and compliance
+    
+    **Authentication:**
+    - Session-based authentication using secure httpOnly cookies
+    - Automatic session refresh and rotation
+    - Mandatory 2FA for all admin accounts
+    - Session management and monitoring capabilities
+  version: 2.3.0
+  contact:
+    name: CryptoGladai Admin API Support
+    email: admin-api-support@cryptogladai.com
+  license:
+    name: Proprietary
+    url: https://cryptogladai.com/license
+
+servers:
+  - url: https://api.cryptogladai.com/api/v1
+    description: Production server
+  - url: https://staging-api.cryptogladai.com/api/v1
+    description: Staging server
+  - url: http://localhost:3000/api/v1
+    description: Local development server
+
+security:
+  - SessionAuth: []
+
+# YAML Anchors for Reusable Components
+x-common-parameters: &commonPaginationParams
+  - name: page
+    in: query
+    description: Page number (1-based)
+    schema:
+      type: integer
+      minimum: 1
+      default: 1
+  - name: limit
+    in: query
+    description: Number of items per page
+    schema:
+      type: integer
+      minimum: 1
+      maximum: 100
+      default: 20
+
+x-search-sort-params: &searchSortParams
+  - name: search
+    in: query
+    description: Search by name or email
+    schema:
+      type: string
+  - name: sortBy
+    in: query
+    description: Sort field
+    schema:
+      type: string
+      default: submittedDate
+  - name: sortOrder
+    in: query
+    description: Sort order
+    schema:
+      type: string
+      enum: [asc, desc]
+      default: desc
+
+x-common-responses: &commonErrorResponses
+  '401':
+    $ref: '#/components/responses/Unauthorized'
+  '403':
+    $ref: '#/components/responses/AdminRequired'
+  '500':
+    $ref: '#/components/responses/InternalServerError'
+
+x-validation-responses: &validationResponses
+  <<: *commonErrorResponses
+  '400':
+    $ref: '#/components/responses/ValidationError'
+  '404':
+    $ref: '#/components/responses/NotFound'
+
+x-action-responses: &actionResponses
+  <<: *validationResponses
+  '409':
+    $ref: '#/components/responses/AlreadyProcessed'
+
+x-path-id-param: &pathIdParam
+  name: id
+  in: path
+  required: true
+  description: Resource ID
+  schema:
+    type: integer
+    format: int64
+
+x-totp-properties: &totpProperties
+  totpCode:
+    type: string
+    pattern: "^[0-9]{6}$"
+    description: 6-digit TOTP code from authenticator app
+
+paths:
+  # Admin Authentication - RF-037, RF-038, RF-039, RF-040, RF-041
+  /admin/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Admin login with mandatory 2FA
+      description: |
+        Authenticate admin user with email, password, and mandatory 2FA TOTP code.
+        
+        **Security Features:**
+        - Session-based authentication with httpOnly cookies
+        - Mandatory 2FA verification for all admin accounts
+        - Rate limiting and account lockout protection
+        - Session management with 7-day expiry
+      operationId: adminLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, totpCode]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Admin email address
+                password:
+                  type: string
+                  format: password
+                  description: Admin password
+                <<: *totpProperties
+                rememberMe:
+                  type: boolean
+                  default: false
+                  description: Extend session duration
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            Set-Cookie:
+              description: Secure session cookie
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminLoginResponse'
+        '423':
+          $ref: '#/components/responses/AccountLocked'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        <<: *commonErrorResponses
+
+  /admin/auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Admin logout
+      description: Invalidate current admin session
+      operationId: adminLogout
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/auth/password:
+    put:
+      tags:
+        - Authentication
+      summary: Change admin password
+      description: |
+        Change admin password with current password verification and mandatory 2FA.
+      operationId: changeAdminPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword, totpCode]
+              properties:
+                currentPassword:
+                  type: string
+                  format: password
+                newPassword:
+                  type: string
+                  format: password
+                <<: *totpProperties
+                revokeOtherSessions:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordChangeResponse'
+        '403':
+          $ref: '#/components/responses/TwoFactorRequired'
+        <<: *validationResponses
+
+  # KYC Management - RF-042, RF-043
+  /admin/kyc/queue:
+    get:
+      tags:
+        - KYC Management
+      summary: Get pending KYC submissions
+      description: |
+        Retrieve paginated list of pending KYC submissions awaiting admin review.
+        
+        **Features:**
+        - Pagination support
+        - Filtering by submission date, user details
+        - Sorting by submission date, time in queue
+        - Search by user name or email
+      operationId: getPendingKycSubmissions
+      parameters:
+        <<: *commonPaginationParams
+        - name: search
+          in: query
+          description: Search by user name or email
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          description: Sort field
+          schema:
+            type: string
+            enum: [submittedDate, timeInQueue]
+            default: submittedDate
+        - name: sortOrder
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: Pending KYC submissions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingKycResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminRequired'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/kyc/{id}:
+    get:
+      tags:
+        - KYC Management
+      summary: Get KYC submission details
+      description: |
+        Retrieve complete KYC submission details for admin review.
+        
+        **Includes:**
+        - Personal information and documents
+        - Photo URLs with signed access
+        - Submission metadata and user context
+        - Previous review history if any
+      operationId: getKycSubmissionDetails
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: KYC submission ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: KYC submission details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KycSubmissionDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/kyc/{id}/approve:
+    put:
+      tags:
+        - KYC Management
+      summary: Approve KYC submission
+      description: |
+        Approve a KYC submission after successful verification.
+        
+        **Actions:**
+        - Sets kyc_verified_date timestamp
+        - Links KYC to user profile
+        - Triggers user notification
+        - Creates audit log entry
+      operationId: approveKycSubmission
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: KYC submission ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Approval details
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  description: Optional review notes for internal use
+                  maxLength: 1000
+      responses:
+        '200':
+          description: KYC submission approved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KycActionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/AlreadyProcessed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/kyc/{id}/reject:
+    put:
+      tags:
+        - KYC Management
+      summary: Reject KYC submission
+      description: |
+        Reject a KYC submission with reason.
+        
+        **Actions:**
+        - Sets kyc_rejected_date timestamp
+        - Records rejection reason
+        - Triggers user notification with reason
+        - Allows user to resubmit KYC
+        - Creates audit log entry
+      operationId: rejectKycSubmission
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: KYC submission ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        description: Rejection details
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  description: Reason for rejection
+                  minLength: 10
+                  maxLength: 1000
+      responses:
+        '200':
+          description: KYC submission rejected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KycActionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/AlreadyProcessed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Institution Management - RF-044, RF-045
+  /admin/institutions/applications:
+    get:
+      tags:
+        - Institution Management
+      summary: Get pending institution applications
+      description: |
+        Retrieve paginated list of pending institution applications awaiting admin review.
+        
+        **Features:**
+        - Pagination support
+        - Filtering by submission date, business name
+        - Sorting capabilities
+        - Search by business name or applicant details
+      operationId: getPendingInstitutionApplications
+      parameters:
+        <<: *commonPaginationParams
+        - name: search
+          in: query
+          description: Search by business name or applicant name
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          description: Sort field
+          schema:
+            type: string
+            enum: [submittedDate, businessName, applicantName]
+            default: submittedDate
+        - name: sortOrder
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: Pending institution applications retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingInstitutionApplicationsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminRequired'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/institutions/applications/{id}:
+    get:
+      tags:
+        - Institution Management
+      summary: Get institution application details
+      description: |
+        Retrieve complete institution application details for admin review.
+        
+        **Includes:**
+        - Business information and documentation
+        - Applicant user details and KYC status
+        - Supporting documents with signed URLs
+        - Due diligence requirements checklist
+      operationId: getInstitutionApplicationDetails
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Institution application ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Institution application details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstitutionApplicationDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/institutions/applications/{id}/approve:
+    put:
+      tags:
+        - Institution Management
+      summary: Approve institution application
+      description: |
+        Approve an institution application after successful verification.
+        
+        **Actions:**
+        - Creates institution entity
+        - Sets applicant as institution owner
+        - Generates initial institution accounts for all currencies
+        - Sets verified_date timestamp
+        - Triggers applicant notification
+        - Creates audit log entry
+      operationId: approveInstitutionApplication
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Institution application ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Approval details
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  description: Optional review notes for internal use
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Institution application approved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstitutionActionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/AlreadyProcessed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/institutions/applications/{id}/reject:
+    put:
+      tags:
+        - Institution Management
+      summary: Reject institution application
+      description: |
+        Reject an institution application with reason.
+        
+        **Actions:**
+        - Sets rejected_date timestamp
+        - Records rejection reason
+        - Triggers applicant notification with reason
+        - Allows applicant to resubmit after corrections
+        - Creates audit log entry
+      operationId: rejectInstitutionApplication
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Institution application ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        description: Rejection details
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  description: Reason for rejection
+                  minLength: 10
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Institution application rejected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstitutionActionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/AlreadyProcessed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Basic Platform Configuration (mentioned in MAIN-002)
+  /admin/settings:
+    get:
+      tags:
+        - Platform Configuration
+      summary: Get current platform configuration
+      description: |
+        Retrieve current configurable platform settings for admin dashboard.
+        
+        **Configuration Categories:**
+        - Basic loan parameters (fees, LTV ratios)
+        - Platform operational settings
+      operationId: getPlatformConfig
+      responses:
+        '200':
+          description: Platform configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformConfig'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminRequired'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - Platform Configuration
+      summary: Update platform configuration
+      description: |
+        Update platform configuration settings from admin dashboard.
+      operationId: updatePlatformConfig
+      requestBody:
+        required: true
+        description: Updated platform configuration
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlatformConfigUpdate'
+      responses:
+        '200':
+          description: Platform configuration updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformConfig'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminRequired'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Withdrawal Management - RF-046 (Basic withdrawal management only)
+  /admin/withdrawals:
+    get:
+      tags:
+        - Withdrawal Management
+      summary: Get withdrawal management queue
+      description: |
+        Display and manage withdrawal requests queue for admin review.
+      operationId: getWithdrawalsQueue
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, processing, confirming, completed, failed]
+      responses:
+        '200':
+          description: Withdrawal queue retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WithdrawalQueueResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminRequired'
+
+  /admin/withdrawals/{id}/refund:
+    post:
+      tags:
+        - Withdrawal Management
+      summary: Process withdrawal refund
+      description: |
+        Process refund for failed withdrawal after administrative review (RF-025).
+      operationId: processWithdrawalRefund
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  description: Administrative reason for refund approval
+                adminNotes:
+                  type: string
+                  description: Internal notes for audit trail
+      responses:
+        '200':
+          description: Withdrawal refund processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Basic Loan Monitoring (simplified from SRS requirements)
+  /admin/loans:
+    get:
+      tags:
+        - Loan Management
+      summary: Get loans overview
+      description: |
+        Retrieve basic loan overview for admin monitoring.
+      operationId: getLoans
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, liquidated, completed, all]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Loans retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanPortfolioResponse'
+
+
+  # User Management - RF-048, RF-049 (Basic user management only)
+  /admin/users:
+    get:
+      tags:
+        - User Management
+      summary: Search and manage users
+      description: |
+        Basic user search and management interface for admin.
+      operationId: getUsers
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, suspended, locked]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserManagementResponse'
+
+  /admin/users/{id}:
+    get:
+      tags:
+        - User Management
+      summary: Get individual user profile details
+      description: |
+        View individual user profile for admin oversight.
+      operationId: getUserProfile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/users/{id}/actions:
+    post:
+      tags:
+        - User Management
+      summary: Perform user administrative actions
+      description: |
+        Execute basic administrative actions on user accounts.
+      operationId: performUserAction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [suspend, activate, force_password_reset, unlock]
+                reason:
+                  type: string
+                  description: Administrative reason for action
+      responses:
+        '200':
+          description: User action performed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserActionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+
+components:
+  securitySchemes:
+    SessionAuth:
+      type: apiKey
+      in: cookie
+      name: admin_session
+      description: Session-based authentication using httpOnly cookies
+
+  schemas:
+    # Authentication Schemas
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          description: Success message
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-08-13T15:30:00Z"
+      required:
+        - success
+        - message
+
+    AdminLoginResponse:
+      type: object
+      required:
+        - success
+        - data
+        - message
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required:
+            - admin
+            - sessionId
+            - expiresAt
+          properties:
+            admin:
+              $ref: '#/components/schemas/AdminUser'
+            sessionId:
+              type: string
+              description: Session identifier
+            expiresAt:
+              type: string
+              format: date-time
+            permissions:
+              type: array
+              items:
+                type: string
+              description: Admin permissions
+        message:
+          type: string
+          example: "Login successful"
+
+    PasswordChangeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Password changed successfully"
+        sessionsRevoked:
+          type: integer
+          description: Number of other sessions revoked
+
+    AdminSessionsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            sessions:
+              type: array
+              items:
+                $ref: '#/components/schemas/AdminSession'
+            total:
+              type: integer
+
+    InvitationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            invitationId:
+              type: string
+            targetUserEmail:
+              type: string
+            expiresAt:
+              type: string
+              format: date-time
+            invitationUrl:
+              type: string
+              format: uri
+
+    AdminActivationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            admin:
+              $ref: '#/components/schemas/AdminUser'
+            twoFactorEnabled:
+              type: boolean
+              example: true
+        message:
+          type: string
+          example: "Admin role activated with 2FA"
+
+    # Financial Operations Schemas
+    WithdrawalQueueResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            withdrawals:
+              type: array
+              items:
+                $ref: '#/components/schemas/WithdrawalQueueItem'
+            platformWalletBalances:
+              type: object
+              additionalProperties:
+                type: string
+            statistics:
+              type: object
+              properties:
+                totalPending:
+                  type: integer
+                totalProcessing:
+                  type: integer
+                totalFailed:
+                  type: integer
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    WithdrawalQueueItem:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        userEmail:
+          type: string
+        currency:
+          type: string
+        amount:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, confirming, completed, failed]
+        requestedAt:
+          type: string
+          format: date-time
+        beneficiaryAddress:
+          type: string
+        estimatedProcessingTime:
+          type: string
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+
+    FailedWithdrawalsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            withdrawals:
+              type: array
+              items:
+                $ref: '#/components/schemas/FailedWithdrawalSummary'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    WithdrawalMonitoringResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            activeWithdrawals:
+              type: array
+              items:
+                $ref: '#/components/schemas/WithdrawalMonitoringItem'
+            blockchainStatus:
+              type: object
+              additionalProperties:
+                $ref: '#/components/schemas/BlockchainNetworkStatus'
+
+    WithdrawalMonitoringItem:
+      type: object
+      properties:
+        id:
+          type: string
+        currency:
+          type: string
+        amount:
+          type: string
+        txHash:
+          type: string
+        confirmations:
+          type: integer
+        requiredConfirmations:
+          type: integer
+        status:
+          type: string
+        estimatedCompletion:
+          type: string
+          format: date-time
+
+    BlockchainNetworkStatus:
+      type: object
+      properties:
+        network:
+          type: string
+        status:
+          type: string
+          enum: [healthy, degraded, offline]
+        latestBlock:
+          type: integer
+        avgConfirmationTime:
+          type: string
+
+    RefundResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            refundId:
+              type: string
+            originalWithdrawalId:
+              type: string
+            refundAmount:
+              type: string
+            refundCurrency:
+              type: string
+            processedAt:
+              type: string
+              format: date-time
+
+    FinancialMonitoringResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            transactionVolumes:
+              type: object
+              additionalProperties:
+                type: string
+            revenueTracking:
+              type: object
+              properties:
+                originationFees:
+                  type: string
+                interestFeesIndividual:
+                  type: string
+                interestFeesInstitution:
+                  type: string
+                liquidationFees:
+                  type: string
+            riskMonitoring:
+              type: object
+              properties:
+                largeTransactionAlerts:
+                  type: integer
+                suspiciousActivityCount:
+                  type: integer
+                concentrationRisks:
+                  type: array
+                  items:
+                    type: object
+
+    # Loan Operations Schemas  
+    LoanPortfolioResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            summary:
+              $ref: '#/components/schemas/LoanPortfolioSummary'
+            loans:
+              type: array
+              items:
+                $ref: '#/components/schemas/LoanPortfolioItem'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    LoanPortfolioItem:
+      type: object
+      properties:
+        id:
+          type: string
+        borrowerId:
+          type: string
+        lenderId:
+          type: string
+        principalAmount:
+          type: string
+        collateralAmount:
+          type: string
+        collateralCurrency:
+          type: string
+        currentLtvRatio:
+          type: number
+        status:
+          type: string
+          enum: [originated, disbursed, concluded, liquidated]
+        maturityDate:
+          type: string
+          format: date-time
+
+    RiskMonitoringResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            riskSummary:
+              type: object
+              properties:
+                totalLoansAtRisk:
+                  type: integer
+                totalCollateralValue:
+                  type: string
+                averageLtvRatio:
+                  type: number
+            riskItems:
+              type: array
+              items:
+                $ref: '#/components/schemas/LoanRiskItem'
+
+    LiquidationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            liquidationId:
+              type: string
+            loanId:
+              type: string
+            liquidationType:
+              type: string
+              enum: [partial, full]
+            estimatedAmount:
+              type: string
+            reason:
+              type: string
+
+    # System Monitoring Schemas
+    SystemStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            overall:
+              type: string
+              enum: [healthy, degraded, down]
+            components:
+              $ref: '#/components/schemas/SystemHealthStatus'
+
+    WorkerStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            workers:
+              type: array
+              items:
+                $ref: '#/components/schemas/WorkerStatus'
+
+    BlockchainStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            networks:
+              type: array
+              items:
+                $ref: '#/components/schemas/BlockchainStatus'
+
+    # User Management Schemas
+    UserManagementResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            users:
+              type: array
+              items:
+                $ref: '#/components/schemas/UserSummary'
+            statistics:
+              type: object
+              properties:
+                totalUsers:
+                  type: integer
+                kycVerified:
+                  type: integer
+                institutionUsers:
+                  type: integer
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    UserProfileResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/UserProfile'
+            kycDetails:
+              $ref: '#/components/schemas/KycSubmissionDetail'
+            financialSummary:
+              type: object
+              properties:
+                totalDeposits:
+                  type: string
+                totalWithdrawals:
+                  type: string
+                activeLoans:
+                  type: integer
+            adminNotes:
+              type: array
+              items:
+                $ref: '#/components/schemas/AdminNote'
+
+    UserProfile:
+      type: object
+      required:
+        - id
+        - email
+        - fullName
+        - role
+        - status
+        - kycStatus
+        - registeredDate
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        fullName:
+          type: string
+        role:
+          type: string
+          enum: [Individual, Company, Admin]
+        status:
+          type: string
+          enum: [active, suspended, locked]
+        kycStatus:
+          type: string
+          enum: [none, pending, verified, rejected]
+        registeredDate:
+          type: string
+          format: date-time
+        lastLoginDate:
+          type: string
+          format: date-time
+
+    AdminNote:
+      type: object
+      properties:
+        id:
+          type: string
+        adminId:
+          type: string
+        adminName:
+          type: string
+        note:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    UserActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            action:
+              type: string
+            userId:
+              type: string
+            executedAt:
+              type: string
+              format: date-time
+            affectedSessions:
+              type: integer
+
+    # Audit Schemas
+    AuditTrailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            events:
+              type: array
+              items:
+                $ref: '#/components/schemas/AuditEvent'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    AuditEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        eventType:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        adminId:
+          type: string
+        adminName:
+          type: string
+        userId:
+          type: string
+        action:
+          type: string
+        details:
+          type: object
+        ipAddress:
+          type: string
+        userAgent:
+          type: string
+
+    AuditExportResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            exportId:
+              type: string
+            format:
+              type: string
+            dateRange:
+              type: object
+              properties:
+                from:
+                  type: string
+                  format: date
+                to:
+                  type: string
+                  format: date
+            recordCount:
+              type: integer
+            downloadUrl:
+              type: string
+              format: uri
+
+    # Configuration Schemas
+    FeeConfigUpdate:
+      type: object
+      properties:
+        borrowerOriginationFeeRate:
+          type: number
+          format: decimal
+          minimum: 0.02
+          maximum: 0.05
+        individualInterestFeeRate:
+          type: number
+          format: decimal
+          minimum: 0.10
+          maximum: 0.25
+        companyInterestFeeRate:
+          type: number
+          format: decimal
+          minimum: 0.03
+          maximum: 0.10
+        liquidationFeeRate:
+          type: number
+          format: decimal
+          minimum: 0.01
+          maximum: 0.05
+        earlyLiquidationFeeRate:
+          type: number
+          format: decimal
+          minimum: 0.005
+          maximum: 0.05
+
+    LtvConfigUpdate:
+      type: object
+      properties:
+        btcMaxLtv:
+          type: number
+          format: decimal
+          minimum: 0.50
+          maximum: 0.70
+        ethMaxLtv:
+          type: number
+          format: decimal
+          minimum: 0.50
+          maximum: 0.80
+        bnbMaxLtv:
+          type: number
+          format: decimal
+          minimum: 0.40
+          maximum: 0.60
+        solMaxLtv:
+          type: number
+          format: decimal
+          minimum: 0.40
+          maximum: 0.60
+
+    LimitConfigUpdate:
+      type: object
+      properties:
+        maxActiveLoansPerBorrower:
+          type: integer
+          minimum: 1
+          maximum: 10
+        maxActiveOffersPerLender:
+          type: integer
+          minimum: 5
+          maximum: 50
+        maxDailyUsdtWithdrawal:
+          type: number
+          minimum: 10000
+        maxSingleUsdtTransaction:
+          type: number
+          minimum: 1000
+
+    AdminUser:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Admin user ID
+        email:
+          type: string
+          format: email
+          description: Admin email address
+        fullName:
+          type: string
+          description: Admin full name
+        role:
+          type: string
+          enum: [Admin]
+          description: User role (always Admin for admin app)
+        permissions:
+          type: array
+          items:
+            type: string
+          description: Specific admin permissions
+        twoFactorEnabled:
+          type: boolean
+          description: Whether 2FA is enabled
+        lastLogin:
+          type: string
+          format: date-time
+          description: Last login timestamp
+        createdAt:
+          type: string
+          format: date-time
+
+    PendingKycResponse:
+      type: object
+      properties:
+        submissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/KycSubmissionSummary'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    KycSubmissionSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        userName:
+          type: string
+        userEmail:
+          type: string
+        submittedDate:
+          type: string
+          format: date-time
+        timeInQueue:
+          type: string
+          description: Duration in hours since submission
+        priority:
+          type: string
+          enum: [normal, high, urgent]
+          description: Review priority based on time in queue
+
+    KycSubmissionDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        userInfo:
+          type: object
+          properties:
+            email:
+              type: string
+            fullName:
+              type: string
+            createdDate:
+              type: string
+              format: date-time
+            lastLoginDate:
+              type: string
+              format: date-time
+        submissionData:
+          type: object
+          properties:
+            nik:
+              type: string
+            fullName:
+              type: string
+            birthCity:
+              type: string
+            birthDate:
+              type: string
+              format: date
+            province:
+              type: string
+            city:
+              type: string
+            district:
+              type: string
+            subdistrict:
+              type: string
+            address:
+              type: string
+            postalCode:
+              type: string
+            phoneNumber:
+              type: string
+        documents:
+          type: object
+          properties:
+            idCardPhotoUrl:
+              type: string
+              description: Signed URL for ID card photo (1 hour expiry)
+            selfiePhotoUrl:
+              type: string
+              description: Signed URL for selfie photo (1 hour expiry)
+            selfieWithIdCardPhotoUrl:
+              type: string
+              description: Signed URL for selfie with ID card photo (1 hour expiry)
+        submittedDate:
+          type: string
+          format: date-time
+        timeInQueue:
+          type: string
+          description: Duration since submission
+
+    KycActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        kycId:
+          type: integer
+          format: int64
+        processedDate:
+          type: string
+          format: date-time
+        processingAdmin:
+          type: string
+          description: Admin user name who processed the KYC
+
+    PendingInstitutionApplicationsResponse:
+      type: object
+      properties:
+        applications:
+          type: array
+          items:
+            $ref: '#/components/schemas/InstitutionApplicationSummary'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    InstitutionApplicationSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        businessName:
+          type: string
+        applicantInfo:
+          type: object
+          properties:
+            userId:
+              type: integer
+              format: int64
+            name:
+              type: string
+            email:
+              type: string
+            kycStatus:
+              type: string
+              enum: [none, pending, verified, rejected]
+        submittedDate:
+          type: string
+          format: date-time
+        timeInQueue:
+          type: string
+          description: Duration in hours since submission
+        priority:
+          type: string
+          enum: [normal, high, urgent]
+
+    InstitutionApplicationDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        businessName:
+          type: string
+        applicantUser:
+          type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+            email:
+              type: string
+            fullName:
+              type: string
+            kycStatus:
+              type: string
+              enum: [none, pending, verified, rejected]
+            kycDetails:
+              $ref: '#/components/schemas/KycSubmissionDetail'
+        submittedDate:
+          type: string
+          format: date-time
+        businessDocuments:
+          type: object
+          properties:
+            incorporationCertificateUrl:
+              type: string
+              description: Signed URL for incorporation certificate
+            taxRegistrationUrl:
+              type: string
+              description: Signed URL for tax registration documents
+            businessLicenseUrl:
+              type: string
+              description: Signed URL for business license
+        dueDiligenceChecklist:
+          type: object
+          properties:
+            kycVerified:
+              type: boolean
+            businessDocumentsValid:
+              type: boolean
+            regulatoryCompliance:
+              type: boolean
+            riskAssessmentComplete:
+              type: boolean
+
+    InstitutionActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        applicationId:
+          type: integer
+          format: int64
+        institutionId:
+          type: integer
+          format: int64
+          nullable: true
+          description: Set when application is approved
+        processedDate:
+          type: string
+          format: date-time
+        processingAdmin:
+          type: string
+          description: Admin user name who processed the application
+
+    PlatformConfig:
+      type: object
+      properties:
+        effectiveDate:
+          type: string
+          format: date-time
+          description: When this configuration became/becomes effective
+        adminUserId:
+          type: integer
+          format: int64
+          description: Admin who set this configuration
+        adminUserName:
+          type: string
+          description: Name of admin who set this configuration
+        loanParameters:
+          type: object
+          properties:
+            disbursementFeeRate:
+              type: number
+              format: decimal
+              description: Platform fee rate for loan disbursement (0.01 = 1%)
+            redeliveryFeeRate:
+              type: number
+              format: decimal
+              description: Platform fee rate for loan redelivery (0.01 = 1%)
+            maxLtvRatio:
+              type: number
+              format: decimal
+              description: Maximum loan-to-value ratio (0.80 = 80%)
+            repaymentDurationInDays:
+              type: integer
+              description: Loan repayment duration in days
+            liquidationMode:
+              type: string
+              enum: [Partial, Full]
+              description: Default liquidation mode for new loans
+            liquidationFeeRate:
+              type: number
+              format: decimal
+              description: Platform fee rate for liquidation (0.01 = 1%)
+
+    PlatformConfigUpdate:
+      type: object
+      required: [loanDisbursementFeeRate, loanRedeliveryFeeRate, loanMaxLtvRatio, loanRepaymentDurationInDays, loanLiquidationMode, loanLiquidationFeeRate]
+      properties:
+        loanDisbursementFeeRate:
+          type: number
+          format: decimal
+          minimum: 0.001
+          maximum: 1
+          description: Platform fee rate for loan disbursement (0.01 = 1%)
+        loanRedeliveryFeeRate:
+          type: number
+          format: decimal
+          minimum: 0.001
+          maximum: 1
+          description: Platform fee rate for loan redelivery (0.01 = 1%)
+        loanMaxLtvRatio:
+          type: number
+          format: decimal
+          minimum: 0.1
+          maximum: 0.95
+          description: Maximum loan-to-value ratio (0.80 = 80%)
+        loanRepaymentDurationInDays:
+          type: integer
+          minimum: 1
+          maximum: 365
+          description: Loan repayment duration in days
+        loanLiquidationMode:
+          type: string
+          enum: [Partial, Full]
+          description: Default liquidation mode for new loans
+        loanLiquidationFeeRate:
+          type: number
+          format: decimal
+          minimum: 0.001
+          maximum: 1
+          description: Platform fee rate for liquidation (0.01 = 1%)
+
+    # Financial Operations Schemas
+    FailedWithdrawalSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Withdrawal ID
+        userId:
+          type: string
+          description: User ID who initiated withdrawal
+        userEmail:
+          type: string
+          description: User email for identification
+        amount:
+          type: string
+          description: Withdrawal amount
+        currency:
+          type: string
+          description: Currency code
+        failureType:
+          type: string
+          enum: [blockchain_failure, insufficient_balance, network_error, invalid_address, timeout]
+        failureReason:
+          type: string
+          description: Detailed failure reason
+        failedDate:
+          type: string
+          format: date-time
+        retryCount:
+          type: integer
+          description: Number of retry attempts
+        recommendedAction:
+          type: string
+          description: Recommended administrative action
+        refundEligible:
+          type: boolean
+          description: Whether withdrawal is eligible for refund
+
+    OverdueInvoiceSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Invoice ID
+        type:
+          type: string
+          enum: [collateral_deposit, loan_repayment, platform_fee]
+        amount:
+          type: string
+          description: Invoice amount
+        currency:
+          type: string
+          description: Currency code
+        dueDate:
+          type: string
+          format: date-time
+        daysPastDue:
+          type: integer
+          description: Number of days past due
+        userId:
+          type: string
+          description: User ID associated with invoice
+        businessImpact:
+          type: string
+          enum: [low, medium, high, critical]
+
+    PlatformWallet:
+      type: object
+      properties:
+        currency:
+          type: string
+          description: Currency code
+        blockchain:
+          type: string
+          description: Blockchain network
+        address:
+          type: string
+          description: Wallet address
+        balance:
+          type: string
+          description: Current balance
+        lowBalanceThreshold:
+          type: string
+          description: Alert threshold for low balance
+        isLowBalance:
+          type: boolean
+          description: Whether balance is below threshold
+        lastTransaction:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [active, maintenance, locked]
+
+    # Loan Operations Schemas
+    LoanPortfolioSummary:
+      type: object
+      properties:
+        totalActiveLoans:
+          type: integer
+        totalLoanValue:
+          type: string
+        totalCollateralValue:
+          type: string
+        averageLtvRatio:
+          type: number
+        platformRevenue:
+          type: string
+        riskDistribution:
+          type: object
+          properties:
+            low:
+              type: integer
+            medium:
+              type: integer
+            high:
+              type: integer
+
+    LoanRiskItem:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Loan ID
+        borrowerId:
+          type: string
+        lenderId:
+          type: string
+        principalAmount:
+          type: string
+        collateralAmount:
+          type: string
+        currentLtvRatio:
+          type: number
+        maxLtvRatio:
+          type: number
+        riskLevel:
+          type: string
+          enum: [low, medium, high, critical]
+        daysToMaturity:
+          type: integer
+        lastValuation:
+          type: string
+          format: date-time
+
+    # System Monitoring Schemas
+    SystemHealthStatus:
+      type: object
+      properties:
+        overall:
+          type: string
+          enum: [healthy, degraded, down]
+        database:
+          type: object
+          properties:
+            status:
+              type: string
+              enum: [connected, disconnected, slow]
+            responseTime:
+              type: number
+              description: Response time in milliseconds
+        externalApis:
+          type: object
+          properties:
+            exchanges:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  status:
+                    type: string
+                    enum: [online, offline, degraded]
+            priceFeeds:
+              type: array
+              items:
+                type: object
+                properties:
+                  source:
+                    type: string
+                  status:
+                    type: string
+                    enum: [online, offline, stale]
+                  lastUpdate:
+                    type: string
+                    format: date-time
+
+    WorkerStatus:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Worker name
+        status:
+          type: string
+          enum: [running, stopped, error]
+        lastRun:
+          type: string
+          format: date-time
+        nextRun:
+          type: string
+          format: date-time
+        jobsProcessed:
+          type: integer
+          description: Jobs processed in last hour
+        errorRate:
+          type: number
+          description: Error rate percentage
+        averageProcessingTime:
+          type: number
+          description: Average processing time in milliseconds
+
+    BlockchainStatus:
+      type: object
+      properties:
+        network:
+          type: string
+          description: Blockchain network name
+        nodeStatus:
+          type: string
+          enum: [connected, disconnected, syncing]
+        blockHeight:
+          type: integer
+          description: Current block height
+        syncStatus:
+          type: string
+          enum: [synced, syncing, behind]
+        networkCongestion:
+          type: string
+          enum: [low, medium, high]
+        estimatedFees:
+          type: object
+          properties:
+            low:
+              type: string
+            medium:
+              type: string
+            high:
+              type: string
+
+    # User Administration Schemas
+    UserSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        fullName:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended, locked]
+        kycStatus:
+          type: string
+          enum: [none, pending, verified, rejected]
+        institutionId:
+          type: string
+          nullable: true
+        institutionRole:
+          type: string
+          nullable: true
+        lastLogin:
+          type: string
+          format: date-time
+        registeredDate:
+          type: string
+          format: date-time
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number (1-based)
+        limit:
+          type: integer
+          description: Number of items per page
+        total:
+          type: integer
+          description: Total number of items
+        totalPages:
+          type: integer
+          description: Total number of pages
+        hasNext:
+          type: boolean
+          description: Whether there are more pages
+        hasPrev:
+          type: boolean
+          description: Whether there are previous pages
+
+    # Common Schemas
+    Currency:
+      type: object
+      properties:
+        blockchainKey:
+          type: string
+          description: CAIP-2 compliant blockchain identifier
+          example: "eip155:1"
+          maxLength: 64
+        tokenId:
+          type: string
+          description: Token identifier within the blockchain
+          example: "slip44:60"
+          maxLength: 64
+        name:
+          type: string
+          description: Human-readable currency name
+          example: "Ethereum"
+        symbol:
+          type: string
+          description: Currency symbol/ticker
+          example: "ETH"
+        decimals:
+          type: integer
+          description: Number of decimal places for precision
+          example: 18
+          minimum: 0
+          maximum: 18
+        logoUrl:
+          type: string
+          format: uri
+          description: URL to currency logo image
+          example: "https://assets.cryptogadai.com/currencies/eth.png"
+      required:
+        - blockchainKey
+        - tokenId
+        - name
+        - symbol
+        - decimals
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+              example: "VALIDATION_ERROR"
+            message:
+              type: string
+              description: Human-readable error message
+              example: "Request validation failed"
+            details:
+              type: object
+              description: Additional error details
+              additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-08-13T15:30:00Z"
+        requestId:
+          type: string
+          format: uuid
+          description: Request ID for tracking
+      required:
+        - success
+        - error
+        - timestamp
+
+  responses:
+    Unauthorized:
+      description: Authentication required or session invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "INVALID_SESSION"
+              message: "Authentication session is invalid or expired"
+
+    TwoFactorRequired:
+      description: 2FA verification required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "2FA_REQUIRED"
+              message: "Two-factor authentication verification required"
+
+    AccountLocked:
+      description: Admin account temporarily locked
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "ACCOUNT_LOCKED"
+              message: "Admin account temporarily locked due to failed login attempts"
+              details:
+                lockoutExpiresAt: "2025-08-26T15:30:00Z"
+                attemptsRemaining: 0
+
+    RateLimitExceeded:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "RATE_LIMIT_EXCEEDED"
+              message: "Too many requests, please try again later"
+              details:
+                retryAfter: 300
+
+    AdminRequired:
+      description: Admin privileges required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "ADMIN_REQUIRED"
+            message: "This endpoint requires admin privileges"
+
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "VALIDATION_ERROR"
+            message: "Request validation failed"
+            details:
+              field: "Invalid value"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "NOT_FOUND"
+            message: "Requested resource not found"
+
+    AlreadyProcessed:
+      description: Resource already processed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "ALREADY_PROCESSED"
+            message: "This submission has already been processed"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "INTERNAL_ERROR"
+            message: "An internal server error occurred"
