@@ -1,6 +1,7 @@
-import { equal, ok } from 'node:assert/strict';
+import { doesNotReject, doesNotThrow, equal, ok, rejects, throws } from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it, suite } from 'node:test';
 
+import { assertArray, assertArrayMapOf, assertDefined, assertPropDefined } from '../utils';
 import { UserRepository } from './user.repository';
 
 export async function runUserRepositoryTestSuite(
@@ -1329,6 +1330,434 @@ export async function runUserRepositoryTestSuite(
           }
           ok(errorThrown, 'Expected duplicate NPWP validation error');
         });
+      });
+    });
+
+    describe('Notification Management', function () {
+      it('should list notifications with pagination', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Notification Test User',
+          email: 'notification-test@example.com',
+          emailVerified: true,
+        });
+
+        // Create multiple notifications directly (simulating trigger creation)
+        // In real usage, these would be created by database triggers
+        await repo.sql`
+          INSERT INTO notifications (user_id, type, title, content, creation_date)
+          VALUES 
+            (${user.id}, 'UserKycVerified', 'KYC Approved', 'Your KYC has been approved', ${new Date('2024-01-01T00:00:00Z')}),
+            (${user.id}, 'UserKycRejected', 'KYC Rejected', 'Your KYC was rejected', ${new Date('2024-01-02T00:00:00Z')}),
+            (${user.id}, 'EmailVerified', 'Email Verified', 'Your email has been verified', ${new Date('2024-01-03T00:00:00Z')})
+        `;
+
+        const result = await repo.userListsNotifications({
+          userId: user.id,
+          page: 1,
+          limit: 10,
+        });
+
+        equal(result.notifications.length, 3);
+        equal(result.pagination.page, 1);
+        equal(result.pagination.limit, 10);
+        equal(result.pagination.total, 3);
+        equal(result.pagination.totalPages, 1);
+        equal(result.pagination.hasNext, false);
+        equal(result.pagination.hasPrev, false);
+        equal(result.unreadCount, 3); // All notifications are unread
+
+        // Check notifications are ordered by creation_date DESC
+        equal(result.notifications[0].type, 'EmailVerified');
+        equal(result.notifications[1].type, 'UserKycRejected');
+        equal(result.notifications[2].type, 'UserKycVerified');
+
+        // Check notification structure
+        const firstNotification = result.notifications[0];
+        equal(typeof firstNotification.id, 'string');
+        equal(firstNotification.type, 'EmailVerified');
+        equal(firstNotification.title, 'Email Verified');
+        equal(firstNotification.content, 'Your email has been verified');
+        equal(firstNotification.isRead, false);
+        equal(firstNotification.readDate, undefined);
+        ok(firstNotification.createdAt instanceof Date);
+      });
+
+      it('should filter notifications by type', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Filter Test User',
+          email: 'filter-test@example.com',
+          emailVerified: true,
+        });
+
+        // Create notifications of different types
+        await repo.sql`
+          INSERT INTO notifications (user_id, type, title, content, creation_date)
+          VALUES 
+            (${user.id}, 'UserKycVerified', 'KYC Approved', 'Your KYC has been approved', ${new Date()}),
+            (${user.id}, 'EmailVerified', 'Email Verified', 'Your email has been verified', ${new Date()}),
+            (${user.id}, 'UserKycVerified', 'Another KYC', 'Another KYC notification', ${new Date()})
+        `;
+
+        const result = await repo.userListsNotifications({
+          userId: user.id,
+          type: 'UserKycVerified',
+        });
+
+        equal(result.notifications.length, 2);
+        result.notifications.forEach(notification => {
+          equal(notification.type, 'UserKycVerified');
+        });
+      });
+
+      it('should filter notifications by unread status', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Unread Filter Test User',
+          email: 'unread-filter-test@example.com',
+          emailVerified: true,
+        });
+
+        // Create notifications, mark one as read
+        await repo.sql`
+          INSERT INTO notifications (user_id, type, title, content, creation_date, read_date)
+          VALUES 
+            (${user.id}, 'UserKycVerified', 'KYC Approved', 'Your KYC has been approved', ${new Date()}, ${new Date()}),
+            (${user.id}, 'EmailVerified', 'Email Verified', 'Your email has been verified', ${new Date()}, NULL),
+            (${user.id}, 'UserKycRejected', 'KYC Rejected', 'Your KYC was rejected', ${new Date()}, NULL)
+        `;
+
+        const result = await repo.userListsNotifications({
+          userId: user.id,
+          unreadOnly: true,
+        });
+
+        equal(result.notifications.length, 2);
+        equal(result.unreadCount, 2);
+        result.notifications.forEach(notification => {
+          equal(notification.isRead, false);
+        });
+      });
+
+      it('should handle pagination correctly', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Pagination Test User',
+          email: 'pagination-test@example.com',
+          emailVerified: true,
+        });
+
+        // Create 5 notifications
+        for (let i = 1; i <= 5; i++) {
+          await repo.sql`
+            INSERT INTO notifications (user_id, type, title, content, creation_date)
+            VALUES (${user.id}, 'EmailVerified', ${`Test ${i}`}, ${`Content ${i}`}, ${new Date(Date.now() + i * 1000)})
+          `;
+        }
+
+        // Test first page (limit 2)
+        const page1 = await repo.userListsNotifications({
+          userId: user.id,
+          page: 1,
+          limit: 2,
+        });
+
+        equal(page1.notifications.length, 2);
+        equal(page1.pagination.page, 1);
+        equal(page1.pagination.limit, 2);
+        equal(page1.pagination.total, 5);
+        equal(page1.pagination.totalPages, 3);
+        equal(page1.pagination.hasNext, true);
+        equal(page1.pagination.hasPrev, false);
+
+        // Test second page
+        const page2 = await repo.userListsNotifications({
+          userId: user.id,
+          page: 2,
+          limit: 2,
+        });
+
+        equal(page2.notifications.length, 2);
+        equal(page2.pagination.page, 2);
+        equal(page2.pagination.hasNext, true);
+        equal(page2.pagination.hasPrev, true);
+
+        // Test last page
+        const page3 = await repo.userListsNotifications({
+          userId: user.id,
+          page: 3,
+          limit: 2,
+        });
+
+        equal(page3.notifications.length, 1);
+        equal(page3.pagination.page, 3);
+        equal(page3.pagination.hasNext, false);
+        equal(page3.pagination.hasPrev, true);
+      });
+
+      it('should mark notification as read', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Mark Read Test User',
+          email: 'mark-read-test@example.com',
+          emailVerified: true,
+        });
+
+        // Create notification
+        const notificationRows = await repo.sql`
+          INSERT INTO notifications (user_id, type, title, content, creation_date)
+          VALUES (${user.id}, 'EmailVerified', 'Test', 'Test content', ${new Date()})
+          RETURNING id
+        `;
+        assertArrayMapOf(notificationRows, function (row) {
+          assertDefined(row);
+          assertPropDefined(row, 'id');
+          return row;
+        });
+        const notificationId = String(notificationRows[0].id);
+
+        // Mark as read
+        const result = await repo.userMarksNotificationRead({
+          userId: user.id,
+          notificationId,
+        });
+
+        equal(result.id, notificationId);
+        ok(result.readDate instanceof Date);
+
+        // Verify notification is marked as read
+        const updatedNotifications = await repo.userListsNotifications({
+          userId: user.id,
+        });
+
+        equal(updatedNotifications.notifications[0].isRead, true);
+        ok(updatedNotifications.notifications[0].readDate instanceof Date);
+        equal(updatedNotifications.unreadCount, 0);
+      });
+
+      it('should not mark already read notification as read again', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Already Read Test User',
+          email: 'already-read-test@example.com',
+          emailVerified: true,
+        });
+
+        // Create and mark notification as read
+        const notificationRows = await repo.sql`
+          INSERT INTO notifications (user_id, type, title, content, creation_date, read_date)
+          VALUES (${user.id}, 'EmailVerified', 'Test', 'Test content', ${new Date()}, ${new Date()})
+          RETURNING id
+        `;
+        assertArrayMapOf(notificationRows, function (row) {
+          assertDefined(row);
+          assertPropDefined(row, 'id');
+          return row;
+        });
+        const notificationId = String(notificationRows[0].id);
+
+        await rejects(
+          repo.userMarksNotificationRead({
+            userId: user.id,
+            notificationId,
+          }),
+          function (error) {
+            return error instanceof Error && error.message.includes('not found or already read');
+          },
+          'Expected error for already read notification',
+        );
+      });
+
+      it('should not allow user to mark other users notifications as read', async function () {
+        const user1 = await repo.betterAuthCreateUser({
+          name: 'User 1',
+          email: 'user1-security@example.com',
+          emailVerified: true,
+        });
+
+        const _user2 = await repo.betterAuthCreateUser({
+          name: 'User 2',
+          email: 'user2-security@example.com',
+          emailVerified: true,
+        });
+
+        // Create notification for user1
+        const notificationRows = await repo.sql`
+          INSERT INTO notifications (user_id, type, title, content, creation_date)
+          VALUES (${user1.id}, 'EmailVerified', 'Test', 'Test content', ${new Date()})
+          RETURNING id
+        `;
+        assertArrayMapOf(notificationRows, function (row) {
+          assertDefined(row);
+          assertPropDefined(row, 'id');
+          return row;
+        });
+
+        const notificationId = String(notificationRows[0].id);
+
+        await rejects(
+          repo.userMarksNotificationRead({
+            userId: 'non-existent-user-id',
+            notificationId: notificationId,
+          }),
+          function (error) {
+            return error instanceof Error && error.message.includes('not found or already read');
+          },
+          'Expected error for unauthorized access',
+        );
+      });
+
+      it('should mark all notifications as read', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Mark All Read Test User',
+          email: 'mark-all-read-test@example.com',
+          emailVerified: true,
+        });
+
+        // Create multiple unread notifications
+        await repo.sql`
+          INSERT INTO notifications (user_id, type, title, content, creation_date)
+          VALUES 
+            (${user.id}, 'UserKycVerified', 'KYC 1', 'Content 1', ${new Date()}),
+            (${user.id}, 'EmailVerified', 'Email 1', 'Content 2', ${new Date()}),
+            (${user.id}, 'UserKycRejected', 'KYC 2', 'Content 3', ${new Date()})
+        `;
+
+        // Mark all as read
+        const result = await repo.userMarksAllNotificationsRead({
+          userId: user.id,
+        });
+
+        equal(result.updatedCount, 3);
+
+        // Verify all notifications are marked as read
+        const updatedNotifications = await repo.userListsNotifications({
+          userId: user.id,
+        });
+
+        equal(updatedNotifications.unreadCount, 0);
+        updatedNotifications.notifications.forEach(notification => {
+          equal(notification.isRead, true);
+          ok(notification.readDate instanceof Date);
+        });
+      });
+
+      it('should delete notification', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Delete Test User',
+          email: 'delete-test@example.com',
+          emailVerified: true,
+        });
+
+        // Create notification
+        const notificationRows = await repo.sql`
+          INSERT INTO notifications (user_id, type, title, content, creation_date)
+          VALUES (${user.id}, 'EmailVerified', 'Test', 'Test content', ${new Date()})
+          RETURNING id
+        `;
+        assertArrayMapOf(notificationRows, function (row) {
+          assertDefined(row);
+          assertPropDefined(row, 'id');
+          return row;
+        });
+        const notificationId = String(notificationRows[0].id);
+
+        // Delete notification
+        const result = await repo.userDeletesNotification({
+          userId: user.id,
+          notificationId,
+        });
+
+        equal(result.id, notificationId);
+        equal(result.deleted, true);
+
+        // Verify notification is deleted
+        const remainingNotifications = await repo.userListsNotifications({
+          userId: user.id,
+        });
+
+        equal(remainingNotifications.notifications.length, 0);
+        equal(remainingNotifications.pagination.total, 0);
+      });
+
+      it('should not allow user to delete other users notifications', async function () {
+        const user1 = await repo.betterAuthCreateUser({});
+        const user2 = await repo.betterAuthCreateUser({});
+
+        // Create notification for user1
+        const notificationRows = await repo.sql`
+          INSERT INTO notifications (user_id, type, title, content, creation_date)
+          VALUES (${user1.id}, 'EmailVerified', 'Test', 'Test content', ${new Date()})
+          RETURNING id
+        `;
+        assertArrayMapOf(notificationRows, function (row) {
+          assertDefined(row);
+          assertPropDefined(row, 'id');
+          return row;
+        });
+        const notificationId = String(notificationRows[0].id);
+
+        // Try to delete by user2 - should fail
+        let errorThrown = false;
+        let errorMessage = '';
+        try {
+          await repo.userDeletesNotification({
+            userId: user2.id,
+            notificationId,
+          });
+        } catch (error) {
+          errorThrown = true;
+          errorMessage = error.message;
+        }
+        ok(errorThrown, 'Expected error for unauthorized deletion');
+        ok(
+          errorMessage.includes('not found or access denied'),
+          `Expected error message to include 'not found or access denied', got: ${errorMessage}`,
+        );
+      });
+
+      it('should handle empty notification list', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Empty List Test User',
+          email: 'empty-list-test@example.com',
+          emailVerified: true,
+        });
+
+        const result = await repo.userListsNotifications({
+          userId: user.id,
+        });
+
+        equal(result.notifications.length, 0);
+        equal(result.pagination.total, 0);
+        equal(result.pagination.totalPages, 0);
+        equal(result.unreadCount, 0);
+      });
+
+      it('should validate pagination parameters', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Validation Test User',
+          email: 'validation-test@example.com',
+          emailVerified: true,
+        });
+
+        // Test with invalid page (should default to 1)
+        const result1 = await repo.userListsNotifications({
+          userId: user.id,
+          page: -1,
+          limit: 5,
+        });
+        equal(result1.pagination.page, 1);
+
+        // Test with invalid limit (should cap at 100)
+        const result2 = await repo.userListsNotifications({
+          userId: user.id,
+          page: 1,
+          limit: 150,
+        });
+        equal(result2.pagination.limit, 100);
+
+        // Test with zero limit (should default to 1)
+        const result3 = await repo.userListsNotifications({
+          userId: user.id,
+          page: 1,
+          limit: 0,
+        });
+        equal(result3.pagination.limit, 1);
       });
     });
   });

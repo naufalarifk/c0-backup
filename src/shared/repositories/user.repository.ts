@@ -23,6 +23,7 @@ import {
   AdminViewPendingKycsResult,
   AdminViewsNotificationsByTypeParams,
   AdminViewsNotificationsByTypeResult,
+  NotificationType,
   OwnerUserInvitesUserToInstitutionParams,
   OwnerUserInvitesUserToInstitutionResult,
   SystemCreatesInstitutionApplicationWithValidationParams,
@@ -32,6 +33,14 @@ import {
   UserAppliesForInstitutionParams,
   UserAppliesForInstitutionResult,
   UserDecidesUserTypeParams,
+  UserDeletesNotificationParams,
+  UserDeletesNotificationResult,
+  UserListsNotificationsParams,
+  UserListsNotificationsResult,
+  UserMarksAllNotificationsReadParams,
+  UserMarksAllNotificationsReadResult,
+  UserMarksNotificationReadParams,
+  UserMarksNotificationReadResult,
   UserRejectsInstitutionInvitationParams,
   UserRejectsInstitutionInvitationResult,
   UserSubmitsKYCResult,
@@ -52,7 +61,6 @@ import {
   assertPropNullableStringOrNumber,
   assertPropString,
   assertPropStringOrNumber,
-  isDefined,
   setAssertPropValue,
 } from '../utils/assertions';
 import { BaseRepository } from './base.repository';
@@ -1987,6 +1995,237 @@ export abstract class UserRepository extends BaseRepository {
     } catch (error) {
       console.error('UserRepository', error);
       await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  // Notification management methods
+  async userListsNotifications(
+    params: UserListsNotificationsParams,
+  ): Promise<UserListsNotificationsResult> {
+    try {
+      const { userId, page = 1, limit = 20, type, unreadOnly = false } = params;
+
+      // Validate pagination parameters
+      const validatedPage = Math.max(1, page);
+      const validatedLimit = Math.min(Math.max(1, limit), 100);
+      const offset = (validatedPage - 1) * validatedLimit;
+
+      // Base query with conditional WHERE clauses
+      let notificationsQuery: unknown[] = [];
+      let countQuery: unknown[] = [];
+      let unreadCountQuery: unknown[] = [];
+
+      if (type && unreadOnly) {
+        // Both type and unread filters
+        notificationsQuery = await this.sql`
+          SELECT id, type, title, content, read_date, creation_date
+          FROM notifications 
+          WHERE user_id = ${userId} AND type = ${type} AND read_date IS NULL
+          ORDER BY creation_date DESC
+          LIMIT ${validatedLimit} OFFSET ${offset}
+        `;
+        countQuery = await this.sql`
+          SELECT COUNT(*) as count FROM notifications 
+          WHERE user_id = ${userId} AND type = ${type} AND read_date IS NULL
+        `;
+      } else if (type) {
+        // Only type filter
+        notificationsQuery = await this.sql`
+          SELECT id, type, title, content, read_date, creation_date
+          FROM notifications 
+          WHERE user_id = ${userId} AND type = ${type}
+          ORDER BY creation_date DESC
+          LIMIT ${validatedLimit} OFFSET ${offset}
+        `;
+        countQuery = await this.sql`
+          SELECT COUNT(*) as count FROM notifications 
+          WHERE user_id = ${userId} AND type = ${type}
+        `;
+      } else if (unreadOnly) {
+        // Only unread filter
+        notificationsQuery = await this.sql`
+          SELECT id, type, title, content, read_date, creation_date
+          FROM notifications 
+          WHERE user_id = ${userId} AND read_date IS NULL
+          ORDER BY creation_date DESC
+          LIMIT ${validatedLimit} OFFSET ${offset}
+        `;
+        countQuery = await this.sql`
+          SELECT COUNT(*) as count FROM notifications 
+          WHERE user_id = ${userId} AND read_date IS NULL
+        `;
+      } else {
+        // No filters
+        notificationsQuery = await this.sql`
+          SELECT id, type, title, content, read_date, creation_date
+          FROM notifications 
+          WHERE user_id = ${userId}
+          ORDER BY creation_date DESC
+          LIMIT ${validatedLimit} OFFSET ${offset}
+        `;
+        countQuery = await this.sql`
+          SELECT COUNT(*) as count FROM notifications 
+          WHERE user_id = ${userId}
+        `;
+      }
+
+      // Get unread count (always the same)
+      unreadCountQuery = await this.sql`
+        SELECT COUNT(*) as count FROM notifications 
+        WHERE user_id = ${userId} AND read_date IS NULL
+      `;
+      assertDefined(countQuery[0]);
+      assertPropDefined(countQuery[0], 'count');
+      assertDefined(unreadCountQuery[0]);
+      assertPropDefined(unreadCountQuery[0], 'count');
+
+      const totalCount = Number(countQuery[0]?.count || 0);
+      const unreadCount = Number(unreadCountQuery[0]?.count || 0);
+
+      // Transform notifications
+      const notifications = notificationsQuery.map(function (row: unknown) {
+        assertDefined(row);
+        assertPropStringOrNumber(row, 'id');
+        assertPropString(row, 'type');
+        assertPropString(row, 'title');
+        assertPropString(row, 'content');
+        assertPropDate(row, 'creation_date');
+
+        return {
+          id: String(row.id),
+          type: row.type as NotificationType,
+          title: row.title,
+          content: row.content,
+          isRead: 'read_date' in row && !!row.read_date,
+          readDate: 'read_date' in row && row.read_date instanceof Date ? row.read_date : undefined,
+          createdAt: row.creation_date,
+        };
+      });
+
+      // Calculate pagination metadata
+      const totalPages = Math.ceil(totalCount / validatedLimit);
+
+      return {
+        notifications,
+        pagination: {
+          page: validatedPage,
+          limit: validatedLimit,
+          total: totalCount,
+          totalPages,
+          hasNext: validatedPage < totalPages,
+          hasPrev: validatedPage > 1,
+        },
+        unreadCount,
+      };
+    } catch (error) {
+      console.error('UserRepository', error);
+      throw error;
+    }
+  }
+
+  async userMarksNotificationRead(
+    params: UserMarksNotificationReadParams,
+  ): Promise<UserMarksNotificationReadResult> {
+    const tx = await this.beginTransaction();
+    try {
+      const { userId, notificationId } = params;
+      const readDate = new Date();
+
+      const rows = await tx.sql`
+        UPDATE notifications
+        SET read_date = ${readDate}
+        WHERE id = ${notificationId} AND user_id = ${userId} AND read_date IS NULL
+        RETURNING id, read_date
+      `;
+
+      if (rows.length === 0) {
+        await tx.rollbackTransaction();
+        throw new Error('Notification not found or already read');
+      }
+
+      const notification = rows[0];
+      assertDefined(notification);
+      assertPropStringOrNumber(notification, 'id');
+      assertPropDate(notification, 'read_date');
+
+      await tx.commitTransaction();
+
+      return {
+        id: String(notification.id),
+        readDate: notification.read_date,
+      };
+    } catch (error) {
+      console.error('UserRepository', error);
+      // Only rollback if error was not a manual rollback
+      if (!error.message?.includes('Notification not found or already read')) {
+        await tx.rollbackTransaction();
+      }
+      throw error;
+    }
+  }
+
+  async userMarksAllNotificationsRead(
+    params: UserMarksAllNotificationsReadParams,
+  ): Promise<UserMarksAllNotificationsReadResult> {
+    const tx = await this.beginTransaction();
+    try {
+      const { userId } = params;
+      const readDate = new Date();
+
+      const rows = await tx.sql`
+        UPDATE notifications
+        SET read_date = ${readDate}
+        WHERE user_id = ${userId} AND read_date IS NULL
+        RETURNING id
+      `;
+
+      await tx.commitTransaction();
+
+      return {
+        updatedCount: rows.length,
+      };
+    } catch (error) {
+      console.error('UserRepository', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  async userDeletesNotification(
+    params: UserDeletesNotificationParams,
+  ): Promise<UserDeletesNotificationResult> {
+    const tx = await this.beginTransaction();
+    try {
+      const { userId, notificationId } = params;
+
+      const rows = await tx.sql`
+        DELETE FROM notifications
+        WHERE id = ${notificationId} AND user_id = ${userId}
+        RETURNING id
+      `;
+
+      if (rows.length === 0) {
+        await tx.rollbackTransaction();
+        throw new Error('Notification not found or access denied');
+      }
+
+      const notification = rows[0];
+      assertDefined(notification);
+      assertPropStringOrNumber(notification, 'id');
+
+      await tx.commitTransaction();
+
+      return {
+        id: String(notification.id),
+        deleted: true,
+      };
+    } catch (error) {
+      console.error('UserRepository', error);
+      // Only rollback if error was not a manual rollback
+      if (!error.message?.includes('Notification not found or access denied')) {
+        await tx.rollbackTransaction();
+      }
       throw error;
     }
   }
