@@ -110,8 +110,8 @@ services:
     depends_on:
       - postgres
       - redis
-      - mailpit
       - minio
+      - mailpit
     networks:
       - cg-private-network
       - cg-public-network
@@ -156,6 +156,39 @@ services:
     labels:
       - traefik.enable=false
 
+  minio:
+    image: bitnami/minio:2025.7.23
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+      MINIO_API_CORS_ALLOW_ORIGIN: "*"
+      MINIO_BROWSER: "on"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 500ms
+      timeout: 10s
+      retries: 20
+    volumes:
+      - minio-data:/data
+    networks:
+      - cg-private-network
+      - cg-public-network
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.cg-minio-api.rule=Host(`${MINIO_API_DOMAIN:-cg-minio-api.fh47.my.id}`)
+      - traefik.http.services.cg-minio-api.loadbalancer.server.port=9000
+      # Conditional SSL labels for API
+      - ${SSL_DISABLED:-traefik.http.routers.cg-minio-api.entrypoints=websecure}
+      - ${SSL_DISABLED:-traefik.http.routers.cg-minio-api.tls.certresolver=cgresolver}
+      - ${SSL_DISABLED:+traefik.http.routers.cg-minio-api.entrypoints=web}
+      - traefik.http.routers.cg-minio-console.rule=Host(`${MINIO_CONSOLE_DOMAIN:-cg-minio.fh47.my.id}`)
+      - traefik.http.services.cg-minio-console.loadbalancer.server.port=9001
+      # Conditional SSL labels for Console
+      - ${SSL_DISABLED:-traefik.http.routers.cg-minio-console.entrypoints=websecure}
+      - ${SSL_DISABLED:-traefik.http.routers.cg-minio-console.tls.certresolver=cgresolver}
+      - ${SSL_DISABLED:+traefik.http.routers.cg-minio-console.entrypoints=web}
+
   mailpit:
     image: axllent/mailpit:v1.27.7
     healthcheck:
@@ -174,39 +207,6 @@ services:
       - ${SSL_DISABLED:-traefik.http.routers.cg-mailpit.entrypoints=websecure}
       - ${SSL_DISABLED:-traefik.http.routers.cg-mailpit.tls.certresolver=cgresolver}
       - ${SSL_DISABLED:+traefik.http.routers.cg-mailpit.entrypoints=web}
-
-  minio:
-    image: bitnami/minio:2024
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin123
-      MINIO_DEFAULT_BUCKETS: uploads,documents,images
-      MINIO_SCHEME: http
-      MINIO_API_CORS_ALLOW_ORIGIN: "*"
-    volumes:
-      - minio-data:/bitnami/minio/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
-      interval: 500ms
-      timeout: 10s
-      retries: 20
-    networks:
-      - cg-private-network
-      - cg-public-network
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.cg-minio-api.rule=Host(`${MINIO_API_DOMAIN:-cg-minio-api.fh47.my.id}`)
-      - traefik.http.services.cg-minio-api.loadbalancer.server.port=9000
-      - traefik.http.routers.cg-minio-console.rule=Host(`${MINIO_CONSOLE_DOMAIN:-cg-minio.fh47.my.id}`)
-      - traefik.http.services.cg-minio-console.loadbalancer.server.port=9001
-      # Conditional SSL labels for API
-      - ${SSL_DISABLED:-traefik.http.routers.cg-minio-api.entrypoints=websecure}
-      - ${SSL_DISABLED:-traefik.http.routers.cg-minio-api.tls.certresolver=cgresolver}
-      - ${SSL_DISABLED:+traefik.http.routers.cg-minio-api.entrypoints=web}
-      # Conditional SSL labels for Console
-      - ${SSL_DISABLED:-traefik.http.routers.cg-minio-console.entrypoints=websecure}
-      - ${SSL_DISABLED:-traefik.http.routers.cg-minio-console.tls.certresolver=cgresolver}
-      - ${SSL_DISABLED:+traefik.http.routers.cg-minio-console.entrypoints=web}
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.134.1
@@ -350,10 +350,10 @@ services:
 volumes:
   postgres-volume:
   redis-volume:
+  minio-data:
   prometheus-data:
   grafana-data:
   loki-data:
-  minio-data:
 
 networks:
   cg-private-network:
