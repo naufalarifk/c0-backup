@@ -1,6 +1,8 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Request } from 'express';
 
+import { randomUUID } from 'crypto';
+
 import { ClassSerializerInterceptor, Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
@@ -29,7 +31,6 @@ async function bootstrap() {
 
   const reflector = app.get(Reflector);
   const configService = app.select(SharedModule).get(AppConfigService);
-  const telemetryService = app.select(SharedModule).get(TelemetryService);
 
   app.use(
     helmet({
@@ -59,17 +60,29 @@ async function bootstrap() {
     }),
   );
   app.use(compression());
+
+  // Add request ID middleware
+  app.use((req: Request, res, next) => {
+    const requestId = req.get('x-request-id') || req.get('request-id') || randomUUID();
+    req.headers['x-request-id'] = requestId;
+    res.set('x-request-id', requestId);
+    next();
+  });
+
   app.use(
-    morgan('combined', {
-      stream: {
-        write: (message: string) => logger.log(message.trim()),
+    morgan(
+      ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :req[x-request-id] - :response-time ms',
+      {
+        stream: {
+          write: (message: string) => logger.log(message.trim()),
+        },
+        skip(req: Request, _res) {
+          const url = req.originalUrl || req.url || '';
+          // Disable access logging for the healthcheck endpoint to keep logs clean
+          return /^(\/api)?\/health(\/|$)/.test(url);
+        },
       },
-      skip(req: Request, _res) {
-        const url = req.originalUrl || req.url || '';
-        // Disable access logging for the healthcheck endpoint to keep logs clean
-        return /^(\/api)?\/health(\/|$)/.test(url);
-      },
-    }),
+    ),
   );
 
   app.setGlobalPrefix('api');
@@ -78,7 +91,7 @@ async function bootstrap() {
   app.useGlobalFilters(new GlobalExceptionFilter());
 
   app.useGlobalInterceptors(
-    new TelemetryInterceptor(telemetryService),
+    app.get(TelemetryInterceptor),
     new ResolvePromisesInterceptor(),
     new ClassSerializerInterceptor(reflector),
   );

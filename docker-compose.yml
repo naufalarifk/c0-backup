@@ -38,6 +38,7 @@ services:
       retries: ${HEALTHCHECK_RETRIES}
       start_period: ${HEALTHCHECK_START_PERIOD}
 
+
   mail:
     image: ${MAIL_IMAGE}
     container_name: ${MAIL_CONTAINER_NAME}
@@ -61,6 +62,28 @@ services:
       timeout: ${HEALTHCHECK_TIMEOUT}
       retries: ${HEALTHCHECK_RETRIES}
       start_period: ${HEALTHCHECK_START_PERIOD}
+
+  vault:
+    image: hashicorp/vault:latest
+    container_name: ${VAULT_CONTAINER_NAME:-vault}
+    cap_add:
+      - IPC_LOCK
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_MODE: ${VAULT_MODE:-dev}
+      VAULT_DEV_ROOT_TOKEN_ID: root
+    command: >
+      sh -c "
+        if [ \"$${VAULT_MODE}\" = \"dev\" ]; then
+          vault server -dev -dev-listen-address=0.0.0.0:8200
+        else
+          vault server -config=/vault-config.hcl
+        fi
+      "
+    volumes:
+      - ./vault-config.hcl:/vault-config.hcl
+      - ${VAULT_DATA_VOLUME:-}:/vault/file
 
   minio:
     image: bitnami/minio:${MINIO_VERSION}
@@ -86,6 +109,7 @@ services:
       retries: ${HEALTHCHECK_RETRIES}
       start_period: ${HEALTHCHECK_START_PERIOD}
 
+
 volumes:
   postgres_data:
     driver: local
@@ -94,6 +118,8 @@ volumes:
   mailpit_data:
     driver: local
   minio_data:
+    driver: local
+  vault_data:
     driver: local
 
 networks:

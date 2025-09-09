@@ -3,6 +3,8 @@ import type { Provider } from '@nestjs/common';
 import { Global, Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 
+import { TelemetryLogger } from '../telemetry.logger';
+import { VaultService } from './cryptography/cryptography.service';
 import { DatabaseModule } from './database/database.module';
 import { RepositoryModule } from './repositories/repository.module';
 import { AppConfigService } from './services/app-config.service';
@@ -24,7 +26,9 @@ const providers: Provider[] = [
   MinioService,
   RedisService,
   TelemetryService,
+  TelemetryLogger,
   TwilioService,
+  VaultService,
 ];
 
 @Global()

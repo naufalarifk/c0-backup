@@ -279,3 +279,119 @@ export type UserViewsProfileResult = {
   businessName?: string | null;
   businessType?: string | null;
 };
+
+// Notification management types
+export type NotificationType =
+  // Authentication notifications
+  | 'UserRegistered'
+  | 'EmailVerificationSent'
+  | 'EmailVerified'
+  | 'PasswordResetRequested'
+  | 'PasswordResetCompleted'
+  | 'TwoFactorEnabled'
+  | 'TwoFactorDisabled'
+  | 'LoginFromNewDevice'
+  | 'SuspiciousLoginAttempt'
+  // KYC notifications
+  | 'UserKycVerified'
+  | 'UserKycRejected'
+  // Institution notifications
+  | 'InstitutionApplicationVerified'
+  | 'InstitutionApplicationRejected'
+  | 'InstitutionMemberInvited'
+  | 'InstitutionMemberAccepted'
+  | 'InstitutionMemberRejected'
+  // Invoice notifications
+  | 'InvoiceCreated'
+  | 'InvoiceDue'
+  | 'InvoiceExpired'
+  | 'InvoicePartiallyPaid'
+  | 'InvoicePaid'
+  // Loan notifications
+  | 'LoanOfferPublished'
+  | 'LoanApplicationPublished'
+  | 'LoanApplicationMatched'
+  | 'LoanOfferMatched'
+  | 'LoanApplicationApproved'
+  | 'LoanApplicationRejected'
+  | 'LoanOfferClosed'
+  | 'LoanDisbursement'
+  | 'LoanActivated'
+  | 'LoanRepaymentDue'
+  | 'LoanRepaymentCompleted'
+  | 'LoanRepaymentReceived'
+  | 'LoanRepaymentFailed'
+  | 'LoanLiquidation'
+  | 'LoanLtvBreach'
+  // Withdrawal notifications
+  | 'WithdrawalRequested'
+  | 'WithdrawalRefunded'
+  | 'WithdrawalRefundApproved'
+  | 'WithdrawalRefundRejected'
+  // Enhanced loan notifications
+  | 'LiquidationWarning'
+  | 'LiquidationCompleted'
+  // System notifications
+  | 'PlatformMaintenanceNotice'
+  | 'SecurityAlert';
+
+export type NotificationItem = {
+  id: string;
+  type: NotificationType;
+  title: string;
+  content: string;
+  isRead: boolean;
+  readDate?: Date;
+  createdAt: Date;
+};
+
+export type PaginationMeta = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+};
+
+export type UserListsNotificationsParams = {
+  userId: string;
+  page?: number;
+  limit?: number;
+  type?: NotificationType;
+  unreadOnly?: boolean;
+};
+
+export type UserListsNotificationsResult = {
+  notifications: Array<NotificationItem>;
+  pagination: PaginationMeta;
+  unreadCount: number;
+};
+
+export type UserMarksNotificationReadParams = {
+  userId: string;
+  notificationId: string;
+};
+
+export type UserMarksNotificationReadResult = {
+  id: string;
+  readDate: Date;
+};
+
+export type UserMarksAllNotificationsReadParams = {
+  userId: string;
+};
+
+export type UserMarksAllNotificationsReadResult = {
+  updatedCount: number;
+};
+
+export type UserDeletesNotificationParams = {
+  userId: string;
+  notificationId: string;
+};
+
+export type UserDeletesNotificationResult = {
+  id: string;
+  deleted: boolean;
+};

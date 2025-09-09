@@ -6,6 +6,7 @@ import { createAdapter } from 'better-auth/adapters';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { unknownErrorToPlain } from '../../shared/utils';
+import { TelemetryLogger } from '../../telemetry.logger';
 
 interface AuthAdapterOptions {
   userRepo: CryptogadaiRepository;
@@ -16,6 +17,7 @@ interface AuthAdapterOptions {
 }
 
 export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
+  const logger = new TelemetryLogger('AuthAdapter');
   return createAdapter({
     config: {
       adapterId: 'repository',
@@ -24,7 +26,7 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
     },
     adapter: () => ({
       create({ model, data, ...others }) {
-        console.debug('AuthAdapter:create', { model, data, ...others });
+        logger.debug('AuthAdapter:create', { model, data, ...others });
         if (model === 'user') {
           return userRepo.betterAuthCreateUser(data);
         } else if (model === 'session') {
@@ -40,7 +42,7 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
         }
       },
       update({ model, update, where, ...others }) {
-        console.debug('AuthAdapter:update', { model, update, where, ...others });
+        logger.debug('AuthAdapter:update', { model, update, where, ...others });
         if (model === 'user') {
           // Field mapping handled in repository methods
           return userRepo.betterAuthUpdateUser(where, update);
@@ -53,7 +55,7 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
         }
       },
       updateMany({ model, update, where, ...others }) {
-        console.debug('AuthAdapter:updateMany', { model, update, where, ...others });
+        logger.debug('AuthAdapter:updateMany', { model, update, where, ...others });
         if (model === 'user') {
           // Field mapping handled in repository methods
           return userRepo.betterAuthUpdateManyUsers(where, update);
@@ -67,7 +69,7 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
         }
       },
       async delete({ model, where, ...others }) {
-        console.debug('AuthAdapter:delete', { model, where, ...others });
+        logger.debug('AuthAdapter:delete', { model, where, ...others });
         if (model === 'user') {
           // Field mapping handled in repository methods
           const deleted = await userRepo.betterAuthDeleteUser(where);
@@ -81,7 +83,7 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
         }
       },
       deleteMany({ model, where, ...others }) {
-        console.debug('AuthAdapter:deleteMany', { model, where, ...others });
+        logger.debug('AuthAdapter:deleteMany', { model, where, ...others });
         if (model === 'user') {
           // Field mapping handled in repository methods
           return userRepo.betterAuthDeleteManyUsers(where);
@@ -94,7 +96,7 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
         }
       },
       async findOne({ model, where, select, ...others }) {
-        console.debug('AuthAdapter:findOne', { model, where, select, ...others });
+        logger.debug('AuthAdapter:findOne', { model, where, select, ...others });
         if (model === 'user') {
           // Field mapping handled in repository methods
           const user = await userRepo.betterAuthFindOneUser(where);
@@ -124,7 +126,7 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
         }
       },
       findMany({ model, where, limit, offset, sortBy, ...others }) {
-        console.debug('AuthAdapter:findMany', { model, where, limit, offset, sortBy, ...others });
+        logger.debug('AuthAdapter:findMany', { model, where, limit, offset, sortBy, ...others });
         if (model === 'user') {
           // Field mapping handled in repository methods
           return userRepo.betterAuthFindManyUsers(where, limit, offset, sortBy) as any;
@@ -137,7 +139,7 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
         }
       },
       async count({ model, where, ...others }) {
-        console.debug('AuthAdapter:count', { model, where, ...others });
+        logger.debug('AuthAdapter:count', { model, where, ...others });
         if (model === 'user') {
           // Field mapping handled in repository methods
           const results = await userRepo.betterAuthFindManyUsers(where);

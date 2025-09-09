@@ -163,6 +163,34 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationError'
 
+  # Interest Rate Management
+  /loan-applications/interest-rates/validate:
+    post:
+      tags: [Loan Applications]
+      summary: Validate proposed interest rate
+      description: |
+        Validate if a proposed interest rate is within acceptable market ranges.
+        
+        **Validation Rules:**
+        - Rate must be within platform min/max bounds
+        - Rate should be competitive with current market rates
+        - Rate is validated against recent successful loan rates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterestRateValidationRequest'
+      responses:
+        '200':
+          description: Interest rate validation results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterestRateValidationResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
   /loan-applications:
     post:
       tags: [Loan Applications]
@@ -391,17 +419,17 @@ components:
           items:
             type: object
             properties:
-              blockchainKey:
+              currencyBlockchainKey:
                 type: string
                 maxLength: 64
-              tokenId:
+              currencyTokenId:
                 type: string
                 maxLength: 64
             required:
-              - blockchainKey
-              - tokenId
+              - currencyBlockchainKey
+              - currencyTokenId
           description: Accepted collateral currencies
-          example: [{"blockchainKey": "eip155:1", "tokenId": "slip44:60"}, {"blockchainKey": "bip122:000000000019d6689c085ae165831e93", "tokenId": "slip44:0"}]
+          example: [{"currencyBlockchainKey": "eip155:1", "currencyTokenId": "slip44:60"}, {"currencyBlockchainKey": "bip122:000000000019d6689c085ae165831e93", "currencyTokenId": "slip44:0"}]
         interestRate:
           type: number
           minimum: 0
@@ -763,12 +791,12 @@ components:
     Currency:
       type: object
       properties:
-        blockchainKey:
+        currencyBlockchainKey:
           type: string
           description: CAIP-2 compliant blockchain identifier
           example: "eip155:1"
           maxLength: 64
-        tokenId:
+        currencyTokenId:
           type: string
           description: Token identifier within the blockchain
           example: "slip44:60"
@@ -793,8 +821,8 @@ components:
           description: URL to currency logo image
           example: "https://assets.cryptogadai.com/currencies/eth.png"
       required:
-        - blockchainKey
-        - tokenId
+        - currencyBlockchainKey
+        - currencyTokenId
         - name
         - symbol
         - decimals
@@ -871,6 +899,157 @@ components:
         - totalPages
         - hasNext
         - hasPrev
+
+    InterestRateValidationRequest:
+      type: object
+      properties:
+        proposedRate:
+          type: string
+          description: Proposed annual interest rate (percentage)
+          example: "12.5000"
+          pattern: '^\d+\.\d{4}$'
+        loanTerms:
+          type: object
+          properties:
+            principalAmount:
+              type: string
+              description: Loan principal amount
+              example: "10000.000000000000000000"
+            collateralAmount:
+              type: string
+              description: Collateral amount
+              example: "15000.000000000000000000"
+            duration:
+              type: integer
+              description: Loan duration in days
+              example: 7
+              minimum: 1
+              maximum: 365
+            collateralCurrencyBlockchainKey:
+              type: string
+              example: "eip155:1"
+            collateralCurrencyTokenId:
+              type: string
+              example: "slip44:60"
+            loanCurrencyBlockchainKey:
+              type: string
+              example: "eip155:56"
+            loanCurrencyTokenId:
+              type: string
+              example: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+        applicantProfile:
+          type: object
+          properties:
+            userType:
+              type: string
+              enum: [Individual, Institution]
+              example: "Individual"
+            creditScore:
+              type: integer
+              description: Platform credit score (if available)
+              nullable: true
+              example: 750
+            previousLoanCount:
+              type: integer
+              description: Number of previous successful loans
+              example: 3
+      required:
+        - proposedRate
+        - loanTerms
+
+    InterestRateValidationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            isValid:
+              type: boolean
+              description: Whether the proposed rate is acceptable
+              example: true
+            validationDetails:
+              type: object
+              properties:
+                withinPlatformLimits:
+                  type: boolean
+                  description: Rate is within platform min/max bounds
+                  example: true
+                competitiveRating:
+                  type: string
+                  enum: [highly_competitive, competitive, fair, above_market, excessive]
+                  description: How the rate compares to market
+                  example: "competitive"
+                marketComparison:
+                  type: object
+                  properties:
+                    averageMarketRate:
+                      type: string
+                      description: Current average market rate for similar loans
+                      example: "11.2500"
+                    percentileRank:
+                      type: integer
+                      description: Percentile rank of proposed rate (0-100)
+                      example: 65
+                    recommendedRange:
+                      type: object
+                      properties:
+                        min:
+                          type: string
+                          example: "9.5000"
+                        max:
+                          type: string
+                          example: "14.0000"
+                platformLimits:
+                  type: object
+                  properties:
+                    minRate:
+                      type: string
+                      description: Platform minimum interest rate
+                      example: "5.0000"
+                    maxRate:
+                      type: string
+                      description: Platform maximum interest rate
+                      example: "25.0000"
+            recommendations:
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum: [rate_adjustment, term_modification, collateral_optimization]
+                    example: "rate_adjustment"
+                  message:
+                    type: string
+                    example: "Consider reducing rate to 11.5% for better competitiveness"
+                  suggestedRate:
+                    type: string
+                    nullable: true
+                    example: "11.5000"
+            warnings:
+              type: array
+              items:
+                type: string
+              example: ["Rate is above 75th percentile of recent successful loans"]
+      required:
+        - success
+        - data
+
+    CurrencyPair:
+      type: object
+      properties:
+        currencyBlockchainKey:
+          type: string
+          example: "eip155:1"
+        currencyTokenId:
+          type: string
+          example: "slip44:60"
+      required:
+        - currencyBlockchainKey
+        - currencyTokenId
 
     ErrorResponse:
       type: object
