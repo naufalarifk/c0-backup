@@ -13,9 +13,8 @@ info:
     - System health monitoring
     
     **Security Requirements:**
-    - All endpoints require session-based authentication with httpOnly cookies
+    - Authentication handled by Better Auth service
     - Only users with role='Admin' can access these endpoints
-    - Mandatory 2FA verification for all admin operations
     - All administrative actions are logged for audit purposes
     
     **Administrative Capabilities:**
@@ -24,12 +23,6 @@ info:
     - Business verification and onboarding
     - System configuration and risk management
     - Financial monitoring and compliance
-    
-    **Authentication:**
-    - Session-based authentication using secure httpOnly cookies
-    - Automatic session refresh and rotation
-    - Mandatory 2FA for all admin accounts
-    - Session management and monitoring capabilities
   version: 2.3.0
   contact:
     name: CryptoGladai Admin API Support
@@ -47,7 +40,7 @@ servers:
     description: Local development server
 
 security:
-  - SessionAuth: []
+  - BetterAuth: []
 
 # YAML Anchors for Reusable Components
 x-common-parameters: &commonPaginationParams
@@ -116,121 +109,8 @@ x-path-id-param: &pathIdParam
     type: integer
     format: int64
 
-x-totp-properties: &totpProperties
-  totpCode:
-    type: string
-    pattern: "^[0-9]{6}$"
-    description: 6-digit TOTP code from authenticator app
 
 paths:
-  # Admin Authentication - RF-037, RF-038, RF-039, RF-040, RF-041
-  /admin/auth/login:
-    post:
-      tags:
-        - Authentication
-      summary: Admin login with mandatory 2FA
-      description: |
-        Authenticate admin user with email, password, and mandatory 2FA TOTP code.
-        
-        **Security Features:**
-        - Session-based authentication with httpOnly cookies
-        - Mandatory 2FA verification for all admin accounts
-        - Rate limiting and account lockout protection
-        - Session management with 7-day expiry
-      operationId: adminLogin
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email, password, totpCode]
-              properties:
-                email:
-                  type: string
-                  format: email
-                  description: Admin email address
-                password:
-                  type: string
-                  format: password
-                  description: Admin password
-                <<: *totpProperties
-                rememberMe:
-                  type: boolean
-                  default: false
-                  description: Extend session duration
-      responses:
-        '200':
-          description: Login successful
-          headers:
-            Set-Cookie:
-              description: Secure session cookie
-              schema:
-                type: string
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AdminLoginResponse'
-        '423':
-          $ref: '#/components/responses/AccountLocked'
-        '429':
-          $ref: '#/components/responses/RateLimitExceeded'
-        <<: *commonErrorResponses
-
-  /admin/auth/logout:
-    post:
-      tags:
-        - Authentication
-      summary: Admin logout
-      description: Invalidate current admin session
-      operationId: adminLogout
-      responses:
-        '200':
-          description: Logout successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /admin/auth/password:
-    put:
-      tags:
-        - Authentication
-      summary: Change admin password
-      description: |
-        Change admin password with current password verification and mandatory 2FA.
-      operationId: changeAdminPassword
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [currentPassword, newPassword, totpCode]
-              properties:
-                currentPassword:
-                  type: string
-                  format: password
-                newPassword:
-                  type: string
-                  format: password
-                <<: *totpProperties
-                revokeOtherSessions:
-                  type: boolean
-                  default: true
-      responses:
-        '200':
-          description: Password changed successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PasswordChangeResponse'
-        '403':
-          $ref: '#/components/responses/TwoFactorRequired'
-        <<: *validationResponses
-
   # KYC Management - RF-042, RF-043
   /admin/kyc/queue:
     get:
@@ -877,7 +757,7 @@ paths:
               properties:
                 action:
                   type: string
-                  enum: [suspend, activate, force_password_reset, unlock]
+                  enum: [suspend, activate, unlock]
                 reason:
                   type: string
                   description: Administrative reason for action
@@ -896,14 +776,14 @@ paths:
 
 components:
   securitySchemes:
-    SessionAuth:
+    BetterAuth:
       type: apiKey
       in: cookie
-      name: admin_session
-      description: Session-based authentication using httpOnly cookies
+      name: better-auth.session_token
+      description: Better Auth session-based authentication using httpOnly cookies
 
   schemas:
-    # Authentication Schemas
+    # Response Schemas
     SuccessResponse:
       type: object
       properties:
@@ -920,107 +800,6 @@ components:
       required:
         - success
         - message
-
-    AdminLoginResponse:
-      type: object
-      required:
-        - success
-        - data
-        - message
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: object
-          required:
-            - admin
-            - sessionId
-            - expiresAt
-          properties:
-            admin:
-              $ref: '#/components/schemas/AdminUser'
-            sessionId:
-              type: string
-              description: Session identifier
-            expiresAt:
-              type: string
-              format: date-time
-            permissions:
-              type: array
-              items:
-                type: string
-              description: Admin permissions
-        message:
-          type: string
-          example: "Login successful"
-
-    PasswordChangeResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        message:
-          type: string
-          example: "Password changed successfully"
-        sessionsRevoked:
-          type: integer
-          description: Number of other sessions revoked
-
-    AdminSessionsResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: object
-          properties:
-            sessions:
-              type: array
-              items:
-                $ref: '#/components/schemas/AdminSession'
-            total:
-              type: integer
-
-    InvitationResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: object
-          properties:
-            invitationId:
-              type: string
-            targetUserEmail:
-              type: string
-            expiresAt:
-              type: string
-              format: date-time
-            invitationUrl:
-              type: string
-              format: uri
-
-    AdminActivationResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: object
-          properties:
-            admin:
-              $ref: '#/components/schemas/AdminUser'
-            twoFactorEnabled:
-              type: boolean
-              example: true
-        message:
-          type: string
-          example: "Admin role activated with 2FA"
 
     # Financial Operations Schemas
     WithdrawalQueueResponse:
@@ -1438,8 +1217,6 @@ components:
             executedAt:
               type: string
               format: date-time
-            affectedSessions:
-              type: integer
 
     # Audit Schemas
     AuditTrailResponse:
@@ -1581,38 +1358,6 @@ components:
           type: number
           minimum: 1000
 
-    AdminUser:
-      type: object
-      properties:
-        id:
-          type: string
-          description: Admin user ID
-        email:
-          type: string
-          format: email
-          description: Admin email address
-        fullName:
-          type: string
-          description: Admin full name
-        role:
-          type: string
-          enum: [Admin]
-          description: User role (always Admin for admin app)
-        permissions:
-          type: array
-          items:
-            type: string
-          description: Specific admin permissions
-        twoFactorEnabled:
-          type: boolean
-          description: Whether 2FA is enabled
-        lastLogin:
-          type: string
-          format: date-time
-          description: Last login timestamp
-        createdAt:
-          type: string
-          format: date-time
 
     PendingKycResponse:
       type: object
@@ -2303,46 +2048,6 @@ components:
               code: "INVALID_SESSION"
               message: "Authentication session is invalid or expired"
 
-    TwoFactorRequired:
-      description: 2FA verification required
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            error:
-              code: "2FA_REQUIRED"
-              message: "Two-factor authentication verification required"
-
-    AccountLocked:
-      description: Admin account temporarily locked
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            error:
-              code: "ACCOUNT_LOCKED"
-              message: "Admin account temporarily locked due to failed login attempts"
-              details:
-                lockoutExpiresAt: "2025-08-26T15:30:00Z"
-                attemptsRemaining: 0
-
-    RateLimitExceeded:
-      description: Rate limit exceeded
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            error:
-              code: "RATE_LIMIT_EXCEEDED"
-              message: "Too many requests, please try again later"
-              details:
-                retryAfter: 300
 
     AdminRequired:
       description: Admin privileges required
