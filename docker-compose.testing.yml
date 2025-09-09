@@ -189,6 +189,32 @@ services:
       - ${SSL_DISABLED:-traefik.http.routers.cg-minio-console.tls.certresolver=cgresolver}
       - ${SSL_DISABLED:+traefik.http.routers.cg-minio-console.entrypoints=web}
 
+  ghost:
+    image: ghost:6.0.7-alpine
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:2368/ || exit 1"]
+      interval: 500ms
+      timeout: 10s
+      retries: 20
+    environment:
+      database__client: sqlite3
+      database__connection__filename: /var/lib/ghost/content/data/ghost.db
+      NODE_ENV: production
+    restart: unless-stopped
+    volumes:
+      - ghost-data:/var/lib/ghost/content
+    networks:
+      - cg-private-network
+      - cg-public-network
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.cg-ghost.rule=Host(`${GHOST_DOMAIN:-cg-blog.fh47.my.id}`)
+      - traefik.http.services.cg-ghost.loadbalancer.server.port=2368
+      # Conditional SSL labels: enable TLS by default, fallback to web when
+      - ${SSL_DISABLED:-traefik.http.routers.cg-ghost.entrypoints=websecure}
+      - ${SSL_DISABLED:-traefik.http.routers.cg-ghost.tls.certresolver=cgresolver}
+      - ${SSL_DISABLED:+traefik.http.routers.cg-ghost.entrypoints=web}
+
   mailpit:
     image: axllent/mailpit:v1.27.7
     healthcheck:
@@ -351,6 +377,7 @@ volumes:
   postgres-volume:
   redis-volume:
   minio-data:
+  ghost-data:
   prometheus-data:
   grafana-data:
   loki-data:
