@@ -38,7 +38,7 @@ export class InMemoryCryptogadaiRepository extends CryptogadaiRepository {
       join(__dirname, './postgres/0012-withdrawal.sql'),
     ];
 
-    // console.debug(`Found schema files: ${schemaPaths.map(file => file.name).join('\n')}`);
+    // this.#logger(`Found schema files: ${schemaPaths.map(file => file.name).join('\n')}`);
 
     for (const schemaPath of schemaPaths) {
       const schemaSqlQueries = await readFile(schemaPath, { encoding: 'utf-8' });
@@ -128,7 +128,7 @@ export class InMemoryCryptogadaiRepository extends CryptogadaiRepository {
       queryString += `$${index}` + query[index];
     }
 
-    // console.debug('Executing SQL:', queryString, 'with params:', params);
+    // this.#logger.debug('Executing SQL:', queryString, 'with params:', params);
 
     try {
       const result = await this.#pgLite.query(queryString, params);

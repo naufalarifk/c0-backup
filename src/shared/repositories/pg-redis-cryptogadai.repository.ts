@@ -4,13 +4,17 @@ import { join } from 'node:path';
 import { Redis } from 'ioredis';
 import { Pool, PoolClient } from 'pg';
 
+import { TelemetryLogger } from '../../telemetry.logger';
 import { DbRepository } from './base.repository';
 import { CryptogadaiRepository } from './cryptogadai.repository';
 
 export class PgRedisDbRepository extends DbRepository {
+  private logger = new TelemetryLogger(PgRedisDbRepository.name);
+
   constructor(private poolClient: PoolClient) {
     super();
   }
+
   async sql(query: TemplateStringsArray, ...params: unknown[]): Promise<Array<unknown>> {
     let queryText = '';
     for (let index = 0; index < query.length; index++) {
@@ -24,17 +28,17 @@ export class PgRedisDbRepository extends DbRepository {
 
   async rawQuery(queryText: string, params: unknown[]): Promise<Array<unknown>> {
     try {
-      const normalizedParams = params.map(function (param) {
+      const normalizedParams = params.map(param => {
         if (param === undefined) return null;
         return param;
       });
-      console.debug('SQL QUERY', queryText, normalizedParams);
+      this.logger.debug('SqlQuery', { queryText, params: normalizedParams });
       const result = await this.poolClient.query(queryText, normalizedParams);
       const rows = Array.isArray(result?.rows) ? result.rows : [result.rows];
-      console.debug('SQL RESULT', rows);
+      this.logger.debug('SqlResult', { rows });
       return rows;
     } catch (error) {
-      console.error('SQL ERROR', error);
+      this.logger.error('SqlError', { error });
       throw error;
     }
   }
@@ -61,6 +65,7 @@ export class PgRedisDbRepository extends DbRepository {
 export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
   #pool: Pool;
   #redis: Redis;
+  #logger = new TelemetryLogger(PgRedisCryptogadaiRepository.name);
 
   constructor(pool: Pool, redis: Redis) {
     super();
@@ -69,21 +74,21 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
 
     // Add pool error handling and monitoring
     this.#pool.on('error', (err, client) => {
-      console.error('Unexpected error on idle client', err);
+      this.#logger.error('Unexpected error on idle client', err);
     });
 
-    this.#pool.on('connect', client => {
-      console.debug('New client connected to database');
+    this.#pool.on('connect', _client => {
+      this.#logger.debug('New client connected to database');
     });
 
-    this.#pool.on('acquire', client => {
-      console.debug(
+    this.#pool.on('acquire', _client => {
+      this.#logger.debug(
         `Client acquired from pool. Total: ${this.#pool.totalCount}, Idle: ${this.#pool.idleCount}, Waiting: ${this.#pool.waitingCount}`,
       );
     });
 
     this.#pool.on('release', (err, client) => {
-      console.debug(
+      this.#logger.debug(
         `Client released to pool. Total: ${this.#pool.totalCount}, Idle: ${this.#pool.idleCount}, Waiting: ${this.#pool.waitingCount}`,
       );
     });
@@ -144,7 +149,7 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
         if (param === undefined) return null;
         return param;
       });
-      console.debug('SQL QUERY', queryText, normalizedParams);
+      this.#logger.debug('SQL QUERY', queryText, normalizedParams);
 
       // Add query timeout to prevent hanging
       const queryPromise = this.#pool.query(queryText, normalizedParams);
@@ -154,10 +159,10 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
 
       const result = await Promise.race([queryPromise, timeoutPromise]);
       const rows = Array.isArray(result?.rows) ? result.rows : [result.rows];
-      console.debug('SQL RESULT', rows);
+      this.#logger.debug('SQL RESULT', rows);
       return rows;
     } catch (error) {
-      console.error('SQL ERROR', error);
+      this.#logger.error('SQL ERROR', error);
       throw error;
     }
   }
