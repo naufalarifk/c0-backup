@@ -1,12 +1,13 @@
-import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../../telemetry.logger';
 import { CreateKycDto } from './dto/create-kyc.dto';
 import { UpdateKycDto } from './dto/update-kyc.dto';
 
 @Injectable()
 export class KycService {
-  private readonly logger = new Logger(KycService.name);
+  private readonly logger = new TelemetryLogger(KycService.name);
 
   constructor(private readonly userRepo: CryptogadaiRepository) {}
 
@@ -20,7 +21,8 @@ export class KycService {
     const kycStatus = await this.userRepo.userViewsKYCStatus({ userId });
 
     // 2. Security check: Prevent duplicate or unauthorized submissions
-    if (kycStatus.id) {
+    // Check by status instead of id (since new users won't have id)
+    if (kycStatus.status && kycStatus.status !== 'none') {
       switch (kycStatus.status) {
         case 'pending':
           // Block: KYC is pending verification
@@ -31,13 +33,29 @@ export class KycService {
           // Block: KYC is already approved
           throw new ConflictException('KYC is already verified. No need for resubmission.');
         case 'rejected':
-          // Allow: User can resubmit after rejection
-          this.logger.warn(`User ${userId} resubmitting KYC after previous rejection`);
+          // Allow: User can resubmit after rejection (only if canResubmit is true)
+          if (!kycStatus.canResubmit) {
+            throw new ConflictException('KYC resubmission is not allowed at this time.');
+          }
+          this.logger.warn(`User ${userId} resubmitting KYC after previous rejection`, {
+            userId,
+            previousStatus: 'rejected',
+            canResubmit: kycStatus.canResubmit,
+          });
           break;
         default:
           // Block: Unknown status or other active submission
-          throw new ConflictException('User already has an active KYC submission');
+          throw new ConflictException(
+            `User has KYC status: ${kycStatus.status}. Cannot submit new KYC.`,
+          );
       }
+    } else if (kycStatus.status === 'none') {
+      // Log first-time KYC submission
+      this.logger.log(`First-time KYC submission for user: ${userId}`, {
+        userId,
+        status: 'none',
+        canResubmit: kycStatus.canResubmit,
+      });
     }
 
     // 3. Validate and sanitize input data before processing
@@ -147,10 +165,9 @@ export class KycService {
       throw new BadRequestException('Invalid birth date. Must be in the past and reasonable age.');
     }
 
-    // Validate photos (basic size and format check)
-    this.validatePhotoData(data.idCardPhoto, 'ID Card Photo');
-    this.validatePhotoData(data.selfiePhoto, 'Selfie Photo');
-    this.validatePhotoData(data.selfieWithIdCardPhoto, 'Selfie with ID Card Photo');
+    // Validate photo URLs (files already validated by KycFileService)
+    this.validatePhotoUrls(data.idCardPhoto, 'ID Card Photo');
+    this.validatePhotoUrls(data.selfieWithIdCardPhoto, 'Selfie with ID Card Photo');
 
     // Validate name format
     if (!this.validateName(data.fullName)) {
@@ -200,40 +217,19 @@ export class KycService {
     return nameRegex.test(name.trim());
   }
 
-  private validatePhotoData(photoData: string, photoType: string): void {
-    if (!photoData) {
+  /**
+   * Validate photo URLs (simplified - files already validated by KycFileService)
+   */
+  private validatePhotoUrls(photoUrl: string, photoType: string): void {
+    if (!photoUrl) {
       throw new BadRequestException(`${photoType} is required.`);
     }
 
-    // Check if it's a base64 string
-    if (photoData.startsWith('data:image/')) {
-      const base64Data = photoData.split(',')[1];
-      if (!base64Data) {
-        throw new BadRequestException(`Invalid ${photoType} format.`);
-      }
-
-      // Check base64 size (max 10MB)
-      const maxSizeBytes = 10 * 1024 * 1024; // 10MB
-      const sizeBytes = (base64Data.length * 3) / 4;
-      if (sizeBytes > maxSizeBytes) {
-        throw new BadRequestException(`${photoType} size exceeds 10MB limit.`);
-      }
-
-      // Check if it's a valid image format
-      const mimeType = photoData.split(';')[0].split(':')[1];
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-      if (!allowedTypes.includes(mimeType)) {
-        throw new BadRequestException(`${photoType} must be JPEG or PNG format.`);
-      }
-    } else if (photoData.startsWith('http')) {
-      // URL validation
-      try {
-        new URL(photoData);
-      } catch {
-        throw new BadRequestException(`Invalid ${photoType} URL format.`);
-      }
-    } else {
-      throw new BadRequestException(`Invalid ${photoType} format. Must be base64 or URL.`);
+    // Simple URL validation since files are already processed by KycFileService
+    try {
+      new URL(photoUrl);
+    } catch {
+      throw new BadRequestException(`Invalid ${photoType} URL format.`);
     }
   }
 }

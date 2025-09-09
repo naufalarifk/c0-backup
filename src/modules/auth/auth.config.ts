@@ -2,7 +2,7 @@ import type { BetterAuthOptions } from 'better-auth';
 import type { DrizzleDB } from '../../shared/database/database.module';
 import type { AuthModuleOptions } from './auth.module';
 
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import { expo } from '@better-auth/expo';
 import { sso } from '@better-auth/sso';
@@ -16,13 +16,14 @@ import { AppConfigService } from '../../shared/services/app-config.service';
 import { MailerService } from '../../shared/services/mailer.service';
 import { RedisService } from '../../shared/services/redis.service';
 import { TwilioService } from '../../shared/services/twilio.service';
+import { TelemetryLogger } from '../../telemetry.logger';
 import { authAdapter } from './auth.adapter';
 import { forgotPasswordEmail } from './template/forget-password';
 import { verificationEmail } from './template/verification-email';
 
 @Injectable()
 export class AuthConfig {
-  private readonly logger = new Logger(AuthConfig.name);
+  private readonly logger = new TelemetryLogger(AuthConfig.name);
 
   constructor(
     @Inject(DRIZZLE_DB) readonly _database: DrizzleDB,

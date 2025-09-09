@@ -203,44 +203,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-    post:
-      tags:
-        - Invoice Management
-      summary: Create invoice
-      description: |
-        Create a new invoice for payment collection.
-        
-        **Invoice Creation Process:**
-        1. Validate invoice parameters
-        2. Generate unique HD wallet address
-        3. Create invoice record
-        4. Queue notification job
-        5. Return payment instructions
-      operationId: createInvoice
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateInvoiceRequest'
-      responses:
-        '201':
-          description: Invoice created successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InvoiceResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
   /invoices/{invoiceId}:
     get:
       tags:
@@ -973,10 +935,6 @@ components:
           description: Payment amount (18 decimal precision)
           example: "5000.000000000000000000"
           pattern: '^\d+\.\d{18}$'
-        confirmations:
-          type: integer
-          description: Number of blockchain confirmations
-          example: 12
         blockchainExplorerUrl:
           type: string
           description: Link to view transaction on blockchain explorer
@@ -986,7 +944,6 @@ components:
         - paymentDate
         - paymentHash
         - amount
-        - confirmations
 
     # Withdrawal Management Schemas
     BeneficiariesResponse:

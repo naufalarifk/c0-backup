@@ -17,14 +17,17 @@ import { AppConfigService } from './shared/services/app-config.service';
 import { TelemetryService } from './shared/services/telemetry.service';
 import { SharedModule } from './shared/shared.module';
 import { validationOptions } from './shared/utils';
+import { TelemetryLogger } from './telemetry.logger';
 
 async function bootstrap() {
+  const logger = new TelemetryLogger();
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter(), {
     bodyParser: false,
+    logger,
   });
 
   const reflector = app.get(Reflector);
-  const logger = new Logger(bootstrap.name);
   const configService = app.select(SharedModule).get(AppConfigService);
   const telemetryService = app.select(SharedModule).get(TelemetryService);
 
@@ -58,6 +61,9 @@ async function bootstrap() {
   app.use(compression());
   app.use(
     morgan('combined', {
+      stream: {
+        write: (message: string) => logger.log(message.trim()),
+      },
       skip(req: Request, _res) {
         const url = req.originalUrl || req.url || '';
         // Disable access logging for the healthcheck endpoint to keep logs clean

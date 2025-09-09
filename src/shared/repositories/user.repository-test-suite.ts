@@ -207,7 +207,6 @@ export async function runUserRepositoryTestSuite(
         await repo.userSubmitsKyc({
           userId: user.id,
           idCardPhoto: '/path/to/id-card.jpg',
-          selfiePhoto: '/path/to/selfie.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
           nik: '1234567890123456',
           fullName: 'KYC Profile Test',
@@ -282,7 +281,6 @@ export async function runUserRepositoryTestSuite(
         const kyc = await repo.userSubmitsKyc({
           userId: user.id,
           idCardPhoto: '/path/to/id-card.jpg',
-          selfiePhoto: '/path/to/selfie.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
           nik: '1234567890123456',
           fullName: 'Verified KYC User',
@@ -332,7 +330,6 @@ export async function runUserRepositoryTestSuite(
         const kycData = {
           userId: user.id,
           idCardPhoto: '/path/to/id-card.jpg',
-          selfiePhoto: '/path/to/selfie.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
           nik: '1234567890123456',
           fullName: 'KYC User Full Name',
@@ -386,7 +383,6 @@ export async function runUserRepositoryTestSuite(
         await repo.userSubmitsKyc({
           userId: user.id,
           idCardPhoto: '/path/to/id-card.jpg',
-          selfiePhoto: '/path/to/selfie.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
           nik: '1234567890123456',
           fullName: 'Pending KYC User',
@@ -467,7 +463,6 @@ export async function runUserRepositoryTestSuite(
         const invitedUserKyc = await repo.userSubmitsKyc({
           userId: invitedUser.id,
           idCardPhoto: '/path/to/invited-id-card.jpg',
-          selfiePhoto: '/path/to/invited-selfie.jpg',
           selfieWithIdCardPhoto: '/path/to/invited-selfie-with-id.jpg',
           nik: '9876543210987654',
           fullName: 'Invited User',
@@ -564,7 +559,6 @@ export async function runUserRepositoryTestSuite(
         const invitedUserKyc = await repo.userSubmitsKyc({
           userId: invitedUser.id,
           idCardPhoto: '/path/to/invited2-id-card.jpg',
-          selfiePhoto: '/path/to/invited2-selfie.jpg',
           selfieWithIdCardPhoto: '/path/to/invited2-selfie-with-id.jpg',
           nik: '8765432109876543',
           fullName: 'Invited User 2',
@@ -662,7 +656,6 @@ export async function runUserRepositoryTestSuite(
         const kyc = await repo.userSubmitsKyc({
           userId: user.id,
           idCardPhoto: '/path/to/id-card.jpg',
-          selfiePhoto: '/path/to/selfie.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
           nik: '1234567890123456',
           fullName: 'KYC Approval User',
@@ -727,7 +720,6 @@ export async function runUserRepositoryTestSuite(
         const kyc = await repo.userSubmitsKyc({
           userId: user.id,
           idCardPhoto: '/path/to/id-card.jpg',
-          selfiePhoto: '/path/to/selfie.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
           nik: '1234567890123456',
           fullName: 'KYC Rejection User',
@@ -800,7 +792,6 @@ export async function runUserRepositoryTestSuite(
         await repo.userSubmitsKyc({
           userId: user1.id,
           idCardPhoto: '/path/to/id-card1.jpg',
-          selfiePhoto: '/path/to/selfie1.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id1.jpg',
           nik: '1111111111111111',
           fullName: 'Pending User 1',
@@ -819,7 +810,6 @@ export async function runUserRepositoryTestSuite(
         await repo.userSubmitsKyc({
           userId: user2.id,
           idCardPhoto: '/path/to/id-card2.jpg',
-          selfiePhoto: '/path/to/selfie2.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id2.jpg',
           nik: '2222222222222222',
           fullName: 'Pending User 2',
@@ -1006,7 +996,6 @@ export async function runUserRepositoryTestSuite(
           const kyc = await repo.userSubmitsKyc({
             userId: user.id,
             idCardPhoto: '/path/to/id-card.jpg',
-            selfiePhoto: '/path/to/selfie.jpg',
             selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
             nik: '1234567890123456',
             fullName: 'Trigger Test User',
@@ -1069,7 +1058,6 @@ export async function runUserRepositoryTestSuite(
           const kyc = await repo.userSubmitsKyc({
             userId: user.id,
             idCardPhoto: '/path/to/id-card.jpg',
-            selfiePhoto: '/path/to/selfie.jpg',
             selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
             nik: '1234567890123456',
             fullName: 'Rejection Test User',

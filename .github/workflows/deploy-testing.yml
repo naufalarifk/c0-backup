@@ -1,0 +1,89 @@
+name: Deploy to testing
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-testing-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to testing server
+    runs-on: ubuntu-24.04
+    env:
+      SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+      SSH_PORT: ${{ secrets.DEPLOY_PORT }}
+      SSH_USER: ${{ secrets.DEPLOY_USER }}
+      SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup SSH
+        run: |
+          mkdir -p $HOME/.ssh
+          echo "$SSH_PRIVATE_KEY" > $HOME/.ssh/id_ed25519
+          chmod 600 $HOME/.ssh/id_ed25519
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> $HOME/.ssh/known_hosts 2>/dev/null || true
+        shell: bash
+
+      - name: Rsync repository to remote server
+        run: |
+          rsync -avz --delete \
+            --exclude-from=".gitignore" \
+            --exclude ".git/" \
+            --exclude "node_modules/" \
+            --exclude ".env*" \
+            --exclude "*.log" \
+            --exclude ".temp/" \
+            --exclude ".vscode/" \
+            --exclude ".DS_Store" \
+            --exclude "coverage/" \
+            --exclude ".nyc_output/" \
+            -e "ssh -i $HOME/.ssh/id_ed25519 -p $SSH_PORT -o StrictHostKeyChecking=yes -o ConnectTimeout=30 -o ServerAliveInterval=60" \
+            ./ "$SSH_USER@$SSH_HOST:/root/cg/"
+        shell: bash
+        timeout-minutes: 10
+
+      - name: Deploy Docker Compose
+        run: |
+          ssh -i $HOME/.ssh/id_ed25519 -p "$SSH_PORT" -o StrictHostKeyChecking=yes -o ConnectTimeout=30 -o ServerAliveInterval=60 "$SSH_USER@$SSH_HOST" << 'EOF'
+            set -euo pipefail
+            cd /root/cg
+            # Stop existing containers gracefully (best-effort)
+            docker compose --file docker-compose.testing.yml down --timeout 30 || true
+
+            # Build and start new containers (fire-and-forget)
+            docker compose --file docker-compose.testing.yml up --build --force-recreate --detach
+
+            # NOTE: intentionally not waiting for services or performing health checks
+          EOF
+        shell: bash
+        timeout-minutes: 15
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f $HOME/.ssh/id_ed25519
+        shell: bash
+
+      - name: Notify deployment result
+        if: always()
+        run: |
+          if [ ${{ job.status }} = 'success' ]; then
+            echo "✅ Deployment to testing completed successfully"
+            echo "Commit: ${{ github.sha }}"
+            echo "Triggered by: ${{ github.actor }}"
+          else
+            echo "❌ Deployment to testing failed"
+            echo "Commit: ${{ github.sha }}"
+            echo "Triggered by: ${{ github.actor }}"
+            echo "Check the logs above for details"
+          fi
+        shell: bash
