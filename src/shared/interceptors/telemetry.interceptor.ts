@@ -30,11 +30,11 @@ import { TelemetryService } from '../services/telemetry.service';
  * - Only enabled in development mode by default
  * - Bodies are truncated if they exceed MAX_BODY_LOG_SIZE
  */
-@Injectable()
 export class TelemetryInterceptor implements NestInterceptor {
+  #logger = new TelemetryLogger(TelemetryInterceptor.name);
+
   constructor(
     private readonly telemetryService: TelemetryService,
-    private readonly telemetryLogger: TelemetryLogger,
     private readonly appConfigService: AppConfigService,
   ) {}
 
@@ -129,7 +129,7 @@ export class TelemetryInterceptor implements NestInterceptor {
       if (body && (contentType.includes('json') || contentType.includes('text') || !contentType)) {
         const sanitizedBody = this.sanitizeBody(body);
         if (sanitizedBody) {
-          this.telemetryLogger.custom('info', 'Request Body', {
+          this.#logger.custom('info', 'Request Body', {
             ...context,
             body: sanitizedBody,
             type: 'request_body',
@@ -137,7 +137,7 @@ export class TelemetryInterceptor implements NestInterceptor {
         }
       }
     } catch (error) {
-      this.telemetryLogger.custom('warn', 'Failed to log request body', {
+      this.#logger.custom('warn', 'Failed to log request body', {
         ...context,
         error: error instanceof Error ? error.message : String(error),
         type: 'request_body_error',
@@ -158,7 +158,7 @@ export class TelemetryInterceptor implements NestInterceptor {
       if (data !== undefined && data !== null) {
         const sanitizedData = this.sanitizeBody(data);
         if (sanitizedData) {
-          this.telemetryLogger.custom('info', 'Response Body', {
+          this.#logger.custom('info', 'Response Body', {
             ...context,
             body: sanitizedData,
             type: 'response_body',
@@ -166,7 +166,7 @@ export class TelemetryInterceptor implements NestInterceptor {
         }
       }
     } catch (error) {
-      this.telemetryLogger.custom('warn', 'Failed to log response body', {
+      this.#logger.custom('warn', 'Failed to log response body', {
         ...context,
         error: error instanceof Error ? error.message : String(error),
         type: 'response_body_error',
@@ -227,7 +227,7 @@ export class TelemetryInterceptor implements NestInterceptor {
             });
 
             // Log HTTP request/response using TelemetryLogger
-            this.telemetryLogger.httpRequest(method, url, statusCode, duration, {
+            this.#logger.httpRequest(method, url, statusCode, duration, {
               route,
               userAgent: request.get('user-agent') || '',
               userId: (request as { user?: { id?: string } }).user?.id || 'anonymous',
@@ -265,7 +265,7 @@ export class TelemetryInterceptor implements NestInterceptor {
             });
 
             // Log HTTP request/response error using TelemetryLogger
-            this.telemetryLogger.httpRequest(method, url, statusCode, duration, {
+            this.#logger.httpRequest(method, url, statusCode, duration, {
               route,
               userAgent: request.get('user-agent') || '',
               userId: (request as { user?: { id?: string } }).user?.id || 'anonymous',
