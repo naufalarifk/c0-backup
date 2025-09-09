@@ -186,6 +186,10 @@ HEALTHCHECK_INTERVAL="30s"
 HEALTHCHECK_TIMEOUT="10s"
 HEALTHCHECK_RETRIES="3"
 HEALTHCHECK_START_PERIOD="30s"
+
+# Development Logging (Optional)
+ENABLE_BODY_LOGGING="false"  # Set to "true" to enable request/response body logging in development
+MAX_BODY_LOG_SIZE="10000"    # Maximum characters to log for request/response bodies
 ```
 
 ## 🐳 **Docker Configuration**
@@ -267,33 +271,42 @@ pnpm hooks:install          # Install git hooks
 pnpm hooks:uninstall        # Remove git hooks
 ```
 
-## 🪝 **Git Hooks & Code Quality**
+### **Development Features**
 
-### **Automated Git Hooks**
+#### **Request/Response Body Logging**
 
-Pre-configured hooks for code quality:
-- **pre-commit**: Biome check with auto-fix (JS, TS, JSON files)
-- **commit-msg**: Conventional commits validation
-- **pre-push**: Build verification
+For debugging purposes, you can enable detailed request and response body logging:
 
-### **Commit Message Format**
+1. **Enable Body Logging** (Development Only):
+   ```bash
+   # Add to your .env file
+   ENABLE_BODY_LOGGING=true
+   MAX_BODY_LOG_SIZE=10000
+   ```
 
-Use conventional commits for consistency:
+2. **Features**:
+   - ✅ Logs all request bodies (JSON/text)
+   - ✅ Logs all response bodies
+   - ✅ Automatic sensitive data redaction
+   - ✅ Size limits to prevent log bloat
+   - ✅ Only active in development mode
+   - ✅ Structured logging to Loki
 
-```bash
-# ✅ Valid formats
-feat: add new authentication module
-fix: resolve database connection issue
-docs: update API documentation
-chore: update dependencies
+3. **Security**:
+   - Automatically redacts: `password`, `token`, `authorization`, `apikey`, `secret`, `key`, `private`, `session`, `cookie`, `credit_card`, `ssn`, `social_security`
+   - Bodies truncated if exceeding `MAX_BODY_LOG_SIZE`
+   - Never enabled in production
 
-# ❌ Invalid formats
-"add new feature"           # No type
-"Fix Bug"                   # Wrong case
-"WIP"                       # Non-descriptive
-```
-
-**Commit Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+4. **Log Examples**:
+   ```json
+   {
+     "message": "Request Body",
+     "body": "{\"username\":\"john\",\"email\":\"john@example.com\"}",
+     "method": "POST",
+     "url": "/api/auth/login",
+     "requestId": "abc-123"
+   }
+   ```
 
 ## 📁 **Project Structure**
 
