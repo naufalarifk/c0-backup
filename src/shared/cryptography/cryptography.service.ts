@@ -36,16 +36,17 @@ export class VaultService implements OnModuleInit, OnModuleDestroy {
   private async initializeVault() {
     try {
       const vaultAddr = this.configService.get<string>('VAULT_ADDR') || 'http://127.0.0.1:8200';
-      const vaultToken = this.configService.get<string>('VAULT_TOKEN');
+      const vaultToken = this.configService.get<string>('VAULT_TOKEN') || 'root';
 
       this.logger.log(`Initializing Vault client with endpoint: ${vaultAddr}`);
+      this.logger.log(`Initializing Vault client with token: ${vaultToken}`);
 
       this.vaultClient = vault.default({
         apiVersion: 'v1',
         endpoint: vaultAddr,
         token: vaultToken,
         requestOptions: {
-          timeout: 10000, // 10 second timeout
+          timeout: 10000,
         },
       });
 
