@@ -111,3 +111,6 @@ ENV MINIO_ROOT_USER=minioadmin
 ENV MINIO_ROOT_PASSWORD=minioadmin123
 ENV MINIO_USE_SSL=false
 ENV MINIO_DEFAULT_BUCKETS=uploads,documents,images
+
+ENV VAULT_ADDR=http://vault:8200
+ENV VAULT_TOKEN=root

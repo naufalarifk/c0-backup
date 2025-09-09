@@ -5,6 +5,7 @@ import { CqrsModule } from '@nestjs/cqrs';
 
 import { VaultService } from './cryptography/cryptography.service';
 import { DatabaseModule } from './database/database.module';
+import { TelemetryInterceptor } from './interceptors';
 import { RepositoryModule } from './repositories/repository.module';
 import { AppConfigService } from './services/app-config.service';
 import { CacheService } from './services/cache.service';
@@ -24,6 +25,7 @@ const providers: Provider[] = [
   MailerService,
   MinioService,
   RedisService,
+  TelemetryInterceptor,
   TelemetryService,
   TwilioService,
   VaultService,

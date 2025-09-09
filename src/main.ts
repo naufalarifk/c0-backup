@@ -16,7 +16,6 @@ import docs from './docs';
 import { GlobalExceptionFilter } from './shared/filters';
 import { ResolvePromisesInterceptor, TelemetryInterceptor } from './shared/interceptors';
 import { AppConfigService } from './shared/services/app-config.service';
-import { TelemetryService } from './shared/services/telemetry.service';
 import { SharedModule } from './shared/shared.module';
 import { validationOptions } from './shared/utils';
 import { TelemetryLogger } from './telemetry.logger';
