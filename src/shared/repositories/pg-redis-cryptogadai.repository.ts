@@ -72,11 +72,11 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
       console.error('Unexpected error on idle client', err);
     });
 
-    this.#pool.on('connect', client => {
+    this.#pool.on('connect', _client => {
       console.debug('New client connected to database');
     });
 
-    this.#pool.on('acquire', client => {
+    this.#pool.on('acquire', _client => {
       console.debug(
         `Client acquired from pool. Total: ${this.#pool.totalCount}, Idle: ${this.#pool.idleCount}, Waiting: ${this.#pool.waitingCount}`,
       );

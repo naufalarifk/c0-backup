@@ -5,7 +5,7 @@
   "compilerOptions": {
     "deleteOutDir": true,
     "assets": [
-      { "include": "../src/shared/repositories/postgres/*.sql", "outDir": "dist/src", "watchAssets": true }
+      "shared/repositories/postgres/*.sql"
     ],
     "watchAssets": true
   }

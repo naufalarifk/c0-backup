@@ -3,7 +3,7 @@ import type {
   ReferenceObject,
   SchemaObject,
 } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
-import type { ApiFile } from '../types';
+import type { ApiFile } from '../shared/types';
 
 import { applyDecorators, UseInterceptors } from '@nestjs/common';
 import { FileFieldsInterceptor, FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';

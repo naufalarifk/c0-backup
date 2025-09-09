@@ -2,6 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 
 import { Type } from 'class-transformer';
 
+import { UserViewsProfileResult } from '../../../../shared/types';
+
 export class ProfileResponseDto {
   @ApiProperty({
     description: 'User ID',
@@ -41,7 +43,7 @@ export class ProfileResponseDto {
     enum: ['System', 'Admin', 'User'],
     example: 'User',
   })
-  role: 'System' | 'Admin' | 'User';
+  role: UserViewsProfileResult['role'];
 
   @ApiProperty({
     description: 'Two-factor authentication status',

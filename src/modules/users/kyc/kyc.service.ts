@@ -1,6 +1,8 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { FileValidatorService } from '../../../shared/services/file-validator.service';
+import { MinioService } from '../../../shared/services/minio.service';
 import { TelemetryLogger } from '../../../telemetry.logger';
 import { CreateKycDto } from './dto/create-kyc.dto';
 import { UpdateKycDto } from './dto/update-kyc.dto';
@@ -8,8 +10,13 @@ import { UpdateKycDto } from './dto/update-kyc.dto';
 @Injectable()
 export class KycService {
   private readonly logger = new TelemetryLogger(KycService.name);
+  private readonly fileLogger = new Logger('KycFileUpload');
 
-  constructor(private readonly userRepo: CryptogadaiRepository) {}
+  constructor(
+    private readonly userRepo: CryptogadaiRepository,
+    private readonly minioService: MinioService,
+    private readonly fileValidatorService: FileValidatorService,
+  ) {}
 
   getKycByUserId(userId: string) {
     // Return KYC status that matches KycStatusResponseDto format
@@ -139,6 +146,54 @@ export class KycService {
       documentId: 'doc_123',
       uploadedAt: new Date(),
     });
+  }
+
+  /**
+   * Upload a single KYC file to Minio and return the object info (NOT URL)
+   * Moved from KycFileService for better cohesion
+   */
+  async uploadFile(
+    fileBuffer: Buffer,
+    originalName: string,
+    userId: string,
+    documentType: string,
+    mimeType?: string,
+  ): Promise<{ objectPath: string; bucket: string; size: number }> {
+    // Validate file before upload using shared validator (10MB for KYC documents)
+    this.fileValidatorService.validateDocumentFile(fileBuffer, 10, mimeType, originalName);
+
+    const folder = `kyc/${userId}`;
+    const sanitizedFileName = this.fileValidatorService.sanitizeFileName(originalName);
+    const fileName = `${documentType}-${Date.now()}-${sanitizedFileName}`;
+    const filePath = `${folder}/${fileName}`;
+
+    const uploadResult = await this.minioService.uploadFile(fileBuffer, originalName, {
+      bucketName: 'documents',
+      objectName: filePath,
+      metaData: {
+        userId,
+        documentType,
+        originalName: sanitizedFileName,
+        uploadedAt: new Date().toISOString(),
+        contentType: mimeType || 'application/octet-stream',
+        fileSize: fileBuffer.length.toString(),
+      },
+    });
+
+    this.fileLogger.log(`KYC file uploaded successfully: ${filePath}`, {
+      userId,
+      documentType,
+      fileName,
+      size: uploadResult.size,
+      objectPath: uploadResult.objectName,
+      bucket: uploadResult.bucket,
+    });
+
+    return {
+      objectPath: uploadResult.objectName, // Use actual objectName from upload result
+      bucket: uploadResult.bucket, // Use actual bucket from upload result
+      size: uploadResult.size,
+    };
   }
 
   /**

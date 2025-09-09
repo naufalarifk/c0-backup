@@ -5,7 +5,10 @@ import { ApiProperty, OmitType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsDateString, IsNotEmpty, IsString, IsUrl, Length, Matches } from 'class-validator';
 
-export class CreateKycDto implements Omit<UserSubmitsKycParams, 'userId' | 'submissionDate'> {
+export class CreateKycDto
+  implements Omit<UserSubmitsKycParams, 'userId' | 'submissionDate' | 'phoneNumber'>
+{
+  phoneNumber: string;
   @ApiProperty({
     description: 'ID card photo URL',
     example: 'https://storage.example.com/kyc/user123/id-card-1234567890.jpg',
@@ -136,18 +139,18 @@ export class CreateKycDto implements Omit<UserSubmitsKycParams, 'userId' | 'subm
   @Transform(({ value }) => value?.trim())
   postalCode: string;
 
-  @ApiProperty({
-    description: 'Phone number (Indonesian format)',
-    example: '+6281234567890',
-    pattern: '^(\\+62|62|0)[8-9]\\d{7,11}$',
-  })
-  @IsString()
-  @IsNotEmpty()
-  @Matches(/^(\+62|62|0)[8-9]\d{7,11}$/, {
-    message: 'Phone number must be valid Indonesian format (+62xxx, 62xxx, or 08xxx)',
-  })
-  @Transform(({ value }) => value?.trim().replace(/\s+/g, ''))
-  phoneNumber: string;
+  // @ApiProperty({
+  //   description: 'Phone number (Indonesian format)',
+  //   example: '+6281234567890',
+  //   pattern: '^(\\+62|62|0)[8-9]\\d{7,11}$',
+  // })
+  // @IsString()
+  // @IsNotEmpty()
+  // @Matches(/^(\+62|62|0)[8-9]\d{7,11}$/, {
+  //   message: 'Phone number must be valid Indonesian format (+62xxx, 62xxx, or 08xxx)',
+  // })
+  // @Transform(({ value }) => value?.trim().replace(/\s+/g, ''))
+  // phoneNumber: string;
 }
 
 // DTO for form data submission (without file URLs - files will be uploaded separately)

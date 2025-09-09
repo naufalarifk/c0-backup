@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
-import { ApiFile } from '../../../shared/decorators/swagger.schema';
+import { ApiFile } from '../../../decorators/swagger.schema';
 import { TelemetryLogger } from '../../../telemetry.logger';
 import { Session } from '../../auth/auth.decorator';
 import { AuthGuard } from '../../auth/auth.guard';
@@ -22,7 +22,6 @@ import { CreateKycDto, SubmitKycDto } from './dto/create-kyc.dto';
 import { KycStatusResponseDto } from './dto/kyc-status-response.dto';
 import { KycSubmissionResponseDto } from './dto/kyc-submission-response.dto';
 import { KycService } from './kyc.service';
-import { KycFileService } from './kyc-file.service';
 
 @Controller('users/kyc')
 @ApiTags('users')
@@ -30,10 +29,7 @@ import { KycFileService } from './kyc-file.service';
 export class KycController {
   private readonly logger = new TelemetryLogger(KycController.name);
 
-  constructor(
-    private readonly kycService: KycService,
-    private readonly kycFileService: KycFileService,
-  ) {}
+  constructor(private readonly kycService: KycService) {}
 
   @Get()
   @ApiOperation({
@@ -110,14 +106,14 @@ export class KycController {
     try {
       // Upload files to Minio - files are already validated by @ApiFile decorator
       const [idCardResult, selfieWithIdResult] = await Promise.all([
-        this.kycFileService.uploadFile(
+        this.kycService.uploadFile(
           files.idCardPhoto[0].buffer,
           files.idCardPhoto[0].originalname,
           session.user.id,
           'id-card',
           files.idCardPhoto[0].mimetype,
         ),
-        this.kycFileService.uploadFile(
+        this.kycService.uploadFile(
           files.selfieWithIdCardPhoto[0].buffer,
           files.selfieWithIdCardPhoto[0].originalname,
           session.user.id,
@@ -126,17 +122,17 @@ export class KycController {
         ),
       ]);
 
-      // Create KYC data with uploaded file URLs
+      // Create KYC data with object paths (more secure than URLs)
       const createKycDto: CreateKycDto = {
         ...kycData,
-        idCardPhoto: idCardResult.url,
-        selfieWithIdCardPhoto: selfieWithIdResult.url,
+        idCardPhoto: `${idCardResult.bucket}:${idCardResult.objectPath}`,
+        selfieWithIdCardPhoto: `${selfieWithIdResult.bucket}:${selfieWithIdResult.objectPath}`,
       };
 
       this.logger.log(`Files uploaded successfully for user: ${session.user.id}`, {
         userId: session.user.id,
-        idCardUrl: idCardResult.url,
-        selfieWithIdUrl: selfieWithIdResult.url,
+        idCardPath: createKycDto.idCardPhoto,
+        selfiePath: createKycDto.selfieWithIdCardPhoto,
       });
 
       // Submit KYC data with URLs
