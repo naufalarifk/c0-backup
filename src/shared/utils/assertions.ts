@@ -18,6 +18,10 @@ export function isPropDefined(
   );
 }
 
+export function hasProp<K extends string>(obj: unknown, propKey: K): obj is Record<K, unknown> {
+  return typeof obj === 'object' && obj !== null && propKey in obj;
+}
+
 export function isDefined(value: unknown): value is NonNullable<typeof value> {
   return value !== undefined && value !== null;
 }
@@ -137,14 +141,21 @@ export function assertPropStringOrNumber<K extends PropKey, V extends NonNullabl
   propKey: K,
   message?: string,
 ): asserts obj is V & Record<K, string | number> {
+  const value = (obj as any)[propKey];
+  const valueType = typeof value;
+
+  // Log the actual type for debugging (only in test/development)
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`Property "${String(propKey)}" has type: ${valueType}, value:`, value);
+  }
+
   ok(
     typeof obj === 'object' &&
       obj !== null &&
       propKey in obj &&
-      (typeof (obj as any)[propKey] === 'string' ||
-        typeof (obj as any)[propKey] === 'number' ||
-        typeof (obj as any)[propKey] === 'bigint'),
-    message || `Property "${String(propKey)}" is not a string, number, or bigint`,
+      (valueType === 'string' || valueType === 'number' || valueType === 'bigint'),
+    message ||
+      `Property "${String(propKey)}" is not a string, number, or bigint (actual type: ${valueType})`,
   );
 }
 

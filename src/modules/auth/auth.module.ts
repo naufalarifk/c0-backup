@@ -23,6 +23,7 @@ import { toNodeHandler } from 'better-auth/node';
 import { createAuthMiddleware } from 'better-auth/plugins';
 import invariant from 'tiny-invariant';
 
+import { NotificationModule } from '../notifications/notification.module';
 import { TelemetryLogger } from '../../telemetry.logger';
 import { AuthFilter } from './auth.filter';
 import { AuthMiddleware } from './auth.middleware';
@@ -268,7 +269,7 @@ export class AuthModule implements NestModule, OnModuleInit {
       global: true,
       module: AuthModule,
       imports: options.imports || [],
-      providers: [...asyncProviders, AuthService],
+      providers: [NotificationModule, ...asyncProviders, AuthService],
       exports: [
         {
           provide: AUTH_INSTANCE_KEY,
