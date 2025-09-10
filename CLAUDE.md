@@ -64,6 +64,15 @@ The codebase uses a sophisticated repository pattern with:
 - **PostgreSQL implementations** with SQL files in `postgres/` directories
 - **In-memory implementations** for testing
 
+#### Repository SQL Writing Rules
+The repository `sql` tagged template method has specific constraints and patterns:
+- **No dynamic SQL**: The tagged template does not support conditional SQL construction
+- **Parameter handling**: All JavaScript types (string, number, boolean, Date, null, undefined) are properly escaped and type-converted
+- **Conditional queries**: Use patterns like `WHERE ${value} = NULL OR some_column = ${value}` instead of dynamic WHERE clauses
+- **SQL injection protection**: All parameters are automatically sanitized through the tagged template
+- **Type conversion**: Numbers become strings in results, Dates maintain exact timestamps, undefined becomes null
+- **Transaction support**: Use `beginTransaction()`, `commitTransaction()`, and `rollbackTransaction()` methods
+
 ### Key Architectural Patterns
 - **Modular design**: Feature modules with clear boundaries
 - **Dependency injection**: Heavy use of NestJS DI container

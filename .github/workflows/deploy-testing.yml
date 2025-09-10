@@ -51,21 +51,54 @@ jobs:
         shell: bash
         timeout-minutes: 10
 
-      - name: Deploy Docker Compose
+      - name: Deploy with Zero Downtime
         run: |
           ssh -i $HOME/.ssh/id_ed25519 -p "$SSH_PORT" -o StrictHostKeyChecking=yes -o ConnectTimeout=30 -o ServerAliveInterval=60 "$SSH_USER@$SSH_HOST" << 'EOF'
             set -euo pipefail
             cd /root/cg
-            # Stop existing containers gracefully (best-effort)
-            docker compose --file docker-compose.testing.yml down --timeout 30 || true
-
-            # Build and start new containers (fire-and-forget)
-            docker compose --file docker-compose.testing.yml up --build --force-recreate --detach
-
-            # NOTE: intentionally not waiting for services or performing health checks
+            
+            # Export commit SHA for deployment labeling
+            export GITHUB_SHA="${{ github.sha }}"
+            
+            # Check if this is the first deployment
+            if ! docker compose -f docker-compose.testing.yml ps api -q >/dev/null 2>&1; then
+              echo "🚀 First deployment detected, performing initial setup..."
+              docker compose -f docker-compose.testing.yml up --build -d
+              
+              # Wait for initial services to be healthy
+              echo "⏳ Waiting for services to be healthy..."
+              timeout 300 bash -c 'until docker compose -f docker-compose.testing.yml ps --format json | jq -r ".[] | select(.Service == \"api\") | .Health" | grep -q "healthy"; do sleep 5; echo "Waiting for API to be healthy..."; done'
+              echo "✅ Initial deployment completed successfully"
+            else
+              echo "🔄 Existing deployment detected, performing zero-downtime update..."
+              
+              # Ensure deployment script exists and is executable
+              if [ ! -f scripts/deploy-zero-downtime.sh ]; then
+                echo "❌ Zero downtime deployment script not found!"
+                exit 1
+              fi
+              
+              # Set up environment
+              export COMPOSE_FILE="docker-compose.testing.yml"
+              export SERVICE_NAME="api"
+              export HEALTH_CHECK_URL="http://localhost:3100/api/auth/ok"
+              
+              # Execute zero downtime deployment
+              bash scripts/deploy-zero-downtime.sh
+            fi
+            
+            # Verify final deployment state
+            echo "🔍 Verifying deployment..."
+            docker compose -f docker-compose.testing.yml ps api
+            
+            # Test API endpoint
+            echo "🧪 Testing API endpoint..."
+            timeout 60 bash -c 'until curl -sf http://localhost:3100/api/auth/ok >/dev/null; do sleep 2; echo "Waiting for API to respond..."; done'
+            
+            echo "✅ Zero downtime deployment completed successfully!"
           EOF
         shell: bash
-        timeout-minutes: 15
+        timeout-minutes: 20
 
       - name: Cleanup
         if: always()

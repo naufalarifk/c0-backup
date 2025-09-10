@@ -102,14 +102,30 @@ services:
   api:
     <<: *backend-base
     command: node dist/main.js
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 30s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 30s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/api/auth/ok || exit 1"]
-      interval: 1000ms
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/api/health || exit 1"]
+      interval: 5s
       timeout: 30s
-      retries: 60
+      retries: 12
+      start_period: 60s
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+      vault: { condition: service_healthy }
       minio: { condition: service_healthy }
       mailpit: { condition: service_healthy }
     networks:
@@ -119,10 +135,16 @@ services:
       - traefik.enable=true
       - traefik.http.routers.cg-api.rule=Host(`${API_DOMAIN:-cg-api.fh47.my.id}`)
       - traefik.http.services.cg-api.loadbalancer.server.port=3100
+      - traefik.http.services.cg-api.loadbalancer.healthcheck.path=/api/auth/ok
+      - traefik.http.services.cg-api.loadbalancer.healthcheck.interval=5s
+      - traefik.http.services.cg-api.loadbalancer.healthcheck.timeout=3s
       # Conditional SSL labels: enable TLS by default, fallback to web when
       - ${SSL_DISABLED:-traefik.http.routers.cg-api.entrypoints=websecure}
       - ${SSL_DISABLED:-traefik.http.routers.cg-api.tls.certresolver=cgresolver}
       - ${SSL_DISABLED:+traefik.http.routers.cg-api.entrypoints=web}
+      # Deployment metadata labels
+      - deployment.strategy=zero-downtime
+      - deployment.version=${GITHUB_SHA:-latest}
 
   postgres:
     image: postgres:17.6-alpine3.22
@@ -158,21 +180,20 @@ services:
 
   vault:
     image: hashicorp/vault:1.20
+    command: vault server -config=/vault/config/vault-config.hcl
     cap_add:
       - IPC_LOCK
+    healthcheck:
+      test: ["CMD-SHELL", "VAULT_ADDR=http://localhost:8201 vault status || exit 1"]
+      interval: 500ms
+      timeout: 10s
+      retries: 20
     environment:
       VAULT_MODE: dev
       VAULT_DEV_ROOT_TOKEN_ID: root
-    command: >
-      sh -c "
-        if [ \"$${VAULT_MODE}\" = \"dev\" ]; then
-          vault server -dev -dev-listen-address=0.0.0.0:8200
-        else
-          vault server -config=/vault-config.hcl
-        fi
-      "
+      VAULT_API_ADDR: http://localhost:8201
     volumes:
-      - ./vault-config.hcl:/vault-config.hcl
+      - ./vault-config.hcl:/vault/config/vault-config.hcl:ro
       - vault-data:/vault/file
     networks:
       - cg-private-network

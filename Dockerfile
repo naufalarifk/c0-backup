@@ -53,6 +53,7 @@ COPY --from=builder /app/node_modules ./node_modules
 
 COPY --from=builder /app/dist ./dist
 COPY ./src/shared/repositories/postgres/ ./dist/shared/repositories/postgres
+COPY ./scripts ./scripts
 
 ENV NODE_ENV=development
 ENV APP_NAME=CryptoGadai

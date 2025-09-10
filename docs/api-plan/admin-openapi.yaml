@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: CryptoGladai Admin API
+  title: CryptoGadai Admin API
   description: |
-    Administrative API for CryptoGladai platform management.
+    Administrative API for CryptoGadai platform management.
     
     This API provides comprehensive administrative capabilities for:
     - KYC verification and user management
@@ -25,16 +25,16 @@ info:
     - Financial monitoring and compliance
   version: 2.3.0
   contact:
-    name: CryptoGladai Admin API Support
-    email: admin-api-support@cryptogladai.com
+    name: CryptoGadai Admin API Support
+    email: admin-api-support@cryptogadai.com
   license:
     name: Proprietary
-    url: https://cryptogladai.com/license
+    url: https://cryptogadai.com/license
 
 servers:
-  - url: https://api.cryptogladai.com/api/v1
+  - url: https://api.cryptogadai.com/api/v1
     description: Production server
-  - url: https://staging-api.cryptogladai.com/api/v1
+  - url: https://staging-api.cryptogadai.com/api/v1
     description: Staging server
   - url: http://localhost:3000/api/v1
     description: Local development server
