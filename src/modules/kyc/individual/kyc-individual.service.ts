@@ -4,12 +4,11 @@ import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.
 import { FileValidatorService } from '../../../shared/services/file-validator.service';
 import { MinioService } from '../../../shared/services/minio.service';
 import { TelemetryLogger } from '../../../telemetry.logger';
-import { CreateKycDto } from './dto/create-kyc.dto';
-import { UpdateKycDto } from './dto/update-kyc.dto';
+import { CreateKycIndividualDto } from './dto/create-kyc-individual.dto';
 
 @Injectable()
-export class KycService {
-  private readonly logger = new TelemetryLogger(KycService.name);
+export class KycIndividualService {
+  private readonly logger = new TelemetryLogger(KycIndividualService.name);
 
   constructor(
     private readonly userRepo: CryptogadaiRepository,
@@ -17,62 +16,41 @@ export class KycService {
     private readonly fileValidatorService: FileValidatorService,
   ) {}
 
-  getKycByUserId(userId: string) {
-    // Return KYC status that matches KycStatusResponseDto format
+  getIndividualKyc(userId: string) {
     return this.userRepo.userViewsKYCStatus({ userId });
   }
 
-  async createKyc(userId: string, createKycDto: CreateKycDto) {
+  async createIndividualKyc(userId: string, createKycDto: CreateKycIndividualDto) {
     // 1. Get current user KYC status to enforce security policies
     const kycStatus = await this.userRepo.userViewsKYCStatus({ userId });
 
     // 2. Security check: Prevent duplicate or unauthorized submissions
-    // Check by status instead of id (since new users won't have id)
-    if (kycStatus.status && kycStatus.status !== 'none') {
+    if (kycStatus.id && kycStatus.submittedDate) {
       switch (kycStatus.status) {
         case 'pending':
-          // Block: KYC is pending verification
           throw new ConflictException(
             'KYC submission is already pending review. Please wait for verification.',
           );
         case 'verified':
-          // Block: KYC is already approved
           throw new ConflictException('KYC is already verified. No need for resubmission.');
         case 'rejected':
-          // Allow: User can resubmit after rejection (only if canResubmit is true)
           if (!kycStatus.canResubmit) {
-            throw new ConflictException('KYC resubmission is not allowed at this time.');
+            throw new ConflictException(
+              'KYC resubmission is not allowed at this time. Please contact support.',
+            );
           }
-          this.logger.warn(`User ${userId} resubmitting KYC after previous rejection`, {
-            userId,
-            previousStatus: 'rejected',
-            canResubmit: kycStatus.canResubmit,
-          });
+          this.logger.log(`KYC resubmission after rejection`, { userId, kycId: kycStatus.id });
           break;
-        default:
-          // Block: Unknown status or other active submission
-          throw new ConflictException(
-            `User has KYC status: ${kycStatus.status}. Cannot submit new KYC.`,
-          );
       }
     } else if (kycStatus.status === 'none') {
-      // Log first-time KYC submission
-      this.logger.log(`First-time KYC submission for user: ${userId}`, {
-        userId,
-        status: 'none',
-        canResubmit: kycStatus.canResubmit,
-      });
+      this.logger.log(`First-time KYC submission`, { userId });
     }
 
     // 3. Validate and sanitize input data before processing
     this.validateKycData(createKycDto);
 
-    // 4. Log security audit trail for KYC submission attempt
-    this.logger.log(`KYC submission attempt for user: ${userId}`, {
-      userId,
-      timestamp: new Date().toISOString(),
-      action: 'kyc_submission',
-    });
+    // 4. Log KYC submission attempt
+    this.logger.log(`KYC submission attempt`, { userId, action: 'kyc_submission' });
 
     // 5. Prepare KYC data with server-side metadata and submit to repository
     const kycData = {
@@ -83,13 +61,8 @@ export class KycService {
 
     const res = await this.userRepo.userSubmitsKyc(kycData);
 
-    // 6. Log successful KYC submission for audit purposes
-    this.logger.log(`KYC submitted successfully for user: ${userId}`, {
-      userId,
-      kycId: res.id,
-      timestamp: new Date().toISOString(),
-      action: 'kyc_submitted',
-    });
+    // 6. Log successful submission
+    this.logger.log(`KYC submitted successfully`, { userId, kycId: res.id });
 
     // 7. Return response in expected DTO format
     return {
@@ -100,51 +73,6 @@ export class KycService {
       submissionDate: kycData.submissionDate,
       status: 'pending' as const,
     };
-  }
-
-  updateKyc(userId: string, updateKycDto: UpdateKycDto) {
-    // Logic untuk update KYC - currently not implemented
-    return Promise.resolve({
-      userId,
-      ...updateKycDto,
-      updatedAt: new Date(),
-    });
-  }
-
-  verifyKyc(userId: string) {
-    // Logic untuk verifikasi KYC - currently not implemented
-    return Promise.resolve({
-      userId,
-      status: 'verified',
-      verifiedAt: new Date(),
-    });
-  }
-
-  rejectKyc(userId: string, reason: string) {
-    // Logic untuk reject KYC - currently not implemented
-    return Promise.resolve({
-      userId,
-      status: 'rejected',
-      reason,
-      rejectedAt: new Date(),
-    });
-  }
-
-  getDocuments(userId: string) {
-    // Logic untuk mendapatkan dokumen KYC - currently not implemented
-    return Promise.resolve({
-      userId,
-      documents: [],
-    });
-  }
-
-  uploadDocument(userId: string, documentData: Record<string, unknown>) {
-    // Logic untuk upload dokumen - currently not implemented
-    return Promise.resolve({
-      userId,
-      documentId: 'doc_123',
-      uploadedAt: new Date(),
-    });
   }
 
   /**
@@ -198,7 +126,7 @@ export class KycService {
   /**
    * Validates KYC data for security and business rules
    */
-  private validateKycData(data: CreateKycDto): void {
+  private validateKycData(data: CreateKycIndividualDto): void {
     // Validate NIK (Indonesian National ID)
     if (!this.validateNik(data.nik)) {
       throw new BadRequestException('Invalid NIK format. Must be 16 digits.');

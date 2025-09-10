@@ -11,6 +11,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { AuthConfig } from './modules/auth/auth.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { BlockchainsModule } from './modules/blockchains/blockchains.module';
+import { KycModule } from './modules/kyc/kyc.module';
 import { UsersModule } from './modules/users/users.module';
 import { AppConfigService } from './shared/services/app-config.service';
 import { SharedModule } from './shared/shared.module';
@@ -46,11 +47,11 @@ import { TestController } from './test.controller';
 
     EventEmitterModule.forRoot(),
 
-    // Authentication
-    AccountsModule,
     AuthModule.forRootAsync({ useClass: AuthConfig }),
-    BlockchainsModule,
     UsersModule,
+    KycModule,
+    AccountsModule,
+    BlockchainsModule,
     AdminModule,
   ],
   providers: [
