@@ -83,7 +83,7 @@ services:
       "
     volumes:
       - ./vault-config.hcl:/vault-config.hcl
-      - ${VAULT_DATA_VOLUME:-}:/vault/file
+      - ${VAULT_DATA_VOLUME}:/vault/file
 
   minio:
     image: bitnami/minio:${MINIO_VERSION}
