@@ -192,7 +192,6 @@ services:
       VAULT_API_ADDR: http://vault:8201
     volumes:
       - ./vault-config.hcl:/vault/config/vault-config.hcl:ro
-      - vault-data:/vault/file
     networks:
       - cg-private-network
     labels:
@@ -419,7 +418,6 @@ services:
 volumes:
   postgres-volume:
   redis-volume:
-  vault-data:
   minio-data:
   ghost-data:
   prometheus-data:
