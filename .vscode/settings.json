@@ -1,14 +1,9 @@
 {
-  "editor.formatOnSave": true,
   "editor.defaultFormatter": "biomejs.biome",
   "javascript.preferences.importModuleSpecifier": "relative",
   "javascript.preferences.importModuleSpecifierEnding": "minimal",
   "typescript.preferences.importModuleSpecifier": "relative",
   "typescript.preferences.importModuleSpecifierEnding": "minimal",
-  "editor.codeActionsOnSave": {
-    "quickfix.biome": "explicit",
-    "source.organizeImports.biome": "explicit"
-  },
   // Fallback formatters jika Biome tidak tersedia
   "[typescript]": {
     "editor.defaultFormatter": "biomejs.biome"

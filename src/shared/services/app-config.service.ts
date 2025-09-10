@@ -59,8 +59,15 @@ export class AppConfigService {
     return duration;
   }
 
-  private getBoolean(key: string): boolean {
-    const value = this.get(key);
+  private getBoolean(key: string, defaultValue?: boolean): boolean {
+    const value = this.configService.get<string>(key);
+
+    if (value === undefined) {
+      if (defaultValue !== undefined) {
+        return defaultValue;
+      }
+      throw new Error(`Environment variable ${key} doesn't exist`);
+    }
 
     try {
       return Boolean(JSON.parse(value));
@@ -89,18 +96,18 @@ export class AppConfigService {
 
   get emailConfig() {
     return {
-      apiKey: this.getString('RESEND_API_KEY'),
-      from: this.getString('EMAIL_FROM'),
-      host: this.getString('MAIL_HOST'),
-      port: this.getNumber('MAIL_SMTP_PORT'),
-      user: this.getString('MAIL_USER'),
-      pass: this.getString('MAIL_PASSWORD'),
-      ignoreTLS: this.getBoolean('MAIL_IGNORE_TLS'),
-      secure: this.getBoolean('MAIL_SECURE'),
-      requireTLS: this.getBoolean('MAIL_REQUIRE_TLS'),
-      defaultEmail: this.getString('MAIL_DEFAULT_EMAIL'),
-      defaultName: this.getString('MAIL_DEFAULT_NAME'),
-      clientPort: this.getNumber('MAIL_HTTP_PORT'),
+      apiKey: this.getString('RESEND_API_KEY', 'test_api_key'),
+      from: this.getString('EMAIL_FROM', 'test@cryptogadai.com'),
+      host: this.getString('MAIL_HOST', 'localhost'),
+      port: this.getNumber('MAIL_SMTP_PORT', 1025),
+      user: this.getString('MAIL_USER', 'test'),
+      pass: this.getString('MAIL_PASSWORD', 'test'),
+      ignoreTLS: this.getBoolean('MAIL_IGNORE_TLS', true),
+      secure: this.getBoolean('MAIL_SECURE', false),
+      requireTLS: this.getBoolean('MAIL_REQUIRE_TLS', false),
+      defaultEmail: this.getString('MAIL_DEFAULT_EMAIL', 'test@cryptogadai.com'),
+      defaultName: this.getString('MAIL_DEFAULT_NAME', 'CryptoGadai Test'),
+      clientPort: this.getNumber('MAIL_HTTP_PORT', 8025),
     };
   }
 
@@ -141,11 +148,40 @@ export class AppConfigService {
   }
 
   get twilioConfig() {
+    // In test environment, provide valid format test credentials
+    if (this.nodeEnv === 'test') {
+      return {
+        accountSid: this.getString('TWILIO_ACCOUNT_SID', 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'),
+        authToken: this.getString('TWILIO_AUTH_TOKEN', 'test_auth_token'),
+        verifySid: this.getString('TWILIO_VERIFY_SID', 'VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'),
+        phoneNumber: this.getString('TWILIO_PHONE_NUMBER', '+1234567890'),
+      };
+    }
+
     return {
       accountSid: this.getString('TWILIO_ACCOUNT_SID'),
       authToken: this.getString('TWILIO_AUTH_TOKEN'),
       verifySid: this.getString('TWILIO_VERIFY_SID'),
       phoneNumber: this.getString('TWILIO_PHONE_NUMBER'),
+    };
+  }
+
+  get notificationConfig() {
+    return {
+      fcm: {
+        projectId: this.getString('FCM_PROJECT_ID', 'test-project'),
+        privateKey: this.getString('FCM_PRIVATE_KEY', 'test-key'),
+        clientEmail: this.getString('FCM_CLIENT_EMAIL', 'test@test.com'),
+        enabled: this.getBoolean('FCM_ENABLED', false),
+      },
+      apns: {
+        keyId: this.getString('APNS_KEY_ID', 'test-key-id'),
+        teamId: this.getString('APNS_TEAM_ID', 'test-team-id'),
+        privateKey: this.getString('APNS_PRIVATE_KEY', 'test-private-key'),
+        bundleId: this.getString('APNS_BUNDLE_ID', 'com.test.app'),
+        production: this.getBoolean('APNS_PRODUCTION', false),
+        enabled: this.getBoolean('APNS_ENABLED', false),
+      },
     };
   }
 
@@ -158,7 +194,8 @@ export class AppConfigService {
       lazyConnect: true,
       keepAlive: 30000,
       connectTimeout: 10000,
-      commandTimeout: 5000,
+      commandTimeout: 10000,
+      maxRetriesPerRequest: null, // Required by BullMQ
     };
   }
 
