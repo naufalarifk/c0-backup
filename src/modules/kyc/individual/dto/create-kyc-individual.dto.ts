@@ -40,28 +40,28 @@ export class CreateKycIndividualDto
   nik: string;
 
   @ApiProperty({
-    description: 'Full name as on ID card',
-    example: 'John Doe Setiawan',
+    description: 'Full name as on Indonesian ID card (KTP)',
+    example: 'SITI NURHAYATI',
     minLength: 2,
     maxLength: 100,
   })
   @IsString()
   @IsNotEmpty()
   @Length(2, 100, { message: 'Name must be between 2 and 100 characters' })
-  @Matches(/^[a-zA-Z\s.'-]+$/, {
-    message: 'Name can only contain letters, spaces, dots, hyphens, and apostrophes',
+  @Matches(/^[a-zA-Z\s.',-]+$/, {
+    message: 'Name can only contain letters, spaces, dots, apostrophes, hyphens, and commas',
   })
-  @Transform(({ value }) => value?.trim().replace(/\s+/g, ' '))
+  @Transform(({ value }) => value?.trim().replace(/\s+/g, ' ').toUpperCase())
   fullName: string;
 
   @ApiProperty({
     description: 'City of birth',
-    example: 'Jakarta',
+    example: 'JAKARTA',
   })
   @IsString()
   @IsNotEmpty()
   @Length(2, 50, { message: 'Birth city must be between 2 and 50 characters' })
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }) => value?.trim().toUpperCase())
   birthCity: string;
 
   @ApiProperty({
@@ -75,54 +75,54 @@ export class CreateKycIndividualDto
 
   @ApiProperty({
     description: 'Province name',
-    example: 'DKI Jakarta',
+    example: 'DKI JAKARTA',
   })
   @IsString()
   @IsNotEmpty()
   @Length(2, 50, { message: 'Province must be between 2 and 50 characters' })
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }) => value?.trim().toUpperCase())
   province: string;
 
   @ApiProperty({
     description: 'City/Regency name',
-    example: 'Jakarta Selatan',
+    example: 'JAKARTA SELATAN',
   })
   @IsString()
   @IsNotEmpty()
   @Length(2, 50, { message: 'City must be between 2 and 50 characters' })
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }) => value?.trim().toUpperCase())
   city: string;
 
   @ApiProperty({
     description: 'District name (Kecamatan)',
-    example: 'Kebayoran Baru',
+    example: 'KEBAYORAN BARU',
   })
   @IsString()
   @IsNotEmpty()
   @Length(2, 50, { message: 'District must be between 2 and 50 characters' })
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }) => value?.trim().toUpperCase())
   district: string;
 
   @ApiProperty({
     description: 'Subdistrict name (Kelurahan)',
-    example: 'Senayan',
+    example: 'SENAYAN',
   })
   @IsString()
   @IsNotEmpty()
   @Length(2, 50, { message: 'Subdistrict must be between 2 and 50 characters' })
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }) => value?.trim().toUpperCase())
   subdistrict: string;
 
   @ApiProperty({
     description: 'Complete street address',
-    example: 'Jl. Sudirman No. 123, RT 001/RW 002',
+    example: 'JL. SUDIRMAN NO. 123, RT 001/RW 002',
     minLength: 10,
     maxLength: 500,
   })
   @IsString()
   @IsNotEmpty()
   @Length(10, 500, { message: 'Address must be between 10 and 500 characters' })
-  @Transform(({ value }) => value?.trim().replace(/\s+/g, ' '))
+  @Transform(({ value }) => value?.trim().replace(/\s+/g, ' ').toUpperCase())
   address: string;
 
   @ApiProperty({
