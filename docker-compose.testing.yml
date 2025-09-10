@@ -39,6 +39,8 @@ x-backend-env: &backend-env
   OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics
   OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs
   OTEL_LOG_LEVEL: debug
+  VAULT_ADDR: http://vault:8201
+  VAULT_TOKEN: root
 
 x-backend-base: &backend-base
   image: cg/backend
@@ -126,7 +128,7 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
-      vault: { condition: service_healthy }
+      vault: { condition: service_started }
       minio: { condition: service_healthy }
       mailpit: { condition: service_healthy }
     networks:
@@ -181,18 +183,13 @@ services:
 
   vault:
     image: hashicorp/vault:1.20
-    command: vault server -config=/vault/config/vault-config.hcl
+    command: vault server -dev -config=/vault/config/vault-config.hcl
     cap_add:
       - IPC_LOCK
-    healthcheck:
-      test: ["CMD-SHELL", "VAULT_ADDR=http://localhost:8201 vault status || exit 1"]
-      interval: 500ms
-      timeout: 10s
-      retries: 20
     environment:
       VAULT_MODE: dev
       VAULT_DEV_ROOT_TOKEN_ID: root
-      VAULT_API_ADDR: http://localhost:8201
+      VAULT_API_ADDR: http://vault:8201
     volumes:
       - ./vault-config.hcl:/vault/config/vault-config.hcl:ro
       - vault-data:/vault/file
