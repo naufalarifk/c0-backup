@@ -10,6 +10,7 @@ SERVICE_NAME="api"
 HEALTH_CHECK_URL="http://api:3100/api/auth/ok"
 MAX_WAIT_TIME=120
 CHECK_INTERVAL=5
+PROJECT_NAME=${PROJECT_NAME:-"cg-backend"}
 
 # Helper function to build docker compose command with optional env file
 build_compose_cmd() {
@@ -108,7 +109,7 @@ check_service_availability() {
     
     while [ $attempt -le $max_attempts ]; do
         # Check if we can access the service via docker network
-        if docker run --rm --network cg-backend_cg-private-network curlimages/curl:8.11.1 -sf "$url" >/dev/null 2>&1; then
+        if docker run --rm --network ${PROJECT_NAME}_cg-private-network curlimages/curl:8.11.1 -sf "$url" >/dev/null 2>&1; then
             log "Service is responding correctly"
             return 0
         fi
