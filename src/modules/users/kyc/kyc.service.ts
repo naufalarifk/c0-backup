@@ -65,6 +65,8 @@ export class KycService {
       });
     }
 
+    console.log('createKycDto :>> ', createKycDto);
+
     // 3. Validate and sanitize input data before processing
     this.validateKycData(createKycDto);
 
@@ -205,11 +207,6 @@ export class KycService {
       throw new BadRequestException('Invalid NIK format. Must be 16 digits.');
     }
 
-    // Validate phone number
-    if (!this.validatePhoneNumber(data.phoneNumber)) {
-      throw new BadRequestException('Invalid phone number format.');
-    }
-
     // Validate postal code
     if (!this.validatePostalCode(data.postalCode)) {
       throw new BadRequestException('Invalid postal code format.');
@@ -234,12 +231,6 @@ export class KycService {
     // NIK must be exactly 16 digits
     const nikRegex = /^\d{16}$/;
     return nikRegex.test(nik);
-  }
-
-  private validatePhoneNumber(phone: string): boolean {
-    // Indonesian phone number format: +62 or 0, followed by 8-13 digits
-    const phoneRegex = /^(\+62|62|0)[8-9]\d{7,11}$/;
-    return phoneRegex.test(phone.replace(/\s|-/g, ''));
   }
 
   private validatePostalCode(postalCode: string): boolean {

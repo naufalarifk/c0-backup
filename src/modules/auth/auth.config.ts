@@ -22,6 +22,7 @@ import { DRIZZLE_DB } from '../../shared/database/database.module';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../shared/services/app-config.service';
 import { MailerService } from '../../shared/services/mailer.service';
+import { MinioService } from '../../shared/services/minio.service';
 import { RedisService } from '../../shared/services/redis.service';
 import { TwilioService } from '../../shared/services/twilio.service';
 import { TelemetryLogger } from '../../telemetry.logger';
@@ -40,6 +41,7 @@ export class AuthConfig {
     private readonly twilioService: TwilioService,
     private readonly redisService: RedisService,
     private readonly userRepository: CryptogadaiRepository,
+    private readonly minioService: MinioService,
   ) {}
 
   /**
@@ -223,16 +225,43 @@ export class AuthConfig {
       sso(),
       multiSession({ maximumSessions: this.configService.authConfig.maximumSessions }),
       customSession(async ({ session, user }) => {
-        const rows = (await this.userRepository
-          .sql`SELECT role FROM users WHERE id = ${user.id} LIMIT 1`) as {
-          role: UserViewsProfileResult['role'];
-        }[];
+        const rows = await this.userRepository
+          .sql`SELECT profile_picture, email_verified_date, two_factor_enabled_date, user_type FROM users WHERE id = ${user.id} LIMIT 1`;
+
+        // biome-ignore lint/suspicious/noExplicitAny: Enable explicit any for database result
+        const data = rows.length ? (rows[0] as any) : null;
+
+        let profilePictureUrl = data?.profile_picture;
+
+        // If profile_picture exists and doesn't start with http/https, get from MinIO
+        if (profilePictureUrl && !/^https?:\/\//.test(profilePictureUrl)) {
+          try {
+            // Parse bucket:objectPath format
+            const [bucket, objectPath] = profilePictureUrl.split(':');
+            if (bucket && objectPath) {
+              // SECURITY: Basic validation - ensure path is not manipulated
+              if (objectPath.includes('../') || objectPath.includes('..\\')) {
+                this.logger.warn(`Path traversal attempt detected: ${objectPath}`);
+                profilePictureUrl = null;
+              } else {
+                // Generate presigned URL with short expiry
+                profilePictureUrl = await this.minioService.getFileUrl(bucket, objectPath, 900);
+              }
+            }
+          } catch (error) {
+            this.logger.error('Failed to get profile picture from MinIO:', error);
+            profilePictureUrl = null;
+          }
+        }
 
         return {
           session,
           user: {
             ...user,
-            role: rows[0]?.role || 'User',
+            role: data.role || 'User',
+            userType: data.user_type || 'Undecided',
+            twoFactorEnabled: !!data.two_factor_enabled_date,
+            image: profilePictureUrl,
           },
         };
       }),

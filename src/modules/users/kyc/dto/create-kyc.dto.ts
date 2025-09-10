@@ -8,7 +8,6 @@ import { IsDateString, IsNotEmpty, IsString, IsUrl, Length, Matches } from 'clas
 export class CreateKycDto
   implements Omit<UserSubmitsKycParams, 'userId' | 'submissionDate' | 'phoneNumber'>
 {
-  phoneNumber: string;
   @ApiProperty({
     description: 'ID card photo URL',
     example: 'https://storage.example.com/kyc/user123/id-card-1234567890.jpg',

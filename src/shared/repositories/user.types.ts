@@ -34,7 +34,7 @@ export type UserSubmitsKycParams = {
   subdistrict: string;
   address: string;
   postalCode: string;
-  phoneNumber: string;
+  phoneNumber?: string;
   submissionDate: Date;
 };
 
