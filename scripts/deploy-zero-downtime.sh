@@ -7,9 +7,10 @@ set -euo pipefail
 
 COMPOSE_FILE=${COMPOSE_FILE:-"docker-compose.testing.yml"}
 SERVICE_NAME="api"
-HEALTH_CHECK_URL="http://localhost:3100/api/auth/ok"
+HEALTH_CHECK_URL="http://api:3100/api/auth/ok"
 MAX_WAIT_TIME=120
 CHECK_INTERVAL=5
+PROJECT_NAME=${PROJECT_NAME:-"cg-backend"}
 
 # Helper function to build docker compose command with optional env file
 build_compose_cmd() {
@@ -50,6 +51,55 @@ wait_for_healthy() {
     error "Container $container_id failed to become healthy within ${timeout}s"
 }
 
+# Ensure any external networks declared in the compose file exist locally
+ensure_external_networks_exist() {
+    log "Checking for external networks declared in compose file..."
+
+    local config
+    if ! config=$(eval "$(build_compose_cmd) config" 2>/dev/null); then
+        log "Could not generate compose config, skipping external network checks"
+        return 0
+    fi
+
+    # Extract network names that have external: true
+    local external_networks
+    external_networks=$(printf "%s\n" "$config" | awk '
+        /^networks:/ {in_networks=1; next}
+        in_networks && /^  [a-zA-Z0-9_.-]+:/ { 
+            name=$1; 
+            sub(/:$/, "", name); 
+            current_network=name; 
+            next 
+        }
+        in_networks && /^    external: true/ { 
+            print current_network
+            next 
+        }
+        in_networks && /^[a-z]/ { 
+            in_networks=0 
+        }
+    ')
+
+    if [ -z "${external_networks:-}" ]; then
+        log "No external networks declared in compose file"
+        return 0
+    fi
+
+    log "Found external networks to check: $external_networks"
+
+    # Create any missing external networks
+    while IFS= read -r net; do
+        [ -z "$net" ] && continue
+        net=$(echo "$net" | sed 's/^\s*//; s/\s*$//')
+        if docker network ls --format '{{.Name}}' | grep -xq "$net"; then
+            log "External network '$net' already exists"
+        else
+            log "Creating external network '$net'"
+            docker network create "$net" || error "Failed to create external network '$net'"
+        fi
+    done <<< "$external_networks"
+}
+
 check_service_availability() {
     local url=$1
     local max_attempts=10
@@ -58,7 +108,8 @@ check_service_availability() {
     log "Checking service availability at $url"
     
     while [ $attempt -le $max_attempts ]; do
-        if curl -sf "$url" >/dev/null 2>&1; then
+        # Check if we can access the service via docker network
+        if docker run --rm --network ${PROJECT_NAME}_cg-private-network curlimages/curl:8.11.1 -sf "$url" >/dev/null 2>&1; then
             log "Service is responding correctly"
             return 0
         fi
@@ -73,12 +124,14 @@ check_service_availability() {
 
 perform_rolling_deployment() {
     log "Starting zero downtime deployment..."
-    
+    # Ensure external networks exist before any compose operations
+    ensure_external_networks_exist
+
     # Build new image first
     log "Building new image..."
     eval "$(build_compose_cmd) build \"$SERVICE_NAME\"" || error "Failed to build new image"
     
-    # Get current container IDs
+    # Get current container information
     log "Getting current container information..."
     local current_containers
     current_containers=$(eval "$(build_compose_cmd) ps --quiet \"$SERVICE_NAME\"" 2>/dev/null || true)
@@ -86,61 +139,42 @@ perform_rolling_deployment() {
     if [ -z "$current_containers" ]; then
         log "No existing containers found, performing initial deployment..."
         eval "$(build_compose_cmd) up --detach \"$SERVICE_NAME\""
+        
+        # Wait for services to be ready
+        log "Waiting for services to become healthy..."
+        sleep 30
+        
         return 0
     fi
     
-    # Convert to array
-    local containers_array=($current_containers)
-    local container_count=${#containers_array[@]}
+    log "Found existing containers, performing rolling update..."
     
-    log "Found $container_count existing containers"
+    # Use docker-compose's built-in rolling update
+    # This will gracefully replace containers one by one
+    eval "$(build_compose_cmd) up --detach --force-recreate --no-deps \"$SERVICE_NAME\"" || error "Failed to perform rolling update"
     
-    # Rolling update: replace containers one by one
-    for i in "${!containers_array[@]}"; do
-        local container_id="${containers_array[$i]}"
-        local container_name=$(docker inspect "$container_id" --format='{{.Name}}' | sed 's/^\///')
+    # Wait for all containers to be healthy
+    log "Waiting for new containers to become healthy..."
+    local max_wait=120
+    local elapsed=0
+    
+    while [ $elapsed -lt $max_wait ]; do
+        local unhealthy_count
+        unhealthy_count=$(eval "$(build_compose_cmd) ps \"$SERVICE_NAME\"" | grep -v "healthy\|Up" | wc -l)
         
-        log "Updating container $((i + 1))/$container_count: $container_name ($container_id)"
-        
-        # Start new container with temporary name
-        local temp_name="${container_name}_new_$$"
-        log "Starting new container: $temp_name"
-        
-        # Create new container
-        docker run \
-            --detach \
-            --name "$temp_name" \
-            --network "$(docker inspect "$container_id" --format='{{range .NetworkSettings.Networks}}{{.NetworkID}}{{end}}' | head -1)" \
-            --label "deployment.strategy=zero-downtime" \
-            --label "deployment.version=${GITHUB_SHA:-$(date +%s)}" \
-            $(docker inspect "$container_id" --format='{{.Config.Image}}') \
-            $(docker inspect "$container_id" --format='{{join .Config.Cmd " "}}') \
-            || error "Failed to start new container"
-        
-        # Wait for new container to be healthy
-        wait_for_healthy "$temp_name" $MAX_WAIT_TIME
-        
-        # Check if service is still available
-        check_service_availability "$HEALTH_CHECK_URL"
-        
-        # Stop old container gracefully
-        log "Stopping old container: $container_name"
-        docker stop "$container_id" --time 30 || log "Warning: Failed to stop container gracefully"
-        
-        # Remove old container
-        docker rm "$container_id" || log "Warning: Failed to remove old container"
-        
-        # Rename new container to original name
-        docker rename "$temp_name" "$container_name"
-        
-        log "Successfully updated container $((i + 1))/$container_count"
-        
-        # Brief pause between container updates
-        if [ $((i + 1)) -lt $container_count ]; then
-            log "Waiting before updating next container..."
-            sleep 10
+        if [ "$unhealthy_count" -eq 1 ]; then  # 1 line is the header
+            log "All containers are healthy"
+            break
         fi
+        
+        sleep 5
+        elapsed=$((elapsed + 5))
+        log "Waiting for containers to become healthy... ${elapsed}s/${max_wait}s"
     done
+    
+    if [ $elapsed -ge $max_wait ]; then
+        error "Containers failed to become healthy within ${max_wait}s"
+    fi
     
     log "Rolling deployment completed successfully"
 }
@@ -161,6 +195,7 @@ rollback_deployment() {
     
     # Restart from previous image
     log "Restarting from previous version..."
+    ensure_external_networks_exist
     eval "$(build_compose_cmd) up -d \"$SERVICE_NAME\""
     
     log "Rollback completed"
