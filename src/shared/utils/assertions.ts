@@ -144,11 +144,6 @@ export function assertPropStringOrNumber<K extends PropKey, V extends NonNullabl
   const value = (obj as any)[propKey];
   const valueType = typeof value;
 
-  // Log the actual type for debugging (only in test/development)
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`Property "${String(propKey)}" has type: ${valueType}, value:`, value);
-  }
-
   ok(
     typeof obj === 'object' &&
       obj !== null &&

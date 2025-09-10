@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS user_kycs (
   user_id BIGINT REFERENCES users (id),
 
   id_card_photo TEXT NOT NULL,
+  -- selfie_photo TEXT NOT NULL, -- deleted as of requirement adjustment
   selfie_with_id_card_photo TEXT NOT NULL,
   nik VARCHAR(16) NOT NULL,
   name VARCHAR(160) NOT NULL,
@@ -16,7 +17,7 @@ CREATE TABLE IF NOT EXISTS user_kycs (
   subdistrict VARCHAR(100) NOT NULL,
   address TEXT NOT NULL,
   postal_code VARCHAR(10) NOT NULL,
-  phone_number VARCHAR(15) NOT NULL,
+  -- phone_number VARCHAR(15) NOT NULL, -- deleted as of requirement adjustment
 
   status VARCHAR(20) NOT NULL DEFAULT 'Submitted',
   submitted_date TIMESTAMP NOT NULL,
@@ -40,6 +41,7 @@ CREATE TABLE IF NOT EXISTS user_kycs (
 );
 
 ALTER TABLE user_kycs DROP COLUMN IF EXISTS selfie_photo;
+ALTER TABLE user_kycs DROP COLUMN IF EXISTS phone_number;
 
 --- DEPENDENCY ---
 

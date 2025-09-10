@@ -87,6 +87,12 @@ function alignBetterAuthUserData(user: unknown) {
       'email_verified_date' in user && tryToDate(user.email_verified_date),
     );
   }
+  if ('phone_number' in user) {
+    setAssertPropValue(user, 'phoneNumber', user.phone_number ?? null);
+  }
+  if ('phone_number_verified' in user) {
+    setAssertPropValue(user, 'phoneNumberVerified', !!user.phone_number_verified);
+  }
   if ('created_date' in user) {
     setAssertPropValue(user, 'createdAt', 'created_date' in user && tryToDate(user.created_date));
   }
@@ -111,6 +117,8 @@ export abstract class UserRepository extends BaseRepository {
         email,
         email_address,
         emailVerified = false,
+        phoneNumber,
+        phoneNumberVerified = false,
         createdAt,
         updatedAt,
         id,
@@ -123,16 +131,16 @@ export abstract class UserRepository extends BaseRepository {
       }
 
       // Handle field mapping: email_address maps to email column
-      const emailValue = email_address || email;
+      const emailValue = email_address || email || `user-${Date.now()}@example.com`;
 
       // Convert Dates to UTC milliseconds for database storage
       const createdAtUtc = new Date(createdAt ?? Date.now());
       const updatedAtUtc = new Date(updatedAt ?? Date.now());
 
       const rows = await tx.sql`
-        INSERT INTO users (name, profile_picture, email, created_date, updated_date, email_verified_date)
-        VALUES (${name}, ${image}, ${emailValue}, ${createdAtUtc}, ${updatedAtUtc}, ${emailVerified ? updatedAtUtc : null})
-        RETURNING id, name, profile_picture as "image", email, created_date, updated_date, email_verified_date
+        INSERT INTO users (name, profile_picture, email, phone_number, phone_number_verified, created_date, updated_date, email_verified_date)
+        VALUES (${name}, ${image}, ${emailValue}, ${phoneNumber}, ${phoneNumberVerified}, ${createdAtUtc}, ${updatedAtUtc}, ${emailVerified ? updatedAtUtc : null})
+        RETURNING id, name, profile_picture as "image", email, phone_number, phone_number_verified, created_date, updated_date, email_verified_date
       `;
 
       assertArrayOf(rows, function (row) {
@@ -169,24 +177,32 @@ export abstract class UserRepository extends BaseRepository {
 
       const idCondition = where.find(w => w.field === 'id');
       const emailCondition = where.find(w => w.field === 'email' || w.field === 'email_address');
+      const phoneCondition = where.find(w => w.field === 'phoneNumber');
 
       let rows: Array<unknown> = [];
       if (idCondition) {
         rows = await this.sql`
-          SELECT id, name, profile_picture as "image", email, email_verified_date,
+          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
             created_date, updated_date
           FROM users
           WHERE id = ${idCondition.value}
         `;
       } else if (emailCondition) {
         rows = await this.sql`
-          SELECT id, name, profile_picture as "image", email, email_verified_date,
+          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
             created_date, updated_date
           FROM users
           WHERE email = ${emailCondition.value}
         `;
+      } else if (phoneCondition) {
+        rows = await this.sql`
+          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
+            created_date, updated_date
+          FROM users
+          WHERE phone_number = ${phoneCondition.value}
+        `;
       } else {
-        console.warn('Find user requires id or email condition.');
+        console.warn('Find user requires id, email, or phone number condition.');
         return null;
       }
 
@@ -224,7 +240,7 @@ export abstract class UserRepository extends BaseRepository {
       let users: Array<unknown> = [];
       if (!where || where.length === 0) {
         users = await this.sql`
-          SELECT id, name, profile_picture as "image", email, email_verified_date,
+          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
                  created_date, updated_date
           FROM users
           ORDER BY created_date DESC
@@ -239,7 +255,7 @@ export abstract class UserRepository extends BaseRepository {
         if (idCondition && idCondition.operator === 'in') {
           const ids = idCondition.value;
           users = await this.sql`
-            SELECT id, name, profile_picture as "image", email, email_verified_date,
+            SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
                    created_date, updated_date
             FROM users
             WHERE id = ANY(${ids})
@@ -251,7 +267,7 @@ export abstract class UserRepository extends BaseRepository {
           if (emailCondition.operator === 'contains') {
             const searchTerm = `%${emailCondition.value}%`;
             users = await this.sql`
-              SELECT id, name, profile_picture as "image", email, email_verified_date,
+              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
                      created_date, updated_date
               FROM users
               WHERE email LIKE ${searchTerm}
@@ -261,7 +277,7 @@ export abstract class UserRepository extends BaseRepository {
             `;
           } else {
             users = await this.sql`
-              SELECT id, name, profile_picture as "image", email, email_verified_date,
+              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
                      created_date, updated_date
               FROM users
               WHERE email = ${emailCondition.value}
@@ -274,7 +290,7 @@ export abstract class UserRepository extends BaseRepository {
           if (nameCondition.operator === 'contains') {
             const searchTerm = `%${nameCondition.value}%`;
             users = await this.sql`
-              SELECT id, name, profile_picture as "image", email, email_verified_date,
+              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
                      created_date, updated_date
               FROM users
               WHERE name LIKE ${searchTerm}
@@ -284,7 +300,7 @@ export abstract class UserRepository extends BaseRepository {
             `;
           } else {
             users = await this.sql`
-              SELECT id, name, profile_picture as "image", email, email_verified_date,
+              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
                      created_date, updated_date
               FROM users
               WHERE name = ${nameCondition.value}
@@ -295,7 +311,7 @@ export abstract class UserRepository extends BaseRepository {
           }
         } else {
           users = await this.sql`
-            SELECT id, name, profile_picture as "image", email, email_verified_date,
+            SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
                    created_date, updated_date
             FROM users
             ORDER BY created_date DESC
@@ -332,7 +348,16 @@ export abstract class UserRepository extends BaseRepository {
         return null;
       }
 
-      const { name, email, emailVerified, createdAt, updatedAt, image } = update;
+      const {
+        name,
+        email,
+        emailVerified,
+        phoneNumber,
+        phoneNumberVerified,
+        createdAt,
+        updatedAt,
+        image,
+      } = update;
 
       // Convert Dates to UTC milliseconds for database storage if they exist
       const createdAtUtc = createdAt ? new Date(createdAt ?? Date.now()) : new Date();
@@ -342,6 +367,8 @@ export abstract class UserRepository extends BaseRepository {
         UPDATE users
         SET name = COALESCE(${name}, name),
           email = COALESCE(${email}, email),
+          phone_number = COALESCE(${phoneNumber}, phone_number),
+          phone_number_verified = COALESCE(${phoneNumberVerified}, phone_number_verified),
           email_verified_date = CASE
             WHEN ${emailVerified ? 1 : 0} = 1 AND email_verified_date IS NULL THEN ${updatedAtUtc}
             WHEN ${emailVerified ? 1 : 0} = 0 THEN NULL
@@ -352,7 +379,7 @@ export abstract class UserRepository extends BaseRepository {
           updated_date = COALESCE(${updatedAtUtc}, updated_date)
         WHERE id = ${where.find(w => w.field === 'id')?.value}
           OR email = ${where.find(w => w.field === 'email' || w.field === 'email_address')?.value}
-        RETURNING id, name, profile_picture as "image", email, email_verified_date,
+        RETURNING id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
           created_date, updated_date
       `;
 
@@ -378,7 +405,16 @@ export abstract class UserRepository extends BaseRepository {
         return [];
       }
 
-      const { name, email, emailVerified, createdAt, updatedAt, image } = update;
+      const {
+        name,
+        email,
+        emailVerified,
+        phoneNumber,
+        phoneNumberVerified,
+        createdAt,
+        updatedAt,
+        image,
+      } = update;
 
       // Convert Dates to UTC milliseconds for database storage if they exist
       const createdAtUtc = createdAt ? new Date(createdAt ?? Date.now()) : null;
@@ -396,6 +432,8 @@ export abstract class UserRepository extends BaseRepository {
         UPDATE users
         SET name = COALESCE(${name}, name),
             email = COALESCE(${email}, email),
+            phone_number = COALESCE(${phoneNumber}, phone_number),
+            phone_number_verified = COALESCE(${phoneNumberVerified}, phone_number_verified),
             profile_picture = COALESCE(${image}, profile_picture),
             email_verified_date = CASE
               WHEN ${emailVerified ? 1 : 0} = 1 AND email_verified_date IS NULL THEN ${updatedAtUtc}
@@ -406,7 +444,7 @@ export abstract class UserRepository extends BaseRepository {
             updated_date = COALESCE(${updatedAtUtc}, updated_date)
         WHERE id = ${idCondition.value}
           OR email = ${where.find(w => w.field === 'email' || w.field === 'email_address')?.value}
-        RETURNING id, name, profile_picture as "image", email, email_verified_date,
+        RETURNING id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
           created_date, updated_date
       `;
 
@@ -1328,7 +1366,6 @@ export abstract class UserRepository extends BaseRepository {
         subdistrict,
         address,
         postalCode,
-        phoneNumber,
         submissionDate,
       } = params;
 
@@ -1336,12 +1373,12 @@ export abstract class UserRepository extends BaseRepository {
         INSERT INTO user_kycs (
           user_id, submitted_date, id_card_photo, selfie_with_id_card_photo,
           nik, name, birth_city, birth_date, province, city,
-          district, subdistrict, address, postal_code, phone_number
+          district, subdistrict, address, postal_code
         )
         VALUES (
           ${userId}, ${submissionDate}, ${idCardPhoto}, ${selfieWithIdCardPhoto},
           ${nik}, ${fullName}, ${birthCity}, ${birthDate}, ${province}, ${city},
-          ${district}, ${subdistrict}, ${address}, ${postalCode}, ${phoneNumber}
+          ${district}, ${subdistrict}, ${address}, ${postalCode}
         )
         RETURNING id, user_id;
       `;

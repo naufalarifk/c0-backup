@@ -18,6 +18,10 @@ CREATE TABLE IF NOT EXISTS users (
   two_factor_secret TEXT,
   two_factor_backup_codes TEXT[],
 
+  -- Phone number authentication fields (for phone number plugin)
+  phone_number TEXT, -- added to support phone number verification
+  phone_number_verified BOOLEAN DEFAULT FALSE, -- added to support phone number verification
+
   last_login_date TIMESTAMP,
 
   -- User profile and role fields (merged from users table)
@@ -40,6 +44,9 @@ CREATE TABLE IF NOT EXISTS users (
     (two_factor_enabled_date IS NULL OR (two_factor_secret IS NOT NULL AND two_factor_backup_codes IS NOT NULL))
   )
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number_verified BOOLEAN DEFAULT FALSE;
 
 -- Add self-referencing foreign key for institution hierarchy
 -- DROP CONSTRAINT fk_users_institution_user;

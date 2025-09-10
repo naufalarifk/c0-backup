@@ -23,10 +23,14 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
       adapterId: 'repository',
       adapterName: 'Repository BetterAuth Adapter',
       debugLogs,
+      supportsJSON: true,
+      supportsDates: true,
+      supportsBooleans: true,
+      supportsNumericIds: false,
     },
     adapter: () => ({
-      create({ model, data, ...others }) {
-        logger.debug('AuthAdapter:create', { model, data, ...others });
+      create({ model, data, select, ...others }) {
+        logger.debug('AuthAdapter:create', { model, data, select, ...others });
         if (model === 'user') {
           return userRepo.betterAuthCreateUser(data);
         } else if (model === 'session') {
@@ -44,8 +48,9 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
       update({ model, update, where, ...others }) {
         logger.debug('AuthAdapter:update', { model, update, where, ...others });
         if (model === 'user') {
-          // Field mapping handled in repository methods
           return userRepo.betterAuthUpdateUser(where, update);
+        } else if (model === 'session') {
+          return userRepo.betterAuthUpdateSession(where, update);
         } else if (model === 'account') {
           return userRepo.betterAuthUpdateAccount(where, update);
         } else if (model === 'verification') {
@@ -54,45 +59,64 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
           throw new BetterAuthError(`Unsupported updating data with model: ${model}`);
         }
       },
-      updateMany({ model, update, where, ...others }) {
+      async updateMany({ model, update, where, ...others }) {
         logger.debug('AuthAdapter:updateMany', { model, update, where, ...others });
         if (model === 'user') {
-          // Field mapping handled in repository methods
-          return userRepo.betterAuthUpdateManyUsers(where, update);
+          const results = await userRepo.betterAuthUpdateManyUsers(where, update);
+          return Array.isArray(results) ? results.length : 0;
         } else if (model === 'account') {
-          return userRepo.betterAuthUpdateManyAccounts(where, update);
+          const results = await userRepo.betterAuthUpdateManyAccounts(where, update);
+          return Array.isArray(results) ? results.length : 0;
+        } else if (model === 'session') {
+          // For session, updateMany is not commonly used, delegate to single update
+          const result = await userRepo.betterAuthUpdateSession(where, update);
+          return result ? 1 : 0;
         } else if (model === 'verification') {
-          // For verification, updateMany is not commonly used, delegate to single update
-          return userRepo.betterAuthUpdateVerification(where, update);
+          const result = await userRepo.betterAuthUpdateVerification(where, update);
+          return result ? 1 : 0;
         } else {
           throw new BetterAuthError(`Unsupported updateMany for model: ${model}`);
         }
       },
       async delete({ model, where, ...others }) {
         logger.debug('AuthAdapter:delete', { model, where, ...others });
-        if (model === 'user') {
-          // Field mapping handled in repository methods
-          const deleted = await userRepo.betterAuthDeleteUser(where);
-          return deleted; // Return deleted record or null if not found
-        } else if (model === 'account') {
-          return userRepo.betterAuthDeleteAccount(where);
-        } else if (model === 'verification') {
-          return userRepo.betterAuthDeleteVerification(where);
-        } else {
-          throw new BetterAuthError(`Unsupported deleting data with model: ${model}`);
+        try {
+          if (model === 'user') {
+            // Field mapping handled in repository methods
+            const deleted = await userRepo.betterAuthDeleteUser(where);
+            return deleted; // Return deleted record or null if not found
+          } else if (model === 'account') {
+            return userRepo.betterAuthDeleteAccount(where);
+          } else if (model === 'session') {
+            return userRepo.betterAuthDeleteSession(where);
+          } else if (model === 'verification') {
+            return userRepo.betterAuthDeleteVerification(where);
+          } else {
+            throw new BetterAuthError(`Unsupported deleting data with model: ${model}`);
+          }
+        } catch (error) {
+          logger.error('AuthAdapter:delete error', { model, where, error });
+          throw error;
         }
       },
-      deleteMany({ model, where, ...others }) {
+      async deleteMany({ model, where, ...others }) {
         logger.debug('AuthAdapter:deleteMany', { model, where, ...others });
-        if (model === 'user') {
-          // Field mapping handled in repository methods
-          return userRepo.betterAuthDeleteManyUsers(where);
-        } else if (model === 'account') {
-          return userRepo.betterAuthDeleteManyAccounts(where) as any;
-        } else if (model === 'verification') {
-          return userRepo.betterAuthDeleteManyVerifications(where) as any;
-        } else {
-          throw new BetterAuthError(`Unsupported deleteMany for model: ${model}`);
+        try {
+          if (model === 'user') {
+            // Field mapping handled in repository methods
+            return userRepo.betterAuthDeleteManyUsers(where);
+          } else if (model === 'account') {
+            return userRepo.betterAuthDeleteManyAccounts(where) as any;
+          } else if (model === 'session') {
+            return userRepo.betterAuthDeleteManySession(where) as any;
+          } else if (model === 'verification') {
+            return userRepo.betterAuthDeleteManyVerifications(where) as any;
+          } else {
+            throw new BetterAuthError(`Unsupported deleteMany for model: ${model}`);
+          }
+        } catch (error) {
+          logger.error('AuthAdapter:deleteMany error', { model, where, error });
+          throw error;
         }
       },
       async findOne({ model, where, select, ...others }) {
@@ -128,12 +152,14 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
       findMany({ model, where, limit, offset, sortBy, ...others }) {
         logger.debug('AuthAdapter:findMany', { model, where, limit, offset, sortBy, ...others });
         if (model === 'user') {
-          // Field mapping handled in repository methods
-          return userRepo.betterAuthFindManyUsers(where, limit, offset, sortBy) as any;
+          return userRepo.betterAuthFindManyUsers(where, limit, offset, sortBy);
+        } else if (model === 'session') {
+          // Sessions are stored in Redis, findMany not commonly used but implement for completeness
+          return Promise.resolve([]);
         } else if (model === 'account') {
-          return userRepo.betterAuthFindManyAccounts(where, limit, offset, sortBy) as any;
+          return userRepo.betterAuthFindManyAccounts(where, limit, offset, sortBy);
         } else if (model === 'verification') {
-          return userRepo.betterAuthFindManyVerifications(where, limit, offset, sortBy) as any;
+          return userRepo.betterAuthFindManyVerifications(where, limit, offset, sortBy);
         } else {
           throw new BetterAuthError(`Unsupported findMany for model: ${model}`);
         }
@@ -141,9 +167,11 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
       async count({ model, where, ...others }) {
         logger.debug('AuthAdapter:count', { model, where, ...others });
         if (model === 'user') {
-          // Field mapping handled in repository methods
           const results = await userRepo.betterAuthFindManyUsers(where);
           return results.length;
+        } else if (model === 'session') {
+          // Sessions are in Redis, count would require scanning keys - return 0 for simplicity
+          return 0;
         } else if (model === 'account') {
           const results = await userRepo.betterAuthFindManyAccounts(where);
           return results.length;

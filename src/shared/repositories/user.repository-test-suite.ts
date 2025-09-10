@@ -101,6 +101,69 @@ export async function runUserRepositoryTestSuite(
         ok(hasImageField, 'Users should have image field');
       });
 
+      it('should create user with phone number and return it', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'John Phone',
+          email: 'john-phone@example.com',
+          emailVerified: true,
+          phoneNumber: '+1234567890',
+          phoneNumberVerified: true,
+        });
+
+        equal(user.name, 'John Phone');
+        equal(user.email, 'john-phone@example.com');
+        equal(user.phoneNumber, '+1234567890');
+        equal(user.phoneNumberVerified, true);
+      });
+
+      it('should create user without phone number and return null for phone fields', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Jane NoPhone',
+          email: 'jane-nophone@example.com',
+          emailVerified: true,
+        });
+
+        equal(user.name, 'Jane NoPhone');
+        equal(user.email, 'jane-nophone@example.com');
+        equal(user.phoneNumber, null);
+        equal(user.phoneNumberVerified, false);
+      });
+
+      it('should find user by phone number', async function () {
+        const createdUser = await repo.betterAuthCreateUser({
+          name: 'Phone Finder Test',
+          email: 'phone-finder@example.com',
+          emailVerified: true,
+          phoneNumber: '+9876543210',
+          phoneNumberVerified: true,
+        });
+
+        const foundUser = await repo.betterAuthFindOneUser([
+          { field: 'phoneNumber', value: '+9876543210' },
+        ]);
+
+        equal(foundUser.id, createdUser.id);
+        equal(foundUser.name, 'Phone Finder Test');
+        equal(foundUser.phoneNumber, '+9876543210');
+        equal(foundUser.phoneNumberVerified, true);
+      });
+
+      it('should update user phone number', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Phone Update Test',
+          email: 'phone-update@example.com',
+          emailVerified: true,
+        });
+
+        const updatedUser = await repo.betterAuthUpdateUser([{ field: 'id', value: user.id }], {
+          phoneNumber: '+1111111111',
+          phoneNumberVerified: true,
+        });
+
+        equal(updatedUser.phoneNumber, '+1111111111');
+        equal(updatedUser.phoneNumberVerified, true);
+      });
+
       it('should update user profile with full name and profile picture', async function () {
         // First create a user via Better Auth
         const user = await repo.betterAuthCreateUser({
@@ -219,7 +282,6 @@ export async function runUserRepositoryTestSuite(
           subdistrict: 'Menteng',
           address: 'Jl. Example No. 123',
           postalCode: '12345',
-          phoneNumber: '+6281234567890',
           submissionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
@@ -293,7 +355,6 @@ export async function runUserRepositoryTestSuite(
           subdistrict: 'Menteng',
           address: 'Jl. Example No. 123',
           postalCode: '12345',
-          phoneNumber: '+6281234567890',
           submissionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
@@ -342,7 +403,6 @@ export async function runUserRepositoryTestSuite(
           subdistrict: 'Menteng',
           address: 'Jl. Example No. 123',
           postalCode: '12345',
-          phoneNumber: '+6281234567890',
           submissionDate: new Date('2024-01-01T00:00:00Z'),
         };
 
@@ -395,7 +455,6 @@ export async function runUserRepositoryTestSuite(
           subdistrict: 'Menteng',
           address: 'Jl. Example No. 123',
           postalCode: '12345',
-          phoneNumber: '+6281234567890',
           submissionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
@@ -475,7 +534,6 @@ export async function runUserRepositoryTestSuite(
           subdistrict: 'Menteng',
           address: 'Jl. Invited No. 123',
           postalCode: '12345',
-          phoneNumber: '+6281234567890',
           submissionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
@@ -571,7 +629,6 @@ export async function runUserRepositoryTestSuite(
           subdistrict: 'Sumur Bandung',
           address: 'Jl. Invited2 No. 456',
           postalCode: '54321',
-          phoneNumber: '+6281234567891',
           submissionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
@@ -668,7 +725,6 @@ export async function runUserRepositoryTestSuite(
           subdistrict: 'Menteng',
           address: 'Jl. Example No. 123',
           postalCode: '12345',
-          phoneNumber: '+6281234567890',
           submissionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
@@ -732,7 +788,6 @@ export async function runUserRepositoryTestSuite(
           subdistrict: 'Menteng',
           address: 'Jl. Example No. 123',
           postalCode: '12345',
-          phoneNumber: '+6281234567890',
           submissionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
@@ -804,7 +859,6 @@ export async function runUserRepositoryTestSuite(
           subdistrict: 'Menteng',
           address: 'Jl. Example No. 111',
           postalCode: '12345',
-          phoneNumber: '+6281111111111',
           submissionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
@@ -822,7 +876,6 @@ export async function runUserRepositoryTestSuite(
           subdistrict: 'Sumur Bandung',
           address: 'Jl. Example No. 222',
           postalCode: '54321',
-          phoneNumber: '+6282222222222',
           submissionDate: new Date('2024-01-02T00:00:00Z'),
         });
 
@@ -1008,7 +1061,6 @@ export async function runUserRepositoryTestSuite(
             subdistrict: 'Menteng',
             address: 'Jl. Example No. 123',
             postalCode: '12345',
-            phoneNumber: '+6281234567890',
             submissionDate: new Date('2024-01-01T00:00:00Z'),
           });
 
@@ -1070,7 +1122,6 @@ export async function runUserRepositoryTestSuite(
             subdistrict: 'Menteng',
             address: 'Jl. Example No. 123',
             postalCode: '12345',
-            phoneNumber: '+6281234567890',
             submissionDate: new Date('2024-01-01T00:00:00Z'),
           });
 
