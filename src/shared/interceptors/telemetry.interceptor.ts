@@ -43,10 +43,6 @@ export class TelemetryInterceptor implements NestInterceptor {
    * Sanitize request/response body for logging
    */
   private sanitizeBody(body: unknown, maxSize: number = 10000): string {
-    // Check if body logging is enabled
-    const enableBodyLogging = process.env.ENABLE_BODY_LOGGING === 'true';
-    if (!enableBodyLogging) return '';
-
     if (!body) return '';
 
     try {
@@ -79,18 +75,18 @@ export class TelemetryInterceptor implements NestInterceptor {
     if (!obj || typeof obj !== 'object') return obj;
 
     const sensitiveFields = [
-      'password',
-      'token',
-      'authorization',
-      'apikey',
-      'secret',
-      'key',
-      'private',
-      'session',
-      'cookie',
-      'credit_card',
-      'ssn',
-      'social_security',
+      // 'password',
+      // 'token',
+      // 'authorization',
+      // 'apikey',
+      // 'secret',
+      // 'key',
+      // 'private',
+      // 'session',
+      // 'cookie',
+      // 'credit_card',
+      // 'ssn',
+      // 'social_security',
     ];
 
     if (Array.isArray(obj)) {
@@ -150,11 +146,6 @@ export class TelemetryInterceptor implements NestInterceptor {
    * Log response data if in development mode
    */
   private logResponseBody(data: unknown, context: Record<string, unknown>) {
-    if (!this.appConfigService?.isDevelopment) return;
-
-    const enableBodyLogging = process.env.ENABLE_BODY_LOGGING === 'true';
-    if (!enableBodyLogging) return;
-
     try {
       if (data !== undefined && data !== null) {
         const sanitizedData = this.sanitizeBody(data);
@@ -234,6 +225,7 @@ export class TelemetryInterceptor implements NestInterceptor {
             contentLength: response.get('Content-Length') || '0',
             requestId: request.get('x-request-id') || request.get('request-id') || 'unknown',
             ip: request.ip || request.connection?.remoteAddress || 'unknown',
+            body: data ? '[REDACTED]' : 'no_body',
           });
 
           // Record metrics

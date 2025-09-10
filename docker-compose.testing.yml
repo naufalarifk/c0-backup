@@ -139,7 +139,7 @@ services:
       - traefik.enable=true
       - traefik.http.routers.cg-api.rule=Host(`${API_DOMAIN:-cg-api.fh47.my.id}`)
       - traefik.http.services.cg-api.loadbalancer.server.port=3100
-      - traefik.http.services.cg-api.loadbalancer.healthcheck.path=/api/auth/ok
+      - traefik.http.services.cg-api.loadbalancer.healthcheck.path=/api/health
       - traefik.http.services.cg-api.loadbalancer.healthcheck.interval=5s
       - traefik.http.services.cg-api.loadbalancer.healthcheck.timeout=3s
       # Conditional SSL labels: enable TLS by default, fallback to web when

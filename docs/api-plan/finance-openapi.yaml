@@ -476,21 +476,6 @@ components:
           type: string
           description: Available balance (decimal string)
           example: "1250.750000000000000000"
-        pendingOperations:
-          type: object
-          properties:
-            pendingWithdrawals:
-              type: string
-              description: Amount reserved for pending withdrawals
-              example: "100.000000000000000000"
-            activeLoanCollaterals:
-              type: string
-              description: Amount locked as loan collateral
-              example: "5000.000000000000000000"
-            reservedAmounts:
-              type: string
-              description: Other reserved amounts
-              example: "0.000000000000000000"
         lastUpdated:
           type: string
           format: date-time
@@ -566,40 +551,40 @@ components:
       type: string
       enum:
         # Invoice operations
-        - invoiceReceived
+        - InvoiceReceived
         # Loan operations - borrower perspective
-        - loanCollateralDeposit
-        - loanApplicationCollateralEscrowed
-        - loanPrincipalDisbursement
-        - loanDisbursementReceived
-        - loanPrincipalDisbursementFee
-        - loanRepayment
-        - loanCollateralRelease
-        - loanCollateralReturned
-        - loanCollateralReleased
-        - loanLiquidationRelease
-        - loanLiquidationSurplus
-        - loanLiquidationReleaseFee
+        - LoanCollateralDeposit
+        - LoanApplicationCollateralEscrowed
+        - LoanPrincipalDisbursement
+        - LoanDisbursementReceived
+        - LoanPrincipalDisbursementFee
+        - LoanRepayment
+        - LoanCollateralRelease
+        - LoanCollateralReturned
+        - LoanCollateralReleased
+        - LoanLiquidationRelease
+        - LoanLiquidationSurplus
+        - LoanLiquidationReleaseFee
         # Loan operations - lender perspective
-        - loanPrincipalFunded
-        - loanOfferPrincipalEscrowed
-        - loanPrincipalReturned
-        - loanPrincipalReturnedFee
-        - loanInterestReceived
-        - loanRepaymentReceived
-        - loanLiquidationRepayment
+        - LoanPrincipalFunded
+        - LoanOfferPrincipalEscrowed
+        - LoanPrincipalReturned
+        - LoanPrincipalReturnedFee
+        - LoanInterestReceived
+        - LoanRepaymentReceived
+        - LoanLiquidationRepayment
         # Loan operations - platform perspective
-        - loanDisbursementPrincipal
-        - loanDisbursementFee
-        - loanRedeliveryFee
-        - loanLiquidationFee
-        - loanLiquidationCollateralUsed
+        - LoanDisbursementPrincipal
+        - LoanDisbursementFee
+        - LoanRedeliveryFee
+        - LoanLiquidationFee
+        - LoanLiquidationCollateralUsed
         # Withdrawal operations
-        - withdrawalRequested
-        - withdrawalRefunded
+        - WithdrawalRequested
+        - WithdrawalRefunded
         # Platform fee operations
-        - platformFeeCharged
-        - platformFeeRefunded
+        - PlatformFeeCharged
+        - PlatformFeeRefunded
 
     # Withdrawal Management Schemas
     BeneficiariesResponse:
