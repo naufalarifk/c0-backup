@@ -39,7 +39,7 @@ x-backend-env: &backend-env
   OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics
   OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs
   OTEL_LOG_LEVEL: debug
-  VAULT_ADDR: http://vault:8201
+  VAULT_ADDR: http://vault:8200
   VAULT_TOKEN: root
 
 x-backend-base: &backend-base
@@ -183,15 +183,16 @@ services:
 
   vault:
     image: hashicorp/vault:1.20
-    command: vault server -dev -config=/vault/config/vault-config.hcl
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://vault:8200/v1/sys/health || exit 1"]
+      interval: 500ms
+      timeout: 10s
+      retries: 20
     cap_add:
       - IPC_LOCK
     environment:
       VAULT_MODE: dev
       VAULT_DEV_ROOT_TOKEN_ID: root
-      VAULT_API_ADDR: http://vault:8201
-    volumes:
-      - ./vault-config.hcl:/vault/config/vault-config.hcl:ro
     networks:
       - cg-private-network
     labels:
