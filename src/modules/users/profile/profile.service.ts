@@ -4,7 +4,6 @@ import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.
 import { FileValidatorService } from '../../../shared/services/file-validator.service';
 import { MinioService } from '../../../shared/services/minio.service';
 import { TelemetryLogger } from '../../../telemetry.logger';
-import { UpdateProfileDto } from './dto/update-profile.dto';
 @Injectable()
 export class ProfileService {
   private readonly logger = new TelemetryLogger(ProfileService.name);
@@ -48,34 +47,11 @@ export class ProfileService {
         userId,
         format: 'unknown',
       });
-      const { profilePicture, ...profileWithoutPicture } = profile;
+      const { profilePicture: _profilePicture, ...profileWithoutPicture } = profile;
       return profileWithoutPicture;
     }
 
     return profile;
-  }
-
-  update(userId: string, updateProfileDto: UpdateProfileDto & { profilePictureUrl?: string }) {
-    // Map DTO fields to database schema
-    const profileData = {
-      id: userId,
-      updateDate: new Date(), // Server-generated timestamp
-      ...(updateProfileDto.name && { fullName: updateProfileDto.name }), // Map name -> fullName
-      ...(updateProfileDto.profilePictureUrl && {
-        profilePictureUrl: updateProfileDto.profilePictureUrl,
-      }),
-    };
-
-    const result = this.userRepo.userUpdatesProfile(profileData);
-
-    // Log successful update
-    this.logger.log(`Profile updated successfully for user ${userId}`, {
-      userId,
-      hasName: !!updateProfileDto.name,
-      hasProfilePicture: !!updateProfileDto.profilePictureUrl,
-    });
-
-    return result;
   }
 
   /**

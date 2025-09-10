@@ -2,21 +2,22 @@ import type { File } from '../../../shared/types';
 import type { UserSession } from '../../auth/types';
 
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
+  Headers,
   HttpStatus,
   Patch,
   UploadedFile,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { ApiFile } from '../../../decorators/swagger.schema';
 import { TelemetryLogger } from '../../../telemetry.logger';
 import { Session } from '../../auth/auth.decorator';
 import { AuthGuard } from '../../auth/auth.guard';
+import { AuthService } from '../../auth/auth.service';
 import { ProfileResponseDto } from './dto/profile-response.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateProfileResponseDto } from './dto/update-profile-response.dto';
@@ -44,7 +45,10 @@ import { ProfileService } from './profile.service';
 export class ProfileController {
   private readonly logger = new TelemetryLogger(ProfileController.name);
 
-  constructor(private readonly profileService: ProfileService) {}
+  constructor(
+    private readonly profileService: ProfileService,
+    private readonly auth: AuthService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -86,6 +90,7 @@ export class ProfileController {
   })
   async update(
     @Session() session: UserSession,
+    @Headers() headers: HeadersInit,
     @UploadedFile() profilePicture: File,
     @Body() updateProfileDto: UpdateProfileDto,
   ) {
@@ -129,10 +134,9 @@ export class ProfileController {
       });
     }
 
-    // Update profile with new data (including new profilePictureUrl if uploaded)
-    return await this.profileService.update(session.user.id, {
-      ...updateProfileDto,
-      ...(profilePictureUrl && { profilePictureUrl }),
+    return this.auth.api.updateUser({
+      headers,
+      body: { name: updateProfileDto.name, image: profilePictureUrl },
     });
   }
 }
