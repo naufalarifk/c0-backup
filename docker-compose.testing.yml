@@ -220,9 +220,10 @@ services:
       timeout: 10s
       retries: 20
     environment:
+      NODE_ENV: development
       database__client: sqlite3
       database__connection__filename: /var/lib/ghost/content/data/ghost.db
-      NODE_ENV: production
+      url: ${GHOST_PROTOCOL:-https}://${GHOST_DOMAIN:-cg-blog.fh47.my.id}
     restart: unless-stopped
     volumes:
       - ghost-data:/var/lib/ghost/content
