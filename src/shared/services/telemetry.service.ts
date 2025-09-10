@@ -1,14 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import {
-  context,
-  metrics,
-  type Span,
-  SpanKind,
-  SpanStatusCode,
-  type Tracer,
-  trace,
-} from '@opentelemetry/api';
+import { context, metrics, type Span, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 
 @Injectable()
 export class TelemetryService {
@@ -97,7 +89,7 @@ export class TelemetryService {
       attributes?: Record<string, string | number | boolean>;
     } = {},
   ): Span {
-    return this.tracer.startSpan(name, {
+    return this.tracer?.startSpan(name, {
       kind: options.kind || SpanKind.INTERNAL,
       attributes: options.attributes,
     });

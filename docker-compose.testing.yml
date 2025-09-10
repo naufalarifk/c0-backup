@@ -104,7 +104,7 @@ services:
     command: node dist/main.js
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/api/auth/ok || exit 1"]
-      interval: 500ms
+      interval: 1000ms
       timeout: 30s
       retries: 60
     depends_on:
@@ -215,12 +215,12 @@ services:
   ghost:
     image: ghost:6.0.7-alpine
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:2368/ || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider ${GHOST_PROTOCOL:-https}://${GHOST_DOMAIN:-cg-blog.fh47.my.id} || exit 1"]
       interval: 500ms
       timeout: 10s
       retries: 20
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       database__client: sqlite3
       database__connection__filename: /var/lib/ghost/content/data/ghost.db
       url: ${GHOST_PROTOCOL:-https}://${GHOST_DOMAIN:-cg-blog.fh47.my.id}

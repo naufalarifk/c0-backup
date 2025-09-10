@@ -14,6 +14,7 @@ import { BlockchainsModule } from './modules/blockchains/blockchains.module';
 import { UsersModule } from './modules/users/users.module';
 import { AppConfigService } from './shared/services/app-config.service';
 import { SharedModule } from './shared/shared.module';
+import { TestController } from './test.controller';
 
 @Module({
   imports: [
@@ -59,6 +60,6 @@ import { SharedModule } from './shared/shared.module';
       useClass: ThrottlerGuard,
     },
   ],
-  controllers: [HealthcheckController],
+  controllers: [HealthcheckController, TestController],
 })
 export class AppModule {}
