@@ -1,11 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { FileValidatorService } from '../../shared/services/file-validator.service';
 import { MinioService } from '../../shared/services/minio.service';
+import { File } from '../../shared/types';
 import { ResponseHelper } from '../../shared/utils/response.helper';
 import { TelemetryLogger } from '../../telemetry.logger';
-import { CreateInstitutionDto } from './dto/create-institution.dto';
+import { CreateInstitutionDto, SubmitCreateInstitutionDto } from './dto/create-institution.dto';
 import { CreateInstitutionInviteDto } from './dto/create-institution-invite.dto';
 
 @Injectable()
@@ -18,9 +19,31 @@ export class InstitutionsService {
     private readonly fileValidatorService: FileValidatorService,
   ) {}
 
-  async apply(userId: string, createInstitutionDto: CreateInstitutionDto) {
-    const payload = {
+  /**
+   * Apply for institution registration with required file uploads
+   */
+  async apply(
+    userId: string,
+    createInstitutionDto: SubmitCreateInstitutionDto,
+    files: {
+      npwpDocument: File[];
+      registrationDocument: File[];
+      deedOfEstablishment: File[];
+      directorIdCard: File[];
+    },
+  ) {
+    // Process file uploads (required)
+    const fileUploadResults = await this.processInstitutionFiles(userId, files);
+
+    // Create institution data with file paths
+    const institutionData: CreateInstitutionDto = {
       ...createInstitutionDto,
+      ...fileUploadResults,
+    };
+
+    // Submit application
+    const payload = {
+      ...institutionData,
       applicantUserId: userId,
       applicationDate: new Date(),
     };
@@ -31,8 +54,98 @@ export class InstitutionsService {
       applicationId: result.id,
       status: 'pending_review',
       submissionDate: payload.applicationDate,
-      businessName: createInstitutionDto.businessName,
+      businessName: institutionData.businessName,
     });
+  }
+
+  /**
+   * Process and upload all institution files
+   */
+  private async processInstitutionFiles(
+    userId: string,
+    files: {
+      npwpDocument: File[];
+      registrationDocument: File[];
+      deedOfEstablishment: File[];
+      directorIdCard: File[];
+    },
+  ): Promise<{
+    npwpDocumentPath: string;
+    registrationDocumentPath: string;
+    deedOfEstablishmentPath: string;
+    directorIdCardPath: string;
+  }> {
+    // Validate required files
+    const validatedFiles = this.validateInstitutionFiles(files);
+
+    // Upload files in parallel
+    const [npwpResult, registrationResult, deedResult, directorIdResult] = await Promise.all([
+      this.uploadFile(
+        validatedFiles.npwpDocument.buffer,
+        validatedFiles.npwpDocument.originalname,
+        userId,
+        'npwp-document',
+        validatedFiles.npwpDocument.mimetype,
+      ),
+      this.uploadFile(
+        validatedFiles.registrationDocument.buffer,
+        validatedFiles.registrationDocument.originalname,
+        userId,
+        'registration-document',
+        validatedFiles.registrationDocument.mimetype,
+      ),
+      this.uploadFile(
+        validatedFiles.deedOfEstablishment.buffer,
+        validatedFiles.deedOfEstablishment.originalname,
+        userId,
+        'deed-of-establishment',
+        validatedFiles.deedOfEstablishment.mimetype,
+      ),
+      this.uploadFile(
+        validatedFiles.directorIdCard.buffer,
+        validatedFiles.directorIdCard.originalname,
+        userId,
+        'director-id-card',
+        validatedFiles.directorIdCard.mimetype,
+      ),
+    ]);
+
+    return {
+      npwpDocumentPath: `${npwpResult.bucket}:${npwpResult.objectPath}`,
+      registrationDocumentPath: `${registrationResult.bucket}:${registrationResult.objectPath}`,
+      deedOfEstablishmentPath: `${deedResult.bucket}:${deedResult.objectPath}`,
+      directorIdCardPath: `${directorIdResult.bucket}:${directorIdResult.objectPath}`,
+    };
+  }
+
+  /**
+   * Validate that all required institution files are present
+   */
+  private validateInstitutionFiles(files: {
+    npwpDocument: File[];
+    registrationDocument: File[];
+    deedOfEstablishment: File[];
+    directorIdCard: File[];
+  }) {
+    if (!files?.npwpDocument?.[0]) {
+      throw new BadRequestException('NPWP document is required');
+    }
+    if (!files?.registrationDocument?.[0]) {
+      throw new BadRequestException('Registration document is required');
+    }
+    if (!files?.deedOfEstablishment?.[0]) {
+      throw new BadRequestException('Deed of establishment document is required');
+    }
+    if (!files?.directorIdCard?.[0]) {
+      throw new BadRequestException('Director ID card is required');
+    }
+
+    return {
+      npwpDocument: files.npwpDocument[0],
+      registrationDocument: files.registrationDocument[0],
+      deedOfEstablishment: files.deedOfEstablishment[0],
+      directorIdCard: files.directorIdCard[0],
+    };
   }
 
   invite(userId: string, createInstitutionInviteDto: CreateInstitutionInviteDto) {

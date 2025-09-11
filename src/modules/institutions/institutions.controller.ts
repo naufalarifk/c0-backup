@@ -2,7 +2,6 @@ import type { File } from '../../shared/types';
 import type { UserSession } from '../auth/types';
 
 import {
-  BadRequestException,
   Body,
   Controller,
   HttpStatus,
@@ -71,52 +70,7 @@ export class InstitutionsController {
     },
     @Body() createInstitutionDto: SubmitCreateInstitutionDto,
   ) {
-    const { npwpDocument, registrationDocument, deedOfEstablishment, directorIdCard } =
-      this.validateInstitutionFiles(files);
-    const userId = session.user.id;
-
-    // Upload files in parallel
-    const [npwpResult, registrationResult, deedResult, directorIdResult] = await Promise.all([
-      this.institutionsService.uploadFile(
-        npwpDocument.buffer,
-        npwpDocument.originalname,
-        userId,
-        'npwp-document',
-        npwpDocument.mimetype,
-      ),
-      this.institutionsService.uploadFile(
-        registrationDocument.buffer,
-        registrationDocument.originalname,
-        userId,
-        'registration-document',
-        registrationDocument.mimetype,
-      ),
-      this.institutionsService.uploadFile(
-        deedOfEstablishment.buffer,
-        deedOfEstablishment.originalname,
-        userId,
-        'deed-of-establishment',
-        deedOfEstablishment.mimetype,
-      ),
-      this.institutionsService.uploadFile(
-        directorIdCard.buffer,
-        directorIdCard.originalname,
-        userId,
-        'director-id-card',
-        directorIdCard.mimetype,
-      ),
-    ]);
-
-    // Create institution data with file paths
-    const institutionData = {
-      ...createInstitutionDto,
-      npwpDocumentPath: `${npwpResult.bucket}:${npwpResult.objectPath}`,
-      registrationDocumentPath: `${registrationResult.bucket}:${registrationResult.objectPath}`,
-      deedOfEstablishmentPath: `${deedResult.bucket}:${deedResult.objectPath}`,
-      directorIdCardPath: `${directorIdResult.bucket}:${directorIdResult.objectPath}`,
-    };
-
-    return this.institutionsService.apply(session.user.id, institutionData);
+    return this.institutionsService.apply(session.user.id, createInstitutionDto, files);
   }
 
   @Post('invitations')
@@ -156,32 +110,5 @@ export class InstitutionsController {
         updateStatusDto.reason,
       );
     }
-  }
-
-  private validateInstitutionFiles(files: {
-    npwpDocument: File[];
-    registrationDocument: File[];
-    deedOfEstablishment: File[];
-    directorIdCard: File[];
-  }) {
-    if (!files?.npwpDocument?.[0]) {
-      throw new BadRequestException('NPWP document is required');
-    }
-    if (!files?.registrationDocument?.[0]) {
-      throw new BadRequestException('Registration document is required');
-    }
-    if (!files?.deedOfEstablishment?.[0]) {
-      throw new BadRequestException('Deed of establishment document is required');
-    }
-    if (!files?.directorIdCard?.[0]) {
-      throw new BadRequestException('Director ID card is required');
-    }
-
-    return {
-      npwpDocument: files.npwpDocument[0],
-      registrationDocument: files.registrationDocument[0],
-      deedOfEstablishment: files.deedOfEstablishment[0],
-      directorIdCard: files.directorIdCard[0],
-    };
   }
 }
