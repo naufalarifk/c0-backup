@@ -175,13 +175,13 @@ export async function runUserRepositoryTestSuite(
         const updateDate = new Date('2024-01-01T00:00:00Z');
         const result = await repo.userUpdatesProfile({
           id: user.id,
-          fullName: 'John Updated Doe',
+          name: 'John Updated Doe',
           profilePictureUrl: 'https://example.com/profile.jpg',
           updateDate: updateDate,
         });
 
         equal(result.id, String(user.id));
-        equal(result.fullName, 'John Updated Doe');
+        equal(result.name, 'John Updated Doe');
         equal(result.profilePictureUrl, 'https://example.com/profile.jpg');
         equal(result.updatedDate, updateDate);
       });
@@ -196,12 +196,12 @@ export async function runUserRepositoryTestSuite(
         const updateDate = new Date('2024-01-01T00:00:00Z');
         const result = await repo.userUpdatesProfile({
           id: user.id,
-          fullName: 'Jane Updated Doe',
+          name: 'Jane Updated Doe',
           updateDate: updateDate,
         });
 
         equal(result.id, String(user.id));
-        equal(result.fullName, 'Jane Updated Doe');
+        equal(result.name, 'Jane Updated Doe');
         equal(result.profilePictureUrl, null);
         equal(result.updatedDate, updateDate);
       });
@@ -242,7 +242,7 @@ export async function runUserRepositoryTestSuite(
         // Update profile with picture
         await repo.userUpdatesProfile({
           id: user.id,
-          fullName: 'Picture Test User Updated',
+          name: 'Picture Test User Updated',
           profilePictureUrl: 'https://example.com/picture.jpg',
           updateDate: new Date('2024-01-01T00:00:00Z'),
         });
@@ -273,7 +273,7 @@ export async function runUserRepositoryTestSuite(
           idCardPhoto: '/path/to/id-card.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
           nik: '1234567890123456',
-          fullName: 'KYC Profile Test',
+          name: 'KYC Profile Test',
           birthCity: 'Jakarta',
           birthDate: new Date('1990-01-01'),
           province: 'DKI Jakarta',
@@ -346,7 +346,7 @@ export async function runUserRepositoryTestSuite(
           idCardPhoto: '/path/to/id-card.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
           nik: '1234567890123456',
-          fullName: 'Verified KYC User',
+          name: 'Verified KYC User',
           birthCity: 'Jakarta',
           birthDate: new Date('1990-01-01'),
           province: 'DKI Jakarta',
@@ -394,7 +394,7 @@ export async function runUserRepositoryTestSuite(
           idCardPhoto: '/path/to/id-card.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
           nik: '1234567890123456',
-          fullName: 'KYC User Full Name',
+          name: 'KYC User Full Name',
           birthCity: 'Jakarta',
           birthDate: new Date('1990-01-01'),
           province: 'DKI Jakarta',
@@ -446,7 +446,7 @@ export async function runUserRepositoryTestSuite(
           idCardPhoto: '/path/to/id-card.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
           nik: '1234567890123456',
-          fullName: 'Pending KYC User',
+          name: 'Pending KYC User',
           birthCity: 'Jakarta',
           birthDate: new Date('1990-01-01'),
           province: 'DKI Jakarta',
@@ -525,7 +525,7 @@ export async function runUserRepositoryTestSuite(
           idCardPhoto: '/path/to/invited-id-card.jpg',
           selfieWithIdCardPhoto: '/path/to/invited-selfie-with-id.jpg',
           nik: '9876543210987654',
-          fullName: 'Invited User',
+          name: 'Invited User',
           birthCity: 'Jakarta',
           birthDate: new Date('1990-01-01'),
           province: 'DKI Jakarta',
@@ -620,7 +620,7 @@ export async function runUserRepositoryTestSuite(
           idCardPhoto: '/path/to/invited2-id-card.jpg',
           selfieWithIdCardPhoto: '/path/to/invited2-selfie-with-id.jpg',
           nik: '8765432109876543',
-          fullName: 'Invited User 2',
+          name: 'Invited User 2',
           birthCity: 'Bandung',
           birthDate: new Date('1991-01-01'),
           province: 'West Java',
@@ -716,7 +716,7 @@ export async function runUserRepositoryTestSuite(
           idCardPhoto: '/path/to/id-card.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
           nik: '1234567890123456',
-          fullName: 'KYC Approval User',
+          name: 'KYC Approval User',
           birthCity: 'Jakarta',
           birthDate: new Date('1990-01-01'),
           province: 'DKI Jakarta',
@@ -779,7 +779,7 @@ export async function runUserRepositoryTestSuite(
           idCardPhoto: '/path/to/id-card.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
           nik: '1234567890123456',
-          fullName: 'KYC Rejection User',
+          name: 'KYC Rejection User',
           birthCity: 'Jakarta',
           birthDate: new Date('1990-01-01'),
           province: 'DKI Jakarta',
@@ -850,7 +850,7 @@ export async function runUserRepositoryTestSuite(
           idCardPhoto: '/path/to/id-card1.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id1.jpg',
           nik: '1111111111111111',
-          fullName: 'Pending User 1',
+          name: 'Pending User 1',
           birthCity: 'Jakarta',
           birthDate: new Date('1990-01-01'),
           province: 'DKI Jakarta',
@@ -867,7 +867,7 @@ export async function runUserRepositoryTestSuite(
           idCardPhoto: '/path/to/id-card2.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id2.jpg',
           nik: '2222222222222222',
-          fullName: 'Pending User 2',
+          name: 'Pending User 2',
           birthCity: 'Bandung',
           birthDate: new Date('1991-01-01'),
           province: 'West Java',
@@ -882,9 +882,9 @@ export async function runUserRepositoryTestSuite(
         const result = await repo.adminViewsPendingKYCs();
 
         equal(result.kycs.length, 2);
-        equal(result.kycs[0].fullName, 'Pending User 1');
+        equal(result.kycs[0].name, 'Pending User 1');
         equal(result.kycs[0].nik, '1111111111111111');
-        equal(result.kycs[1].fullName, 'Pending User 2');
+        equal(result.kycs[1].name, 'Pending User 2');
         equal(result.kycs[1].nik, '2222222222222222');
       });
     });
@@ -1052,7 +1052,7 @@ export async function runUserRepositoryTestSuite(
             idCardPhoto: '/path/to/id-card.jpg',
             selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
             nik: '1234567890123456',
-            fullName: 'Trigger Test User',
+            name: 'Trigger Test User',
             birthCity: 'Jakarta',
             birthDate: new Date('1990-01-01'),
             province: 'DKI Jakarta',
@@ -1113,7 +1113,7 @@ export async function runUserRepositoryTestSuite(
             idCardPhoto: '/path/to/id-card.jpg',
             selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
             nik: '1234567890123456',
-            fullName: 'Rejection Test User',
+            name: 'Rejection Test User',
             birthCity: 'Jakarta',
             birthDate: new Date('1990-01-01'),
             province: 'DKI Jakarta',
@@ -1396,7 +1396,7 @@ export async function runUserRepositoryTestSuite(
         // In real usage, these would be created by database triggers
         await repo.sql`
           INSERT INTO notifications (user_id, type, title, content, creation_date)
-          VALUES 
+          VALUES
             (${user.id}, 'UserKycVerified', 'KYC Approved', 'Your KYC has been approved', ${new Date('2024-01-01T00:00:00Z')}),
             (${user.id}, 'UserKycRejected', 'KYC Rejected', 'Your KYC was rejected', ${new Date('2024-01-02T00:00:00Z')}),
             (${user.id}, 'EmailVerified', 'Email Verified', 'Your email has been verified', ${new Date('2024-01-03T00:00:00Z')})
@@ -1443,7 +1443,7 @@ export async function runUserRepositoryTestSuite(
         // Create notifications of different types
         await repo.sql`
           INSERT INTO notifications (user_id, type, title, content, creation_date)
-          VALUES 
+          VALUES
             (${user.id}, 'UserKycVerified', 'KYC Approved', 'Your KYC has been approved', ${new Date()}),
             (${user.id}, 'EmailVerified', 'Email Verified', 'Your email has been verified', ${new Date()}),
             (${user.id}, 'UserKycVerified', 'Another KYC', 'Another KYC notification', ${new Date()})
@@ -1470,7 +1470,7 @@ export async function runUserRepositoryTestSuite(
         // Create notifications, mark one as read
         await repo.sql`
           INSERT INTO notifications (user_id, type, title, content, creation_date, read_date)
-          VALUES 
+          VALUES
             (${user.id}, 'UserKycVerified', 'KYC Approved', 'Your KYC has been approved', ${new Date()}, ${new Date()}),
             (${user.id}, 'EmailVerified', 'Email Verified', 'Your email has been verified', ${new Date()}, NULL),
             (${user.id}, 'UserKycRejected', 'KYC Rejected', 'Your KYC was rejected', ${new Date()}, NULL)
@@ -1663,7 +1663,7 @@ export async function runUserRepositoryTestSuite(
         // Create multiple unread notifications
         await repo.sql`
           INSERT INTO notifications (user_id, type, title, content, creation_date)
-          VALUES 
+          VALUES
             (${user.id}, 'UserKycVerified', 'KYC 1', 'Content 1', ${new Date()}),
             (${user.id}, 'EmailVerified', 'Email 1', 'Content 2', ${new Date()}),
             (${user.id}, 'UserKycRejected', 'KYC 2', 'Content 3', ${new Date()})

@@ -39,8 +39,8 @@ import { ProfileService } from './profile.service';
  * formData.append('profilePicture', file); // Optional file
  * ```
  */
-@Controller('users/profile')
-@ApiTags('users')
+@Controller()
+@ApiTags('Profile')
 @UseGuards(AuthGuard)
 export class ProfileController {
   private readonly logger = new TelemetryLogger(ProfileController.name);

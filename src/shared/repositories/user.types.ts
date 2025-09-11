@@ -1,14 +1,14 @@
 // Profile management types
 export type UserUpdatesProfileParams = {
   id: string;
-  fullName?: string;
+  name?: string;
   profilePictureUrl?: string;
   updateDate: Date;
 };
 
 export type UserUpdatesProfileResult = {
   id: string;
-  fullName?: string;
+  name?: string;
   profilePictureUrl?: string | null;
   updatedDate: Date;
 };
@@ -25,7 +25,7 @@ export type UserSubmitsKycParams = {
   idCardPhoto: string;
   selfieWithIdCardPhoto: string;
   nik: string;
-  fullName: string;
+  name: string;
   birthCity: string;
   birthDate: Date;
   province: string;
@@ -34,7 +34,6 @@ export type UserSubmitsKycParams = {
   subdistrict: string;
   address: string;
   postalCode: string;
-  phoneNumber?: string;
   submissionDate: Date;
 };
 
@@ -87,7 +86,7 @@ export type AdminViewPendingKycsResult = {
   kycs: Array<{
     id: string;
     userId: string;
-    fullName: string;
+    name: string;
     nik: string;
     submittedDate: Date;
   }>;

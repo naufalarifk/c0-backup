@@ -3,29 +3,9 @@ import type { UserSubmitsKycParams } from '../../../../shared/types';
 import { ApiProperty, OmitType } from '@nestjs/swagger';
 
 import { Transform } from 'class-transformer';
-import { IsDateString, IsNotEmpty, IsString, IsUrl, Length, Matches } from 'class-validator';
+import { IsDateString, IsNotEmpty, IsString, Length, Matches } from 'class-validator';
 
-export class CreateKycDto
-  implements Omit<UserSubmitsKycParams, 'userId' | 'submissionDate' | 'phoneNumber'>
-{
-  @ApiProperty({
-    description: 'ID card photo URL',
-    example: 'https://storage.example.com/kyc/user123/id-card-1234567890.jpg',
-  })
-  @IsString()
-  @IsNotEmpty()
-  @IsUrl({}, { message: 'ID card photo must be a valid URL' })
-  idCardPhoto: string;
-
-  @ApiProperty({
-    description: 'Selfie with ID card photo URL',
-    example: 'https://storage.example.com/kyc/user123/selfie-with-id-1234567890.jpg',
-  })
-  @IsString()
-  @IsNotEmpty()
-  @IsUrl({}, { message: 'Selfie with ID card photo must be a valid URL' })
-  selfieWithIdCardPhoto: string;
-
+export class CreateKycDto implements Omit<UserSubmitsKycParams, 'userId' | 'submissionDate'> {
   @ApiProperty({
     description: 'National Identity Number (NIK) - 16 digits',
     example: '3201234567890123',
@@ -40,28 +20,28 @@ export class CreateKycDto
   nik: string;
 
   @ApiProperty({
-    description: 'Full name as on ID card',
-    example: 'John Doe Setiawan',
+    description: 'Name as on Indonesian ID card (KTP)',
+    example: 'SITI NURHAYATI',
     minLength: 2,
     maxLength: 100,
   })
   @IsString()
   @IsNotEmpty()
   @Length(2, 100, { message: 'Name must be between 2 and 100 characters' })
-  @Matches(/^[a-zA-Z\s.'-]+$/, {
-    message: 'Name can only contain letters, spaces, dots, hyphens, and apostrophes',
+  @Matches(/^[a-zA-Z\s.',-]+$/, {
+    message: 'Name can only contain letters, spaces, dots, apostrophes, hyphens, and commas',
   })
-  @Transform(({ value }) => value?.trim().replace(/\s+/g, ' '))
-  fullName: string;
+  @Transform(({ value }) => value?.trim().replace(/\s+/g, ' ').toUpperCase())
+  name: string;
 
   @ApiProperty({
     description: 'City of birth',
-    example: 'Jakarta',
+    example: 'JAKARTA',
   })
   @IsString()
   @IsNotEmpty()
   @Length(2, 50, { message: 'Birth city must be between 2 and 50 characters' })
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }) => value?.trim().toUpperCase())
   birthCity: string;
 
   @ApiProperty({
@@ -75,54 +55,54 @@ export class CreateKycDto
 
   @ApiProperty({
     description: 'Province name',
-    example: 'DKI Jakarta',
+    example: 'DKI JAKARTA',
   })
   @IsString()
   @IsNotEmpty()
   @Length(2, 50, { message: 'Province must be between 2 and 50 characters' })
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }) => value?.trim().toUpperCase())
   province: string;
 
   @ApiProperty({
     description: 'City/Regency name',
-    example: 'Jakarta Selatan',
+    example: 'JAKARTA SELATAN',
   })
   @IsString()
   @IsNotEmpty()
   @Length(2, 50, { message: 'City must be between 2 and 50 characters' })
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }) => value?.trim().toUpperCase())
   city: string;
 
   @ApiProperty({
     description: 'District name (Kecamatan)',
-    example: 'Kebayoran Baru',
+    example: 'KEBAYORAN BARU',
   })
   @IsString()
   @IsNotEmpty()
   @Length(2, 50, { message: 'District must be between 2 and 50 characters' })
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }) => value?.trim().toUpperCase())
   district: string;
 
   @ApiProperty({
     description: 'Subdistrict name (Kelurahan)',
-    example: 'Senayan',
+    example: 'SENAYAN',
   })
   @IsString()
   @IsNotEmpty()
   @Length(2, 50, { message: 'Subdistrict must be between 2 and 50 characters' })
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }) => value?.trim().toUpperCase())
   subdistrict: string;
 
   @ApiProperty({
     description: 'Complete street address',
-    example: 'Jl. Sudirman No. 123, RT 001/RW 002',
+    example: 'JL. SUDIRMAN NO. 123, RT 001/RW 002',
     minLength: 10,
     maxLength: 500,
   })
   @IsString()
   @IsNotEmpty()
   @Length(10, 500, { message: 'Address must be between 10 and 500 characters' })
-  @Transform(({ value }) => value?.trim().replace(/\s+/g, ' '))
+  @Transform(({ value }) => value?.trim().replace(/\s+/g, ' ').toUpperCase())
   address: string;
 
   @ApiProperty({
@@ -137,6 +117,28 @@ export class CreateKycDto
   @Matches(/^\d{5}$/, { message: 'Postal code must contain only digits' })
   @Transform(({ value }) => value?.trim())
   postalCode: string;
+
+  @ApiProperty({
+    description: 'ID card photo storage path in format bucket:path',
+    example: 'documents:kyc/13/id-card-1757496173043-id-card.jpg',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^[a-zA-Z0-9-_]+:kyc\/\d+\/[a-zA-Z0-9-_.]+$/, {
+    message: 'ID card photo must be in format bucket:kyc/userId/filename',
+  })
+  idCardPhoto: string;
+
+  @ApiProperty({
+    description: 'Selfie with ID card photo storage path in format bucket:path',
+    example: 'documents:kyc/13/selfie-with-id-1757496173043-selfie.jpg',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^[a-zA-Z0-9-_]+:kyc\/\d+\/[a-zA-Z0-9-_.]+$/, {
+    message: 'Selfie with ID card photo must be in format bucket:kyc/userId/filename',
+  })
+  selfieWithIdCardPhoto: string;
 
   // @ApiProperty({
   //   description: 'Phone number (Indonesian format)',

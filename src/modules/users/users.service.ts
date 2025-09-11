@@ -2,8 +2,6 @@ import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { UserDecidesUserTypeParams } from '../../shared/types';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -27,25 +25,5 @@ export class UsersService {
       statusCode: HttpStatus.OK,
       message: 'User type set successfully',
     };
-  }
-
-  create(createUserDto: CreateUserDto) {
-    return 'This action adds a new user';
-  }
-
-  findAll() {
-    return `This action returns all users`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
-  }
-
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} user`;
   }
 }

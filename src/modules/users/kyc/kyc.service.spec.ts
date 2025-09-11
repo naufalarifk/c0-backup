@@ -18,7 +18,7 @@ describe('KycService', () => {
     idCardPhoto: 'data:image/jpeg;base64,validbase64data',
     selfieWithIdCardPhoto: 'data:image/jpeg;base64,validbase64data',
     nik: '1234567890123456',
-    fullName: 'John Doe',
+    name: 'John Doe',
     birthCity: 'Jakarta',
     birthDate: new Date('1990-01-01'),
     province: 'DKI Jakarta',
@@ -93,7 +93,7 @@ describe('KycService', () => {
 
     it('should reject invalid name format', async () => {
       const invalidKycDto = createValidKycDto({
-        fullName: 'John@Doe123', // Invalid: contains special characters and numbers
+        name: 'John@Doe123', // Invalid: contains special characters and numbers
       });
 
       await expect(service.createKyc('user123', invalidKycDto)).rejects.toThrow(

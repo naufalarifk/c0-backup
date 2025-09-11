@@ -14,7 +14,7 @@ export class UpdateProfileResponseDto {
     example: 'John Updated Doe',
     required: false,
   })
-  fullName?: string;
+  name?: string;
 
   @ApiProperty({
     description: 'Updated profile picture URL',

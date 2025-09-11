@@ -1,15 +1,35 @@
 import { Module } from '@nestjs/common';
+import { RouterModule } from '@nestjs/core';
 
-import { RepositoryModule } from '../../shared/repositories/repository.module';
 import { KycController } from './kyc/kyc.controller';
+import { KycModule } from './kyc/kyc.module';
 import { KycService } from './kyc/kyc.service';
 import { ProfileModule } from './profile/profile.module';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 
 @Module({
-  imports: [RepositoryModule, ProfileModule],
-  controllers: [UsersController, KycController],
-  providers: [UsersService, KycService],
+  imports: [
+    ProfileModule,
+    KycModule,
+    RouterModule.register([
+      {
+        path: 'users',
+        module: UsersModule,
+        children: [
+          {
+            path: 'profile',
+            module: ProfileModule,
+          },
+          {
+            path: 'kyc',
+            module: KycModule,
+          },
+        ],
+      },
+    ]),
+  ],
+  controllers: [UsersController],
+  providers: [UsersService],
 })
 export class UsersModule {}

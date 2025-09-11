@@ -3,7 +3,7 @@ info:
   title: CryptoGadai Admin API
   description: |
     Administrative API for CryptoGadai platform management.
-    
+
     This API provides comprehensive administrative capabilities for:
     - KYC verification and user management
     - Institution application review and approval
@@ -11,12 +11,12 @@ info:
     - Financial operations monitoring
     - Loan portfolio management
     - System health monitoring
-    
+
     **Security Requirements:**
     - Authentication handled by Better Auth service
     - Only users with role='Admin' can access these endpoints
     - All administrative actions are logged for audit purposes
-    
+
     **Administrative Capabilities:**
     - Complete platform oversight and control
     - User lifecycle management
@@ -119,7 +119,7 @@ paths:
       summary: Get pending KYC submissions
       description: |
         Retrieve paginated list of pending KYC submissions awaiting admin review.
-        
+
         **Features:**
         - Pagination support
         - Filtering by submission date, user details
@@ -168,7 +168,7 @@ paths:
       summary: Get KYC submission details
       description: |
         Retrieve complete KYC submission details for admin review.
-        
+
         **Includes:**
         - Personal information and documents
         - Photo URLs with signed access
@@ -206,7 +206,7 @@ paths:
       summary: Approve KYC submission
       description: |
         Approve a KYC submission after successful verification.
-        
+
         **Actions:**
         - Sets kyc_verified_date timestamp
         - Links KYC to user profile
@@ -259,7 +259,7 @@ paths:
       summary: Reject KYC submission
       description: |
         Reject a KYC submission with reason.
-        
+
         **Actions:**
         - Sets kyc_rejected_date timestamp
         - Records rejection reason
@@ -317,7 +317,7 @@ paths:
       summary: Get pending institution applications
       description: |
         Retrieve paginated list of pending institution applications awaiting admin review.
-        
+
         **Features:**
         - Pagination support
         - Filtering by submission date, business name
@@ -366,7 +366,7 @@ paths:
       summary: Get institution application details
       description: |
         Retrieve complete institution application details for admin review.
-        
+
         **Includes:**
         - Business information and documentation
         - Applicant user details and KYC status
@@ -404,7 +404,7 @@ paths:
       summary: Approve institution application
       description: |
         Approve an institution application after successful verification.
-        
+
         **Actions:**
         - Creates institution entity
         - Sets applicant as institution owner
@@ -459,7 +459,7 @@ paths:
       summary: Reject institution application
       description: |
         Reject an institution application with reason.
-        
+
         **Actions:**
         - Sets rejected_date timestamp
         - Records rejection reason
@@ -517,7 +517,7 @@ paths:
       summary: Get current platform configuration
       description: |
         Retrieve current configurable platform settings for admin dashboard.
-        
+
         **Configuration Categories:**
         - Basic loan parameters (fees, LTV ratios)
         - Platform operational settings
@@ -978,7 +978,7 @@ components:
                   items:
                     type: object
 
-    # Loan Operations Schemas  
+    # Loan Operations Schemas
     LoanPortfolioResponse:
       type: object
       properties:
@@ -1159,7 +1159,7 @@ components:
       required:
         - id
         - email
-        - fullName
+        - name
         - role
         - status
         - kycStatus
@@ -1169,7 +1169,7 @@ components:
           type: string
         email:
           type: string
-        fullName:
+        name:
           type: string
         role:
           type: string
@@ -1407,7 +1407,7 @@ components:
           properties:
             email:
               type: string
-            fullName:
+            name:
               type: string
             createdDate:
               type: string
@@ -1420,7 +1420,7 @@ components:
           properties:
             nik:
               type: string
-            fullName:
+            name:
               type: string
             birthCity:
               type: string
@@ -1534,7 +1534,7 @@ components:
               format: int64
             email:
               type: string
-            fullName:
+            name:
               type: string
             kycStatus:
               type: string
@@ -1918,7 +1918,7 @@ components:
           type: string
         email:
           type: string
-        fullName:
+        name:
           type: string
         status:
           type: string

@@ -1204,11 +1204,11 @@ export abstract class UserRepository extends BaseRepository {
   async userUpdatesProfile(params: UserUpdatesProfileParams): Promise<UserUpdatesProfileResult> {
     const tx = await this.beginTransaction();
     try {
-      const { id, fullName, profilePictureUrl, updateDate } = params;
+      const { id, name, profilePictureUrl, updateDate } = params;
 
       const rows = await tx.sql`
         UPDATE users
-        SET name = COALESCE(${fullName}, name),
+        SET name = COALESCE(${name}, name),
             profile_picture = COALESCE(${profilePictureUrl}, profile_picture),
             updated_date = ${updateDate}
         WHERE id = ${id}
@@ -1227,7 +1227,7 @@ export abstract class UserRepository extends BaseRepository {
 
       const returnValue: UserUpdatesProfileResult = {
         id: String(user.id),
-        fullName: user.name,
+        name: user.name,
         profilePictureUrl: user.profile_picture,
         updatedDate: updateDate,
       };
@@ -1357,7 +1357,7 @@ export abstract class UserRepository extends BaseRepository {
         idCardPhoto,
         selfieWithIdCardPhoto,
         nik,
-        fullName,
+        name,
         birthCity,
         birthDate,
         province,
@@ -1377,7 +1377,7 @@ export abstract class UserRepository extends BaseRepository {
         )
         VALUES (
           ${userId}, ${submissionDate}, ${idCardPhoto}, ${selfieWithIdCardPhoto},
-          ${nik}, ${fullName}, ${birthCity}, ${birthDate}, ${province}, ${city},
+          ${nik}, ${name}, ${birthCity}, ${birthDate}, ${province}, ${city},
           ${district}, ${subdistrict}, ${address}, ${postalCode}
         )
         RETURNING id, user_id;
@@ -1552,7 +1552,7 @@ export abstract class UserRepository extends BaseRepository {
         return {
           id: String(kyc.id),
           userId: String(kyc.user_id),
-          fullName: kyc.name,
+          name: kyc.name,
           nik: kyc.nik,
           submittedDate: kyc.submitted_date,
         };
@@ -2057,59 +2057,59 @@ export abstract class UserRepository extends BaseRepository {
         // Both type and unread filters
         notificationsQuery = await this.sql`
           SELECT id, type, title, content, read_date, creation_date
-          FROM notifications 
+          FROM notifications
           WHERE user_id = ${userId} AND type = ${type} AND read_date IS NULL
           ORDER BY creation_date DESC
           LIMIT ${validatedLimit} OFFSET ${offset}
         `;
         countQuery = await this.sql`
-          SELECT COUNT(*) as count FROM notifications 
+          SELECT COUNT(*) as count FROM notifications
           WHERE user_id = ${userId} AND type = ${type} AND read_date IS NULL
         `;
       } else if (type) {
         // Only type filter
         notificationsQuery = await this.sql`
           SELECT id, type, title, content, read_date, creation_date
-          FROM notifications 
+          FROM notifications
           WHERE user_id = ${userId} AND type = ${type}
           ORDER BY creation_date DESC
           LIMIT ${validatedLimit} OFFSET ${offset}
         `;
         countQuery = await this.sql`
-          SELECT COUNT(*) as count FROM notifications 
+          SELECT COUNT(*) as count FROM notifications
           WHERE user_id = ${userId} AND type = ${type}
         `;
       } else if (unreadOnly) {
         // Only unread filter
         notificationsQuery = await this.sql`
           SELECT id, type, title, content, read_date, creation_date
-          FROM notifications 
+          FROM notifications
           WHERE user_id = ${userId} AND read_date IS NULL
           ORDER BY creation_date DESC
           LIMIT ${validatedLimit} OFFSET ${offset}
         `;
         countQuery = await this.sql`
-          SELECT COUNT(*) as count FROM notifications 
+          SELECT COUNT(*) as count FROM notifications
           WHERE user_id = ${userId} AND read_date IS NULL
         `;
       } else {
         // No filters
         notificationsQuery = await this.sql`
           SELECT id, type, title, content, read_date, creation_date
-          FROM notifications 
+          FROM notifications
           WHERE user_id = ${userId}
           ORDER BY creation_date DESC
           LIMIT ${validatedLimit} OFFSET ${offset}
         `;
         countQuery = await this.sql`
-          SELECT COUNT(*) as count FROM notifications 
+          SELECT COUNT(*) as count FROM notifications
           WHERE user_id = ${userId}
         `;
       }
 
       // Get unread count (always the same)
       unreadCountQuery = await this.sql`
-        SELECT COUNT(*) as count FROM notifications 
+        SELECT COUNT(*) as count FROM notifications
         WHERE user_id = ${userId} AND read_date IS NULL
       `;
       assertDefined(countQuery[0]);

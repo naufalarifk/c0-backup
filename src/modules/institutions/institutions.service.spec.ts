@@ -1,16 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { KycIndividualService } from './kyc-individual.service';
+import { InstitutionsService } from './institutions.service';
 
-describe('KycIndividualService', () => {
-  let service: KycIndividualService;
+describe('InstitutionsService', () => {
+  let service: InstitutionsService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [KycIndividualService],
+      providers: [InstitutionsService],
     }).compile();
 
-    service = module.get<KycIndividualService>(KycIndividualService);
+    service = module.get<InstitutionsService>(InstitutionsService);
   });
 
   it('should be defined', () => {

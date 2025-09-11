@@ -16,10 +16,10 @@ export class KycSubmissionResponseDto {
   userId: string;
 
   @ApiProperty({
-    description: 'Full name from KYC submission',
+    description: 'Name from KYC submission',
     example: 'John Doe',
   })
-  fullName: string;
+  name: string;
 
   @ApiProperty({
     description: 'National Identity Number (NIK)',
