@@ -52,7 +52,7 @@ export class InstitutionsService {
 
     return ResponseHelper.created('Institution application', {
       applicationId: result.id,
-      status: 'pending_review',
+      status: 'Pending',
       submissionDate: payload.applicationDate,
       businessName: institutionData.businessName,
     });
