@@ -6,7 +6,16 @@ import { IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
 import { UserAppliesForInstitutionParams } from '../../../shared/types';
 
 export class CreateInstitutionDto
-  implements Omit<UserAppliesForInstitutionParams, 'applicantUserId' | 'applicationDate'>
+  implements
+    Omit<
+      UserAppliesForInstitutionParams,
+      | 'applicantUserId'
+      | 'applicationDate'
+      | 'npwpDocumentPath'
+      | 'registrationDocumentPath'
+      | 'deedOfEstablishmentPath'
+      | 'directorIdCardPath'
+    >
 {
   @ApiProperty({
     description: 'Name of the business/institution',
@@ -49,36 +58,12 @@ export class CreateInstitutionDto
   npwpNumber: string;
 
   @ApiProperty({
-    description: 'Path to NPWP document file',
-    example: '/uploads/documents/npwp_123456.pdf',
-  })
-  @IsNotEmpty()
-  @IsString()
-  npwpDocumentPath: string;
-
-  @ApiProperty({
     description: 'Business registration number',
     example: 'AHU-0012345.AH.01.01.TAHUN 2023',
   })
   @IsNotEmpty()
   @IsString()
   registrationNumber: string;
-
-  @ApiProperty({
-    description: 'Path to business registration document',
-    example: '/uploads/documents/registration_123456.pdf',
-  })
-  @IsNotEmpty()
-  @IsString()
-  registrationDocumentPath: string;
-
-  @ApiProperty({
-    description: 'Path to deed of establishment document',
-    example: '/uploads/documents/deed_123456.pdf',
-  })
-  @IsNotEmpty()
-  @IsString()
-  deedOfEstablishmentPath: string;
 
   @ApiProperty({
     description: 'Business address',
@@ -126,12 +111,4 @@ export class CreateInstitutionDto
   @IsString()
   @Transform(({ value }) => value?.trim())
   directorName: string;
-
-  @ApiProperty({
-    description: 'Path to director ID card document',
-    example: '/uploads/documents/director_id_123456.jpg',
-  })
-  @IsNotEmpty()
-  @IsString()
-  directorIdCardPath: string;
 }
