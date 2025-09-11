@@ -49,10 +49,10 @@ import { TestController } from './test.controller';
 
     AuthModule.forRootAsync({ useClass: AuthConfig }),
     UsersModule,
+    InstitutionsModule,
     AccountsModule,
     BlockchainsModule,
     AdminModule,
-    InstitutionsModule,
   ],
   providers: [
     // Global guards

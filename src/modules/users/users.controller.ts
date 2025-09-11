@@ -16,7 +16,6 @@ type AuthSession = UserSession & {
 };
 
 @Controller()
-@ApiTags('Users')
 @UseGuards(AuthGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}

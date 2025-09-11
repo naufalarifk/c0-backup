@@ -10,7 +10,7 @@ import { TelemetryLogger } from '../../../telemetry.logger';
 import { Session } from '../../auth/auth.decorator';
 
 @Controller('admin/kyc')
-@ApiTags('admin')
+@ApiTags('Admin')
 @Auth(['Admin'])
 export class AdminKycController {
   private readonly logger = new TelemetryLogger(AdminKycController.name);
