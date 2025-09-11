@@ -56,6 +56,77 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoanOfferResponse'
+              examples:
+                individual_offer_created:
+                  summary: Individual lender loan offer created
+                  value:
+                    success: true
+                    data:
+                      id: "12345"
+                      lenderId: "user_67890"
+                      principalCurrency:
+                        blockchainKey: "eip155:56"
+                        tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                        name: "Binance-Peg USD Coin"
+                        symbol: "USDC"
+                        decimals: 18
+                        logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                      totalAmount: "10000.000000000000000000"
+                      availableAmount: "10000.000000000000000000"
+                      disbursedAmount: "0.000000000000000000"
+                      interestRate: 12.5
+                      termOptions: [3, 6]
+                      status: "Published"
+                      createdDate: "2025-09-11T10:30:00Z"
+                      publishedDate: "2025-09-11T10:45:00Z"
+                      fundingInvoice:
+                        id: "inv_12345"
+                        amount: "10000.000000000000000000"
+                        currency:
+                          blockchainKey: "eip155:56"
+                          tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                          name: "Binance-Peg USD Coin"
+                          symbol: "USDC"
+                          decimals: 18
+                        walletAddress: "0x742d35cc1234567890abcdef1234567890abcdef"
+                        expiryDate: "2025-09-18T10:30:00Z"
+                        paidDate: "2025-09-11T10:45:00Z"
+                        expiredDate: null
+                company_offer_created:
+                  summary: Company lender large loan offer created
+                  value:
+                    success: true
+                    data:
+                      id: "54321"
+                      lenderId: "company_13579"
+                      principalCurrency:
+                        blockchainKey: "eip155:56"
+                        tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                        name: "Binance-Peg USD Coin"
+                        symbol: "USDC"
+                        decimals: 18
+                        logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                      totalAmount: "100000.000000000000000000"
+                      availableAmount: "100000.000000000000000000"
+                      disbursedAmount: "0.000000000000000000"
+                      interestRate: 10.0
+                      termOptions: [1, 3, 6, 12]
+                      status: "Published"
+                      createdDate: "2025-09-11T09:00:00Z"
+                      publishedDate: "2025-09-11T09:15:00Z"
+                      fundingInvoice:
+                        id: "inv_54321"
+                        amount: "100000.000000000000000000"
+                        currency:
+                          blockchainKey: "eip155:56"
+                          tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                          name: "Binance-Peg USD Coin"
+                          symbol: "USDC"
+                          decimals: 18
+                        walletAddress: "0x742d35cc9876543210fedcba9876543210fedcba"
+                        expiryDate: "2025-09-18T09:00:00Z"
+                        paidDate: "2025-09-11T09:15:00Z"
+                        expiredDate: null
         '400':
           $ref: '#/components/responses/ValidationError'
         '409':
@@ -95,6 +166,71 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoanOfferListResponse'
+              examples:
+                mixed_offers_listing:
+                  summary: Mixed loan offers from individual and company lenders
+                  value:
+                    success: true
+                    data:
+                      offers:
+                        - id: "12345"
+                          lenderId: "user_67890"
+                          principalCurrency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                            logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                          totalAmount: "10000.000000000000000000"
+                          availableAmount: "7500.000000000000000000"
+                          disbursedAmount: "2500.000000000000000000"
+                          interestRate: 12.5
+                          termOptions: [3, 6]
+                          status: "Published"
+                          createdDate: "2025-09-10T10:30:00Z"
+                          publishedDate: "2025-09-10T10:45:00Z"
+                        - id: "54321"
+                          lenderId: "company_13579"
+                          principalCurrency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                            logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                          totalAmount: "100000.000000000000000000"
+                          availableAmount: "85000.000000000000000000"
+                          disbursedAmount: "15000.000000000000000000"
+                          interestRate: 10.0
+                          termOptions: [1, 3, 6, 12]
+                          status: "Published"
+                          createdDate: "2025-09-09T09:00:00Z"
+                          publishedDate: "2025-09-09T09:15:00Z"
+                        - id: "67890"
+                          lenderId: "user_24680"
+                          principalCurrency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                            logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                          totalAmount: "25000.000000000000000000"
+                          availableAmount: "25000.000000000000000000"
+                          disbursedAmount: "0.000000000000000000"
+                          interestRate: 14.0
+                          termOptions: [1, 3]
+                          status: "Published"
+                          createdDate: "2025-09-11T14:20:00Z"
+                          publishedDate: "2025-09-11T14:35:00Z"
+                      pagination:
+                        page: 1
+                        limit: 20
+                        total: 3
+                        totalPages: 1
+                        hasNext: false
+                        hasPrev: false
 
   /loan-offers/my-offers:
     get:
@@ -159,6 +295,67 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoanCalculationResponse'
+              examples:
+                eth_collateral_result:
+                  summary: ETH collateral calculation result
+                  value:
+                    success: true
+                    data:
+                      requiredCollateralAmount: "8.571428571428571428"
+                      exchangeRate: "2100.000000000000000000"
+                      collateralCurrency:
+                        blockchainKey: "eip155:1"
+                        tokenId: "slip44:60"
+                        name: "Ethereum"
+                        symbol: "ETH"
+                        decimals: 18
+                        logoUrl: "https://assets.cryptogadai.com/currencies/eth.png"
+                      principalCurrency:
+                        blockchainKey: "eip155:56"
+                        tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                        name: "Binance-Peg USD Coin"
+                        symbol: "USDC"
+                        decimals: 18
+                        logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                      maxLtvRatio: 0.7
+                      safetyBuffer: 0.2
+                      calculationDetails:
+                        baseLoanAmount: "10000.000000000000000000"
+                        baseCollateralValue: "14285.714285714285714286"
+                        withSafetyBuffer: "17142.857142857142857143"
+                        currentExchangeRate: "2100.000000000000000000"
+                        rateSource: "coinbase"
+                        rateTimestamp: "2025-09-11T15:30:00Z"
+                btc_collateral_result:
+                  summary: BTC collateral calculation result
+                  value:
+                    success: true
+                    data:
+                      requiredCollateralAmount: "1.666666666666666667"
+                      exchangeRate: "60000.000000000000000000"
+                      collateralCurrency:
+                        blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                        tokenId: "slip44:0"
+                        name: "Bitcoin"
+                        symbol: "BTC"
+                        decimals: 8
+                        logoUrl: "https://assets.cryptogadai.com/currencies/btc.png"
+                      principalCurrency:
+                        blockchainKey: "eip155:56"
+                        tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                        name: "Binance-Peg USD Coin"
+                        symbol: "USDC"
+                        decimals: 18
+                        logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                      maxLtvRatio: 0.6
+                      safetyBuffer: 0.2
+                      calculationDetails:
+                        baseLoanAmount: "50000.000000000000000000"
+                        baseCollateralValue: "83333.333333333333333333"
+                        withSafetyBuffer: "100000.000000000000000000"
+                        currentExchangeRate: "60000.000000000000000000"
+                        rateSource: "coinbase"
+                        rateTimestamp: "2025-09-11T15:30:00Z"
         '400':
           $ref: '#/components/responses/ValidationError'
 
@@ -174,6 +371,43 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateLoanApplicationRequest'
+            examples:
+              eth_collateral_application:
+                summary: Loan application with ETH collateral
+                value:
+                  collateralBlockchainKey: "eip155:1"
+                  collateralTokenId: "slip44:60"
+                  principalAmount: "5000.000000000000000000"
+                  principalBlockchainKey: "eip155:56"
+                  principalTokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                  maxInterestRate: 15.0
+                  termMonths: 6
+                  liquidationMode: "Full"
+                  minLtvRatio: 0.5
+              btc_collateral_large_loan:
+                summary: Large loan application with BTC collateral
+                value:
+                  collateralBlockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                  collateralTokenId: "slip44:0"
+                  principalAmount: "25000.000000000000000000"
+                  principalBlockchainKey: "eip155:56"
+                  principalTokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                  maxInterestRate: 12.0
+                  termMonths: 12
+                  liquidationMode: "Partial"
+                  minLtvRatio: 0.4
+              sol_collateral_short_term:
+                summary: Short-term loan with SOL collateral
+                value:
+                  collateralBlockchainKey: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+                  collateralTokenId: "slip44:501"
+                  principalAmount: "2000.000000000000000000"
+                  principalBlockchainKey: "eip155:56"
+                  principalTokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                  maxInterestRate: 18.0
+                  termMonths: 1
+                  liquidationMode: "Full"
+                  minLtvRatio: 0.3
       responses:
         '201':
           description: Loan application created
@@ -181,6 +415,71 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoanApplicationResponse'
+              examples:
+                eth_application_created:
+                  summary: ETH collateral loan application created
+                  value:
+                    success: true
+                    data:
+                      id: "app_78901"
+                      borrowerId: "user_54321"
+                      collateralCurrency:
+                        blockchainKey: "eip155:1"
+                        tokenId: "slip44:60"
+                        name: "Ethereum"
+                        symbol: "ETH"
+                        decimals: 18
+                        logoUrl: "https://assets.cryptogadai.com/currencies/eth.png"
+                      principalAmount: "5000.000000000000000000"
+                      status: "PendingCollateral"
+                      createdDate: "2025-09-11T16:00:00Z"
+                      publishedDate: null
+                      expiryDate: "2025-09-18T16:00:00Z"
+                      collateralInvoice:
+                        id: "inv_78901"
+                        amount: "3.571428571428571429"
+                        currency:
+                          blockchainKey: "eip155:1"
+                          tokenId: "slip44:60"
+                          name: "Ethereum"
+                          symbol: "ETH"
+                          decimals: 18
+                        walletAddress: "0x1a2b3c4d5e6f7890abcdef1234567890abcdef12"
+                        expiryDate: "2025-09-18T16:00:00Z"
+                        paidDate: null
+                        expiredDate: null
+                btc_application_created:
+                  summary: BTC collateral loan application created
+                  value:
+                    success: true
+                    data:
+                      id: "app_23456"
+                      borrowerId: "user_98765"
+                      collateralCurrency:
+                        blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                        tokenId: "slip44:0"
+                        name: "Bitcoin"
+                        symbol: "BTC"
+                        decimals: 8
+                        logoUrl: "https://assets.cryptogadai.com/currencies/btc.png"
+                      principalAmount: "25000.000000000000000000"
+                      status: "PendingCollateral"
+                      createdDate: "2025-09-11T17:00:00Z"
+                      publishedDate: null
+                      expiryDate: "2025-09-18T17:00:00Z"
+                      collateralInvoice:
+                        id: "inv_23456"
+                        amount: "0.83333333"
+                        currency:
+                          blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                          tokenId: "slip44:0"
+                          name: "Bitcoin"
+                          symbol: "BTC"
+                          decimals: 8
+                        walletAddress: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"
+                        expiryDate: "2025-09-18T17:00:00Z"
+                        paidDate: null
+                        expiredDate: null
         '400':
           $ref: '#/components/responses/ValidationError'
         '409':
@@ -253,6 +552,101 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoanListResponse'
+              examples:
+                mixed_loan_portfolio:
+                  summary: Mixed loan portfolio for borrower and lender
+                  value:
+                    success: true
+                    data:
+                      loans:
+                        - id: "loan_12345"
+                          borrowerId: "user_54321"
+                          lenderId: "user_67890"
+                          principalCurrency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                          principalAmount: "5000.000000000000000000"
+                          collateralCurrency:
+                            blockchainKey: "eip155:1"
+                            tokenId: "slip44:60"
+                            name: "Ethereum"
+                            symbol: "ETH"
+                            decimals: 18
+                          collateralAmount: "3.571428571428571429"
+                          interestRate: 12.5
+                          termMonths: 6
+                          currentLtv: 65.2
+                          maxLtvRatio: 70.0
+                          status: "Active"
+                          originationDate: "2025-09-01T10:00:00Z"
+                          disbursementDate: "2025-09-01T11:00:00Z"
+                          maturityDate: "2026-03-01T10:00:00Z"
+                          repaidDate: null
+                          liquidationDate: null
+                        - id: "loan_67890"
+                          borrowerId: "user_11111"
+                          lenderId: "company_22222"
+                          principalCurrency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                          principalAmount: "15000.000000000000000000"
+                          collateralCurrency:
+                            blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                            tokenId: "slip44:0"
+                            name: "Bitcoin"
+                            symbol: "BTC"
+                            decimals: 8
+                          collateralAmount: "0.5"
+                          interestRate: 10.0
+                          termMonths: 12
+                          currentLtv: 55.8
+                          maxLtvRatio: 60.0
+                          status: "Active"
+                          originationDate: "2025-08-15T14:00:00Z"
+                          disbursementDate: "2025-08-15T15:00:00Z"
+                          maturityDate: "2026-08-15T14:00:00Z"
+                          repaidDate: null
+                          liquidationDate: null
+                        - id: "loan_99999"
+                          borrowerId: "user_33333"
+                          lenderId: "user_44444"
+                          principalCurrency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                          principalAmount: "3000.000000000000000000"
+                          collateralCurrency:
+                            blockchainKey: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+                            tokenId: "slip44:501"
+                            name: "Solana"
+                            symbol: "SOL"
+                            decimals: 9
+                          collateralAmount: "500.000000000"
+                          interestRate: 16.0
+                          termMonths: 3
+                          currentLtv: 49.2
+                          maxLtvRatio: 50.0
+                          status: "Repaid"
+                          originationDate: "2025-06-01T09:00:00Z"
+                          disbursementDate: "2025-06-01T10:00:00Z"
+                          maturityDate: "2025-09-01T09:00:00Z"
+                          repaidDate: "2025-08-28T14:30:00Z"
+                          liquidationDate: null
+                      pagination:
+                        page: 1
+                        limit: 20
+                        total: 3
+                        totalPages: 1
+                        hasNext: false
+                        hasPrev: false
 
   /loans/{id}:
     get:
@@ -272,6 +666,111 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoanResponse'
+              examples:
+                active_eth_loan_details:
+                  summary: Active ETH-collateralized loan details
+                  value:
+                    success: true
+                    data:
+                      id: "loan_12345"
+                      borrowerId: "user_54321"
+                      lenderId: "user_67890"
+                      principalCurrency:
+                        blockchainKey: "eip155:56"
+                        tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                        name: "Binance-Peg USD Coin"
+                        symbol: "USDC"
+                        decimals: 18
+                        logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                      principalAmount: "5000.000000000000000000"
+                      collateralCurrency:
+                        blockchainKey: "eip155:1"
+                        tokenId: "slip44:60"
+                        name: "Ethereum"
+                        symbol: "ETH"
+                        decimals: 18
+                        logoUrl: "https://assets.cryptogadai.com/currencies/eth.png"
+                      collateralAmount: "3.571428571428571429"
+                      interestRate: 12.5
+                      termMonths: 6
+                      currentLtv: 65.2
+                      maxLtvRatio: 70.0
+                      status: "Active"
+                      originationDate: "2025-09-01T10:00:00Z"
+                      disbursementDate: "2025-09-01T11:00:00Z"
+                      maturityDate: "2026-03-01T10:00:00Z"
+                      repaidDate: null
+                      liquidationDate: null
+                      repaymentInvoice:
+                        id: "inv_repay_12345"
+                        amount: "5462.500000000000000000"
+                        currency:
+                          blockchainKey: "eip155:56"
+                          tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                          name: "Binance-Peg USD Coin"
+                          symbol: "USDC"
+                          decimals: 18
+                        walletAddress: "0x9876543210fedcba9876543210fedcba98765432"
+                        expiryDate: "2026-03-01T10:00:00Z"
+                        paidDate: null
+                        expiredDate: null
+                      loanBreakdown:
+                        principalAmount: "5000.000000000000000000"
+                        interestAmount: "312.500000000000000000"
+                        originationFeeAmount: "150.000000000000000000"
+                        totalRepaymentAmount: "5462.500000000000000000"
+                repaid_btc_loan_details:
+                  summary: Repaid BTC-collateralized loan details
+                  value:
+                    success: true
+                    data:
+                      id: "loan_67890"
+                      borrowerId: "user_11111"
+                      lenderId: "company_22222"
+                      principalCurrency:
+                        blockchainKey: "eip155:56"
+                        tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                        name: "Binance-Peg USD Coin"
+                        symbol: "USDC"
+                        decimals: 18
+                        logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                      principalAmount: "15000.000000000000000000"
+                      collateralCurrency:
+                        blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                        tokenId: "slip44:0"
+                        name: "Bitcoin"
+                        symbol: "BTC"
+                        decimals: 8
+                        logoUrl: "https://assets.cryptogadai.com/currencies/btc.png"
+                      collateralAmount: "0.5"
+                      interestRate: 10.0
+                      termMonths: 12
+                      currentLtv: 0.0
+                      maxLtvRatio: 60.0
+                      status: "Repaid"
+                      originationDate: "2024-08-15T14:00:00Z"
+                      disbursementDate: "2024-08-15T15:00:00Z"
+                      maturityDate: "2025-08-15T14:00:00Z"
+                      repaidDate: "2025-08-10T09:30:00Z"
+                      liquidationDate: null
+                      repaymentInvoice:
+                        id: "inv_repay_67890"
+                        amount: "16950.000000000000000000"
+                        currency:
+                          blockchainKey: "eip155:56"
+                          tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                          name: "Binance-Peg USD Coin"
+                          symbol: "USDC"
+                          decimals: 18
+                        walletAddress: "0x1111222233334444555566667777888899990000"
+                        expiryDate: "2025-08-15T14:00:00Z"
+                        paidDate: "2025-08-10T09:30:00Z"
+                        expiredDate: null
+                      loanBreakdown:
+                        principalAmount: "15000.000000000000000000"
+                        interestAmount: "1500.000000000000000000"
+                        originationFeeAmount: "450.000000000000000000"
+                        totalRepaymentAmount: "16950.000000000000000000"
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -296,6 +795,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoanValuationListResponse'
+              examples:
+                eth_loan_valuation_history:
+                  summary: ETH loan valuation history showing price volatility
+                  value:
+                    success: true
+                    data:
+                      valuations:
+                        - id: "val_001"
+                          loanId: "loan_12345"
+                          valuationDate: "2025-09-11T15:30:00Z"
+                          ltvRatio: 66.67
+                          collateralValue: "7500.000000000000000000"
+                          exchangeRate: "2100.000000000000000000"
+                        - id: "val_002"
+                          loanId: "loan_12345"
+                          valuationDate: "2025-09-11T15:25:00Z"
+                          ltvRatio: 65.85
+                          collateralValue: "7590.000000000000000000"
+                          exchangeRate: "2125.000000000000000000"
+                        - id: "val_003"
+                          loanId: "loan_12345"
+                          valuationDate: "2025-09-11T15:20:00Z"
+                          ltvRatio: 67.11
+                          collateralValue: "7450.000000000000000000"
+                          exchangeRate: "2086.000000000000000000"
+                        - id: "val_004"
+                          loanId: "loan_12345"
+                          valuationDate: "2025-09-11T15:15:00Z"
+                          ltvRatio: 68.25
+                          collateralValue: "7320.000000000000000000"
+                          exchangeRate: "2050.000000000000000000"
+                        - id: "val_005"
+                          loanId: "loan_12345"
+                          valuationDate: "2025-09-11T15:10:00Z"
+                          ltvRatio: 67.89
+                          collateralValue: "7368.000000000000000000"
+                          exchangeRate: "2063.000000000000000000"
+                      pagination:
+                        page: 1
+                        limit: 20
+                        total: 5
+                        totalPages: 1
+                        hasNext: false
+                        hasPrev: false
 
   # Early Liquidation
   /loans/{id}/early-liquidation/estimate:
@@ -329,6 +872,123 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EarlyLiquidationEstimateResponse'
+              examples:
+                profitable_eth_liquidation:
+                  summary: Profitable ETH liquidation with surplus
+                  value:
+                    success: true
+                    data:
+                      loanId: "loan_12345"
+                      currentValuation:
+                        collateralCurrency:
+                          blockchainKey: "eip155:1"
+                          tokenId: "slip44:60"
+                          name: "Ethereum"
+                          symbol: "ETH"
+                          decimals: 18
+                          logoUrl: "https://assets.cryptogadai.com/currencies/eth.png"
+                        currentAmount: "3.571428571428571429"
+                        currentMarketValue:
+                          amount: "7500.000000000000000000"
+                          currency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                          exchangeRate: "2100.000000000000000000"
+                          rateSource: "coinbase"
+                          rateTimestamp: "2025-09-11T15:30:00Z"
+                        currentLtvRatio: "66.67"
+                        originalLtvRatio: "70.0"
+                        ltvChange:
+                          percentage: "-3.33"
+                          direction: "improved"
+                      liquidationBreakdown:
+                        outstandingLoan:
+                          principalAmount: "5000.000000000000000000"
+                          interestAmount: "312.500000000000000000"
+                          originationFeeAmount: "150.000000000000000000"
+                          totalLoanRepayment: "5462.500000000000000000"
+                        liquidationFees:
+                          earlyLiquidationFee: "54.625000000000000000"
+                          earlyLiquidationFeeRate: "1.0"
+                          marketLiquidationFee: "15.000000000000000000"
+                          totalLiquidationFees: "69.625000000000000000"
+                        totalDeductions: "5532.125000000000000000"
+                        calculationDetails:
+                          basedOnExchangeRate: "2100.000000000000000000"
+                          rateSource: "coinbase"
+                          rateTimestamp: "2025-09-11T15:30:00Z"
+                      estimatedOutcome:
+                        totalLiquidationProceeds: "7500.000000000000000000"
+                        totalDeductions: "5532.125000000000000000"
+                        estimatedSurplus: "1967.875000000000000000"
+                        breakeven: true
+                      calculationDate: "2025-09-11T15:30:00Z"
+                      disclaimers:
+                        - "Actual liquidation proceeds may vary due to market conditions"
+                        - "Exchange rates are subject to change until execution"
+                        - "Early liquidation fee of 1% is final and non-refundable"
+                        - "Market slippage may reduce actual proceeds"
+                risky_btc_liquidation:
+                  summary: Risky BTC liquidation near breakeven
+                  value:
+                    success: true
+                    data:
+                      loanId: "loan_67890"
+                      currentValuation:
+                        collateralCurrency:
+                          blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                          tokenId: "slip44:0"
+                          name: "Bitcoin"
+                          symbol: "BTC"
+                          decimals: 8
+                          logoUrl: "https://assets.cryptogadai.com/currencies/btc.png"
+                        currentAmount: "0.5"
+                        currentMarketValue:
+                          amount: "17000.000000000000000000"
+                          currency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                          exchangeRate: "34000.000000000000000000"
+                          rateSource: "coinbase"
+                          rateTimestamp: "2025-09-11T15:30:00Z"
+                        currentLtvRatio: "88.24"
+                        originalLtvRatio: "60.0"
+                        ltvChange:
+                          percentage: "+28.24"
+                          direction: "worsened"
+                      liquidationBreakdown:
+                        outstandingLoan:
+                          principalAmount: "15000.000000000000000000"
+                          interestAmount: "1500.000000000000000000"
+                          originationFeeAmount: "450.000000000000000000"
+                          totalLoanRepayment: "16950.000000000000000000"
+                        liquidationFees:
+                          earlyLiquidationFee: "169.500000000000000000"
+                          earlyLiquidationFeeRate: "1.0"
+                          marketLiquidationFee: "34.000000000000000000"
+                          totalLiquidationFees: "203.500000000000000000"
+                        totalDeductions: "17153.500000000000000000"
+                        calculationDetails:
+                          basedOnExchangeRate: "34000.000000000000000000"
+                          rateSource: "coinbase"
+                          rateTimestamp: "2025-09-11T15:30:00Z"
+                      estimatedOutcome:
+                        totalLiquidationProceeds: "17000.000000000000000000"
+                        totalDeductions: "17153.500000000000000000"
+                        estimatedSurplus: "-153.500000000000000000"
+                        breakeven: false
+                      calculationDate: "2025-09-11T15:30:00Z"
+                      disclaimers:
+                        - "WARNING: Estimated deficit of $153.50 - liquidation not profitable"
+                        - "Consider adding more collateral to improve LTV ratio"
+                        - "Market conditions may worsen before liquidation"
+                        - "Platform will absorb any deficit per policy"
         '400':
           $ref: '#/components/responses/ValidationError'
         '403':
@@ -385,6 +1045,74 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EarlyLiquidationRequestResponse'
+              examples:
+                eth_liquidation_success:
+                  summary: ETH liquidation request successfully submitted
+                  value:
+                    success: true
+                    data:
+                      liquidationId: "liq_98765"
+                      loanId: "loan_12345"
+                      status: "Pending"
+                      submittedDate: "2025-09-11T16:00:00Z"
+                      estimatedCompletionTime: "2-4 hours"
+                      finalBreakdown:
+                        outstandingLoan:
+                          principalAmount: "5000.000000000000000000"
+                          interestAmount: "312.500000000000000000"
+                          originationFeeAmount: "150.000000000000000000"
+                          totalLoanRepayment: "5462.500000000000000000"
+                        liquidationFees:
+                          earlyLiquidationFee: "54.625000000000000000"
+                          earlyLiquidationFeeRate: "1.0"
+                          marketLiquidationFee: "15.000000000000000000"
+                          totalLiquidationFees: "69.625000000000000000"
+                        totalDeductions: "5532.125000000000000000"
+                        calculationDetails:
+                          basedOnExchangeRate: "2100.000000000000000000"
+                          rateSource: "coinbase"
+                          rateTimestamp: "2025-09-11T15:59:45Z"
+                      nextSteps:
+                        - "Collateral (3.57 ETH) will be liquidated on the market"
+                        - "Loan repayment ($5,462.50) will be processed"
+                        - "Early liquidation fee (1%) will be deducted"
+                        - "Estimated surplus ($1,967.88) will be credited to your account in USDT"
+                        - "You will receive email confirmation when complete"
+                    message: "Early liquidation request submitted successfully. Processing will begin shortly."
+                btc_liquidation_deficit:
+                  summary: BTC liquidation with potential deficit
+                  value:
+                    success: true
+                    data:
+                      liquidationId: "liq_11111"
+                      loanId: "loan_67890"
+                      status: "Pending"
+                      submittedDate: "2025-09-11T16:30:00Z"
+                      estimatedCompletionTime: "1-2 hours"
+                      finalBreakdown:
+                        outstandingLoan:
+                          principalAmount: "15000.000000000000000000"
+                          interestAmount: "1500.000000000000000000"
+                          originationFeeAmount: "450.000000000000000000"
+                          totalLoanRepayment: "16950.000000000000000000"
+                        liquidationFees:
+                          earlyLiquidationFee: "169.500000000000000000"
+                          earlyLiquidationFeeRate: "1.0"
+                          marketLiquidationFee: "34.000000000000000000"
+                          totalLiquidationFees: "203.500000000000000000"
+                        totalDeductions: "17153.500000000000000000"
+                        calculationDetails:
+                          basedOnExchangeRate: "34000.000000000000000000"
+                          rateSource: "coinbase"
+                          rateTimestamp: "2025-09-11T16:29:30Z"
+                      nextSteps:
+                        - "Collateral (0.5 BTC) will be liquidated on the market"
+                        - "Loan repayment ($16,950) will be processed"
+                        - "Early liquidation fee (1%) will be deducted"
+                        - "Any deficit will be absorbed by platform insurance fund"
+                        - "No additional charges to borrower"
+                        - "You will receive email confirmation when complete"
+                    message: "Early liquidation request submitted. Note: Current market conditions may result in deficit, but no additional charges will apply."
         '400':
           $ref: '#/components/responses/ValidationError'
         '403':
@@ -455,6 +1183,115 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EarlyRepaymentRequestResponse'
+              examples:
+                eth_early_repayment:
+                  summary: ETH loan early repayment request
+                  value:
+                    success: true
+                    data:
+                      repaymentId: "rep_77777"
+                      loanId: "loan_12345"
+                      status: "Pending"
+                      submittedDate: "2025-09-11T17:00:00Z"
+                      repaymentBreakdown:
+                        loanDetails:
+                          principalAmount: "5000.000000000000000000"
+                          interestAmount: "312.500000000000000000"
+                          originationFeeAmount: "150.000000000000000000"
+                          totalRepaymentAmount: "5462.500000000000000000"
+                        paymentTerms:
+                          earlyPaymentFee: "0.000000000000000000"
+                          interestReduction: "0.000000000000000000"
+                          paymentCurrency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                        calculationDetails:
+                          originalTermMonths: 6
+                          earlyPaymentAtMonth: 1
+                          remainingTermMonths: 5
+                          calculationDate: "2025-09-11T17:00:00Z"
+                        disclaimers:
+                          - "Full interest amount is charged regardless of early payment"
+                          - "Origination fee (3% of principal) is charged in full"
+                          - "No early payment fee or penalty applies"
+                          - "Payment must be made in full to complete early repayment"
+                      repaymentInvoice:
+                        id: "inv_early_77777"
+                        amount: "5462.500000000000000000"
+                        currency:
+                          blockchainKey: "eip155:56"
+                          tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                          name: "Binance-Peg USD Coin"
+                          symbol: "USDC"
+                          decimals: 18
+                        walletAddress: "0xaabbccddeeff1122334455667788990011223344"
+                        expiryDate: "2025-09-18T17:00:00Z"
+                        paidDate: null
+                        expiredDate: null
+                      nextSteps:
+                        - "Payment invoice has been created for full repayment amount"
+                        - "Pay the invoice ($5,462.50 USDT) to complete early repayment"
+                        - "Collateral (3.57 ETH) will be released upon payment confirmation"
+                        - "You will receive email confirmation when complete"
+                        - "Savings: No early payment penalties applied"
+                    message: "Early repayment request submitted successfully. Please pay the invoice to complete the repayment."
+                btc_early_repayment:
+                  summary: BTC loan early repayment request
+                  value:
+                    success: true
+                    data:
+                      repaymentId: "rep_88888"
+                      loanId: "loan_67890"
+                      status: "Pending"
+                      submittedDate: "2025-09-11T18:00:00Z"
+                      repaymentBreakdown:
+                        loanDetails:
+                          principalAmount: "15000.000000000000000000"
+                          interestAmount: "1500.000000000000000000"
+                          originationFeeAmount: "450.000000000000000000"
+                          totalRepaymentAmount: "16950.000000000000000000"
+                        paymentTerms:
+                          earlyPaymentFee: "0.000000000000000000"
+                          interestReduction: "0.000000000000000000"
+                          paymentCurrency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                        calculationDetails:
+                          originalTermMonths: 12
+                          earlyPaymentAtMonth: 2
+                          remainingTermMonths: 10
+                          calculationDate: "2025-09-11T18:00:00Z"
+                        disclaimers:
+                          - "Full interest amount is charged regardless of early payment"
+                          - "Origination fee (3% of principal) is charged in full"
+                          - "No early payment fee or penalty applies"
+                          - "Payment must be made in full to complete early repayment"
+                      repaymentInvoice:
+                        id: "inv_early_88888"
+                        amount: "16950.000000000000000000"
+                        currency:
+                          blockchainKey: "eip155:56"
+                          tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                          name: "Binance-Peg USD Coin"
+                          symbol: "USDC"
+                          decimals: 18
+                        walletAddress: "0x5566778899aabbccddeeff0011223344556677"
+                        expiryDate: "2025-09-18T18:00:00Z"
+                        paidDate: null
+                        expiredDate: null
+                      nextSteps:
+                        - "Payment invoice has been created for full repayment amount"
+                        - "Pay the invoice ($16,950.00 USDT) to complete early repayment"
+                        - "Collateral (0.5 BTC) will be released upon payment confirmation"
+                        - "You will receive email confirmation when complete"
+                        - "Benefit: Avoid potential liquidation risk from market volatility"
+                    message: "Early repayment request submitted successfully. Full payment will secure your collateral immediately."
         '400':
           $ref: '#/components/responses/ValidationError'
         '403':
@@ -666,8 +1503,53 @@ components:
           properties:
             requiredCollateralAmount:
               type: string
+              description: Amount of collateral required (with safety buffer)
+              pattern: '^\d+\.\d{18}$'
             exchangeRate:
               type: string
+              description: Current exchange rate used for calculation
+              pattern: '^\d+\.\d{18}$'
+            collateralCurrency:
+              $ref: '#/components/schemas/Currency'
+            principalCurrency:
+              $ref: '#/components/schemas/Currency'
+            maxLtvRatio:
+              type: number
+              description: Maximum LTV ratio for this collateral type
+              minimum: 0
+              maximum: 1
+            safetyBuffer:
+              type: number
+              description: Safety buffer percentage (typically 20%)
+              minimum: 0
+              maximum: 1
+            calculationDetails:
+              type: object
+              properties:
+                baseLoanAmount:
+                  type: string
+                  description: Base loan amount requested
+                  pattern: '^\d+\.\d{18}$'
+                baseCollateralValue:
+                  type: string
+                  description: Base collateral value without safety buffer
+                  pattern: '^\d+\.\d{18}$'
+                withSafetyBuffer:
+                  type: string
+                  description: Collateral value including safety buffer
+                  pattern: '^\d+\.\d{18}$'
+                currentExchangeRate:
+                  type: string
+                  description: Exchange rate at calculation time
+                  pattern: '^\d+\.\d{18}$'
+                rateSource:
+                  type: string
+                  description: Source of exchange rate data
+                  example: "coinbase"
+                rateTimestamp:
+                  type: string
+                  format: date-time
+                  description: When the exchange rate was last updated
 
     CreateLoanApplicationRequest:
       type: object
@@ -776,26 +1658,45 @@ components:
       properties:
         id:
           type: string
+          description: Unique loan identifier
         borrowerId:
           type: string
+          description: Borrower user identifier
         lenderId:
           type: string
+          description: Lender user identifier
         principalCurrency:
           $ref: '#/components/schemas/Currency'
         principalAmount:
           type: string
+          description: Loan principal amount
+          pattern: '^\d+\.\d{18}$'
         collateralCurrency:
           $ref: '#/components/schemas/Currency'
         collateralAmount:
           type: string
+          description: Collateral amount deposited
+          pattern: '^\d+\.\d{18}$'
         interestRate:
           type: number
+          description: Annual interest rate percentage
+          minimum: 0
+          maximum: 100
         termMonths:
           type: integer
+          description: Loan term in months
+          minimum: 1
+          maximum: 12
         currentLtv:
           type: number
+          description: Current loan-to-value ratio percentage
+          minimum: 0
+          maximum: 100
         maxLtvRatio:
           type: number
+          description: Maximum allowed LTV ratio percentage
+          minimum: 0
+          maximum: 100
         status:
           type: string
           description: Current loan status (derived from time-based fields and business logic)
@@ -805,20 +1706,49 @@ components:
         originationDate:
           type: string
           format: date-time
+          description: When the loan was originated
         disbursementDate:
           type: string
           format: date-time
+          description: When funds were disbursed to borrower
+          nullable: true
         maturityDate:
           type: string
           format: date-time
+          description: When the loan is due for repayment
+          nullable: true
         repaidDate:
           type: string
           format: date-time
+          description: When the loan was fully repaid
+          nullable: true
         liquidationDate:
           type: string
           format: date-time
+          description: When the collateral was liquidated
+          nullable: true
         repaymentInvoice:
           $ref: '#/components/schemas/Invoice'
+        loanBreakdown:
+          type: object
+          description: Detailed loan payment breakdown
+          properties:
+            principalAmount:
+              type: string
+              description: Original loan principal
+              pattern: '^\d+\.\d{18}$'
+            interestAmount:
+              type: string
+              description: Total interest amount
+              pattern: '^\d+\.\d{18}$'
+            originationFeeAmount:
+              type: string
+              description: Origination fee (3% of principal)
+              pattern: '^\d+\.\d{18}$'
+            totalRepaymentAmount:
+              type: string
+              description: Total amount to repay
+              pattern: '^\d+\.\d{18}$'
 
     LoanListResponse:
       type: object
@@ -902,8 +1832,8 @@ components:
           description: URL to currency logo image
           example: "https://assets.cryptogadai.com/currencies/eth.png"
       required:
-        - currencyBlockchainKey
-        - currencyTokenId
+        - blockchainKey
+        - tokenId
         - name
         - symbol
         - decimals

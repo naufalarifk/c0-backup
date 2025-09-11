@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS institution_invitations (
   institution_user_id BIGINT NOT NULL REFERENCES users (id),
   target_user_id BIGINT NOT NULL REFERENCES users (id),
   role VARCHAR(32) NOT NULL CHECK (role IN ('Owner', 'Finance')),
+  message TEXT, -- additional message from inviter
   status VARCHAR(20) NOT NULL DEFAULT 'Sent',
   invited_date TIMESTAMP NOT NULL,
   accepted_date TIMESTAMP,
@@ -116,6 +117,7 @@ CREATE TABLE IF NOT EXISTS institution_invitations (
   )
 );
 
+ALTER TABLE institution_invitations ADD COLUMN IF NOT EXISTS message TEXT;
 
 -- DEPENDENCY --
 

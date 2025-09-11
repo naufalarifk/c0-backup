@@ -7,7 +7,7 @@ set -euo pipefail
 
 COMPOSE_FILE=${COMPOSE_FILE:-"docker-compose.testing.yml"}
 SERVICE_NAME="api"
-HEALTH_CHECK_URL="http://api:3100/api/auth/ok"
+HEALTH_CHECK_URL=${HEALTH_CHECK_URL:-"http://api:3100/api/health"}
 MAX_WAIT_TIME=120
 CHECK_INTERVAL=5
 PROJECT_NAME=${PROJECT_NAME:-"cg-backend"}

@@ -96,6 +96,19 @@ export type AdminViewPendingKycsResult = {
 export type UserAppliesForInstitutionParams = {
   applicantUserId: string;
   businessName: string;
+  businessDescription?: string;
+  businessType?: string;
+  npwpNumber: string;
+  npwpDocumentPath: string;
+  registrationNumber: string;
+  registrationDocumentPath: string;
+  deedOfEstablishmentPath: string;
+  businessAddress: string;
+  businessCity: string;
+  businessProvince: string;
+  businessPostalCode: string;
+  directorName: string;
+  directorIdCardPath: string;
   applicationDate: Date;
 };
 
