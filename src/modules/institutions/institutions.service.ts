@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { FileValidatorService } from '../../shared/services/file-validator.service';
 import { MinioService } from '../../shared/services/minio.service';
+import { ResponseHelper } from '../../shared/utils/response.helper';
 import { TelemetryLogger } from '../../telemetry.logger';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { CreateInstitutionInviteDto } from './dto/create-institution-invite.dto';
@@ -17,21 +18,21 @@ export class InstitutionsService {
     private readonly fileValidatorService: FileValidatorService,
   ) {}
 
-  apply(
-    userId: string,
-    createInstitutionDto: CreateInstitutionDto & {
-      npwpDocumentPath: string;
-      registrationDocumentPath: string;
-      deedOfEstablishmentPath: string;
-      directorIdCardPath: string;
-    },
-  ) {
+  async apply(userId: string, createInstitutionDto: CreateInstitutionDto) {
     const payload = {
       ...createInstitutionDto,
       applicantUserId: userId,
       applicationDate: new Date(),
     };
-    return this.userRepo.userAppliesForInstitution(payload);
+
+    const result = await this.userRepo.userAppliesForInstitution(payload);
+
+    return ResponseHelper.created('Institution application', {
+      applicationId: result.id,
+      status: 'pending_review',
+      submissionDate: payload.applicationDate,
+      businessName: createInstitutionDto.businessName,
+    });
   }
 
   invite(userId: string, createInstitutionInviteDto: CreateInstitutionInviteDto) {
@@ -43,23 +44,37 @@ export class InstitutionsService {
     return this.userRepo.ownerUserInvitesUserToInstitution(payload);
   }
 
-  acceptInvite(userId: string, inviteId: string) {
+  async acceptInvite(userId: string, inviteId: string) {
     const payload = {
       invitationId: inviteId,
       userId: userId,
       acceptanceDate: new Date(),
     };
-    return this.userRepo.userAcceptsInstitutionInvitation(payload);
+    const result = await this.userRepo.userAcceptsInstitutionInvitation(payload);
+
+    return ResponseHelper.action('Invitation acceptance', {
+      invitationId: inviteId,
+      institutionId: result.institutionId,
+      acceptedAt: result.acceptedDate,
+      status: 'accepted',
+    });
   }
 
-  rejectInvite(userId: string, inviteId: string, reason?: string) {
+  async rejectInvite(userId: string, inviteId: string, reason?: string) {
     const payload = {
       invitationId: inviteId,
       userId: userId,
       rejectionReason: reason,
       rejectionDate: new Date(),
     };
-    return this.userRepo.userRejectsInstitutionInvitation(payload);
+    const result = await this.userRepo.userRejectsInstitutionInvitation(payload);
+
+    return ResponseHelper.action('Invitation rejection', {
+      invitationId: inviteId,
+      rejectedAt: result.rejectedDate,
+      status: 'rejected',
+      reason: reason,
+    });
   }
 
   /**

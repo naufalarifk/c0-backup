@@ -24,7 +24,6 @@ import { Auth } from '../../../decorators/auth.decorator';
 import { ApiFile } from '../../../decorators/swagger.schema';
 import { CreateKycDto, SubmitKycDto } from './dto/create-kyc.dto';
 import { KycStatusResponseDto } from './dto/kyc-status-response.dto';
-import { KycSubmissionResponseDto } from './dto/kyc-submission-response.dto';
 import { KycService } from './kyc.service';
 
 @Controller()
@@ -56,7 +55,7 @@ export class KycController {
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'KYC submission successful',
-    type: KycSubmissionResponseDto,
+    type: KycStatusResponseDto,
   })
   @ApiBadRequestResponse({
     description: 'Invalid input data, validation errors, or missing required files',
@@ -72,7 +71,7 @@ export class KycController {
       selfieWithIdCardPhoto: File[];
     },
     @Body() kycData: SubmitKycDto,
-  ): Promise<KycSubmissionResponseDto> {
+  ) {
     const { idCardPhoto, selfieWithIdCardPhoto } = this.validateFiles(files);
     const userId = session.user.id;
 

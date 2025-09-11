@@ -16,7 +16,7 @@ import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 
 import { Auth } from '../../decorators/auth.decorator';
 import { ApiFile } from '../../decorators/swagger.schema';
-import { CreateInstitutionDto } from './dto/create-institution.dto';
+import { SubmitCreateInstitutionDto } from './dto/create-institution.dto';
 import { CreateInstitutionInviteDto } from './dto/create-institution-invite.dto';
 import { InvitationStatus, UpdateInvitationStatusDto } from './dto/update-invitation-status.dto';
 import { InstitutionsService } from './institutions.service';
@@ -31,6 +31,22 @@ export class InstitutionsController {
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Institution application submitted successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Institution application created successfully' },
+        data: {
+          type: 'object',
+          properties: {
+            applicationId: { type: 'string', example: 'uuid-123' },
+            status: { type: 'string', example: 'Pending' },
+            submissionDate: { type: 'string', format: 'date-time' },
+            businessName: { type: 'string', example: 'PT. Example' },
+          },
+        },
+        timestamp: { type: 'string', format: 'date-time' },
+      },
+    },
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -53,7 +69,7 @@ export class InstitutionsController {
       deedOfEstablishment: File[];
       directorIdCard: File[];
     },
-    @Body() createInstitutionDto: CreateInstitutionDto,
+    @Body() createInstitutionDto: SubmitCreateInstitutionDto,
   ) {
     const { npwpDocument, registrationDocument, deedOfEstablishment, directorIdCard } =
       this.validateInstitutionFiles(files);

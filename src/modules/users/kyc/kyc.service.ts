@@ -3,6 +3,7 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { FileValidatorService } from '../../../shared/services/file-validator.service';
 import { MinioService } from '../../../shared/services/minio.service';
+import { ResponseHelper } from '../../../shared/utils';
 import { TelemetryLogger } from '../../../telemetry.logger';
 import { CreateKycDto } from './dto/create-kyc.dto';
 
@@ -61,15 +62,12 @@ export class KycService {
     // 5. Log successful submission
     this.logger.log(`KYC submitted successfully`, { userId, kycId: res.id });
 
-    // 6. Return response in expected DTO format
-    return {
+    // 6. Return response using ResponseHelper
+    return ResponseHelper.created('KYC', {
       id: res.id,
-      userId: res.userId,
-      name: createKycDto.name,
-      nik: createKycDto.nik,
-      submissionDate: kycData.submissionDate,
       status: 'pending' as const,
-    };
+      submissionDate: kycData.submissionDate,
+    });
   }
 
   /**
