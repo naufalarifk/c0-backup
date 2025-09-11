@@ -14,7 +14,6 @@ import {
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { ApiFile } from '../../../decorators/swagger.schema';
-import { TelemetryLogger } from '../../../telemetry.logger';
 import { Session } from '../../auth/auth.decorator';
 import { AuthGuard } from '../../auth/auth.guard';
 import { AuthService } from '../../auth/auth.service';
@@ -23,28 +22,10 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateProfileResponseDto } from './dto/update-profile-response.dto';
 import { ProfileService } from './profile.service';
 
-/**
- * ProfileController handles user profile operations including profile picture upload
- *
- * Consistent with KYC patterns:
- * - Uses ProfileService for both profile data and file handling
- * - Security: Files are validated for type, size, and malicious content
- * - Returns bucket:objectPath format for database storage
- * - Frontend gets presigned URLs from ProfileService.findOne()
- *
- * Example usage:
- * ```
- * const formData = new FormData();
- * formData.append('name', 'John Doe'); // Optional text update
- * formData.append('profilePicture', file); // Optional file
- * ```
- */
 @Controller()
 @ApiTags('Profile')
 @UseGuards(AuthGuard)
 export class ProfileController {
-  private readonly logger = new TelemetryLogger(ProfileController.name);
-
   constructor(
     private readonly profileService: ProfileService,
     private readonly auth: AuthService,
@@ -94,49 +75,16 @@ export class ProfileController {
     @UploadedFile() profilePicture: File,
     @Body() updateProfileDto: UpdateProfileDto,
   ) {
-    const profilePictureFile = profilePicture;
-
-    let profilePictureUrl: string | undefined;
-
-    // Debug logging to check if file is received
-    this.logger.log('Profile update request received', {
-      userId: session.user.id,
-      hasFile: !!profilePictureFile,
-      fileInfo: profilePictureFile
-        ? {
-            originalName: profilePictureFile.originalname,
-            mimeType: profilePictureFile.mimetype,
-            size: profilePictureFile.size,
-          }
-        : null,
-      updateData: updateProfileDto,
-    });
-
-    // If user uploaded a new profile picture, upload it first
-    if (profilePictureFile) {
-      // Upload file using ProfileService (merged from ProfileFileService)
-      const uploadResult = await this.profileService.uploadProfilePicture(
-        profilePictureFile.buffer,
-        profilePictureFile.originalname,
-        session.user.id,
-        profilePictureFile.mimetype,
-      );
-
-      // Store bucket:objectPath format (consistent with KYC)
-      profilePictureUrl = `${uploadResult.bucket}:${uploadResult.objectPath}`;
-
-      this.logger.log('Profile picture uploaded successfully', {
-        userId: session.user.id,
-        objectPath: uploadResult.objectPath,
-        fileSize: uploadResult.size,
-        mimeType: profilePictureFile.mimetype,
-        bucket: uploadResult.bucket,
-      });
-    }
+    // Process profile update with optional file upload
+    const updateData = await this.profileService.processProfileUpdate(
+      session.user.id,
+      updateProfileDto,
+      profilePicture,
+    );
 
     return this.auth.api.updateUser({
       headers,
-      body: { name: updateProfileDto.name, image: profilePictureUrl },
+      body: updateData,
     });
   }
 }
