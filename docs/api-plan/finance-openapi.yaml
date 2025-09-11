@@ -28,15 +28,16 @@ info:
     url: https://cryptogadai.com/license
 
 servers:
-  - url: https://api.cryptogadai.com/api/v1
+  - url: https://api.cryptogadai.com/api
     description: Production server
-  - url: https://staging-api.cryptogadai.com/api/v1
-    description: Staging server
-  - url: http://localhost:3000/api/v1
+  - url: https://cg-api.fh47.com/api
+    description: Testing server
+  - url: http://cg-api.localhost/api
     description: Local development server
 
 security:
-  - BearerAuth: []
+  - apiKeyCookie: []
+  - bearerAuth: []
 
 paths:
   # Exchange Rate Management
@@ -54,18 +55,30 @@ paths:
         - Bid/ask spreads included for transparency
       operationId: getExchangeRates
       parameters:
-        - name: baseCurrency
+        - name: baseCurrencyBlockchainKey
           in: query
-          description: Filter by base currency (blockchain_key:token_id format)
+          description: Filter by base currency blockchain key (CAIP-2 format)
           schema:
             type: string
-            example: "eip155:1:slip44:60"
-        - name: quoteCurrency
+            example: "eip155:1"
+        - name: baseCurrencyTokenId
           in: query
-          description: Filter by quote currency (blockchain_key:token_id format)
+          description: Filter by base currency token ID (CAIP-19 format)
           schema:
             type: string
-            example: "eip155:56:erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+            example: "slip44:60"
+        - name: quoteCurrencyBlockchainKey
+          in: query
+          description: Filter by quote currency blockchain key (CAIP-2 format)
+          schema:
+            type: string
+            example: "eip155:56"
+        - name: quoteCurrencyTokenId
+          in: query
+          description: Filter by quote currency token ID (CAIP-19 format)
+          schema:
+            type: string
+            example: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
         - name: source
           in: query
           description: Filter by price feed source
@@ -181,7 +194,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-
   # Withdrawal Management
   /beneficiaries:
     get:
@@ -267,7 +279,7 @@ paths:
         
         **Withdrawal States (time-based):**
         - Requested: request_date IS NOT NULL AND sent_date IS NULL
-        - Sent: sent_date IS NOT NULL AND confirmed_date IS NULL AND failed_date IS NULL
+        - Sent: sent_date IS NOT NULL AND confirmed_date IS NULL AND failed_date IS NOT NULL
         - Confirmed: confirmed_date IS NOT NULL
         - Failed: failed_date IS NOT NULL
       operationId: listWithdrawals
@@ -426,10 +438,15 @@ paths:
 
 components:
   securitySchemes:
-    BearerAuth:
+    apiKeyCookie:
+      type: apiKey
+      in: cookie
+      name: apiKeyCookie
+      description: Better Auth API Key authentication via cookie
+    bearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: JWT
+      description: Better Auth Bearer token authentication
 
   schemas:
     # Account Management Schemas
@@ -476,30 +493,36 @@ components:
           type: string
           description: Available balance (decimal string)
           example: "1250.750000000000000000"
-        pendingOperations:
-          type: object
-          properties:
-            pendingWithdrawals:
-              type: string
-              description: Amount reserved for pending withdrawals
-              example: "100.000000000000000000"
-            activeLoanCollaterals:
-              type: string
-              description: Amount locked as loan collateral
-              example: "5000.000000000000000000"
-            reservedAmounts:
-              type: string
-              description: Other reserved amounts
-              example: "0.000000000000000000"
         lastUpdated:
           type: string
           format: date-time
           example: "2025-08-11T10:30:00Z"
+        valuation:
+          type: object
+          properties:
+            amount:
+              type: string
+              description: Balance value in USD
+              example: "2451.25"
+            currency:
+              $ref: '#/components/schemas/Currency'
+            exchangeRate:
+              type: string
+              description: Exchange rate used for valuation
+              example: "1.960000000000000000"
+            rateSource:
+              type: string
+              description: Source of the exchange rate
+              example: "coinbase"
+            rateDate:
+              type: string
+              format: date-time
+              description: Timestamp of the exchange rate
+              example: "2025-08-11T10:29:45Z"
       required:
         - id
         - currency
         - balance
-        - pendingOperations
         - lastUpdated
 
     AccountMutationsResponse:
@@ -566,40 +589,40 @@ components:
       type: string
       enum:
         # Invoice operations
-        - invoiceReceived
+        - InvoiceReceived
         # Loan operations - borrower perspective
-        - loanCollateralDeposit
-        - loanApplicationCollateralEscrowed
-        - loanPrincipalDisbursement
-        - loanDisbursementReceived
-        - loanPrincipalDisbursementFee
-        - loanRepayment
-        - loanCollateralRelease
-        - loanCollateralReturned
-        - loanCollateralReleased
-        - loanLiquidationRelease
-        - loanLiquidationSurplus
-        - loanLiquidationReleaseFee
+        - LoanCollateralDeposit
+        - LoanApplicationCollateralEscrowed
+        - LoanPrincipalDisbursement
+        - LoanDisbursementReceived
+        - LoanPrincipalDisbursementFee
+        - LoanRepayment
+        - LoanCollateralRelease
+        - LoanCollateralReturned
+        - LoanCollateralReleased
+        - LoanLiquidationRelease
+        - LoanLiquidationSurplus
+        - LoanLiquidationReleaseFee
         # Loan operations - lender perspective
-        - loanPrincipalFunded
-        - loanOfferPrincipalEscrowed
-        - loanPrincipalReturned
-        - loanPrincipalReturnedFee
-        - loanInterestReceived
-        - loanRepaymentReceived
-        - loanLiquidationRepayment
+        - LoanPrincipalFunded
+        - LoanOfferPrincipalEscrowed
+        - LoanPrincipalReturned
+        - LoanPrincipalReturnedFee
+        - LoanInterestReceived
+        - LoanRepaymentReceived
+        - LoanLiquidationRepayment
         # Loan operations - platform perspective
-        - loanDisbursementPrincipal
-        - loanDisbursementFee
-        - loanRedeliveryFee
-        - loanLiquidationFee
-        - loanLiquidationCollateralUsed
+        - LoanDisbursementPrincipal
+        - LoanDisbursementFee
+        - LoanRedeliveryFee
+        - LoanLiquidationFee
+        - LoanLiquidationCollateralUsed
         # Withdrawal operations
-        - withdrawalRequested
-        - withdrawalRefunded
+        - WithdrawalRequested
+        - WithdrawalRefunded
         # Platform fee operations
-        - platformFeeCharged
-        - platformFeeRefunded
+        - PlatformFeeCharged
+        - PlatformFeeRefunded
 
     # Withdrawal Management Schemas
     BeneficiariesResponse:
@@ -792,6 +815,7 @@ components:
             - failed
           example: "confirmed"
           readOnly: true
+          writeOnly: false
         blockchainExplorerUrl:
           type: string
           description: Link to view transaction on blockchain explorer
@@ -862,7 +886,6 @@ components:
       required:
         - success
         - data
-
 
     ExchangeRate:
       type: object

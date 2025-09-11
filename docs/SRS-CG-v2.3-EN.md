@@ -634,7 +634,7 @@ Main functions of the Crypto Collateral platform include:
 
 **RF-019: Invoice Creation**
 - **Priority**: Critical
-- **Description**: Create payment invoice with unique blockchain address
+- **Description**: Platform creates payment invoice with unique blockchain address
 - **Input**: Currency, amount, type, due date
 - **Processing**:
   1. Validate parameters
