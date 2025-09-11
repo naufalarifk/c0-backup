@@ -2,7 +2,6 @@ import type { File } from '../../../shared/types';
 import type { UserSession } from '../../auth/types';
 
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -72,48 +71,6 @@ export class KycController {
     },
     @Body() kycData: SubmitKycDto,
   ) {
-    const { idCardPhoto, selfieWithIdCardPhoto } = this.validateFiles(files);
-    const userId = session.user.id;
-
-    // Upload files in parallel
-    const [idCardResult, selfieWithIdResult] = await Promise.all([
-      this.kycService.uploadFile(
-        idCardPhoto.buffer,
-        idCardPhoto.originalname,
-        userId,
-        'id-card',
-        idCardPhoto.mimetype,
-      ),
-      this.kycService.uploadFile(
-        selfieWithIdCardPhoto.buffer,
-        selfieWithIdCardPhoto.originalname,
-        userId,
-        'selfie-with-id-card',
-        selfieWithIdCardPhoto.mimetype,
-      ),
-    ]);
-
-    // Create KYC data with object paths
-    const createKycDto: CreateKycDto = {
-      ...kycData,
-      idCardPhoto: `${idCardResult.bucket}:${idCardResult.objectPath}`,
-      selfieWithIdCardPhoto: `${selfieWithIdResult.bucket}:${selfieWithIdResult.objectPath}`,
-    };
-
-    return await this.kycService.createKyc(userId, createKycDto);
-  }
-
-  private validateFiles(files: { idCardPhoto: File[]; selfieWithIdCardPhoto: File[] }) {
-    if (!files?.idCardPhoto?.[0]) {
-      throw new BadRequestException('ID Card Photo is required');
-    }
-    if (!files?.selfieWithIdCardPhoto?.[0]) {
-      throw new BadRequestException('Selfie with ID Card Photo is required');
-    }
-
-    return {
-      idCardPhoto: files.idCardPhoto[0],
-      selfieWithIdCardPhoto: files.selfieWithIdCardPhoto[0],
-    };
+    return this.kycService.createKyc(session.user.id, kycData, files);
   }
 }

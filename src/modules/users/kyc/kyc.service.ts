@@ -1,11 +1,12 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { FileValidatorService } from '../../../shared/services/file-validator.service';
 import { MinioService } from '../../../shared/services/minio.service';
+import { File } from '../../../shared/types';
 import { ResponseHelper } from '../../../shared/utils';
 import { TelemetryLogger } from '../../../telemetry.logger';
-import { CreateKycDto } from './dto/create-kyc.dto';
+import { CreateKycDto, SubmitKycDto } from './dto/create-kyc.dto';
 
 @Injectable()
 export class KycService {
@@ -21,7 +22,52 @@ export class KycService {
     return this.userRepo.userViewsKYCStatus({ userId });
   }
 
-  async createKyc(userId: string, createKycDto: CreateKycDto) {
+  /**
+   * Submit KYC with required file uploads
+   */
+  async createKyc(
+    userId: string,
+    kycData: SubmitKycDto,
+    files: {
+      idCardPhoto: File[];
+      selfieWithIdCardPhoto: File[];
+    },
+  ) {
+    // Validate required files
+    const validatedFiles = this.validateFiles(files);
+
+    // Upload files in parallel
+    const [idCardResult, selfieWithIdResult] = await Promise.all([
+      this.uploadFile(
+        validatedFiles.idCardPhoto.buffer,
+        validatedFiles.idCardPhoto.originalname,
+        userId,
+        'id-card',
+        validatedFiles.idCardPhoto.mimetype,
+      ),
+      this.uploadFile(
+        validatedFiles.selfieWithIdCardPhoto.buffer,
+        validatedFiles.selfieWithIdCardPhoto.originalname,
+        userId,
+        'selfie-with-id-card',
+        validatedFiles.selfieWithIdCardPhoto.mimetype,
+      ),
+    ]);
+
+    // Create KYC data with file paths
+    const createKycDto: CreateKycDto = {
+      ...kycData,
+      idCardPhoto: `${idCardResult.bucket}:${idCardResult.objectPath}`,
+      selfieWithIdCardPhoto: `${selfieWithIdResult.bucket}:${selfieWithIdResult.objectPath}`,
+    };
+
+    return this.submitKyc(userId, createKycDto);
+  }
+
+  /**
+   * Internal method for KYC submission logic
+   */
+  private async submitKyc(userId: string, createKycDto: CreateKycDto) {
     // 1. Get current user KYC status to enforce security policies
     const kycStatus = await this.userRepo.userViewsKYCStatus({ userId });
 
@@ -68,6 +114,23 @@ export class KycService {
       status: 'pending' as const,
       submissionDate: kycData.submissionDate,
     });
+  }
+
+  /**
+   * Validate that all required KYC files are present
+   */
+  private validateFiles(files: { idCardPhoto: File[]; selfieWithIdCardPhoto: File[] }) {
+    if (!files?.idCardPhoto?.[0]) {
+      throw new BadRequestException('ID Card Photo is required');
+    }
+    if (!files?.selfieWithIdCardPhoto?.[0]) {
+      throw new BadRequestException('Selfie with ID Card Photo is required');
+    }
+
+    return {
+      idCardPhoto: files.idCardPhoto[0],
+      selfieWithIdCardPhoto: files.selfieWithIdCardPhoto[0],
+    };
   }
 
   /**
