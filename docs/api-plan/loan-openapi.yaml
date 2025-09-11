@@ -13,15 +13,16 @@ info:
     - Background processing workflows
     
 servers:
-  - url: https://api.cryptogadai.com/v1
+  - url: https://api.cryptogadai.com/api
     description: Production server
-  - url: https://staging-api.cryptogadai.com/v1
-    description: Staging server
-  - url: http://localhost:3000/api/v1
+  - url: https://cg-api.fh47.com/api
+    description: Testing server
+  - url: http://cg-api.localhost/api
     description: Local development server
 
 security:
-  - BearerAuth: []
+  - apiKeyCookie: []
+  - bearerAuth: []
 
 tags:
   - name: Loan Offers
@@ -32,8 +33,6 @@ tags:
     description: Active loan contract management
   - name: Valuations
     description: LTV monitoring and collateral valuation
-  - name: Admin
-    description: Administrative loan management functions
 
 paths:
   # Loan Offers
@@ -163,34 +162,6 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationError'
 
-  # Interest Rate Management
-  /loan-applications/interest-rates/validate:
-    post:
-      tags: [Loan Applications]
-      summary: Validate proposed interest rate
-      description: |
-        Validate if a proposed interest rate is within acceptable market ranges.
-        
-        **Validation Rules:**
-        - Rate must be within platform min/max bounds
-        - Rate should be competitive with current market rates
-        - Rate is validated against recent successful loan rates
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InterestRateValidationRequest'
-      responses:
-        '200':
-          description: Interest rate validation results
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InterestRateValidationResponse'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-
   /loan-applications:
     post:
       tags: [Loan Applications]
@@ -304,31 +275,6 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /loans/{id}/repay:
-    post:
-      tags: [Loans]
-      summary: Process loan repayment
-      description: Process repayment for an active loan
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LoanRepaymentRequest'
-      responses:
-        '200':
-          description: Repayment processed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LoanRepaymentResponse'
-
   # Valuations
   /loans/{id}/valuations:
     get:
@@ -351,22 +297,198 @@ paths:
               schema:
                 $ref: '#/components/schemas/LoanValuationListResponse'
 
-  # Admin endpoints
-  /admin/loans/matching/trigger:
+  # Early Liquidation
+  /loans/{id}/early-liquidation/estimate:
     post:
-      tags: [Admin]
-      summary: Trigger loan matching
-      description: Manually trigger the loan matching algorithm
+      tags: [Loans]
+      summary: Calculate early liquidation estimate
+      description: |
+        Calculate the estimated outcome of early liquidation for an active loan.
+        
+        This endpoint provides:
+        - Current collateral valuation using latest exchange rates
+        - Breakdown of all fees and costs involved
+        - Estimated surplus or deficit after liquidation
+        - Early liquidation fee calculation (1% of outstanding loan)
+        
+        **Requirements:**
+        - Loan must be in 'Active' status
+        - User must be the borrower of the loan
+        - Current collateral valuation must be sufficient
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Loan ID to estimate early liquidation for
       responses:
         '200':
-          description: Matching triggered successfully
+          description: Early liquidation estimate calculated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarlyLiquidationEstimateResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          description: User is not the borrower of this loan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Loan not eligible for early liquidation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /loans/{id}/early-liquidation/request:
+    post:
+      tags: [Loans]
+      summary: Request early liquidation
+      description: |
+        Submit a request for early liquidation of an active loan.
+        
+        **Process:**
+        1. Validate loan eligibility and borrower ownership
+        2. Calculate final liquidation amounts using current market rates
+        3. Create liquidation record with 'Pending' status
+        4. Queue liquidation processing for execution
+        5. Send confirmation notification to borrower
+        
+        **Important Notes:**
+        - Early liquidation fee: 1% of outstanding loan amount
+        - All interest and origination fees are still charged in full
+        - Any surplus after payment will be returned in USDT
+        - Process is irreversible once submitted
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Loan ID to request early liquidation for
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EarlyLiquidationRequestPayload'
+      responses:
+        '201':
+          description: Early liquidation request submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarlyLiquidationRequestResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          description: User is not the borrower of this loan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Early liquidation already in progress or loan not eligible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Loan not eligible for early liquidation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /loans/{id}/early-repayment/request:
+    post:
+      tags: [Loans]
+      summary: Request early loan repayment
+      description: |
+        Submit a request for early repayment of an active loan before maturity date.
+        
+        **Process:**
+        1. Validate loan eligibility and borrower ownership
+        2. Calculate full repayment amount (no pro-rata interest reduction)
+        3. Create repayment invoice for full amount
+        4. Record repayment request with initiator='Borrower'
+        5. Send repayment invoice to borrower
+        
+        **Payment Terms (per SRS BR-008):**
+        - Principal: Full loan amount
+        - Interest: Full interest amount (no reduction for early payment)
+        - Origination Fee: Full 3% of principal amount
+        - Early Payment Fee: NONE (no additional fee)
+        - Total Payment = Principal + Full Interest + Origination Fee
+        
+        **Important Notes:**
+        - No early payment fee or penalty applied
+        - Interest is charged in full regardless of early payment
+        - Origination fee is charged in full
+        - Payment processed through standard invoice system
+        - Process is irreversible once submitted
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Loan ID to request early repayment for
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EarlyRepaymentRequestPayload'
+      responses:
+        '201':
+          description: Early repayment request submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarlyRepaymentRequestResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          description: User is not the borrower of this loan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Early repayment already in progress or loan not eligible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Loan not eligible for early repayment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   securitySchemes:
-    BearerAuth:
+    apiKeyCookie:
+      type: apiKey
+      in: cookie
+      name: apiKeyCookie
+      description: Better Auth API Key authentication via cookie
+    bearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: JWT
+      description: Better Auth Bearer token authentication
 
   parameters:
     Page:
@@ -393,12 +515,12 @@ components:
         - principalBlockchainKey
         - principalTokenId
         - totalAmount
-        - acceptedCollaterals
         - interestRate
         - termOptions
         - minLoanAmount
         - maxLoanAmount
         - liquidationMode
+        - expirationDate
       properties:
         principalBlockchainKey:
           type: string
@@ -414,24 +536,9 @@ components:
           type: string
           description: Total loan offer amount (18 decimal precision)
           pattern: '^\d+\.\d{18}$'
-        acceptedCollaterals:
-          type: array
-          items:
-            type: object
-            properties:
-              currencyBlockchainKey:
-                type: string
-                maxLength: 64
-              currencyTokenId:
-                type: string
-                maxLength: 64
-            required:
-              - currencyBlockchainKey
-              - currencyTokenId
-          description: Accepted collateral currencies
-          example: [{"currencyBlockchainKey": "eip155:1", "currencyTokenId": "slip44:60"}, {"currencyBlockchainKey": "bip122:000000000019d6689c085ae165831e93", "currencyTokenId": "slip44:0"}]
         interestRate:
           type: number
+          description: Annual interest rate (percentage)
           minimum: 0
           maximum: 100
         termOptions:
@@ -441,22 +548,26 @@ components:
             enum: [1, 3, 6, 12]
         minLoanAmount:
           type: string
-          description: Minimum loan amount (18 decimal precision)
+          description: Minimum loan amount (decimal places depending on principal currency)
           pattern: '^\d+\.\d{18}$'
         maxLoanAmount:
           type: string
-          description: Maximum loan amount (18 decimal precision)
+          description: Maximum loan amount (decimal places depending on principal currency)
           pattern: '^\d+\.\d{18}$'
         liquidationMode:
           type: string
-          enum: [partial, full]
+          enum: [Partial, Full]
+        expirationDate:
+          type: string
+          format: date-time
+          description: Optional expiration date for the offer
 
     UpdateLoanOfferRequest:
       type: object
       properties:
         action:
           type: string
-          enum: [pause, resume, close]
+          enum: [Close]
         closureReason:
           type: string
 
@@ -468,7 +579,7 @@ components:
         lenderId:
           type: string
         principalCurrency:
-          type: string
+          $ref: '#/components/schemas/Currency'
         totalAmount:
           type: string
         availableAmount:
@@ -484,8 +595,9 @@ components:
         status:
           type: string
           description: Current offer status (derived from time-based fields and business logic)
-          enum: [draft, published, paused, closed]
+          enum: [Draft, Published, Closed]
           readOnly: true
+          writeOnly: false
         createdDate:
           type: string
           format: date-time
@@ -516,9 +628,9 @@ components:
       required:
         - collateralBlockchainKey
         - collateralTokenId
-        - principalAmount
         - principalBlockchainKey
         - principalTokenId
+        - principalAmount
       properties:
         collateralBlockchainKey:
           type: string
@@ -530,9 +642,6 @@ components:
           description: Token ID for collateral
           example: "slip44:60"
           maxLength: 64
-        principalAmount:
-          type: string
-          pattern: '^\d+\.\d{18}$'
         principalBlockchainKey:
           type: string
           description: Blockchain key for principal currency
@@ -543,6 +652,9 @@ components:
           description: Token ID for principal currency
           example: "erc20:0xdac17f958d2ee523a2206206994597c13d831ec7"
           maxLength: 64
+        principalAmount:
+          type: string
+          pattern: '^\d+\.\d{18}$'
 
     LoanCalculationResponse:
       type: object
@@ -552,16 +664,10 @@ components:
         data:
           type: object
           properties:
-            requiredCollateral:
+            requiredCollateralAmount:
               type: string
             exchangeRate:
               type: string
-            maxLtvRatio:
-              type: number
-            safetyBuffer:
-              type: number
-            collateralInvoice:
-              $ref: '#/components/schemas/Invoice'
 
     CreateLoanApplicationRequest:
       type: object
@@ -607,7 +713,7 @@ components:
           enum: [1, 3, 6, 12]
         liquidationMode:
           type: string
-          enum: [partial, full]
+          enum: [Partial, Full]
         minLtvRatio:
           type: number
           minimum: 0
@@ -618,11 +724,7 @@ components:
       properties:
         action:
           type: string
-          enum: [cancel, extend]
-        extendDays:
-          type: integer
-          minimum: 1
-          maximum: 30
+          enum: [Cancel]
 
     LoanApplicationResponse:
       type: object
@@ -638,8 +740,9 @@ components:
         status:
           type: string
           description: Current application status (derived from time-based fields and business logic)
-          enum: [draft, published, matched, expired, closed]
+          enum: [Draft, Published, Matched, Expired, Closed]
           readOnly: true
+          writeOnly: false
         createdDate:
           type: string
           format: date-time
@@ -677,8 +780,12 @@ components:
           type: string
         lenderId:
           type: string
+        principalCurrency:
+          $ref: '#/components/schemas/Currency'
         principalAmount:
           type: string
+        collateralCurrency:
+          $ref: '#/components/schemas/Currency'
         collateralAmount:
           type: string
         interestRate:
@@ -692,8 +799,9 @@ components:
         status:
           type: string
           description: Current loan status (derived from time-based fields and business logic)
-          enum: [originated, disbursed, active, repaid, liquidated]
+          enum: [Originated, Disbursed, Active, Repaid, Liquidated]
           readOnly: true
+          writeOnly: false
         originationDate:
           type: string
           format: date-time
@@ -709,6 +817,8 @@ components:
         liquidationDate:
           type: string
           format: date-time
+        repaymentInvoice:
+          $ref: '#/components/schemas/Invoice'
 
     LoanListResponse:
       type: object
@@ -724,35 +834,6 @@ components:
                 $ref: '#/components/schemas/LoanResponse'
             pagination:
               $ref: '#/components/schemas/PaginationMeta'
-
-    LoanRepaymentRequest:
-      type: object
-      required:
-        - amount
-      properties:
-        amount:
-          type: string
-          description: Repayment amount (18 decimal precision)
-          pattern: '^\d+\.\d{18}$'
-
-    LoanRepaymentResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        data:
-          type: object
-          properties:
-            repaymentAmount:
-              type: string
-            remainingBalance:
-              type: string
-            collateralReleased:
-              type: string
-            status:
-              type: string
-              description: Current repayment status (derived from business logic)
-              readOnly: true
 
     # Valuation Schemas
     LoanValuationResponse:
@@ -791,12 +872,12 @@ components:
     Currency:
       type: object
       properties:
-        currencyBlockchainKey:
+        blockchainKey:
           type: string
           description: CAIP-2 compliant blockchain identifier
           example: "eip155:1"
           maxLength: 64
-        currencyTokenId:
+        tokenId:
           type: string
           description: Token identifier within the blockchain
           example: "slip44:60"
@@ -900,64 +981,8 @@ components:
         - hasNext
         - hasPrev
 
-    InterestRateValidationRequest:
-      type: object
-      properties:
-        proposedRate:
-          type: string
-          description: Proposed annual interest rate (percentage)
-          example: "12.5000"
-          pattern: '^\d+\.\d{4}$'
-        loanTerms:
-          type: object
-          properties:
-            principalAmount:
-              type: string
-              description: Loan principal amount
-              example: "10000.000000000000000000"
-            collateralAmount:
-              type: string
-              description: Collateral amount
-              example: "15000.000000000000000000"
-            duration:
-              type: integer
-              description: Loan duration in days
-              example: 7
-              minimum: 1
-              maximum: 365
-            collateralCurrencyBlockchainKey:
-              type: string
-              example: "eip155:1"
-            collateralCurrencyTokenId:
-              type: string
-              example: "slip44:60"
-            loanCurrencyBlockchainKey:
-              type: string
-              example: "eip155:56"
-            loanCurrencyTokenId:
-              type: string
-              example: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
-        applicantProfile:
-          type: object
-          properties:
-            userType:
-              type: string
-              enum: [Individual, Institution]
-              example: "Individual"
-            creditScore:
-              type: integer
-              description: Platform credit score (if available)
-              nullable: true
-              example: 750
-            previousLoanCount:
-              type: integer
-              description: Number of previous successful loans
-              example: 3
-      required:
-        - proposedRate
-        - loanTerms
-
-    InterestRateValidationResponse:
+    # Early Liquidation Schemas
+    EarlyLiquidationEstimateResponse:
       type: object
       properties:
         success:
@@ -966,90 +991,406 @@ components:
         data:
           type: object
           properties:
-            isValid:
-              type: boolean
-              description: Whether the proposed rate is acceptable
-              example: true
-            validationDetails:
+            loanId:
+              type: string
+              description: Loan identifier
+              example: "12345"
+            currentValuation:
+              $ref: '#/components/schemas/CollateralValuation'
+            liquidationBreakdown:
+              $ref: '#/components/schemas/LiquidationBreakdown'
+            estimatedOutcome:
               type: object
               properties:
-                withinPlatformLimits:
-                  type: boolean
-                  description: Rate is within platform min/max bounds
-                  example: true
-                competitiveRating:
+                totalLiquidationProceeds:
                   type: string
-                  enum: [highly_competitive, competitive, fair, above_market, excessive]
-                  description: How the rate compares to market
-                  example: "competitive"
-                marketComparison:
-                  type: object
-                  properties:
-                    averageMarketRate:
-                      type: string
-                      description: Current average market rate for similar loans
-                      example: "11.2500"
-                    percentileRank:
-                      type: integer
-                      description: Percentile rank of proposed rate (0-100)
-                      example: 65
-                    recommendedRange:
-                      type: object
-                      properties:
-                        min:
-                          type: string
-                          example: "9.5000"
-                        max:
-                          type: string
-                          example: "14.0000"
-                platformLimits:
-                  type: object
-                  properties:
-                    minRate:
-                      type: string
-                      description: Platform minimum interest rate
-                      example: "5.0000"
-                    maxRate:
-                      type: string
-                      description: Platform maximum interest rate
-                      example: "25.0000"
-            recommendations:
-              type: array
-              items:
-                type: object
-                properties:
-                  type:
-                    type: string
-                    enum: [rate_adjustment, term_modification, collateral_optimization]
-                    example: "rate_adjustment"
-                  message:
-                    type: string
-                    example: "Consider reducing rate to 11.5% for better competitiveness"
-                  suggestedRate:
-                    type: string
-                    nullable: true
-                    example: "11.5000"
-            warnings:
+                  description: Total USDT from collateral liquidation
+                  example: "12500.000000000000000000"
+                  pattern: '^\d+\.\d{18}$'
+                totalDeductions:
+                  type: string
+                  description: Total amount deducted (loan + interest + fees)
+                  example: "10900.000000000000000000"
+                  pattern: '^\d+\.\d{18}$'
+                estimatedSurplus:
+                  type: string
+                  description: Estimated surplus returned to borrower in USDT
+                  example: "1600.000000000000000000"
+                  pattern: '^\d+\.\d{18}$'
+                breakeven:
+                  type: boolean
+                  description: Whether liquidation will break even or result in deficit
+                  example: true
+            calculationDate:
+              type: string
+              format: date-time
+              description: When this estimate was calculated
+              example: "2025-08-13T15:30:00Z"
+            disclaimers:
               type: array
               items:
                 type: string
-              example: ["Rate is above 75th percentile of recent successful loans"]
+              description: Important disclaimers about the estimate
+              example:
+                - "Actual liquidation proceeds may vary due to market conditions"
+                - "Exchange rates are subject to change until execution"
+                - "Early liquidation fee of 1% is final and non-refundable"
       required:
         - success
         - data
 
-    CurrencyPair:
+    EarlyLiquidationRequestPayload:
       type: object
       properties:
-        currencyBlockchainKey:
-          type: string
-          example: "eip155:1"
-        currencyTokenId:
-          type: string
-          example: "slip44:60"
+        acknowledgment:
+          type: boolean
+          description: Borrower acknowledges terms and conditions
+          example: true
+        # [TBD] we don't do 2FA yet
+        # twoFactorCode:
+        #   type: string
+        #   description: 2FA authentication code (if enabled)
+        #   example: "123456"
+        # confirmationMessage:
+        #   type: string
+        #   description: Confirmation message for irreversible action
+        #   example: "I understand this action is irreversible and agree to proceed"
       required:
-        - currencyBlockchainKey
-        - currencyTokenId
+        - acknowledgment
+
+    EarlyLiquidationRequestResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            liquidationId:
+              type: string
+              description: Unique liquidation request identifier
+              example: "liq_67890"
+            loanId:
+              type: string
+              description: Associated loan identifier
+              example: "12345"
+            status:
+              type: string
+              enum: [Pending, Processing, Fulfilled, Failed]
+              description: Current liquidation status
+              example: "Pending"
+            submittedDate:
+              type: string
+              format: date-time
+              description: When the liquidation request was submitted
+              example: "2025-08-13T15:30:00Z"
+            estimatedCompletionTime:
+              type: string
+              description: Estimated completion time for liquidation
+              example: "2-4 hours"
+            finalBreakdown:
+              $ref: '#/components/schemas/LiquidationBreakdown'
+            nextSteps:
+              type: array
+              items:
+                type: string
+              description: What happens next in the process
+              example:
+                - "Collateral will be liquidated on the market"
+                - "Loan payment will be processed"
+                - "Any surplus will be credited to your account"
+                - "You will receive email confirmation when complete"
+        message:
+          type: string
+          description: Confirmation message
+          example: "Early liquidation request submitted successfully"
+      required:
+        - success
+        - data
+        - message
+
+    # Early Repayment Schemas
+    EarlyRepaymentRequestPayload:
+      type: object
+      properties:
+        acknowledgment:
+          type: boolean
+          description: Borrower acknowledges terms and conditions
+          example: true
+        # [TBD] we don't do 2FA yet
+        # twoFactorCode:
+        #   type: string
+        #   description: 2FA authentication code (if enabled)
+        #   example: "123456"
+        # confirmationMessage:
+        #   type: string
+        #   description: Confirmation message for repayment request
+        #   example: "I understand I will pay the full interest and origination fee even for early repayment"
+      required:
+        - acknowledgment
+
+    EarlyRepaymentRequestResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            repaymentId:
+              type: string
+              description: Unique repayment request identifier
+              example: "rep_12345"
+            loanId:
+              type: string
+              description: Associated loan identifier
+              example: "12345"
+            status:
+              type: string
+              enum: [Pending, Processing, Completed, Failed]
+              description: Current repayment status
+              example: "Pending"
+            submittedDate:
+              type: string
+              format: date-time
+              description: When the repayment request was submitted
+              example: "2025-08-13T15:30:00Z"
+            repaymentBreakdown:
+              $ref: '#/components/schemas/RepaymentBreakdown'
+            repaymentInvoice:
+              $ref: '#/components/schemas/Invoice'
+            nextSteps:
+              type: array
+              items:
+                type: string
+              description: What happens next in the process
+              example:
+                - "Payment invoice has been created"
+                - "Pay the invoice to complete early repayment"
+                - "Collateral will be released upon payment confirmation"
+                - "You will receive email confirmation when complete"
+        message:
+          type: string
+          description: Confirmation message
+          example: "Early repayment request submitted successfully"
+      required:
+        - success
+        - data
+        - message
+
+    RepaymentBreakdown:
+      type: object
+      properties:
+        loanDetails:
+          type: object
+          properties:
+            principalAmount:
+              type: string
+              description: Original loan principal
+              example: "10000.000000000000000000"
+              pattern: '^\\d+\\.\\d{18}$'
+            interestAmount:
+              type: string
+              description: Full interest amount (no reduction for early payment)
+              example: "600.000000000000000000"
+              pattern: '^\\d+\\.\\d{18}$'
+            originationFeeAmount:
+              type: string
+              description: Origination fee (3% of principal)
+              example: "300.000000000000000000"
+              pattern: '^\\d+\\.\\d{18}$'
+            totalRepaymentAmount:
+              type: string
+              description: Total repayment amount
+              example: "10900.000000000000000000"
+              pattern: '^\\d+\\.\\d{18}$'
+        paymentTerms:
+          type: object
+          properties:
+            earlyPaymentFee:
+              type: string
+              description: Early payment fee (always 0 per SRS BR-008)
+              example: "0.000000000000000000"
+              pattern: '^\\d+\\.\\d{18}$'
+            interestReduction:
+              type: string
+              description: Interest reduction (always 0 per SRS BR-008)
+              example: "0.000000000000000000"
+              pattern: '^\\d+\\.\\d{18}$'
+            paymentCurrency:
+              $ref: '#/components/schemas/Currency'
+        calculationDetails:
+          type: object
+          properties:
+            originalTermMonths:
+              type: integer
+              description: Original loan term in months
+              example: 6
+            earlyPaymentAtMonth:
+              type: integer
+              description: Month when early payment is being made
+              example: 3
+            remainingTermMonths:
+              type: integer
+              description: Remaining months until maturity
+              example: 3
+            calculationDate:
+              type: string
+              format: date-time
+              description: When this calculation was made
+              example: "2025-08-13T15:30:00Z"
+        disclaimers:
+          type: array
+          items:
+            type: string
+          description: Important disclaimers about early repayment
+          example:
+            - "Full interest amount is charged regardless of early payment"
+            - "Origination fee (3% of principal) is charged in full"
+            - "No early payment fee or penalty applies"
+            - "Payment must be made in full to complete early repayment"
+      required:
+        - loanDetails
+        - paymentTerms
+        - calculationDetails
+
+    LiquidationBreakdown:
+      type: object
+      properties:
+        outstandingLoan:
+          type: object
+          properties:
+            principalAmount:
+              type: string
+              description: Original loan principal
+              example: "10000.000000000000000000"
+              pattern: '^\d+\.\d{18}$'
+            interestAmount:
+              type: string
+              description: Total interest amount (full term)
+              example: "600.000000000000000000"
+              pattern: '^\d+\.\d{18}$'
+            originationFeeAmount:
+              type: string
+              description: Origination fee (3% of principal)
+              example: "300.000000000000000000"
+              pattern: '^\d+\.\d{18}$'
+            totalLoanRepayment:
+              type: string
+              description: Total loan repayment amount
+              example: "10900.000000000000000000"
+              pattern: '^\d+\.\d{18}$'
+        liquidationFees:
+          type: object
+          properties:
+            earlyLiquidationFee:
+              type: string
+              description: Early liquidation fee (1% of outstanding loan)
+              example: "109.000000000000000000"
+              pattern: '^\d+\.\d{18}$'
+            earlyLiquidationFeeRate:
+              type: string
+              description: Early liquidation fee rate
+              example: "1.0"
+            marketLiquidationFee:
+              type: string
+              description: Market execution fee
+              example: "25.000000000000000000"
+              pattern: '^\d+\.\d{18}$'
+            totalLiquidationFees:
+              type: string
+              description: Total liquidation fees
+              example: "134.000000000000000000"
+              pattern: '^\d+\.\d{18}$'
+        totalDeductions:
+          type: string
+          description: Total amount to be deducted
+          example: "11034.000000000000000000"
+          pattern: '^\d+\.\d{18}$'
+        calculationDetails:
+          type: object
+          properties:
+            basedOnExchangeRate:
+              type: string
+              description: Exchange rate used for calculation
+              example: "2500.000000000000000000"
+            rateSource:
+              type: string
+              description: Source of exchange rate
+              example: "coinbase"
+            rateTimestamp:
+              type: string
+              format: date-time
+              description: When the rate was retrieved
+              example: "2025-08-13T15:29:45Z"
+      required:
+        - outstandingLoan
+        - liquidationFees
+        - totalDeductions
+        - calculationDetails
+
+    CollateralValuation:
+      type: object
+      properties:
+        collateralCurrency:
+          $ref: '#/components/schemas/Currency'
+        currentAmount:
+          type: string
+          description: Current collateral amount
+          example: "5.000000000000000000"
+          pattern: '^\d+\.\d{18}$'
+        currentMarketValue:
+          type: object
+          properties:
+            amount:
+              type: string
+              description: Current market value in USDT
+              example: "12500.000000000000000000"
+              pattern: '^\d+\.\d{18}$'
+            currency:
+              $ref: '#/components/schemas/Currency'
+            exchangeRate:
+              type: string
+              description: Current exchange rate (collateral/USDT)
+              example: "2500.000000000000000000"
+            rateSource:
+              type: string
+              description: Source of exchange rate
+              example: "coinbase"
+            rateTimestamp:
+              type: string
+              format: date-time
+              description: When the rate was retrieved
+              example: "2025-08-13T15:29:45Z"
+        currentLtvRatio:
+          type: string
+          description: Current loan-to-value ratio
+          example: "87.2"
+        originalLtvRatio:
+          type: string
+          description: Original loan-to-value ratio at loan origination
+          example: "70.0"
+        ltvChange:
+          type: object
+          properties:
+            percentage:
+              type: string
+              description: Change in LTV since origination
+              example: "+17.2"
+            direction:
+              type: string
+              enum: [improved, worsened, stable]
+              description: Direction of LTV change
+              example: "worsened"
+      required:
+        - collateralCurrency
+        - currentAmount
+        - currentMarketValue
+        - currentLtvRatio
+        - originalLtvRatio
+        - ltvChange
 
     ErrorResponse:
       type: object
