@@ -92,6 +92,126 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExchangeRatesResponse'
+              examples:
+                all_rates:
+                  summary: All exchange rates
+                  value:
+                    success: true
+                    data:
+                      exchangeRates:
+                        - id: 1
+                          baseAsset:
+                            blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                            tokenId: "slip44:0"
+                            name: "Bitcoin"
+                            symbol: "BTC"
+                            decimals: 8
+                            logoUrl: "https://cryptologos.cc/logos/bitcoin-btc-logo.png"
+                          quoteAsset:
+                            blockchainKey: "crosschain"
+                            tokenId: "iso4217:usd"
+                            name: "USD Token"
+                            symbol: "USD"
+                            decimals: 6
+                            logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                          bidPrice: "67450.250000000000000000"
+                          askPrice: "67455.750000000000000000"
+                          midPrice: "67453.000000000000000000"
+                          source: "coinbase"
+                          sourceDate: "2025-08-11T15:29:45Z"
+                          retrievalDate: "2025-08-11T15:30:00Z"
+                        - id: 2
+                          baseAsset:
+                            blockchainKey: "eip155:1"
+                            tokenId: "slip44:60"
+                            name: "Ethereum"
+                            symbol: "ETH"
+                            decimals: 18
+                            logoUrl: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
+                          quoteAsset:
+                            blockchainKey: "crosschain"
+                            tokenId: "iso4217:usd"
+                            name: "USD Token"
+                            symbol: "USD"
+                            decimals: 6
+                            logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                          bidPrice: "3245.750000000000000000"
+                          askPrice: "3246.250000000000000000"
+                          midPrice: "3246.000000000000000000"
+                          source: "coinbase"
+                          sourceDate: "2025-08-11T15:29:45Z"
+                          retrievalDate: "2025-08-11T15:30:00Z"
+                        - id: 3
+                          baseAsset:
+                            blockchainKey: "eip155:56"
+                            tokenId: "slip44:714"
+                            name: "Binance Coin"
+                            symbol: "BNB"
+                            decimals: 18
+                            logoUrl: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
+                          quoteAsset:
+                            blockchainKey: "crosschain"
+                            tokenId: "iso4217:usd"
+                            name: "USD Token"
+                            symbol: "USD"
+                            decimals: 6
+                            logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                          bidPrice: "645.125000000000000000"
+                          askPrice: "645.875000000000000000"
+                          midPrice: "645.500000000000000000"
+                          source: "binance"
+                          sourceDate: "2025-08-11T15:29:45Z"
+                          retrievalDate: "2025-08-11T15:30:00Z"
+                        - id: 4
+                          baseAsset:
+                            blockchainKey: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+                            tokenId: "slip44:501"
+                            name: "Solana"
+                            symbol: "SOL"
+                            decimals: 9
+                            logoUrl: "https://cryptologos.cc/logos/solana-sol-logo.png"
+                          quoteAsset:
+                            blockchainKey: "crosschain"
+                            tokenId: "iso4217:usd"
+                            name: "USD Token"
+                            symbol: "USD"
+                            decimals: 6
+                            logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                          bidPrice: "165.450000000000000000"
+                          askPrice: "165.550000000000000000"
+                          midPrice: "165.500000000000000000"
+                          source: "coinbase"
+                          sourceDate: "2025-08-11T15:29:45Z"
+                          retrievalDate: "2025-08-11T15:30:00Z"
+                      lastUpdated: "2025-08-11T15:30:00Z"
+                filtered_rates:
+                  summary: Filtered by BTC to USD
+                  value:
+                    success: true
+                    data:
+                      exchangeRates:
+                        - id: 1
+                          baseAsset:
+                            blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                            tokenId: "slip44:0"
+                            name: "Bitcoin"
+                            symbol: "BTC"
+                            decimals: 8
+                            logoUrl: "https://cryptologos.cc/logos/bitcoin-btc-logo.png"
+                          quoteAsset:
+                            blockchainKey: "crosschain"
+                            tokenId: "iso4217:usd"
+                            name: "USD Token"
+                            symbol: "USD"
+                            decimals: 6
+                            logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                          bidPrice: "67450.250000000000000000"
+                          askPrice: "67455.750000000000000000"
+                          midPrice: "67453.000000000000000000"
+                          source: "coinbase"
+                          sourceDate: "2025-08-11T15:29:45Z"
+                          retrievalDate: "2025-08-11T15:30:00Z"
+                      lastUpdated: "2025-08-11T15:30:00Z"
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -118,6 +238,115 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AccountBalancesResponse'
+              examples:
+                individual_user_balances:
+                  summary: Individual user with multiple crypto holdings
+                  value:
+                    success: true
+                    data:
+                      accounts:
+                        - id: 1001
+                          currency:
+                            blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                            tokenId: "slip44:0"
+                            name: "Bitcoin"
+                            symbol: "BTC"
+                            decimals: 8
+                            logoUrl: "https://cryptologos.cc/logos/bitcoin-btc-logo.png"
+                          balance: "150000000"
+                          lastUpdated: "2025-08-11T10:30:00Z"
+                          valuation:
+                            amount: "101175.00"
+                            currency:
+                              blockchainKey: "crosschain"
+                              tokenId: "iso4217:usd"
+                              name: "USD Token"
+                              symbol: "USD"
+                              decimals: 6
+                              logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                            exchangeRate: "67450.000000000000000000"
+                            rateSource: "coinbase"
+                            rateDate: "2025-08-11T10:29:45Z"
+                        - id: 1002
+                          currency:
+                            blockchainKey: "eip155:1"
+                            tokenId: "slip44:60"
+                            name: "Ethereum"
+                            symbol: "ETH"
+                            decimals: 18
+                            logoUrl: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
+                          balance: "2500000000000000000"
+                          lastUpdated: "2025-08-11T10:30:00Z"
+                          valuation:
+                            amount: "8115.00"
+                            currency:
+                              blockchainKey: "crosschain"
+                              tokenId: "iso4217:usd"
+                              name: "USD Token"
+                              symbol: "USD"
+                              decimals: 6
+                              logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                            exchangeRate: "3246.000000000000000000"
+                            rateSource: "coinbase"
+                            rateDate: "2025-08-11T10:29:45Z"
+                        - id: 1003
+                          currency:
+                            blockchainKey: "crosschain"
+                            tokenId: "iso4217:usd"
+                            name: "USD Token"
+                            symbol: "USD"
+                            decimals: 6
+                            logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                          balance: "500000000"
+                          lastUpdated: "2025-08-11T10:30:00Z"
+                          valuation:
+                            amount: "500.00"
+                            currency:
+                              blockchainKey: "crosschain"
+                              tokenId: "iso4217:usd"
+                              name: "USD Token"
+                              symbol: "USD"
+                              decimals: 6
+                              logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                            exchangeRate: "1.000000000000000000"
+                            rateSource: "fixed"
+                            rateDate: "2025-08-11T10:29:45Z"
+                      totalPortfolioValue:
+                        amount: "109790.00"
+                        currency: "USD"
+                        lastUpdated: "2025-08-11T10:30:00Z"
+                company_user_balances:
+                  summary: Company user with large holdings
+                  value:
+                    success: true
+                    data:
+                      accounts:
+                        - id: 2001
+                          currency:
+                            blockchainKey: "crosschain"
+                            tokenId: "iso4217:usd"
+                            name: "USD Token"
+                            symbol: "USD"
+                            decimals: 6
+                            logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                          balance: "5000000000000"
+                          lastUpdated: "2025-08-11T10:30:00Z"
+                          valuation:
+                            amount: "5000000.00"
+                            currency:
+                              blockchainKey: "crosschain"
+                              tokenId: "iso4217:usd"
+                              name: "USD Token"
+                              symbol: "USD"
+                              decimals: 6
+                              logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                            exchangeRate: "1.000000000000000000"
+                            rateSource: "fixed"
+                            rateDate: "2025-08-11T10:29:45Z"
+                      totalPortfolioValue:
+                        amount: "5000000.00"
+                        currency: "USD"
+                        lastUpdated: "2025-08-11T10:30:00Z"
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -185,6 +414,89 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AccountMutationsResponse'
+              examples:
+                borrower_transaction_history:
+                  summary: Borrower's account mutations showing loan lifecycle
+                  value:
+                    success: true
+                    data:
+                      mutations:
+                        - id: 10001
+                          mutationType: "LoanCollateralDeposit"
+                          mutationDate: "2025-08-10T14:00:00Z"
+                          amount: "-500000000"
+                          description: "Collateral deposit for loan application #789"
+                          referenceId: 789
+                          referenceType: "loan_application"
+                          balanceAfter: "1500000000"
+                        - id: 10002
+                          mutationType: "LoanDisbursementReceived"
+                          mutationDate: "2025-08-10T15:30:00Z"
+                          amount: "10000000000"
+                          description: "Loan principal disbursement for loan #789"
+                          referenceId: 789
+                          referenceType: "loan"
+                          balanceAfter: "11500000000"
+                        - id: 10003
+                          mutationType: "LoanRepayment"
+                          mutationDate: "2025-08-17T09:15:00Z"
+                          amount: "-10600000000"
+                          description: "Loan repayment for loan #789 (principal + interest + origination fee)"
+                          referenceId: 789
+                          referenceType: "loan"
+                          balanceAfter: "900000000"
+                        - id: 10004
+                          mutationType: "LoanCollateralReturned"
+                          mutationDate: "2025-08-17T09:20:00Z"
+                          amount: "500000000"
+                          description: "Collateral returned for completed loan #789"
+                          referenceId: 789
+                          referenceType: "loan"
+                          balanceAfter: "1400000000"
+                      pagination:
+                        page: 1
+                        limit: 20
+                        total: 4
+                        totalPages: 1
+                        hasNext: false
+                        hasPrev: false
+                lender_transaction_history:
+                  summary: Lender's account mutations showing investment returns
+                  value:
+                    success: true
+                    data:
+                      mutations:
+                        - id: 20001
+                          mutationType: "LoanOfferPrincipalEscrowed"
+                          mutationDate: "2025-08-10T14:00:00Z"
+                          amount: "-10000000000"
+                          description: "Principal escrowed for loan offer #456"
+                          referenceId: 456
+                          referenceType: "loan_offer"
+                          balanceAfter: "40000000000"
+                        - id: 20002
+                          mutationType: "LoanRepaymentReceived"
+                          mutationDate: "2025-08-17T09:15:00Z"
+                          amount: "10000000000"
+                          description: "Principal repayment received for loan #789"
+                          referenceId: 789
+                          referenceType: "loan"
+                          balanceAfter: "50000000000"
+                        - id: 20003
+                          mutationType: "LoanInterestReceived"
+                          mutationDate: "2025-08-17T09:15:00Z"
+                          amount: "255000000"
+                          description: "Interest received for loan #789 (300 USDT - 15% platform fee)"
+                          referenceId: 789
+                          referenceType: "loan"
+                          balanceAfter: "50255000000"
+                      pagination:
+                        page: 1
+                        limit: 20
+                        total: 3
+                        totalPages: 1
+                        hasNext: false
+                        hasPrev: false
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -223,6 +535,71 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BeneficiariesResponse'
+              examples:
+                user_beneficiaries:
+                  summary: User's registered withdrawal addresses
+                  value:
+                    success: true
+                    data:
+                      beneficiaries:
+                        - id: 301
+                          currency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                            logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                          address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
+                          label: "My BSC Hardware Wallet"
+                          createdDate: "2025-08-01T12:00:00Z"
+                          verifiedDate: "2025-08-01T12:30:00Z"
+                          isActive: true
+                        - id: 302
+                          currency:
+                            blockchainKey: "eip155:1"
+                            tokenId: "erc20:0xa0b86a33e6ba4c2f8b3dcc56b4c3b3f7b123f456"
+                            name: "USD Coin"
+                            symbol: "USDC"
+                            decimals: 6
+                            logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                          address: "0x8ba1f109551bd432803012645aa136ba40b34567"
+                          label: "Ethereum Exchange Address"
+                          createdDate: "2025-07-15T08:45:00Z"
+                          verifiedDate: "2025-07-15T09:15:00Z"
+                          isActive: true
+                        - id: 303
+                          currency:
+                            blockchainKey: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+                            tokenId: "spl:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+                            name: "USD Coin"
+                            symbol: "USDC"
+                            decimals: 6
+                            logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                          address: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
+                          label: "Solana Mobile Wallet"
+                          createdDate: "2025-08-05T16:20:00Z"
+                          verifiedDate: null
+                          isActive: false
+                filtered_beneficiaries:
+                  summary: Filtered by BSC network
+                  value:
+                    success: true
+                    data:
+                      beneficiaries:
+                        - id: 301
+                          currency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                            logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                          address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
+                          label: "My BSC Hardware Wallet"
+                          createdDate: "2025-08-01T12:00:00Z"
+                          verifiedDate: "2025-08-01T12:30:00Z"
+                          isActive: true
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -251,6 +628,28 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateBeneficiaryRequest'
+            examples:
+              bsc_beneficiary:
+                summary: Register BSC USDT withdrawal address
+                value:
+                  blockchainKey: "eip155:56"
+                  tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                  address: "0x1234567890abcdef1234567890abcdef12345678"
+                  label: "My BSC Exchange Address"
+              ethereum_beneficiary:
+                summary: Register Ethereum USDC withdrawal address
+                value:
+                  blockchainKey: "eip155:1"
+                  tokenId: "erc20:0xa0b86a33e6ba4c2f8b3dcc56b4c3b3f7b123f456"
+                  address: "0x8ba1f109551bd432803012645aa136ba40b34567"
+                  label: "Hardware Wallet Ethereum"
+              solana_beneficiary:
+                summary: Register Solana USDC withdrawal address
+                value:
+                  blockchainKey: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+                  tokenId: "spl:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+                  address: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
+                  label: "Solana Mobile Wallet"
       responses:
         '201':
           description: Beneficiary created successfully
@@ -258,6 +657,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BeneficiaryResponse'
+              examples:
+                new_beneficiary:
+                  summary: Successfully created beneficiary
+                  value:
+                    success: true
+                    data:
+                      id: 304
+                      currency:
+                        blockchainKey: "eip155:56"
+                        tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                        name: "Binance-Peg USD Coin"
+                        symbol: "USDC"
+                        decimals: 18
+                        logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                      address: "0x1234567890abcdef1234567890abcdef12345678"
+                      label: "New Exchange Address"
+                      createdDate: "2025-08-11T16:00:00Z"
+                      verifiedDate: null
+                      isActive: false
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -316,6 +734,145 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WithdrawalsResponse'
+              examples:
+                user_withdrawals:
+                  summary: User's withdrawal history
+                  value:
+                    success: true
+                    data:
+                      withdrawals:
+                        - id: 501
+                          beneficiary:
+                            id: 301
+                            currency:
+                              blockchainKey: "eip155:56"
+                              tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                              name: "Binance-Peg USD Coin"
+                              symbol: "USDC"
+                              decimals: 18
+                              logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                            address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
+                            label: "My BSC Hardware Wallet"
+                            createdDate: "2025-08-01T12:00:00Z"
+                            verifiedDate: "2025-08-01T12:30:00Z"
+                            isActive: true
+                          requestAmount: "1000.000000000000000000"
+                          sentAmount: "995.000000000000000000"
+                          networkFee: "5.000000000000000000"
+                          platformFee: "0.000000000000000000"
+                          requestDate: "2025-08-11T14:00:00Z"
+                          sentDate: "2025-08-11T14:15:00Z"
+                          sentHash: "0xdef456789abcdef123456789abcdef123456789abcdef123456789abcdef1234"
+                          confirmedDate: "2025-08-11T15:00:00Z"
+                          failedDate: null
+                          failureReason: null
+                          state: "confirmed"
+                          blockchainExplorerUrl: "https://bscscan.com/tx/0xdef456789abcdef123456789abcdef123456789abcdef123456789abcdef1234"
+                          estimatedConfirmationTime: null
+                        - id: 502
+                          beneficiary:
+                            id: 302
+                            currency:
+                              blockchainKey: "eip155:1"
+                              tokenId: "erc20:0xa0b86a33e6ba4c2f8b3dcc56b4c3b3f7b123f456"
+                              name: "USD Coin"
+                              symbol: "USDC"
+                              decimals: 6
+                              logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                            address: "0x8ba1f109551bd432803012645aa136ba40b34567"
+                            label: "Ethereum Exchange Address"
+                            createdDate: "2025-07-15T08:45:00Z"
+                            verifiedDate: "2025-07-15T09:15:00Z"
+                            isActive: true
+                          requestAmount: "5000.000000000000000000"
+                          sentAmount: null
+                          networkFee: null
+                          platformFee: null
+                          requestDate: "2025-08-11T16:00:00Z"
+                          sentDate: null
+                          sentHash: null
+                          confirmedDate: null
+                          failedDate: null
+                          failureReason: null
+                          state: "requested"
+                          blockchainExplorerUrl: null
+                          estimatedConfirmationTime: "30 minutes"
+                        - id: 503
+                          beneficiary:
+                            id: 301
+                            currency:
+                              blockchainKey: "eip155:56"
+                              tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                              name: "Binance-Peg USD Coin"
+                              symbol: "USDC"
+                              decimals: 18
+                              logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                            address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
+                            label: "My BSC Hardware Wallet"
+                            createdDate: "2025-08-01T12:00:00Z"
+                            verifiedDate: "2025-08-01T12:30:00Z"
+                            isActive: true
+                          requestAmount: "2500.000000000000000000"
+                          sentAmount: null
+                          networkFee: null
+                          platformFee: null
+                          requestDate: "2025-08-10T10:00:00Z"
+                          sentDate: null
+                          sentHash: null
+                          confirmedDate: null
+                          failedDate: "2025-08-10T11:30:00Z"
+                          failureReason: "Insufficient gas for transaction execution"
+                          state: "failed"
+                          blockchainExplorerUrl: null
+                          estimatedConfirmationTime: null
+                      pagination:
+                        page: 1
+                        limit: 20
+                        total: 3
+                        totalPages: 1
+                        hasNext: false
+                        hasPrev: false
+                filtered_withdrawals:
+                  summary: Filtered by confirmed status
+                  value:
+                    success: true
+                    data:
+                      withdrawals:
+                        - id: 501
+                          beneficiary:
+                            id: 301
+                            currency:
+                              blockchainKey: "eip155:56"
+                              tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                              name: "Binance-Peg USD Coin"
+                              symbol: "USDC"
+                              decimals: 18
+                              logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                            address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
+                            label: "My BSC Hardware Wallet"
+                            createdDate: "2025-08-01T12:00:00Z"
+                            verifiedDate: "2025-08-01T12:30:00Z"
+                            isActive: true
+                          requestAmount: "1000.000000000000000000"
+                          sentAmount: "995.000000000000000000"
+                          networkFee: "5.000000000000000000"
+                          platformFee: "0.000000000000000000"
+                          requestDate: "2025-08-11T14:00:00Z"
+                          sentDate: "2025-08-11T14:15:00Z"
+                          sentHash: "0xdef456789abcdef123456789abcdef123456789abcdef123456789abcdef1234"
+                          confirmedDate: "2025-08-11T15:00:00Z"
+                          failedDate: null
+                          failureReason: null
+                          state: "confirmed"
+                          blockchainExplorerUrl: "https://bscscan.com/tx/0xdef456789abcdef123456789abcdef123456789abcdef123456789abcdef1234"
+                          estimatedConfirmationTime: null
+                      pagination:
+                        page: 1
+                        limit: 20
+                        total: 1
+                        totalPages: 1
+                        hasNext: false
+                        hasPrev: false
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -345,6 +902,25 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateWithdrawalRequest'
+            examples:
+              standard_withdrawal:
+                summary: Standard USDT withdrawal with 2FA
+                value:
+                  beneficiaryId: 301
+                  amount: "1500.000000000000000000"
+                  twoFactorCode: "123456"
+              large_withdrawal:
+                summary: Large withdrawal requiring higher verification
+                value:
+                  beneficiaryId: 302
+                  amount: "50000.000000000000000000"
+                  twoFactorCode: "789012"
+              minimum_withdrawal:
+                summary: Minimum withdrawal amount (100 USDT)
+                value:
+                  beneficiaryId: 301
+                  amount: "100.000000000000000000"
+                  twoFactorCode: "345678"
       responses:
         '201':
           description: Withdrawal requested successfully
@@ -352,6 +928,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WithdrawalResponse'
+              examples:
+                withdrawal_request_created:
+                  summary: Successfully created withdrawal request
+                  value:
+                    success: true
+                    data:
+                      id: 504
+                      beneficiary:
+                        id: 301
+                        currency:
+                          blockchainKey: "eip155:56"
+                          tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                          name: "Binance-Peg USD Coin"
+                          symbol: "USDC"
+                          decimals: 18
+                          logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                        address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
+                        label: "My BSC Hardware Wallet"
+                        createdDate: "2025-08-01T12:00:00Z"
+                        verifiedDate: "2025-08-01T12:30:00Z"
+                        isActive: true
+                      requestAmount: "1500.000000000000000000"
+                      sentAmount: null
+                      networkFee: null
+                      platformFee: null
+                      requestDate: "2025-08-11T17:00:00Z"
+                      sentDate: null
+                      sentHash: null
+                      confirmedDate: null
+                      failedDate: null
+                      failureReason: null
+                      state: "requested"
+                      blockchainExplorerUrl: null
+                      estimatedConfirmationTime: "15 minutes"
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -385,6 +995,106 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WithdrawalResponse'
+              examples:
+                confirmed_withdrawal:
+                  summary: Confirmed withdrawal with blockchain details
+                  value:
+                    success: true
+                    data:
+                      id: 501
+                      beneficiary:
+                        id: 301
+                        currency:
+                          blockchainKey: "eip155:56"
+                          tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                          name: "Binance-Peg USD Coin"
+                          symbol: "USDC"
+                          decimals: 18
+                          logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                        address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
+                        label: "My BSC Hardware Wallet"
+                        createdDate: "2025-08-01T12:00:00Z"
+                        verifiedDate: "2025-08-01T12:30:00Z"
+                        isActive: true
+                      requestAmount: "1000.000000000000000000"
+                      sentAmount: "995.000000000000000000"
+                      networkFee: "5.000000000000000000"
+                      platformFee: "0.000000000000000000"
+                      requestDate: "2025-08-11T14:00:00Z"
+                      sentDate: "2025-08-11T14:15:00Z"
+                      sentHash: "0xdef456789abcdef123456789abcdef123456789abcdef123456789abcdef1234"
+                      confirmedDate: "2025-08-11T15:00:00Z"
+                      failedDate: null
+                      failureReason: null
+                      state: "confirmed"
+                      blockchainExplorerUrl: "https://bscscan.com/tx/0xdef456789abcdef123456789abcdef123456789abcdef123456789abcdef1234"
+                      estimatedConfirmationTime: null
+                pending_withdrawal:
+                  summary: Pending withdrawal request
+                  value:
+                    success: true
+                    data:
+                      id: 502
+                      beneficiary:
+                        id: 302
+                        currency:
+                          blockchainKey: "eip155:1"
+                          tokenId: "erc20:0xa0b86a33e6ba4c2f8b3dcc56b4c3b3f7b123f456"
+                          name: "USD Coin"
+                          symbol: "USDC"
+                          decimals: 6
+                          logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                        address: "0x8ba1f109551bd432803012645aa136ba40b34567"
+                        label: "Ethereum Exchange Address"
+                        createdDate: "2025-07-15T08:45:00Z"
+                        verifiedDate: "2025-07-15T09:15:00Z"
+                        isActive: true
+                      requestAmount: "5000.000000000000000000"
+                      sentAmount: null
+                      networkFee: null
+                      platformFee: null
+                      requestDate: "2025-08-11T16:00:00Z"
+                      sentDate: null
+                      sentHash: null
+                      confirmedDate: null
+                      failedDate: null
+                      failureReason: null
+                      state: "requested"
+                      blockchainExplorerUrl: null
+                      estimatedConfirmationTime: "30 minutes"
+                failed_withdrawal:
+                  summary: Failed withdrawal with reason
+                  value:
+                    success: true
+                    data:
+                      id: 503
+                      beneficiary:
+                        id: 301
+                        currency:
+                          blockchainKey: "eip155:56"
+                          tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                          name: "Binance-Peg USD Coin"
+                          symbol: "USDC"
+                          decimals: 18
+                          logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                        address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
+                        label: "My BSC Hardware Wallet"
+                        createdDate: "2025-08-01T12:00:00Z"
+                        verifiedDate: "2025-08-01T12:30:00Z"
+                        isActive: true
+                      requestAmount: "2500.000000000000000000"
+                      sentAmount: null
+                      networkFee: null
+                      platformFee: null
+                      requestDate: "2025-08-10T10:00:00Z"
+                      sentDate: null
+                      sentHash: null
+                      confirmedDate: null
+                      failedDate: "2025-08-10T11:30:00Z"
+                      failureReason: "Insufficient gas for transaction execution"
+                      state: "failed"
+                      blockchainExplorerUrl: null
+                      estimatedConfirmationTime: null
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -415,6 +1125,19 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/WithdrawalRefundRequest'
+            examples:
+              gas_failure_refund:
+                summary: Request refund due to gas failure
+                value:
+                  reason: "Transaction failed due to insufficient gas. Network congestion caused gas estimation to be inaccurate."
+              network_issue_refund:
+                summary: Request refund due to network issues
+                value:
+                  reason: "Blockchain network experienced downtime during transaction execution, causing withdrawal to fail."
+              address_issue_refund:
+                summary: Request refund due to address issues
+                value:
+                  reason: "Recipient address was temporarily frozen by exchange, unable to receive funds."
       responses:
         '200':
           description: Refund request submitted successfully
@@ -422,6 +1145,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+              examples:
+                refund_request_success:
+                  summary: Refund request submitted successfully
+                  value:
+                    success: true
+                    message: "Withdrawal refund request has been submitted successfully and is under admin review"
+                    timestamp: "2025-08-11T17:30:00Z"
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -589,6 +1319,7 @@ components:
       type: string
       enum:
         # Invoice operations
+        - InvoicePrepaid
         - InvoiceReceived
         # Loan operations - borrower perspective
         - LoanCollateralDeposit
@@ -614,7 +1345,7 @@ components:
         # Loan operations - platform perspective
         - LoanDisbursementPrincipal
         - LoanDisbursementFee
-        - LoanRedeliveryFee
+        - LoanReturnFee
         - LoanLiquidationFee
         - LoanLiquidationCollateralUsed
         # Withdrawal operations
@@ -623,6 +1354,14 @@ components:
         # Platform fee operations
         - PlatformFeeCharged
         - PlatformFeeRefunded
+        # Admin and emergency operations
+        - AdminManualAdjustment
+        - LiquidationDeficitCover
+        - PlatformLoss
+        - EmergencyFreeze
+        - EmergencyUnfreeze
+        - ComplianceHold
+        - ComplianceRelease
 
     # Withdrawal Management Schemas
     BeneficiariesResponse:
@@ -1115,6 +1854,28 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalid_currency:
+              summary: Invalid currency combination
+              value:
+                success: false
+                error:
+                  code: "INVALID_CURRENCY"
+                  message: "Currency combination is not supported for this operation"
+                  details:
+                    supportedCombinations: ["BTC-USD", "ETH-USD", "BNB-USD", "SOL-USD"]
+                timestamp: "2025-08-11T15:30:00Z"
+            invalid_amount:
+              summary: Invalid amount format
+              value:
+                success: false
+                error:
+                  code: "INVALID_AMOUNT"
+                  message: "Amount must be a valid decimal string with 18 decimal places"
+                  details:
+                    providedAmount: "invalid_amount"
+                    expectedFormat: "1000.000000000000000000"
+                timestamp: "2025-08-11T15:30:00Z"
 
     Unauthorized:
       description: Unauthorized - authentication required
@@ -1122,6 +1883,27 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missing_token:
+              summary: Missing authentication token
+              value:
+                success: false
+                error:
+                  code: "MISSING_AUTH_TOKEN"
+                  message: "Authentication token is required to access this endpoint"
+                  details:
+                    hint: "Include Bearer token in Authorization header"
+                timestamp: "2025-08-11T15:30:00Z"
+            expired_token:
+              summary: Expired authentication token
+              value:
+                success: false
+                error:
+                  code: "TOKEN_EXPIRED"
+                  message: "Authentication token has expired"
+                  details:
+                    expiredAt: "2025-08-11T14:30:00Z"
+                timestamp: "2025-08-11T15:30:00Z"
 
     Forbidden:
       description: Forbidden - insufficient permissions
@@ -1129,6 +1911,30 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            kyc_not_verified:
+              summary: KYC verification required
+              value:
+                success: false
+                error:
+                  code: "KYC_NOT_VERIFIED"
+                  message: "KYC verification is required to perform this operation"
+                  details:
+                    kycStatus: "pending"
+                    requiredLevel: "verified"
+                timestamp: "2025-08-11T15:30:00Z"
+            insufficient_balance:
+              summary: Insufficient account balance
+              value:
+                success: false
+                error:
+                  code: "INSUFFICIENT_BALANCE"
+                  message: "Insufficient account balance for withdrawal"
+                  details:
+                    availableBalance: "500.000000000000000000"
+                    requestedAmount: "1000.000000000000000000"
+                    currency: "USDT"
+                timestamp: "2025-08-11T15:30:00Z"
 
     NotFound:
       description: Resource not found
@@ -1143,6 +1949,40 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            withdrawal_validation:
+              summary: Withdrawal request validation errors
+              value:
+                success: false
+                error:
+                  code: "VALIDATION_ERROR"
+                  message: "Request validation failed"
+                  validation_errors:
+                    - field: "amount"
+                      message: "Amount must be greater than minimum withdrawal amount (100 USDT)"
+                      code: "MIN_VALUE"
+                    - field: "beneficiaryId"
+                      message: "Beneficiary must be verified and active"
+                      code: "INVALID_BENEFICIARY"
+                    - field: "twoFactorCode"
+                      message: "Two-factor authentication code must be 6 digits"
+                      code: "INVALID_FORMAT"
+                timestamp: "2025-08-11T15:30:00Z"
+            beneficiary_validation:
+              summary: Beneficiary creation validation errors
+              value:
+                success: false
+                error:
+                  code: "VALIDATION_ERROR"
+                  message: "Request validation failed"
+                  validation_errors:
+                    - field: "address"
+                      message: "Invalid blockchain address format"
+                      code: "INVALID_ADDRESS"
+                    - field: "blockchainKey"
+                      message: "Blockchain key must be a valid CAIP-2 identifier"
+                      code: "INVALID_FORMAT"
+                timestamp: "2025-08-11T15:30:00Z"
 
     InternalServerError:
       description: Internal server error
