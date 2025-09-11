@@ -1,8 +1,36 @@
+import type { UserAppliesForInstitutionParams } from './user.types';
+
 import { doesNotReject, doesNotThrow, equal, ok, rejects, throws } from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it, suite } from 'node:test';
 
 import { assertArray, assertArrayMapOf, assertDefined, assertPropDefined } from '../utils';
 import { UserRepository } from './user.repository';
+
+// Helper function to create complete institution application test data
+function createInstitutionApplicationData(
+  applicantUserId: string,
+  businessName: string,
+  applicationDate: Date,
+): UserAppliesForInstitutionParams {
+  return {
+    applicantUserId,
+    businessName,
+    businessDescription: 'A business focused on financial technology solutions',
+    businessType: 'PT',
+    npwpNumber: '01.234.567.8-901.234',
+    npwpDocumentPath: '/path/to/npwp.pdf',
+    registrationNumber: 'NIB1234567890',
+    registrationDocumentPath: '/path/to/registration.pdf',
+    deedOfEstablishmentPath: '/path/to/deed.pdf',
+    businessAddress: 'Jl. Sudirman No. 123, RT 001 RW 002',
+    businessCity: 'Jakarta Selatan',
+    businessProvince: 'DKI Jakarta',
+    businessPostalCode: '12190',
+    directorName: 'John Doe',
+    directorIdCardPath: '/path/to/director_id.pdf',
+    applicationDate,
+  };
+}
 
 export async function runUserRepositoryTestSuite(
   createRepo: () => Promise<UserRepository>,
@@ -488,11 +516,13 @@ export async function runUserRepositoryTestSuite(
           decisionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
-        const result = await repo.userAppliesForInstitution({
-          applicantUserId: user.id,
-          businessName: 'Test Business Corp',
-          applicationDate: new Date('2024-01-01T00:00:00Z'),
-        });
+        const result = await repo.userAppliesForInstitution(
+          createInstitutionApplicationData(
+            user.id,
+            'Test Business Corp',
+            new Date('2024-01-01T00:00:00Z'),
+          ),
+        );
 
         equal(typeof result.id, 'string');
         equal(result.applicantUserId, String(user.id));
@@ -552,11 +582,13 @@ export async function runUserRepositoryTestSuite(
         });
 
         // Apply for institution and get it approved to become an owner
-        const application = await repo.userAppliesForInstitution({
-          applicantUserId: institutionUser.id,
-          businessName: 'Test Institution',
-          applicationDate: new Date('2024-01-01T00:00:00Z'),
-        });
+        const application = await repo.userAppliesForInstitution(
+          createInstitutionApplicationData(
+            institutionUser.id,
+            'Test Institution',
+            new Date('2024-01-01T00:00:00Z'),
+          ),
+        );
 
         // Admin approves the application (making the user an institution owner)
         const admin = await repo.betterAuthCreateUser({
@@ -647,11 +679,13 @@ export async function runUserRepositoryTestSuite(
         });
 
         // Apply for institution and get it approved to become an owner
-        const application = await repo.userAppliesForInstitution({
-          applicantUserId: institutionUser.id,
-          businessName: 'Test Institution 2',
-          applicationDate: new Date('2024-01-01T00:00:00Z'),
-        });
+        const application = await repo.userAppliesForInstitution(
+          createInstitutionApplicationData(
+            institutionUser.id,
+            'Test Institution 2',
+            new Date('2024-01-01T00:00:00Z'),
+          ),
+        );
 
         // Admin approves the application (making the user an institution owner)
         const admin = await repo.betterAuthCreateUser({
@@ -910,11 +944,13 @@ export async function runUserRepositoryTestSuite(
           decisionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
-        const application = await repo.userAppliesForInstitution({
-          applicantUserId: applicant.id,
-          businessName: 'Approved Business Corp',
-          applicationDate: new Date('2024-01-01T00:00:00Z'),
-        });
+        const application = await repo.userAppliesForInstitution(
+          createInstitutionApplicationData(
+            applicant.id,
+            'Approved Business Corp',
+            new Date('2024-01-01T00:00:00Z'),
+          ),
+        );
 
         const result = await repo.adminApprovesInstitutionApplication({
           applicationId: application.id,
@@ -946,11 +982,13 @@ export async function runUserRepositoryTestSuite(
           decisionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
-        const application = await repo.userAppliesForInstitution({
-          applicantUserId: applicant.id,
-          businessName: 'Rejected Business Corp',
-          applicationDate: new Date('2024-01-01T00:00:00Z'),
-        });
+        const application = await repo.userAppliesForInstitution(
+          createInstitutionApplicationData(
+            applicant.id,
+            'Rejected Business Corp',
+            new Date('2024-01-01T00:00:00Z'),
+          ),
+        );
 
         const result = await repo.rejectInstitutionApplication({
           applicationId: application.id,
@@ -1169,11 +1207,13 @@ export async function runUserRepositoryTestSuite(
             decisionDate: new Date('2024-01-01T00:00:00Z'),
           });
 
-          const application = await repo.userAppliesForInstitution({
-            applicantUserId: applicant.id,
-            businessName: 'Trigger Test Corp',
-            applicationDate: new Date('2024-01-01T00:00:00Z'),
-          });
+          const application = await repo.userAppliesForInstitution(
+            createInstitutionApplicationData(
+              applicant.id,
+              'Trigger Test Corp',
+              new Date('2024-01-01T00:00:00Z'),
+            ),
+          );
 
           await repo.adminApprovesInstitutionApplication({
             applicationId: application.id,
@@ -1221,11 +1261,13 @@ export async function runUserRepositoryTestSuite(
             decisionDate: new Date('2024-01-01T00:00:00Z'),
           });
 
-          const application = await repo.userAppliesForInstitution({
-            applicantUserId: applicant.id,
-            businessName: 'Rejected Test Corp',
-            applicationDate: new Date('2024-01-01T00:00:00Z'),
-          });
+          const application = await repo.userAppliesForInstitution(
+            createInstitutionApplicationData(
+              applicant.id,
+              'Rejected Test Corp',
+              new Date('2024-01-01T00:00:00Z'),
+            ),
+          );
 
           await repo.rejectInstitutionApplication({
             applicationId: application.id,

@@ -433,7 +433,24 @@ export abstract class UserRepository extends BetterAuthRepository {
   ): Promise<UserAppliesForInstitutionResult> {
     const tx = await this.beginTransaction();
     try {
-      const { applicantUserId, businessName, applicationDate } = params;
+      const {
+        applicantUserId,
+        businessName,
+        businessDescription,
+        businessType,
+        npwpNumber,
+        npwpDocumentPath,
+        registrationNumber,
+        registrationDocumentPath,
+        deedOfEstablishmentPath,
+        businessAddress,
+        businessCity,
+        businessProvince,
+        businessPostalCode,
+        directorName,
+        directorIdCardPath,
+        applicationDate,
+      } = params;
 
       const rows = await tx.sql`
         INSERT INTO institution_applications (
@@ -444,11 +461,11 @@ export abstract class UserRepository extends BetterAuthRepository {
           director_id_card_path, submitted_date
         )
         VALUES (
-          ${applicantUserId}, ${businessName}, 'Business Description', 'PT',
-          '01.234.567.8-901.234', '/path/to/npwp.pdf', 'NIB1234567890', '/path/to/registration.pdf',
-          '/path/to/deed.pdf', 'Business Address',
-          'Jakarta', 'DKI Jakarta', '12345', 'Director Name',
-          '/path/to/director_id.pdf', ${applicationDate}
+          ${applicantUserId}, ${businessName}, ${businessDescription}, ${businessType},
+          ${npwpNumber}, ${npwpDocumentPath}, ${registrationNumber}, ${registrationDocumentPath},
+          ${deedOfEstablishmentPath}, ${businessAddress},
+          ${businessCity}, ${businessProvince}, ${businessPostalCode}, ${directorName},
+          ${directorIdCardPath}, ${applicationDate}
         )
         RETURNING id, applicant_user_id, business_name;
       `;

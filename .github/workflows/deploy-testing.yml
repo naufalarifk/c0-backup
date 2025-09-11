@@ -81,7 +81,7 @@ jobs:
               # Set up environment
               export COMPOSE_FILE="docker-compose.testing.yml"
               export SERVICE_NAME="api"
-              export HEALTH_CHECK_URL="http://localhost:3100/api/auth/ok"
+              export HEALTH_CHECK_URL="http://localhost:3100/api/health"
               
               # Execute zero downtime deployment
               bash scripts/deploy-zero-downtime.sh
@@ -93,7 +93,7 @@ jobs:
             
             # Test API endpoint
             echo "🧪 Testing API endpoint..."
-            timeout 60 bash -c 'until curl -sf http://localhost:3100/api/auth/ok >/dev/null; do sleep 2; echo "Waiting for API to respond..."; done'
+            timeout 60 bash -c 'until curl -sf http://localhost:3100/api/health >/dev/null; do sleep 2; echo "Waiting for API to respond..."; done'
             
             echo "✅ Zero downtime deployment completed successfully!"
           EOF

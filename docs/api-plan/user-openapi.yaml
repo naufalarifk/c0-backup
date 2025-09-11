@@ -329,18 +329,11 @@ paths:
           $ref: '#/components/responses/BusinessNameExists'
 
 
-  /institutions/{institutionId}/invitations:
+  /institutions/invitations:
     post:
       tags: [Institution Management]
       summary: Invite institution member
       description: Invites a user to join institution
-      parameters:
-        - name: institutionId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
       requestBody:
         required: true
         content:
