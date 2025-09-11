@@ -3,7 +3,9 @@ import { Injectable } from '@nestjs/common';
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { FileValidatorService } from '../../../shared/services/file-validator.service';
 import { MinioService } from '../../../shared/services/minio.service';
+import { File } from '../../../shared/types';
 import { TelemetryLogger } from '../../../telemetry.logger';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 @Injectable()
 export class ProfileService {
   private readonly logger = new TelemetryLogger(ProfileService.name);
@@ -20,10 +22,7 @@ export class ProfileService {
     // Convert profilePicture based on its format
     if (profile.profilePicture) {
       // Check if it's already a URL (from Google OAuth, etc.)
-      if (
-        profile.profilePicture.startsWith('http://') ||
-        profile.profilePicture.startsWith('https://')
-      ) {
+      if (profile.profilePicture.startsWith('https://')) {
         // Already a valid URL, return as-is
         return profile;
       }
@@ -52,6 +51,41 @@ export class ProfileService {
     }
 
     return profile;
+  }
+
+  /**
+   * Process profile update with optional file upload
+   */
+  async processProfileUpdate(
+    userId: string,
+    updateProfileDto: UpdateProfileDto,
+    profilePicture?: File,
+  ): Promise<{ name?: string; image?: string }> {
+    let profilePictureUrl: string | undefined;
+
+    // If user uploaded a new profile picture, upload it first
+    if (profilePicture) {
+      const uploadResult = await this.uploadProfilePicture(
+        profilePicture.buffer,
+        profilePicture.originalname,
+        userId,
+        profilePicture.mimetype,
+      );
+
+      // Store bucket:objectPath format (consistent with KYC)
+      profilePictureUrl = `${uploadResult.bucket}:${uploadResult.objectPath}`;
+    }
+
+    this.logger.log('Profile update processed', {
+      userId,
+      hasFile: !!profilePicture,
+      hasNameUpdate: !!updateProfileDto.name,
+    });
+
+    return {
+      name: updateProfileDto.name,
+      image: profilePictureUrl,
+    };
   }
 
   /**

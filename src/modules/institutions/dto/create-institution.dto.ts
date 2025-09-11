@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, OmitType } from '@nestjs/swagger';
 
 import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
@@ -6,17 +6,52 @@ import { IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
 import { UserAppliesForInstitutionParams } from '../../../shared/types';
 
 export class CreateInstitutionDto
-  implements
-    Omit<
-      UserAppliesForInstitutionParams,
-      | 'applicantUserId'
-      | 'applicationDate'
-      | 'npwpDocumentPath'
-      | 'registrationDocumentPath'
-      | 'deedOfEstablishmentPath'
-      | 'directorIdCardPath'
-    >
+  implements Omit<UserAppliesForInstitutionParams, 'applicantUserId' | 'applicationDate'>
 {
+  @ApiProperty({
+    description: 'NPWP document storage path in format bucket:path',
+    example: 'documents:institutions/13/npwp-document-1757496173043-npwp.jpg',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^[a-zA-Z0-9-_]+:institutions\/\d+\/[a-zA-Z0-9-_.]+$/, {
+    message: 'NPWP document must be in format bucket:institutions/userId/filename',
+  })
+  npwpDocumentPath: string;
+
+  @ApiProperty({
+    description: 'Registration document storage path in format bucket:path',
+    example: 'documents:institutions/13/registration-document-1757496173043-registration.jpg',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^[a-zA-Z0-9-_]+:institutions\/\d+\/[a-zA-Z0-9-_.]+$/, {
+    message: 'Registration document must be in format bucket:institutions/userId/filename',
+  })
+  registrationDocumentPath: string;
+
+  @ApiProperty({
+    description: 'Deed of establishment document storage path in format bucket:path',
+    example: 'documents:institutions/13/deed-of-establishment-1757496173043-deed.jpg',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^[a-zA-Z0-9-_]+:institutions\/\d+\/[a-zA-Z0-9-_.]+$/, {
+    message: 'Deed of establishment document must be in format bucket:institutions/userId/filename',
+  })
+  deedOfEstablishmentPath: string;
+
+  @ApiProperty({
+    description: 'Director ID card storage path in format bucket:path',
+    example: 'documents:institutions/13/director-id-card-1757496173043-director-id.jpg',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^[a-zA-Z0-9-_]+:institutions\/\d+\/[a-zA-Z0-9-_.]+$/, {
+    message: 'Director ID card must be in format bucket:institutions/userId/filename',
+  })
+  directorIdCardPath: string;
+
   @ApiProperty({
     description: 'Name of the business/institution',
     example: 'PT. Teknologi Finansial Indonesia',
@@ -112,3 +147,11 @@ export class CreateInstitutionDto
   @Transform(({ value }) => value?.trim())
   directorName: string;
 }
+
+// DTO for form data submission (without file URLs - files will be uploaded separately)
+export class SubmitCreateInstitutionDto extends OmitType(CreateInstitutionDto, [
+  'npwpDocumentPath',
+  'registrationDocumentPath',
+  'deedOfEstablishmentPath',
+  'directorIdCardPath',
+] as const) {}

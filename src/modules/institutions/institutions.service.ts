@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { FileValidatorService } from '../../shared/services/file-validator.service';
 import { MinioService } from '../../shared/services/minio.service';
+import { File } from '../../shared/types';
+import { ResponseHelper } from '../../shared/utils/response.helper';
 import { TelemetryLogger } from '../../telemetry.logger';
-import { CreateInstitutionDto } from './dto/create-institution.dto';
+import { CreateInstitutionDto, SubmitCreateInstitutionDto } from './dto/create-institution.dto';
 import { CreateInstitutionInviteDto } from './dto/create-institution-invite.dto';
 
 @Injectable()
@@ -17,21 +19,133 @@ export class InstitutionsService {
     private readonly fileValidatorService: FileValidatorService,
   ) {}
 
-  apply(
+  /**
+   * Apply for institution registration with required file uploads
+   */
+  async apply(
     userId: string,
-    createInstitutionDto: CreateInstitutionDto & {
-      npwpDocumentPath: string;
-      registrationDocumentPath: string;
-      deedOfEstablishmentPath: string;
-      directorIdCardPath: string;
+    createInstitutionDto: SubmitCreateInstitutionDto,
+    files: {
+      npwpDocument: File[];
+      registrationDocument: File[];
+      deedOfEstablishment: File[];
+      directorIdCard: File[];
     },
   ) {
-    const payload = {
+    // Process file uploads (required)
+    const fileUploadResults = await this.processInstitutionFiles(userId, files);
+
+    // Create institution data with file paths
+    const institutionData: CreateInstitutionDto = {
       ...createInstitutionDto,
+      ...fileUploadResults,
+    };
+
+    // Submit application
+    const payload = {
+      ...institutionData,
       applicantUserId: userId,
       applicationDate: new Date(),
     };
-    return this.userRepo.userAppliesForInstitution(payload);
+
+    const result = await this.userRepo.userAppliesForInstitution(payload);
+
+    return ResponseHelper.created('Institution application', {
+      applicationId: result.id,
+      status: 'pending_review',
+      submissionDate: payload.applicationDate,
+      businessName: institutionData.businessName,
+    });
+  }
+
+  /**
+   * Process and upload all institution files
+   */
+  private async processInstitutionFiles(
+    userId: string,
+    files: {
+      npwpDocument: File[];
+      registrationDocument: File[];
+      deedOfEstablishment: File[];
+      directorIdCard: File[];
+    },
+  ): Promise<{
+    npwpDocumentPath: string;
+    registrationDocumentPath: string;
+    deedOfEstablishmentPath: string;
+    directorIdCardPath: string;
+  }> {
+    // Validate required files
+    const validatedFiles = this.validateInstitutionFiles(files);
+
+    // Upload files in parallel
+    const [npwpResult, registrationResult, deedResult, directorIdResult] = await Promise.all([
+      this.uploadFile(
+        validatedFiles.npwpDocument.buffer,
+        validatedFiles.npwpDocument.originalname,
+        userId,
+        'npwp-document',
+        validatedFiles.npwpDocument.mimetype,
+      ),
+      this.uploadFile(
+        validatedFiles.registrationDocument.buffer,
+        validatedFiles.registrationDocument.originalname,
+        userId,
+        'registration-document',
+        validatedFiles.registrationDocument.mimetype,
+      ),
+      this.uploadFile(
+        validatedFiles.deedOfEstablishment.buffer,
+        validatedFiles.deedOfEstablishment.originalname,
+        userId,
+        'deed-of-establishment',
+        validatedFiles.deedOfEstablishment.mimetype,
+      ),
+      this.uploadFile(
+        validatedFiles.directorIdCard.buffer,
+        validatedFiles.directorIdCard.originalname,
+        userId,
+        'director-id-card',
+        validatedFiles.directorIdCard.mimetype,
+      ),
+    ]);
+
+    return {
+      npwpDocumentPath: `${npwpResult.bucket}:${npwpResult.objectPath}`,
+      registrationDocumentPath: `${registrationResult.bucket}:${registrationResult.objectPath}`,
+      deedOfEstablishmentPath: `${deedResult.bucket}:${deedResult.objectPath}`,
+      directorIdCardPath: `${directorIdResult.bucket}:${directorIdResult.objectPath}`,
+    };
+  }
+
+  /**
+   * Validate that all required institution files are present
+   */
+  private validateInstitutionFiles(files: {
+    npwpDocument: File[];
+    registrationDocument: File[];
+    deedOfEstablishment: File[];
+    directorIdCard: File[];
+  }) {
+    if (!files?.npwpDocument?.[0]) {
+      throw new BadRequestException('NPWP document is required');
+    }
+    if (!files?.registrationDocument?.[0]) {
+      throw new BadRequestException('Registration document is required');
+    }
+    if (!files?.deedOfEstablishment?.[0]) {
+      throw new BadRequestException('Deed of establishment document is required');
+    }
+    if (!files?.directorIdCard?.[0]) {
+      throw new BadRequestException('Director ID card is required');
+    }
+
+    return {
+      npwpDocument: files.npwpDocument[0],
+      registrationDocument: files.registrationDocument[0],
+      deedOfEstablishment: files.deedOfEstablishment[0],
+      directorIdCard: files.directorIdCard[0],
+    };
   }
 
   invite(userId: string, createInstitutionInviteDto: CreateInstitutionInviteDto) {
@@ -43,23 +157,37 @@ export class InstitutionsService {
     return this.userRepo.ownerUserInvitesUserToInstitution(payload);
   }
 
-  acceptInvite(userId: string, inviteId: string) {
+  async acceptInvite(userId: string, inviteId: string) {
     const payload = {
       invitationId: inviteId,
       userId: userId,
       acceptanceDate: new Date(),
     };
-    return this.userRepo.userAcceptsInstitutionInvitation(payload);
+    const result = await this.userRepo.userAcceptsInstitutionInvitation(payload);
+
+    return ResponseHelper.action('Invitation acceptance', {
+      invitationId: inviteId,
+      institutionId: result.institutionId,
+      acceptedAt: result.acceptedDate,
+      status: 'accepted',
+    });
   }
 
-  rejectInvite(userId: string, inviteId: string, reason?: string) {
+  async rejectInvite(userId: string, inviteId: string, reason?: string) {
     const payload = {
       invitationId: inviteId,
       userId: userId,
       rejectionReason: reason,
       rejectionDate: new Date(),
     };
-    return this.userRepo.userRejectsInstitutionInvitation(payload);
+    const result = await this.userRepo.userRejectsInstitutionInvitation(payload);
+
+    return ResponseHelper.action('Invitation rejection', {
+      invitationId: inviteId,
+      rejectedAt: result.rejectedDate,
+      status: 'rejected',
+      reason: reason,
+    });
   }
 
   /**

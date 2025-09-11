@@ -101,17 +101,21 @@ function ApiFileDecorator(
     };
     const properties: Record<string, SchemaObject | ReferenceObject> = {};
 
-    // Build file properties with proper required validation
     for (const file of files) {
+      const formattedName = file.name
+        .replace(/([A-Z])/g, ' $1') // Add space before uppercase letters
+        .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
+        .trim();
+
       properties[file.name] = file.isArray
         ? {
             type: 'array',
             items: fileSchema,
-            description: `Upload ${file.name} file(s)`,
+            description: `Upload ${formattedName} file(s)`,
           }
         : {
             ...fileSchema,
-            description: `Upload ${file.name} file`,
+            description: `Upload ${formattedName} file`,
           };
     }
 

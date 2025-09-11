@@ -8,13 +8,7 @@ export class KycStatusResponseDto {
     example: 'kyc-123',
     required: false,
   })
-  id?: string;
-
-  @ApiProperty({
-    description: 'User ID',
-    example: 'user-456',
-  })
-  userId: string;
+  id: string;
 
   @ApiProperty({
     description: 'KYC verification status',
