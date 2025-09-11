@@ -55,38 +55,39 @@ export class InstitutionsController {
     },
     @Body() createInstitutionDto: CreateInstitutionDto,
   ) {
-    const validatedFiles = this.validateInstitutionFiles(files);
+    const { npwpDocument, registrationDocument, deedOfEstablishment, directorIdCard } =
+      this.validateInstitutionFiles(files);
     const userId = session.user.id;
 
     // Upload files in parallel
     const [npwpResult, registrationResult, deedResult, directorIdResult] = await Promise.all([
       this.institutionsService.uploadFile(
-        validatedFiles.npwpDocument.buffer,
-        validatedFiles.npwpDocument.originalname,
+        npwpDocument.buffer,
+        npwpDocument.originalname,
         userId,
         'npwp-document',
-        validatedFiles.npwpDocument.mimetype,
+        npwpDocument.mimetype,
       ),
       this.institutionsService.uploadFile(
-        validatedFiles.registrationDocument.buffer,
-        validatedFiles.registrationDocument.originalname,
+        registrationDocument.buffer,
+        registrationDocument.originalname,
         userId,
         'registration-document',
-        validatedFiles.registrationDocument.mimetype,
+        registrationDocument.mimetype,
       ),
       this.institutionsService.uploadFile(
-        validatedFiles.deedOfEstablishment.buffer,
-        validatedFiles.deedOfEstablishment.originalname,
+        deedOfEstablishment.buffer,
+        deedOfEstablishment.originalname,
         userId,
         'deed-of-establishment',
-        validatedFiles.deedOfEstablishment.mimetype,
+        deedOfEstablishment.mimetype,
       ),
       this.institutionsService.uploadFile(
-        validatedFiles.directorIdCard.buffer,
-        validatedFiles.directorIdCard.originalname,
+        directorIdCard.buffer,
+        directorIdCard.originalname,
         userId,
         'director-id-card',
-        validatedFiles.directorIdCard.mimetype,
+        directorIdCard.mimetype,
       ),
     ]);
 
