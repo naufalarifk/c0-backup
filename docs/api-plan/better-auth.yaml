@@ -4,256 +4,187 @@ info:
   description: API Reference for your Better Auth Instance
   version: 1.1.0
 
-# YAML Anchors for reusable components
-x-common-responses: &common-error-responses
-  '400':
-    description: Bad Request. Usually due to missing parameters, or invalid parameters.
-    content:
-      application/json:
-        schema:
-          $ref: '#/components/schemas/ErrorResponse'
-  '401':
-    description: Unauthorized. Due to missing or invalid authentication.
-    content:
-      application/json:
-        schema:
-          $ref: '#/components/schemas/ErrorResponse'
-  '403':
-    description: Forbidden. You do not have permission to access this resource or to perform this action.
-    content:
-      application/json:
-        schema:
-          $ref: '#/components/schemas/ErrorResponse'
-  '404':
-    description: Not Found. The requested resource was not found.
-    content:
-      application/json:
-        schema:
-          $ref: '#/components/schemas/ErrorResponse'
-  '429':
-    description: Too Many Requests. You have exceeded the rate limit. Try again later.
-    content:
-      application/json:
-        schema:
-          $ref: '#/components/schemas/ErrorResponse'
-  '500':
-    description: Internal Server Error. This is a problem with the server that you cannot fix.
-    content:
-      application/json:
-        schema:
-          $ref: '#/components/schemas/ErrorResponse'
-
-x-auth-success-response: &auth-success-response
-  type: object
-  properties:
-    redirect:
-      type: boolean
-      enum: [false]
-    token:
-      type: string
-      description: Session token
-    user:
-      $ref: '#/components/schemas/User'
-  required: [redirect, token, user]
-
-x-status-response: &status-response
-  type: object
-  properties:
-    status:
-      type: boolean
-  required: [status]
+servers:
+  - url: https://cg-api.fh47.my.id/api/auth
 
 components:
+  # Common Reusable Schemas
   schemas:
-    ErrorResponse:
-      type: object
-      properties:
-        message:
-          type: string
-      required: [message]
-    
-    StatusResponse:
-      <<: *status-response
-    
-    AuthSuccessResponse:
-      <<: *auth-success-response
-    
-    SessionResponse:
-      type: object
-      properties:
-        session:
-          $ref: '#/components/schemas/Session'
-        user:
-          $ref: '#/components/schemas/User'
-      required: [session, user]
-    
-    TokenResponse:
-      type: object
-      properties:
-        tokenType:
-          type: string
-        idToken:
-          type: string
-          nullable: true
-        accessToken:
-          type: string
-        refreshToken:
-          type: string
-          nullable: true
-        accessTokenExpiresAt:
-          type: string
-          format: date-time
-          nullable: true
-        refreshTokenExpiresAt:
-          type: string
-          format: date-time
-          nullable: true
-    
-    UserWithToken:
-      type: object
-      properties:
-        token:
-          type: string
-          nullable: true
-        user:
-          $ref: '#/components/schemas/User'
-      required: [user]
-    
-    StatusWithMessage:
-      type: object
-      properties:
-        status:
-          type: boolean
-        message:
-          type: string
-          nullable: true
-      required: [status]
-
+    # Core Entity Schemas
     User:
       type: object
       properties:
-        id:
-          type: string
-        name:
-          type: string
-        email:
-          type: string
-          format: email
-        emailVerified:
-          type: boolean
-          default: Generated at runtime
-        image:
-          type: string
-          format: uri
-          nullable: true
-        createdAt:
-          type: string
-          format: date-time
-          default: Generated at runtime
-        updatedAt:
-          type: string
-          format: date-time
-          default: Generated at runtime
-        twoFactorEnabled:
-          type: boolean
-          default: false
-          readOnly: true
+        id: {type: string}
+        name: {type: string}
+        email: {type: string}
+        emailVerified: {type: boolean, default: false}
+        image: {type: string}
+        createdAt: {type: string, default: "Generated at runtime"}
+        updatedAt: {type: string, default: "Generated at runtime"}
+        twoFactorEnabled: {type: boolean, default: false, readOnly: true}
+        phoneNumber: {type: string}
+        phoneNumberVerified: {type: boolean, readOnly: true}
+        role: {type: string, readOnly: true}
+        banned: {type: boolean, default: false, readOnly: true}
+        banReason: {type: string, readOnly: true}
+        banExpires: {type: string, readOnly: true}
       required: [name, email, emailVerified, createdAt, updatedAt]
 
     Session:
       type: object
       properties:
-        id:
-          type: string
-        expiresAt:
-          type: string
-          format: date-time
-        token:
-          type: string
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-        ipAddress:
-          type: string
-        userAgent:
-          type: string
-        userId:
-          type: string
+        id: {type: string}
+        expiresAt: {type: string}
+        token: {type: string}
+        createdAt: {type: string, default: "Generated at runtime"}
+        updatedAt: {type: string}
+        ipAddress: {type: string}
+        userAgent: {type: string}
+        userId: {type: string}
+        impersonatedBy: {type: string}
       required: [expiresAt, token, createdAt, updatedAt, userId]
 
     Account:
       type: object
       properties:
-        id:
-          type: string
-        accountId:
-          type: string
-        providerId:
-          type: string
-        userId:
-          type: string
-        accessToken:
-          type: string
-        refreshToken:
-          type: string
-        idToken:
-          type: string
-        accessTokenExpiresAt:
-          type: string
-          format: date-time
-        refreshTokenExpiresAt:
-          type: string
-          format: date-time
-        scope:
-          type: string
-        password:
-          type: string
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
+        id: {type: string}
+        accountId: {type: string}
+        providerId: {type: string}
+        userId: {type: string}
+        accessToken: {type: string}
+        refreshToken: {type: string}
+        idToken: {type: string}
+        accessTokenExpiresAt: {type: string}
+        refreshTokenExpiresAt: {type: string}
+        scope: {type: string}
+        password: {type: string}
+        createdAt: {type: string, default: "Generated at runtime"}
+        updatedAt: {type: string}
       required: [accountId, providerId, userId, createdAt, updatedAt]
 
     Verification:
       type: object
       properties:
-        id:
-          type: string
-        identifier:
-          type: string
-        value:
-          type: string
-        expiresAt:
-          type: string
-          format: date-time
-        createdAt:
-          type: string
-          format: date-time
-          default: Generated at runtime
-        updatedAt:
-          type: string
-          format: date-time
-          default: Generated at runtime
-      required: [identifier, value, expiresAt]
+        id: {type: string}
+        identifier: {type: string}
+        value: {type: string}
+        expiresAt: {type: string}
+        createdAt: {type: string, default: "Generated at runtime"}
+        updatedAt: {type: string, default: "Generated at runtime"}
+      required: [identifier, value, expiresAt, createdAt, updatedAt]
 
     TwoFactor:
       type: object
       properties:
-        id:
-          type: string
-        secret:
-          type: string
-        backupCodes:
-          type: string
-        userId:
-          type: string
+        id: {type: string}
+        secret: {type: string}
+        backupCodes: {type: string}
+        userId: {type: string}
       required: [secret, backupCodes, userId]
 
+    SsoProvider:
+      type: object
+      properties:
+        id: {type: string}
+        issuer: {type: string}
+        oidcConfig: {type: string}
+        samlConfig: {type: string}
+        userId: {type: string}
+        providerId: {type: string}
+        organizationId: {type: string}
+        domain: {type: string}
+      required: [issuer, providerId, domain]
+
+    # Common Response Schemas
+    ErrorResponse:
+      type: object
+      properties:
+        message: {type: string}
+      required: [message]
+
+    StatusResponse:
+      type: object
+      properties:
+        status: {type: boolean}
+
+    SuccessResponse:
+      type: object
+      properties:
+        success: {type: boolean}
+
+    UserWithSession:
+      type: object
+      properties:
+        session: {$ref: "#/components/schemas/Session"}
+        user: {$ref: "#/components/schemas/User"}
+      required: [session, user]
+
+    AuthResponse:
+      type: object
+      properties:
+        redirect: {type: boolean, enum: [false]}
+        token: {type: string, description: "Session token"}
+        url: {type: "null", nullable: true}
+        user:
+          type: object
+          properties:
+            id: {type: string}
+            email: {type: string}
+            name: {type: string, nullable: true}
+            image: {type: string, nullable: true}
+            emailVerified: {type: boolean}
+            createdAt: {type: string, format: date-time}
+            updatedAt: {type: string, format: date-time}
+          required: [id, email, emailVerified, createdAt, updatedAt]
+      required: [redirect, token, user]
+
+    # Input Schemas
+    EmailPasswordInput:
+      type: object
+      properties:
+        email: {type: string, description: "Email of the user"}
+        password: {type: string, description: "Password of the user"}
+        callbackURL: {type: string, nullable: true}
+        rememberMe: {type: string, nullable: true}
+      required: [email, password]
+
+    SignUpInput:
+      type: object
+      properties:
+        name: {type: string, description: "The name of the user"}
+        email: {type: string, description: "The email of the user"}
+        password: {type: string, description: "The password of the user"}
+        image: {type: string, description: "The profile image URL of the user"}
+        callbackURL: {type: string, description: "The URL to use for email verification callback"}
+        rememberMe: {type: boolean, description: "If this is false, the session will not be remembered. Default is `true`."}
+      required: [name, email, password]
+
+    # Social Auth Schemas
+    IdTokenConfig:
+      type: object
+      properties:
+        token: {type: string, description: "ID token from the provider"}
+        nonce: {type: string, description: "Nonce used to generate the token", nullable: true}
+        accessToken: {type: string, description: "Access token from the provider", nullable: true}
+        refreshToken: {type: string, description: "Refresh token from the provider", nullable: true}
+        expiresAt: {type: number, description: "Expiry date of the token", nullable: true}
+      required: [token]
+
+    SocialSignInInput:
+      type: object
+      properties:
+        callbackURL: {type: string, description: "Callback URL to redirect to after the user has signed in", nullable: true}
+        newUserCallbackURL: {type: string, nullable: true}
+        errorCallbackURL: {type: string, description: "Callback URL to redirect to if an error happens", nullable: true}
+        provider: {type: string}
+        disableRedirect: {type: boolean, description: "Disable automatic redirection to the provider. Useful for handling the redirection yourself", nullable: true}
+        idToken: {$ref: "#/components/schemas/IdTokenConfig", nullable: true}
+        scopes: {type: array, description: "Array of scopes to request from the provider. This will override the default scopes passed.", nullable: true}
+        requestSignUp: {type: boolean, description: "Explicitly request sign-up. Useful when disableImplicitSignUp is true for this provider", nullable: true}
+        loginHint: {type: string, description: "The login hint to use for the authorization code request", nullable: true}
+      required: [provider]
+
+  # Security Schemes
   securitySchemes:
     apiKeyCookie:
       type: apiKey
@@ -265,28 +196,88 @@ components:
       scheme: bearer
       description: Bearer token authentication
 
+  # Common Response Templates
+  responses:
+    BadRequest:
+      description: Bad Request. Usually due to missing parameters, or invalid parameters.
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorResponse"}
+
+    Unauthorized:
+      description: Unauthorized. Due to missing or invalid authentication.
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorResponse"}
+
+    Forbidden:
+      description: Forbidden. You do not have permission to access this resource or to perform this action.
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorResponse"}
+
+    NotFound:
+      description: Not Found. The requested resource was not found.
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorResponse"}
+
+    TooManyRequests:
+      description: Too Many Requests. You have exceeded the rate limit. Try again later.
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorResponse"}
+
+    InternalServerError:
+      description: Internal Server Error. This is a problem with the server that you cannot fix.
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorResponse"}
+
 security:
   - apiKeyCookie: []
     bearerAuth: []
-
-servers:
-  - url: http://localhost:3000/api/auth
 
 tags:
   - name: Default
     description: Default endpoints that are included with Better Auth by default. These endpoints are not part of any plugin.
   - name: Two-factor
-    description: Two-factor authentication endpoints
+  - name: Phone-number
+  - name: Sso
   - name: Multi-session
-    description: Multi-session management endpoints
+  - name: Admin
 
 paths:
+  # Authentication Endpoints
   /sign-in/social:
     post:
       tags: [Default]
       description: Sign in with a social provider
       operationId: socialSignIn
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/SocialSignInInput"}
+      responses:
+        "200":
+          description: Success - Returns either session details or redirect URL
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AuthResponse"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /phone-number/request-password-reset:
+    post:
+      tags: [Phone-number]
+      description: Request OTP for password reset via phone number
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -294,159 +285,942 @@ paths:
             schema:
               type: object
               properties:
-                callbackURL:
-                  type: string
-                newUserCallbackURL:
-                  type: string
-                errorCallbackURL:
-                  type: string
-                provider:
-                  type: string
-                disableRedirect:
-                  type: string
-                idToken:
-                  type: string
-                scopes:
-                  type: string
-                requestSignUp:
-                  type: string
-                loginHint:
-                  type: string
-              required: [provider]
+                phoneNumber: {type: string}
+              required: [phoneNumber]
       responses:
-        '200':
-          description: Success - Returns either session details or redirect URL
+        "200":
+          description: OTP sent successfully for password reset
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/AuthSuccessResponse'
-                  - type: object
-                    properties:
-                      url:
-                        type: string
-                        nullable: true
-        <<: *common-error-responses
+                type: object
+                properties:
+                  status: {type: boolean, description: "Indicates if the OTP was sent successfully", enum: [true]}
+                required: [status]
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
-  /get-session:
-    get:
-      tags: [Default]
-      description: Get the current session
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SessionResponse'
-        <<: *common-error-responses
-
-  /sign-out:
+  /phone-number/reset-password:
     post:
-      tags: [Default]
-      description: Sign out the current user
-      security: [{ bearerAuth: [] }]
+      tags: [Phone-number]
+      description: Reset password using phone number OTP
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                otp: {type: string, description: 'The one time password to reset the password. Eg: "123456"'}
+                phoneNumber: {type: string, description: 'The phone number to the account which intends to reset the password for. Eg: "+1234567890"'}
+                newPassword: {type: string, description: 'The new password. Eg: "new-and-secure-password"'}
+              required: [otp, phoneNumber, newPassword]
+      responses:
+        "200":
+          description: Password reset successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: boolean, description: "Indicates if the password was reset successfully", enum: [true]}
+                required: [status]
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  # SSO Endpoints
+  /sso/saml2/sp/metadata:
+    get:
+      tags: [Sso]
+      description: Returns the SAML metadata for the Service Provider
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: providerId
+          in: query
+          schema: {type: string}
+        - name: format
+          in: query
+          schema: {type: string}
+      responses:
+        "200": {description: "SAML metadata in XML format"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /sso/register:
+    post:
+      tags: [Sso]
+      description: This endpoint is used to register an OIDC provider. This is used to configure the provider and link it to an organization
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                providerId: {type: string, description: "The ID of the provider. This is used to identify the provider during login and callback"}
+                issuer: {type: string, description: "The issuer of the provider"}
+                domain: {type: string, description: "The domain of the provider. This is used for email matching"}
+                oidcConfig:
+                  type: object
+                  properties:
+                    clientId: {type: string, description: "The client ID"}
+                    clientSecret: {type: string, description: "The client secret"}
+                    authorizationEndpoint: {type: string, description: "The authorization endpoint", nullable: true}
+                    tokenEndpoint: {type: string, description: "The token endpoint", nullable: true}
+                    userInfoEndpoint: {type: string, description: "The user info endpoint", nullable: true}
+                    tokenEndpointAuthentication: {type: string, nullable: true}
+                    jwksEndpoint: {type: string, description: "The JWKS endpoint", nullable: true}
+                    discoveryEndpoint: {type: string, nullable: true}
+                    scopes: {type: array, description: "The scopes to request. Defaults to ['openid', 'email', 'profile', 'offline_access']", nullable: true}
+                    pkce: {type: string, nullable: true}
+                  required: [clientId, clientSecret]
+                  nullable: true
+                samlConfig:
+                  type: object
+                  properties:
+                    entryPoint: {type: string, description: "The entry point of the provider"}
+                    cert: {type: string, description: "The certificate of the provider"}
+                    callbackUrl: {type: string, description: "The callback URL of the provider"}
+                    audience: {type: string, nullable: true}
+                    idpMetadata:
+                      type: object
+                      properties:
+                        metadata: {type: string}
+                        privateKey: {type: string, nullable: true}
+                        privateKeyPass: {type: string, nullable: true}
+                        isAssertionEncrypted: {type: boolean, nullable: true}
+                        encPrivateKey: {type: string, nullable: true}
+                        encPrivateKeyPass: {type: string, nullable: true}
+                      required: [metadata]
+                      nullable: true
+                    spMetadata:
+                      type: object
+                      properties:
+                        metadata: {type: string}
+                        binding: {type: string, nullable: true}
+                        privateKey: {type: string, nullable: true}
+                        privateKeyPass: {type: string, nullable: true}
+                        isAssertionEncrypted: {type: boolean, nullable: true}
+                        encPrivateKey: {type: string, nullable: true}
+                        encPrivateKeyPass: {type: string, nullable: true}
+                      required: [metadata]
+                    wantAssertionsSigned: {type: boolean, nullable: true}
+                    signatureAlgorithm: {type: string, nullable: true}
+                    digestAlgorithm: {type: string, nullable: true}
+                    identifierFormat: {type: string, nullable: true}
+                    privateKey: {type: string, nullable: true}
+                    decryptionPvk: {type: string, nullable: true}
+                    additionalParams: {type: string, nullable: true}
+                  required: [entryPoint, cert, callbackUrl, spMetadata]
+                  nullable: true
+                mapping:
+                  type: object
+                  properties:
+                    id: {type: string, description: "The field in the user info response that contains the id. Defaults to 'sub'"}
+                    email: {type: string, description: "The field in the user info response that contains the email. Defaults to 'email'"}
+                    emailVerified: {type: string, description: "The field in the user info response that contains whether the email is verified. defaults to 'email_verified'", nullable: true}
+                    name: {type: string, description: "The field in the user info response that contains the name. Defaults to 'name'"}
+                    image: {type: string, description: "The field in the user info response that contains the image. Defaults to 'picture'", nullable: true}
+                    extraFields: {type: string, nullable: true}
+                  required: [id, email, name]
+                  nullable: true
+                organizationId: {type: string, description: "If organization plugin is enabled, the organization id to link the provider to", nullable: true}
+                overrideUserInfo: {type: string, nullable: true}
+              required: [providerId, issuer, domain]
+      responses:
+        "200":
+          description: OIDC provider created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  issuer: {type: string, format: uri, description: "The issuer URL of the provider"}
+                  domain: {type: string, description: "The domain of the provider, used for email matching"}
+                  oidcConfig:
+                    type: object
+                    properties:
+                      issuer: {type: string, format: uri, description: "The issuer URL of the provider"}
+                      pkce: {type: boolean, description: "Whether PKCE is enabled for the authorization flow"}
+                      clientId: {type: string, description: "The client ID for the provider"}
+                      clientSecret: {type: string, description: "The client secret for the provider"}
+                      authorizationEndpoint: {type: string, format: uri, nullable: true, description: "The authorization endpoint URL"}
+                      discoveryEndpoint: {type: string, format: uri, description: "The discovery endpoint URL"}
+                      userInfoEndpoint: {type: string, format: uri, nullable: true, description: "The user info endpoint URL"}
+                      scopes: {type: array, items: {type: string}, nullable: true, description: "The scopes requested from the provider"}
+                      tokenEndpoint: {type: string, format: uri, nullable: true, description: "The token endpoint URL"}
+                      tokenEndpointAuthentication: {type: string, enum: [client_secret_post, client_secret_basic], nullable: true, description: "Authentication method for the token endpoint"}
+                      jwksEndpoint: {type: string, format: uri, nullable: true, description: "The JWKS endpoint URL"}
+                      mapping:
+                        type: object
+                        nullable: true
+                        properties:
+                          id: {type: string, description: "Field mapping for user ID (defaults to 'sub')"}
+                          email: {type: string, description: "Field mapping for email (defaults to 'email')"}
+                          emailVerified: {type: string, nullable: true, description: "Field mapping for email verification (defaults to 'email_verified')"}
+                          name: {type: string, description: "Field mapping for name (defaults to 'name')"}
+                          image: {type: string, nullable: true, description: "Field mapping for image (defaults to 'picture')"}
+                          extraFields: {type: object, additionalProperties: {type: string}, nullable: true, description: "Additional field mappings"}
+                        required: [id, email, name]
+                    required: [issuer, pkce, clientId, clientSecret, discoveryEndpoint]
+                    description: "OIDC configuration for the provider"
+                  organizationId: {type: string, nullable: true, description: "ID of the linked organization, if any"}
+                  userId: {type: string, description: "ID of the user who registered the provider"}
+                  providerId: {type: string, description: "Unique identifier for the provider"}
+                  redirectURI: {type: string, format: uri, description: "The redirect URI for the provider callback"}
+                required: [issuer, domain, oidcConfig, userId, providerId, redirectURI]
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /sign-in/sso:
+    post:
+      tags: [Sso]
+      description: This endpoint is used to sign in with an SSO provider. It redirects to the provider's authorization URL
+      security: [{bearerAuth: []}]
       requestBody:
         content:
           application/json:
             schema:
               type: object
+              properties:
+                email: {type: string, description: "The email address to sign in with. This is used to identify the issuer to sign in with. It's optional if the issuer is provided"}
+                issuer: {type: string, description: "The issuer identifier, this is the URL of the provider and can be used to verify the provider and identify the provider during login. It's optional if the email is provided"}
+                providerId: {type: string, description: "The ID of the provider to sign in with. This can be provided instead of email or issuer"}
+                callbackURL: {type: string, description: "The URL to redirect to after login"}
+                errorCallbackURL: {type: string, description: "The URL to redirect to after login"}
+                newUserCallbackURL: {type: string, description: "The URL to redirect to after login if the user is new"}
+              required: [callbackURL]
       responses:
-        '200':
+        "200":
+          description: Authorization URL generated successfully for SSO sign-in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: {type: string, format: uri, description: "The authorization URL to redirect the user to for SSO sign-in"}
+                  redirect: {type: boolean, description: "Indicates that the client should redirect to the provided URL", enum: [true]}
+                required: [url, redirect]
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /sso/callback/{providerId}:
+    get:
+      tags: [Sso]
+      description: This endpoint is used as the callback URL for SSO providers. It handles the authorization code and exchanges it for an access token
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: code
+          in: query
+          schema: {type: string, nullable: true}
+        - name: state
+          in: query
+          schema: {type: string}
+        - name: error
+          in: query
+          schema: {type: string, nullable: true}
+        - name: error_description
+          in: query
+          schema: {type: string, nullable: true}
+      responses:
+        "302": {description: "Redirects to the callback URL"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /sso/saml2/callback/{providerId}:
+    post:
+      tags: [Sso]
+      description: This endpoint is used as the callback URL for SAML providers.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                SAMLResponse: {type: string}
+                RelayState: {type: string, nullable: true}
+              required: [SAMLResponse]
+      responses:
+        "302": {description: "Redirects to the callback URL"}
+        "400": {description: "Invalid SAML response"}
+        "401": {description: "Unauthorized - SAML authentication failed"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  # Multi-Session Management
+  /multi-session/list-device-sessions:
+    get:
+      tags: [Multi-session]
+      security: [{bearerAuth: []}]
+      responses:
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /multi-session/set-active:
+    post:
+      tags: [Multi-session]
+      description: Set the active session
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionToken: {type: string, description: "The session token to set as active"}
+              required: [sessionToken]
+      responses:
+        "200":
           description: Success
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  success:
-                    type: boolean
+                  session: {$ref: "#/components/schemas/Session"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /multi-session/revoke:
+    post:
+      tags: [Multi-session]
+      description: Revoke a device session
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionToken: {type: string, description: "The session token to revoke"}
+              required: [sessionToken]
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/StatusResponse"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  # Admin Endpoints
+  /admin/set-role:
+    post:
+      tags: [Admin]
+      description: Set the role of a user
+      operationId: setRole
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: {type: string, description: "The user id"}
+                role: {type: string, description: "The role to set, this can be a string or an array of strings. Eg: `admin` or `[admin, user]`"}
+              required: [userId, role]
+      responses:
+        "200":
+          description: User role updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: {$ref: "#/components/schemas/User"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /admin/get-user:
+    get:
+      tags: [Admin]
+      description: Get an existing user
+      operationId: getUser
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: id
+          in: query
+          schema: {type: string, description: "The id of the User"}
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: {$ref: "#/components/schemas/User"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /admin/create-user:
+    post:
+      tags: [Admin]
+      description: Create a new user
+      operationId: createUser
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: {type: string, description: "The email of the user"}
+                password: {type: string, description: "The password of the user"}
+                name: {type: string, description: "The name of the user"}
+                role: {type: string, nullable: true}
+                data: {type: string, nullable: true}
+              required: [email, password, name]
+      responses:
+        "200":
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: {$ref: "#/components/schemas/User"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /admin/update-user:
+    post:
+      tags: [Admin]
+      description: Update a user's details
+      operationId: updateUser
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: {type: string, description: "The user id"}
+                data: {type: string, description: "The user data to update"}
+              required: [userId, data]
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: {$ref: "#/components/schemas/User"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /admin/list-users:
+    get:
+      tags: [Admin]
+      description: List users
+      operationId: listUsers
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: searchValue
+          in: query
+          schema: {type: string, nullable: true}
+        - name: searchField
+          in: query
+          schema: {type: string, description: 'The field to search in, defaults to email. Can be `email` or `name`. Eg: "name"', nullable: true}
+        - name: searchOperator
+          in: query
+          schema: {type: string, description: 'The operator to use for the search. Can be `contains`, `starts_with` or `ends_with`. Eg: "contains"', nullable: true}
+        - name: limit
+          in: query
+          schema: {type: string, nullable: true}
+        - name: offset
+          in: query
+          schema: {type: string, nullable: true}
+        - name: sortBy
+          in: query
+          schema: {type: string, description: "The field to sort by", nullable: true}
+        - name: sortDirection
+          in: query
+          schema: {type: string, description: "The direction to sort by", nullable: true}
+        - name: filterField
+          in: query
+          schema: {type: string, description: "The field to filter by", nullable: true}
+        - name: filterValue
+          in: query
+          schema: {type: string, nullable: true}
+        - name: filterOperator
+          in: query
+          schema: {type: string, description: "The operator to use for the filter", nullable: true}
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users: {type: array, items: {$ref: "#/components/schemas/User"}}
+                  total: {type: number}
+                  limit: {type: number}
+                  offset: {type: number}
+                required: [users, total]
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /admin/list-user-sessions:
+    post:
+      tags: [Admin]
+      description: List user sessions
+      operationId: listUserSessions
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: {type: string, description: "The user id"}
+              required: [userId]
+      responses:
+        "200":
+          description: List of user sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions: {type: array, items: {$ref: "#/components/schemas/Session"}}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /admin/unban-user:
+    post:
+      tags: [Admin]
+      description: Unban a user
+      operationId: unbanUser
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: {type: string, description: "The user id"}
+              required: [userId]
+      responses:
+        "200":
+          description: User unbanned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: {$ref: "#/components/schemas/User"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /admin/ban-user:
+    post:
+      tags: [Admin]
+      description: Ban a user
+      operationId: banUser
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: {type: string, description: "The user id"}
+                banReason: {type: string, description: "The reason for the ban", nullable: true}
+                banExpiresIn: {type: number, description: "The number of seconds until the ban expires", nullable: true}
+              required: [userId]
+      responses:
+        "200":
+          description: User banned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: {$ref: "#/components/schemas/User"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /admin/impersonate-user:
+    post:
+      tags: [Admin]
+      description: Impersonate a user
+      operationId: impersonateUser
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: {type: string, description: "The user id"}
+              required: [userId]
+      responses:
+        "200":
+          description: Impersonation session created
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/UserWithSession"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /admin/stop-impersonating:
+    post:
+      tags: [Admin]
+      security: [{bearerAuth: []}]
+      responses:
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /admin/revoke-user-session:
+    post:
+      tags: [Admin]
+      description: Revoke a user session
+      operationId: revokeUserSession
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionToken: {type: string, description: "The session token"}
+              required: [sessionToken]
+      responses:
+        "200":
+          description: Session revoked
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/SuccessResponse"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /admin/revoke-user-sessions:
+    post:
+      tags: [Admin]
+      description: Revoke all user sessions
+      operationId: revokeUserSessions
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: {type: string, description: "The user id"}
+              required: [userId]
+      responses:
+        "200":
+          description: Sessions revoked
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/SuccessResponse"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /admin/remove-user:
+    post:
+      tags: [Admin]
+      description: Delete a user and all their sessions and accounts. Cannot be undone.
+      operationId: removeUser
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: {type: string, description: "The user id"}
+              required: [userId]
+      responses:
+        "200":
+          description: User removed
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/SuccessResponse"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /admin/set-user-password:
+    post:
+      tags: [Admin]
+      description: Set a user's password
+      operationId: setUserPassword
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                newPassword: {type: string, description: "The new password"}
+                userId: {type: string, description: "The user id"}
+              required: [newPassword, userId]
+      responses:
+        "200":
+          description: Password set
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/StatusResponse"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /admin/has-permission:
+    post:
+      tags: [Admin]
+      description: Check if the user has permission
+      security: [{bearerAuth: []}]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                permission: {type: object, description: "The permission to check", deprecated: true}
+                permissions: {type: object, description: "The permission to check"}
+              required: [permissions]
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: {type: string}
+                  success: {type: boolean}
                 required: [success]
-        <<: *common-error-responses
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /get-session:
+    get:
+      tags: [Default]
+      description: Get the current session
+      security: [{bearerAuth: []}]
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/UserWithSession"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /sign-out:
+    post:
+      tags: [Default]
+      description: Sign out the current user
+      security: [{bearerAuth: []}]
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, properties: {}}
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/SuccessResponse"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /sign-up/email:
     post:
       tags: [Default]
       description: Sign up a user using email and password
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         content:
           application/json:
-            schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                  description: The name of the user
-                email:
-                  type: string
-                  description: The email of the user
-                password:
-                  type: string
-                  description: The password of the user
-                image:
-                  type: string
-                  description: The profile image URL of the user
-                callbackURL:
-                  type: string
-                  description: The URL to use for email verification callback
-                rememberMe:
-                  type: boolean
-                  description: If this is false, the session will not be remembered. Default is `true`.
-              required: [name, email, password]
+            schema: {$ref: "#/components/schemas/SignUpInput"}
       responses:
-        '200':
+        "200":
           description: Successfully created user
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserWithToken'
-        <<: *common-error-responses
+                type: object
+                properties:
+                  token: {type: string, nullable: true, description: "Authentication token for the session"}
+                  user:
+                    type: object
+                    properties:
+                      id: {type: string, description: "The unique identifier of the user"}
+                      email: {type: string, format: email, description: "The email address of the user"}
+                      name: {type: string, description: "The name of the user"}
+                      image: {type: string, format: uri, nullable: true, description: "The profile image URL of the user"}
+                      emailVerified: {type: boolean, description: "Whether the email has been verified"}
+                      createdAt: {type: string, format: date-time, description: "When the user was created"}
+                      updatedAt: {type: string, format: date-time, description: "When the user was last updated"}
+                    required: [id, email, name, emailVerified, createdAt, updatedAt]
+                required: [user]
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "422":
+          description: Unprocessable Entity. User already exists or failed to create user.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorResponse"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /sign-in/email:
     post:
       tags: [Default]
       description: Sign in with email and password
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              properties:
-                email:
-                  type: string
-                  description: Email of the user
-                password:
-                  type: string
-                  description: Password of the user
-                callbackURL:
-                  type: string
-                rememberMe:
-                  type: string
-              required: [email, password]
+            schema: {$ref: "#/components/schemas/EmailPasswordInput"}
       responses:
-        '200':
+        "200":
           description: Success - Returns either session details or redirect URL
           content:
             application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/AuthSuccessResponse'
-                  - type: object
-                    properties:
-                      url:
-                        type: string
-                        nullable: true
-        <<: *common-error-responses
+              schema: {$ref: "#/components/schemas/AuthResponse"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
+  # Password Management
   /forget-password:
     post:
       tags: [Default]
       description: Send a password reset email to the user
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -454,26 +1228,31 @@ paths:
             schema:
               type: object
               properties:
-                email:
-                  type: string
-                  description: The email address of the user to send a password reset email to
-                redirectTo:
-                  type: string
+                email: {type: string, description: "The email address of the user to send a password reset email to"}
+                redirectTo: {type: string, description: "The URL to redirect the user to reset their password. If the token isn't valid or expired, it'll be redirected with a query parameter `?error=INVALID_TOKEN`. If the token is valid, it'll be redirected with a query parameter `?token=VALID_TOKEN", nullable: true}
               required: [email]
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StatusWithMessage'
-        <<: *common-error-responses
+                type: object
+                properties:
+                  status: {type: boolean}
+                  message: {type: string}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /reset-password:
     post:
       tags: [Default]
       description: Reset the password for a user
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -481,41 +1260,41 @@ paths:
             schema:
               type: object
               properties:
-                newPassword:
-                  type: string
-                  description: The new password to set
-                token:
-                  type: string
+                newPassword: {type: string, description: "The new password to set"}
+                token: {type: string, description: "The token to reset the password", nullable: true}
               required: [newPassword]
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/StatusResponse'
-        <<: *common-error-responses
+              schema: {$ref: "#/components/schemas/StatusResponse"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
+  # Email Verification
   /verify-email:
     get:
       tags: [Default]
       description: Verify the email of the user
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       parameters:
         - name: token
           in: query
           description: The token to verify the email
           required: true
-          schema:
-            type: string
+          schema: {type: string}
         - name: callbackURL
           in: query
           description: The URL to redirect to after email verification
           required: false
-          schema:
-            type: string
+          schema: {type: string}
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
@@ -523,53 +1302,67 @@ paths:
                 type: object
                 properties:
                   user:
-                    $ref: '#/components/schemas/User'
-                  status:
-                    type: boolean
-                    description: Indicates if the email was verified successfully
+                    type: object
+                    properties:
+                      id: {type: string, description: "User ID"}
+                      email: {type: string, description: "User email"}
+                      name: {type: string, description: "User name"}
+                      image: {type: string, description: "User image URL"}
+                      emailVerified: {type: boolean, description: "Indicates if the user email is verified"}
+                      createdAt: {type: string, description: "User creation date"}
+                      updatedAt: {type: string, description: "User update date"}
+                    required: [id, email, name, image, emailVerified, createdAt, updatedAt]
+                  status: {type: boolean, description: "Indicates if the email was verified successfully"}
                 required: [user, status]
-        <<: *common-error-responses
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /send-verification-email:
     post:
       tags: [Default]
       description: Send a verification email to the user
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         content:
           application/json:
             schema:
               type: object
               properties:
-                email:
-                  type: string
-                  description: The email to send the verification email to
-                  example: user@example.com
-                callbackURL:
-                  type: string
-                  description: The URL to use for email verification callback
-                  example: https://example.com/callback
-                  nullable: true
+                email: {type: string, description: "The email to send the verification email to", example: "user@example.com"}
+                callbackURL: {type: string, description: "The URL to use for email verification callback", example: "https://example.com/callback", nullable: true}
               required: [email]
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  status:
-                    type: boolean
-                    description: Indicates if the email was sent successfully
-                    example: true
-                required: [status]
-        <<: *common-error-responses
+                  status: {type: boolean, description: "Indicates if the email was sent successfully", example: true}
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: {type: string, description: "Error message", example: "Verification email isn't enabled"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
+  # User Management
   /change-email:
     post:
       tags: [Default]
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -577,36 +1370,37 @@ paths:
             schema:
               type: object
               properties:
-                newEmail:
-                  type: string
-                  description: The new email address to set must be a valid email address
-                callbackURL:
-                  type: string
+                newEmail: {type: string, description: "The new email address to set must be a valid email address"}
+                callbackURL: {type: string, description: "The URL to redirect to after email verification", nullable: true}
               required: [newEmail]
       responses:
-        '200':
+        "200":
           description: Email change request processed successfully
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  status:
-                    type: boolean
-                    description: Indicates if the request was successful
-                  message:
-                    type: string
-                    enum: [Email updated, Verification email sent]
-                    description: Status message of the email change process
-                    nullable: true
+                  status: {type: boolean, description: "Indicates if the request was successful"}
+                  message: {type: string, enum: ["Email updated", "Verification email sent"], description: "Status message of the email change process", nullable: true}
                 required: [status]
-        <<: *common-error-responses
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "422":
+          description: Unprocessable Entity. Email already exists
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorResponse"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /change-password:
     post:
       tags: [Default]
       description: Change the password of the user
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -614,60 +1408,72 @@ paths:
             schema:
               type: object
               properties:
-                newPassword:
-                  type: string
-                  description: The new password to set
-                currentPassword:
-                  type: string
-                  description: The current password is required
-                revokeOtherSessions:
-                  type: string
+                newPassword: {type: string, description: "The new password to set"}
+                currentPassword: {type: string, description: "The current password is required"}
+                revokeOtherSessions: {type: boolean, description: "Must be a boolean value", nullable: true}
               required: [newPassword, currentPassword]
       responses:
-        '200':
+        "200":
           description: Password successfully changed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserWithToken'
-        <<: *common-error-responses
+                type: object
+                properties:
+                  token: {type: string, nullable: true, description: "New session token if other sessions were revoked"}
+                  user:
+                    type: object
+                    properties:
+                      id: {type: string, description: "The unique identifier of the user"}
+                      email: {type: string, format: email, description: "The email address of the user"}
+                      name: {type: string, description: "The name of the user"}
+                      image: {type: string, format: uri, nullable: true, description: "The profile image URL of the user"}
+                      emailVerified: {type: boolean, description: "Whether the email has been verified"}
+                      createdAt: {type: string, format: date-time, description: "When the user was created"}
+                      updatedAt: {type: string, format: date-time, description: "When the user was last updated"}
+                    required: [id, email, name, emailVerified, createdAt, updatedAt]
+                required: [user]
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /update-user:
     post:
       tags: [Default]
       description: Update the current user
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         content:
           application/json:
             schema:
               type: object
               properties:
-                name:
-                  type: string
-                  description: The name of the user
-                image:
-                  type: string
-                  description: The image of the user
+                name: {type: string, description: "The name of the user"}
+                image: {type: string, description: "The image of the user"}
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  status:
-                    type: boolean
-                    description: Indicates if the update was successful
-                required: [status]
-        <<: *common-error-responses
+                  status: {type: boolean, description: "Indicates if the update was successful"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /delete-user:
     post:
       tags: [Default]
       description: Delete the user
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -675,169 +1481,137 @@ paths:
             schema:
               type: object
               properties:
-                callbackURL:
-                  type: string
-                password:
-                  type: string
-                token:
-                  type: string
+                callbackURL: {type: string, description: "The callback URL to redirect to after the user is deleted", nullable: true}
+                password: {type: string, description: "The password of the user is required to delete the user", nullable: true}
+                token: {type: string, description: "The token to delete the user is required", nullable: true}
+              required: []
       responses:
-        '200':
+        "200":
           description: User deletion processed successfully
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  success:
-                    type: boolean
-                    description: Indicates if the operation was successful
-                  message:
-                    type: string
-                    enum: [User deleted, Verification email sent]
-                    description: Status message of the deletion process
+                  success: {type: boolean, description: "Indicates if the operation was successful"}
+                  message: {type: string, enum: ["User deleted", "Verification email sent"], description: "Status message of the deletion process"}
                 required: [success, message]
-        <<: *common-error-responses
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
-  /reset-password/{token}:
-    get:
-      tags: [Default]
-      description: Redirects the user to the callback URL with the token
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - name: token
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: callbackURL
-          in: query
-          schema:
-            type: string
-            description: The URL to redirect the user to reset their password
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  token:
-                    type: string
-                required: [token]
-        <<: *common-error-responses
-
-  /request-password-reset:
-    post:
-      tags: [Default]
-      description: Send a password reset email to the user
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email:
-                  type: string
-                  description: The email address of the user to send a password reset email to
-                redirectTo:
-                  type: string
-              required: [email]
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StatusWithMessage'
-        <<: *common-error-responses
-
+  # Session Management
   /list-sessions:
     get:
       tags: [Default]
       description: List all active sessions for the user
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
               schema:
                 type: array
-                items:
-                  $ref: '#/components/schemas/Session'
-        <<: *common-error-responses
+                items: {$ref: "#/components/schemas/Session"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /revoke-session:
     post:
       tags: [Default]
       description: Revoke a single session
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         content:
           application/json:
             schema:
               type: object
               properties:
-                token:
-                  type: string
-                  description: The token to revoke
+                token: {type: string, description: "The token to revoke"}
               required: [token]
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StatusResponse'
-        <<: *common-error-responses
+                type: object
+                properties:
+                  status: {type: boolean, description: "Indicates if the session was revoked successfully"}
+                required: [status]
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /revoke-sessions:
     post:
       tags: [Default]
       description: Revoke all sessions for the user
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         content:
           application/json:
-            schema:
-              type: object
+            schema: {type: object, properties: {}}
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StatusResponse'
-        <<: *common-error-responses
+                type: object
+                properties:
+                  status: {type: boolean, description: "Indicates if all sessions were revoked successfully"}
+                required: [status]
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /revoke-other-sessions:
     post:
       tags: [Default]
       description: Revoke all other sessions for the user except the current one
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         content:
           application/json:
-            schema:
-              type: object
+            schema: {type: object, properties: {}}
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StatusResponse'
-        <<: *common-error-responses
+                type: object
+                properties:
+                  status: {type: boolean, description: "Indicates if all other sessions were revoked successfully"}
+                required: [status]
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
+  # Account Management
   /link-social:
     post:
       tags: [Default]
       description: Link a social account to the user
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -845,47 +1619,40 @@ paths:
             schema:
               type: object
               properties:
-                callbackURL:
-                  type: string
-                provider:
-                  type: string
-                idToken:
-                  type: string
-                requestSignUp:
-                  type: string
-                scopes:
-                  type: string
-                errorCallbackURL:
-                  type: string
-                disableRedirect:
-                  type: string
+                callbackURL: {type: string, description: "The URL to redirect to after the user has signed in", nullable: true}
+                provider: {type: string}
+                idToken: {$ref: "#/components/schemas/IdTokenConfig", nullable: true}
+                requestSignUp: {type: boolean, nullable: true}
+                scopes: {type: array, description: "Additional scopes to request from the provider", nullable: true}
+                errorCallbackURL: {type: string, description: "The URL to redirect to if there is an error during the link process", nullable: true}
+                disableRedirect: {type: boolean, description: "Disable automatic redirection to the provider. Useful for handling the redirection yourself", nullable: true}
               required: [provider]
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  url:
-                    type: string
-                    description: The authorization URL to redirect the user to
-                  redirect:
-                    type: boolean
-                    description: Indicates if the user should be redirected to the authorization URL
-                  status:
-                    type: boolean
+                  url: {type: string, description: "The authorization URL to redirect the user to"}
+                  redirect: {type: boolean, description: "Indicates if the user should be redirected to the authorization URL"}
+                  status: {type: boolean}
                 required: [redirect]
-        <<: *common-error-responses
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /list-accounts:
     get:
       tags: [Default]
       description: List all accounts linked to the user
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
@@ -894,63 +1661,25 @@ paths:
                 items:
                   type: object
                   properties:
-                    id:
-                      type: string
-                    provider:
-                      type: string
-                    createdAt:
-                      type: string
-                      format: date-time
-                    updatedAt:
-                      type: string
-                      format: date-time
-                    accountId:
-                      type: string
-                    scopes:
-                      type: array
-                      items:
-                        type: string
-                  required: [id, provider, createdAt, updatedAt, accountId, scopes]
-        <<: *common-error-responses
-
-  /delete-user/callback:
-    get:
-      tags: [Default]
-      description: Callback to complete user deletion with verification token
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - name: token
-          in: query
-          schema:
-            type: string
-            description: The token to verify the deletion request
-        - name: callbackURL
-          in: query
-          schema:
-            type: string
-      responses:
-        '200':
-          description: User successfully deleted
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    description: Indicates if the deletion was successful
-                  message:
-                    type: string
-                    enum: [User deleted]
-                    description: Confirmation message
-                required: [success, message]
-        <<: *common-error-responses
+                    id: {type: string}
+                    providerId: {type: string}
+                    createdAt: {type: string, format: date-time}
+                    updatedAt: {type: string, format: date-time}
+                    accountId: {type: string}
+                    scopes: {type: array, items: {type: string}}
+                  required: [id, providerId, createdAt, updatedAt, accountId, scopes]
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /unlink-account:
     post:
       tags: [Default]
       description: Unlink an account
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -958,25 +1687,28 @@ paths:
             schema:
               type: object
               properties:
-                providerId:
-                  type: string
-                accountId:
-                  type: string
+                providerId: {type: string}
+                accountId: {type: string, nullable: true}
               required: [providerId]
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/StatusResponse'
-        <<: *common-error-responses
+              schema: {$ref: "#/components/schemas/StatusResponse"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
+  # Token Management
   /refresh-token:
     post:
       tags: [Default]
       description: Refresh the access token using a refresh token
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -984,28 +1716,36 @@ paths:
             schema:
               type: object
               properties:
-                providerId:
-                  type: string
-                  description: The provider ID for the OAuth provider
-                accountId:
-                  type: string
-                userId:
-                  type: string
+                providerId: {type: string, description: "The provider ID for the OAuth provider"}
+                accountId: {type: string, description: "The account ID associated with the refresh token", nullable: true}
+                userId: {type: string, description: "The user ID associated with the account", nullable: true}
               required: [providerId]
       responses:
-        '200':
+        "200":
           description: Access token refreshed successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
-        <<: *common-error-responses
+                type: object
+                properties:
+                  tokenType: {type: string}
+                  idToken: {type: string}
+                  accessToken: {type: string}
+                  refreshToken: {type: string}
+                  accessTokenExpiresAt: {type: string, format: date-time}
+                  refreshTokenExpiresAt: {type: string, format: date-time}
+        "400": {description: "Invalid refresh token or provider configuration"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /get-access-token:
     post:
       tags: [Default]
       description: Get a valid access token, doing a refresh if needed
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -1013,28 +1753,36 @@ paths:
             schema:
               type: object
               properties:
-                providerId:
-                  type: string
-                  description: The provider ID for the OAuth provider
-                accountId:
-                  type: string
-                userId:
-                  type: string
+                providerId: {type: string, description: "The provider ID for the OAuth provider"}
+                accountId: {type: string, description: "The account ID associated with the refresh token", nullable: true}
+                userId: {type: string, description: "The user ID associated with the account", nullable: true}
               required: [providerId]
       responses:
-        '200':
+        "200":
           description: A Valid access token
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
-        <<: *common-error-responses
+                type: object
+                properties:
+                  tokenType: {type: string}
+                  idToken: {type: string}
+                  accessToken: {type: string}
+                  refreshToken: {type: string}
+                  accessTokenExpiresAt: {type: string, format: date-time}
+                  refreshTokenExpiresAt: {type: string, format: date-time}
+        "400": {description: "Invalid refresh token or provider configuration"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /account-info:
     post:
       tags: [Default]
       description: Get the account info provided by the provider
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -1042,12 +1790,10 @@ paths:
             schema:
               type: object
               properties:
-                accountId:
-                  type: string
-                  description: The provider given account id for which to get the account info
+                accountId: {type: string, description: "The provider given account id for which to get the account info"}
               required: [accountId]
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
@@ -1055,53 +1801,96 @@ paths:
                 type: object
                 properties:
                   user:
-                    $ref: '#/components/schemas/User'
-                  data:
                     type: object
-                    additionalProperties: true
+                    properties:
+                      id: {type: string}
+                      name: {type: string}
+                      email: {type: string}
+                      image: {type: string}
+                      emailVerified: {type: boolean}
+                    required: [id, emailVerified]
+                  data: {type: object, properties: {}, additionalProperties: true}
                 required: [user, data]
-        <<: *common-error-responses
+                additionalProperties: false
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
+  # Utility Endpoints
   /ok:
     get:
       tags: [Default]
       description: Check if the API is working
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       responses:
-        '200':
+        "200":
           description: API is working
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  ok:
-                    type: boolean
-                    description: Indicates if the API is working
+                  ok: {type: boolean, description: "Indicates if the API is working"}
                 required: [ok]
-        <<: *common-error-responses
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /error:
     get:
       tags: [Default]
       description: Displays an error page
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       responses:
-        '200':
+        "200":
           description: Success
           content:
             text/html:
-              schema:
-                type: string
-                description: The HTML content of the error page
-        <<: *common-error-responses
+              schema: {type: string, description: "The HTML content of the error page"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
-  # Two-factor authentication endpoints
-  /two-factor/get-totp-uri:
+  # Password Reset Callback
+  /reset-password/{token}:
+    get:
+      tags: [Default]
+      description: Redirects the user to the callback URL with the token
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: callbackURL
+          in: query
+          schema: {type: string, description: "The URL to redirect the user to reset their password"}
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: {type: string}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /request-password-reset:
     post:
-      tags: [Two-factor]
-      description: Use this endpoint to get the TOTP URI
-      security: [{ bearerAuth: [] }]
+      tags: [Default]
+      description: Send a password reset email to the user
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -1109,28 +1898,92 @@ paths:
             schema:
               type: object
               properties:
-                password:
-                  type: string
-                  description: User password
+                email: {type: string, description: "The email address of the user to send a password reset email to"}
+                redirectTo: {type: string, description: "The URL to redirect the user to reset their password. If the token isn't valid or expired, it'll be redirected with a query parameter `?error=INVALID_TOKEN`. If the token is valid, it'll be redirected with a query parameter `?token=VALID_TOKEN", nullable: true}
+              required: [email]
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: boolean}
+                  message: {type: string}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /delete-user/callback:
+    get:
+      tags: [Default]
+      description: Callback to complete user deletion with verification token
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: token
+          in: query
+          schema: {type: string, description: "The token to verify the deletion request"}
+        - name: callbackURL
+          in: query
+          schema: {type: string, description: "The URL to redirect to after deletion", nullable: true}
+      responses:
+        "200":
+          description: User successfully deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: {type: boolean, description: "Indicates if the deletion was successful"}
+                  message: {type: string, enum: ["User deleted"], description: "Confirmation message"}
+                required: [success, message]
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  # Two-Factor Authentication
+  /two-factor/get-totp-uri:
+    post:
+      tags: [Two-factor]
+      description: Use this endpoint to get the TOTP URI
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password: {type: string, description: "User password"}
               required: [password]
       responses:
-        '200':
+        "200":
           description: Successful response
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  totpURI:
-                    type: string
-                required: [totpURI]
-        <<: *common-error-responses
+                  totpURI: {type: string}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /two-factor/verify-totp:
     post:
       tags: [Two-factor]
       description: Verify two factor TOTP
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -1138,40 +1991,45 @@ paths:
             schema:
               type: object
               properties:
-                code:
-                  type: string
-                  description: 'The otp code to verify. Eg: "012345"'
-                trustDevice:
-                  type: string
+                code: {type: string, description: 'The otp code to verify. Eg: "012345"'}
+                trustDevice: {type: boolean, description: "If true, the device will be trusted for 30 days. It'll be refreshed on every sign in request within this time. Eg: true", nullable: true}
               required: [code]
       responses:
-        '200':
+        "200":
           description: Successful response
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/StatusResponse'
-        <<: *common-error-responses
+              schema: {$ref: "#/components/schemas/StatusResponse"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /two-factor/send-otp:
     post:
       tags: [Two-factor]
       description: Send two factor OTP to the user
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       responses:
-        '200':
+        "200":
           description: Successful response
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/StatusResponse'
-        <<: *common-error-responses
+              schema: {$ref: "#/components/schemas/StatusResponse"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /two-factor/verify-otp:
     post:
       tags: [Two-factor]
       description: Verify two factor OTP
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -1179,34 +2037,43 @@ paths:
             schema:
               type: object
               properties:
-                code:
-                  type: string
-                  description: 'The otp code to verify. Eg: "012345"'
-                trustDevice:
-                  type: string
-                  description: "If true, the device will be trusted for 30 days. It'll be refreshed on every sign in request within this time. Eg: true"
+                code: {type: string, description: 'The otp code to verify. Eg: "012345"'}
+                trustDevice: {type: boolean, nullable: true}
               required: [code]
       responses:
-        '200':
+        "200":
           description: Two-factor OTP verified successfully
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  token:
-                    type: string
-                    description: Session token for the authenticated session
+                  token: {type: string, description: "Session token for the authenticated session"}
                   user:
-                    $ref: '#/components/schemas/User'
+                    type: object
+                    properties:
+                      id: {type: string, description: "Unique identifier of the user"}
+                      email: {type: string, format: email, nullable: true, description: "User's email address"}
+                      emailVerified: {type: boolean, nullable: true, description: "Whether the email is verified"}
+                      name: {type: string, nullable: true, description: "User's name"}
+                      image: {type: string, format: uri, nullable: true, description: "User's profile image URL"}
+                      createdAt: {type: string, format: date-time, description: "Timestamp when the user was created"}
+                      updatedAt: {type: string, format: date-time, description: "Timestamp when the user was last updated"}
+                    required: [id, createdAt, updatedAt]
+                    description: "The authenticated user object"
                 required: [token, user]
-        <<: *common-error-responses
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /two-factor/verify-backup-code:
     post:
       tags: [Two-factor]
       description: Verify a backup code for two-factor authentication
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -1214,16 +2081,12 @@ paths:
             schema:
               type: object
               properties:
-                code:
-                  type: string
-                  description: 'A backup code to verify. Eg: "123456"'
-                disableSession:
-                  type: string
-                trustDevice:
-                  type: string
+                code: {type: string, description: 'A backup code to verify. Eg: "123456"'}
+                disableSession: {type: boolean, description: "If true, the session cookie will not be set.", nullable: true}
+                trustDevice: {type: boolean, description: "If true, the device will be trusted for 30 days. It'll be refreshed on every sign in request within this time. Eg: true", nullable: true}
               required: [code]
       responses:
-        '200':
+        "200":
           description: Backup code verified successfully
           content:
             application/json:
@@ -1231,17 +2094,40 @@ paths:
                 type: object
                 properties:
                   user:
-                    $ref: '#/components/schemas/User'
+                    type: object
+                    properties:
+                      id: {type: string, description: "Unique identifier of the user"}
+                      email: {type: string, format: email, nullable: true, description: "User's email address"}
+                      emailVerified: {type: boolean, nullable: true, description: "Whether the email is verified"}
+                      name: {type: string, nullable: true, description: "User's name"}
+                      image: {type: string, format: uri, nullable: true, description: "User's profile image URL"}
+                      twoFactorEnabled: {type: boolean, description: "Whether two-factor authentication is enabled for the user"}
+                      createdAt: {type: string, format: date-time, description: "Timestamp when the user was created"}
+                      updatedAt: {type: string, format: date-time, description: "Timestamp when the user was last updated"}
+                    required: [id, twoFactorEnabled, createdAt, updatedAt]
+                    description: "The authenticated user object with two-factor details"
                   session:
-                    $ref: '#/components/schemas/Session'
+                    type: object
+                    properties:
+                      token: {type: string, description: "Session token"}
+                      userId: {type: string, description: "ID of the user associated with the session"}
+                      createdAt: {type: string, format: date-time, description: "Timestamp when the session was created"}
+                      expiresAt: {type: string, format: date-time, description: "Timestamp when the session expires"}
+                    required: [token, userId, createdAt, expiresAt]
+                    description: "The current session object, included unless disableSession is true"
                 required: [user, session]
-        <<: *common-error-responses
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /two-factor/generate-backup-codes:
     post:
       tags: [Two-factor]
       description: Generate new backup codes for two-factor authentication
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -1249,35 +2135,31 @@ paths:
             schema:
               type: object
               properties:
-                password:
-                  type: string
-                  description: The users password.
+                password: {type: string, description: "The users password."}
               required: [password]
       responses:
-        '200':
+        "200":
           description: Backup codes generated successfully
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  status:
-                    type: boolean
-                    description: Indicates if the backup codes were generated successfully
-                    enum: [true]
-                  backupCodes:
-                    type: array
-                    items:
-                      type: string
-                    description: Array of generated backup codes in plain text
+                  status: {type: boolean, description: "Indicates if the backup codes were generated successfully", enum: [true]}
+                  backupCodes: {type: array, items: {type: string}, description: "Array of generated backup codes in plain text"}
                 required: [status, backupCodes]
-        <<: *common-error-responses
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /two-factor/enable:
     post:
       tags: [Two-factor]
       description: Use this endpoint to enable two factor authentication. This will generate a TOTP URI and backup codes. Once the user verifies the TOTP URI, the two factor authentication will be enabled.
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -1285,36 +2167,31 @@ paths:
             schema:
               type: object
               properties:
-                password:
-                  type: string
-                  description: User password
-                issuer:
-                  type: string
+                password: {type: string, description: "User password"}
+                issuer: {type: string, description: "Custom issuer for the TOTP URI", nullable: true}
               required: [password]
       responses:
-        '200':
+        "200":
           description: Successful response
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  totpURI:
-                    type: string
-                    description: TOTP URI
-                  backupCodes:
-                    type: array
-                    items:
-                      type: string
-                    description: Backup codes
-                required: [totpURI, backupCodes]
-        <<: *common-error-responses
+                  totpURI: {type: string, description: "TOTP URI"}
+                  backupCodes: {type: array, items: {type: string}, description: "Backup codes"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
   /two-factor/disable:
     post:
       tags: [Two-factor]
       description: Use this endpoint to disable two factor authentication.
-      security: [{ bearerAuth: [] }]
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -1322,40 +2199,27 @@ paths:
             schema:
               type: object
               properties:
-                password:
-                  type: string
-                  description: User password
+                password: {type: string, description: "User password"}
               required: [password]
       responses:
-        '200':
+        "200":
           description: Successful response
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/StatusResponse'
-        <<: *common-error-responses
+              schema: {$ref: "#/components/schemas/StatusResponse"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
-  # Multi-session endpoints
-  /multi-session/list-device-sessions:
-    get:
-      tags: [Multi-session]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Session'
-        <<: *common-error-responses
-
-  /multi-session/set-active:
+  # Phone Number Authentication
+  /sign-in/phone-number:
     post:
-      tags: [Multi-session]
-      description: Set the active session
-      security: [{ bearerAuth: [] }]
+      tags: [Phone-number]
+      description: Use this endpoint to sign in with phone number
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -1363,28 +2227,58 @@ paths:
             schema:
               type: object
               properties:
-                sessionToken:
-                  type: string
-                  description: The session token to set as active
-              required: [sessionToken]
+                phoneNumber: {type: string, description: 'Phone number to sign in. Eg: "+1234567890"'}
+                password: {type: string, description: "Password to use for sign in."}
+                rememberMe: {type: boolean, description: "Remember the session. Eg: true", nullable: true}
+              required: [phoneNumber, password]
       responses:
-        '200':
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/UserWithSession"}
+        "400": {description: "Invalid phone number or password"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /phone-number/send-otp:
+    post:
+      tags: [Phone-number]
+      description: Use this endpoint to send OTP to phone number
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phoneNumber: {type: string, description: 'Phone number to send OTP. Eg: "+1234567890"'}
+              required: [phoneNumber]
+      responses:
+        "200":
           description: Success
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  session:
-                    $ref: '#/components/schemas/Session'
-                required: [session]
-        <<: *common-error-responses
+                  message: {type: string}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
 
-  /multi-session/revoke:
+  /phone-number/verify:
     post:
-      tags: [Multi-session]
-      description: Revoke a device session
-      security: [{ bearerAuth: [] }]
+      tags: [Phone-number]
+      description: Use this endpoint to verify phone number
+      security: [{bearerAuth: []}]
       requestBody:
         required: true
         content:
@@ -1392,15 +2286,71 @@ paths:
             schema:
               type: object
               properties:
-                sessionToken:
-                  type: string
-                  description: The session token to revoke
-              required: [sessionToken]
+                phoneNumber: {type: string, description: 'Phone number to verify. Eg: "+1234567890"'}
+                code: {type: string, description: 'OTP code. Eg: "123456"'}
+                disableSession: {type: boolean, description: "Disable session creation after verification. Eg: false", nullable: true}
+                updatePhoneNumber: {type: boolean, description: "Check if there is a session and update the phone number. Eg: true", nullable: true}
+              required: [phoneNumber, code]
       responses:
-        '200':
-          description: Success
+        "200":
+          description: Phone number verified successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StatusResponse'
-        <<: *common-error-responses
+                type: object
+                properties:
+                  status: {type: boolean, description: "Indicates if the verification was successful", enum: [true]}
+                  token: {type: string, nullable: true, description: "Session token if session is created, null if disableSession is true or no session is created"}
+                  user:
+                    type: object
+                    nullable: true
+                    properties:
+                      id: {type: string, description: "Unique identifier of the user"}
+                      email: {type: string, format: email, nullable: true, description: "User's email address"}
+                      emailVerified: {type: boolean, nullable: true, description: "Whether the email is verified"}
+                      name: {type: string, nullable: true, description: "User's name"}
+                      image: {type: string, format: uri, nullable: true, description: "User's profile image URL"}
+                      phoneNumber: {type: string, description: "User's phone number"}
+                      phoneNumberVerified: {type: boolean, description: "Whether the phone number is verified"}
+                      createdAt: {type: string, format: date-time, description: "Timestamp when the user was created"}
+                      updatedAt: {type: string, format: date-time, description: "Timestamp when the user was last updated"}
+                    required: [id, phoneNumber, phoneNumberVerified, createdAt, updatedAt]
+                    description: "User object with phone number details, null if no user is created or found"
+                required: [status]
+        "400": {description: "Invalid OTP"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}
+
+  /phone-number/forget-password:
+    post:
+      tags: [Phone-number]
+      description: Request OTP for password reset via phone number
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phoneNumber: {type: string, description: 'The phone number which is associated with the user. Eg: "+1234567890"'}
+              required: [phoneNumber]
+      responses:
+        "200":
+          description: OTP sent successfully for password reset
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: boolean, description: "Indicates if the OTP was sent successfully", enum: [true]}
+                required: [status]
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalServerError"}

@@ -5,11 +5,18 @@ info:
   version: 2.0.0
   contact:
     name: CryptoGadai Development Team
+
 servers:
   - url: https://api.cryptogadai.com/api
     description: Production server
-  - url: https://staging-api.cryptogadai.com/api
-    description: Staging server
+  - url: https://cg-api.fh47.com/api
+    description: Testing server
+  - url: http://cg-api.localhost/api
+    description: Local development server
+
+security:
+  - apiKeyCookie: []
+  - bearerAuth: []
 
 paths:
 
@@ -19,8 +26,6 @@ paths:
       tags: [User Profile]
       summary: Select user type
       description: Mandatory user type selection after registration (Individual or Institution)
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -67,8 +72,6 @@ paths:
       tags: [User Profile]
       summary: Get user profile
       description: Retrieves user profile information and available actions
-      security:
-        - bearerAuth: []
       responses:
         '200':
           description: Profile retrieved successfully
@@ -86,8 +89,6 @@ paths:
       tags: [User Profile]
       summary: Update user profile
       description: Updates user profile information and optionally profile picture
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -130,8 +131,6 @@ paths:
       tags: [KYC Verification]
       summary: Submit KYC verification
       description: Submits KYC documents and information for verification
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -206,8 +205,6 @@ paths:
       tags: [KYC Verification]
       summary: Get KYC status
       description: Retrieves current KYC verification status
-      security:
-        - bearerAuth: []
       responses:
         '200':
           description: KYC status retrieved
@@ -232,8 +229,6 @@ paths:
       tags: [Institution Management]
       summary: Apply for institution account
       description: Submits institution registration application
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -339,8 +334,6 @@ paths:
       tags: [Institution Management]
       summary: Invite institution member
       description: Invites a user to join institution
-      security:
-        - bearerAuth: []
       parameters:
         - name: institutionId
           in: path
@@ -385,8 +378,6 @@ paths:
       tags: [Institution Management]
       summary: Accept institution invitation
       description: Accepts a institution invitation
-      security:
-        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -423,8 +414,6 @@ paths:
       tags: [Notifications]
       summary: List user notifications
       description: Retrieve paginated list of notifications for authenticated user
-      security:
-        - bearerAuth: []
       parameters:
         - name: page
           in: query
@@ -490,8 +479,6 @@ paths:
       tags: [Notifications]
       summary: Mark notification as read
       description: Mark a specific notification as read
-      security:
-        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -518,8 +505,6 @@ paths:
       tags: [Notifications]
       summary: Mark all notifications as read
       description: Mark all unread notifications as read for authenticated user
-      security:
-        - bearerAuth: []
       responses:
         '200':
           description: All notifications marked as read
@@ -541,8 +526,6 @@ paths:
       tags: [Institution Management]
       summary: Reject institution invitation
       description: Rejects a institution invitation
-      security:
-        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -573,128 +556,20 @@ paths:
 
 components:
   securitySchemes:
-    cookieAuth:
+    apiKeyCookie:
       type: apiKey
       in: cookie
-      name: better-auth.session_token
-      description: Better Auth session cookie
+      name: apiKeyCookie
+      description: Better Auth API Key authentication via cookie
     bearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: JWT
+      description: Better Auth Bearer token authentication
 
   schemas:
-    BetterAuthUser:
-      type: object
-      description: Better Auth user schema compatible with CryptoGadai
-      properties:
-        id:
-          type: string
-          description: UUID user identifier
-          example: "clx7k2m3n0000w8g4h9s1c7y2"
-        name:
-          type: string
-          description: User's full name
-          nullable: true
-        email:
-          type: string
-          format: email
-          description: User's email address
-        emailVerified:
-          type: boolean
-          description: Whether email is verified
-        image:
-          type: string
-          format: uri
-          description: User's profile image URL
-          nullable: true
-        role:
-          type: string
-          enum: [Admin, User]
-          default: User
-          description: User role in CryptoGadai system
-        twoFactorEnabled:
-          type: boolean
-          description: Whether 2FA is enabled
-          default: false
-        createdAt:
-          type: string
-          format: date-time
-          description: User creation timestamp
-        updatedAt:
-          type: string
-          format: date-time
-          description: User last update timestamp
-        
-        # CryptoGadai-specific fields
-        institutionId:
-          type: integer
-          format: int64
-          nullable: true
-          description: Associated institution ID
-        institutionRole:
-          type: string
-          enum: [Owner, Finance]
-          nullable: true
-          description: Role within institution
-        kycId:
-          type: integer
-          format: int64
-          nullable: true
-          description: KYC verification record ID
-        kycStatus:
-          type: string
-          enum: [pending, verified, rejected]
-          description: KYC verification status (none status handled at application level)
-
-    BetterAuthSession:
-      type: object
-      description: Better Auth session information
-      properties:
-        id:
-          type: string
-          description: Session ID
-        token:
-          type: string
-          description: Session token
-        userId:
-          type: string
-          description: User ID associated with session
-        expiresAt:
-          type: string
-          format: date-time
-          description: Session expiration time
-        ipAddress:
-          type: string
-          nullable: true
-          description: IP address of the session
-        userAgent:
-          type: string
-          nullable: true
-          description: User agent string
-        createdAt:
-          type: string
-          format: date-time
-          description: Session creation time
-        updatedAt:
-          type: string
-          format: date-time
-          description: Session last update time
-        
-        # CryptoGadai-specific session fields
-        activeOrganizationId:
-          type: string
-          nullable: true
-          description: Active organization context
-        activeTeamId:
-          type: string
-          nullable: true
-          description: Active team context
-
     UserProfile:
       type: object
-      deprecated: true
-      description: Legacy user profile schema (use BetterAuthUser instead)
+      description: User Profile
       properties:
         id:
           type: integer
@@ -848,18 +723,6 @@ components:
                 expectedInterest:
                   type: string
                   example: "6750.00"
-            riskLevels:
-              type: object
-              properties:
-                normal:
-                  type: integer
-                  example: 6
-                warning:
-                  type: integer
-                  example: 1
-                critical:
-                  type: integer
-                  example: 1
 
     KYCSubmission:
       type: object
@@ -872,6 +735,7 @@ components:
           description: Current KYC status (derived from time-based verification fields)
           enum: [pending, verified, rejected]
           readOnly: true
+          writeOnly: false
         submittedDate:
           type: string
           format: date-time
@@ -965,6 +829,7 @@ components:
           description: Current application status (derived from time-based approval fields)
           enum: [Submitted, UnderReview, Verified, Rejected]
           readOnly: true
+          writeOnly: false
 
     InstitutionApplicationSummary:
       type: object
@@ -1074,7 +939,7 @@ components:
           nullable: true
           description: When the notification was read
           example: null
-        createdAt:
+        createdDate:
           type: string
           format: date-time
           description: When the notification was created
