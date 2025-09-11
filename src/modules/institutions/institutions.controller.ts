@@ -1,6 +1,6 @@
 import type { UserSession } from '../auth/types';
 
-import { Body, Controller, Param, Patch, Post, Session } from '@nestjs/common';
+import { Body, Controller, HttpStatus, Param, Patch, Post, Session } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { Auth } from '../../decorators/auth.decorator';
@@ -16,19 +16,21 @@ export class InstitutionsController {
 
   @Post()
   @ApiOperation({ summary: 'Apply for institution registration' })
-  @ApiResponse({ status: 201, description: 'Institution application submitted successfully' })
-  @ApiResponse({ status: 400, description: 'Bad request' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Institution application submitted successfully',
+  })
   apply(@Session() session: UserSession, @Body() createInstitutionDto: CreateInstitutionDto) {
     return this.institutionsService.apply(session.user.id, createInstitutionDto);
   }
 
   @Post('invitations')
   @ApiOperation({ summary: 'Invite user to institution' })
-  @ApiResponse({ status: 201, description: 'Invitation sent successfully' })
-  @ApiResponse({ status: 400, description: 'Bad request' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Only institution owners can invite users' })
+  @ApiResponse({ status: HttpStatus.CREATED, description: 'Invitation sent successfully' })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Forbidden - Only institution owners can invite users',
+  })
   invite(
     @Session() session: UserSession,
     @Body() createInstitutionInviteDto: CreateInstitutionInviteDto,
@@ -43,10 +45,8 @@ export class InstitutionsController {
     description: 'Invitation ID',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
-  @ApiResponse({ status: 200, description: 'Invitation status updated successfully' })
-  @ApiResponse({ status: 400, description: 'Bad request' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Invitation not found' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Invitation status updated successfully' })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Invitation not found' })
   updateInvitationStatus(
     @Session() session: UserSession,
     @Param('id') inviteId: string,

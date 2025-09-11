@@ -1,9 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 
 import { OwnerUserInvitesUserToInstitutionParams } from '../../../shared/types';
+
+export enum InvitationRole {
+  OWNER = 'Owner',
+  FINANCE = 'Finance',
+}
 
 export class CreateInstitutionInviteDto
   implements Omit<OwnerUserInvitesUserToInstitutionParams, 'invitationDate'>
@@ -28,10 +33,10 @@ export class CreateInstitutionInviteDto
 
   @ApiProperty({
     description: 'The role to assign to the invited user',
-    enum: ['Owner', 'Finance'],
+    enum: InvitationRole,
     example: 'Finance',
   })
   @IsNotEmpty()
-  @IsString()
-  role: 'Owner' | 'Finance';
+  @IsEnum(InvitationRole)
+  role: InvitationRole;
 }
