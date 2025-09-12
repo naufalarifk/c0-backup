@@ -9,6 +9,7 @@ x-backend-env: &backend-env
     exp://192.168.0.102:8081,\
     exp://192.168.0.106:8081,\
     exp://192.168.0.108:8081,\
+    exp://192.168.0.103:8081,\
     ${PROTOCOL:-https}://${API_DOMAIN:-cg-api.fh47.my.id}"
 
   BETTER_AUTH_SECRET: P1skQoJiT7jnNDHuw06kkbTougc3jvTt
