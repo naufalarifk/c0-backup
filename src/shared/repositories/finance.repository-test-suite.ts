@@ -1168,5 +1168,131 @@ export async function runFinanceRepositoryTestSuite(
         equal(typeof result.id, 'string');
       });
     });
+
+    describe('Currency Management', function () {
+      it('should retrieve all supported currencies', async function () {
+        const result = await repo.userViewsCurrencies({ type: 'all' });
+
+        // Should return currencies from the schema (BTC, ETH, BNB, SOL as collateral + USDT as loan currency)
+        ok(result.currencies.length >= 5, 'Should have at least 5 currencies from schema');
+
+        // Check if BTC collateral currency is present
+        const btcCurrency = result.currencies.find(
+          c => c.symbol === 'BTC' && c.isCollateralCurrency,
+        );
+        ok(btcCurrency, 'BTC collateral currency should exist');
+        equal(btcCurrency.blockchainKey, 'bip122:000000000019d6689c085ae165831e93');
+        equal(btcCurrency.tokenId, 'slip44:0');
+        equal(btcCurrency.maxLtv, 60.0);
+        ok(btcCurrency.blockchain, 'Should include blockchain info');
+        equal(btcCurrency.blockchain.name, 'Bitcoin');
+
+        // Check if USDC loan currency is present
+        const usdcCurrency = result.currencies.find(c => c.symbol === 'USDC' && c.isLoanCurrency);
+        ok(usdcCurrency, 'USDC loan currency should exist');
+        equal(usdcCurrency.blockchainKey, 'eip155:56');
+        equal(usdcCurrency.isCollateralCurrency, false);
+        equal(usdcCurrency.isLoanCurrency, true);
+        equal(usdcCurrency.maxLtv, 0);
+      });
+
+      it('should filter currencies by collateral type', async function () {
+        const result = await repo.userViewsCurrencies({ type: 'collateral' });
+
+        ok(result.currencies.length > 0, 'Should have collateral currencies');
+
+        // All returned currencies should be collateral currencies
+        for (const currency of result.currencies) {
+          equal(currency.isCollateralCurrency, true);
+          ok(currency.maxLtv > 0, 'Collateral currencies should have max LTV > 0');
+        }
+
+        // Should include BTC, ETH, BNB, SOL
+        const symbols = result.currencies.map(c => c.symbol);
+        ok(symbols.includes('BTC'), 'Should include BTC');
+        ok(symbols.includes('ETH'), 'Should include ETH');
+        ok(symbols.includes('BNB'), 'Should include BNB');
+        ok(symbols.includes('SOL'), 'Should include SOL');
+      });
+
+      it('should filter currencies by loan type', async function () {
+        const result = await repo.userViewsCurrencies({ type: 'loan' });
+
+        ok(result.currencies.length > 0, 'Should have loan currencies');
+
+        // All returned currencies should be loan currencies
+        for (const currency of result.currencies) {
+          equal(currency.isLoanCurrency, true);
+          equal(currency.maxLtv, 0, 'Loan currencies should have max LTV = 0');
+          ok(
+            ['USDC', 'USDT', 'USD'].includes(currency.symbol),
+            'Loan currencies should be USDT-based',
+          );
+        }
+      });
+
+      it('should filter currencies by blockchain key', async function () {
+        const result = await repo.userViewsCurrencies({
+          blockchainKey: 'eip155:1',
+        });
+
+        ok(result.currencies.length > 0, 'Should have currencies for Ethereum');
+
+        // All returned currencies should be on Ethereum network
+        for (const currency of result.currencies) {
+          equal(currency.blockchainKey, 'eip155:1');
+          equal(currency.blockchain.key, 'eip155:1');
+        }
+      });
+
+      it('should filter currencies by LTV range', async function () {
+        const result = await repo.userViewsCurrencies({
+          minLtv: 60,
+          maxLtv: 70,
+        });
+
+        ok(result.currencies.length > 0, 'Should have currencies in LTV range');
+
+        // All returned currencies should be within the LTV range
+        for (const currency of result.currencies) {
+          ok(currency.maxLtv >= 60, 'Currency max LTV should be >= 60');
+          ok(currency.maxLtv <= 70, 'Currency max LTV should be <= 70');
+        }
+      });
+
+      it('should return currencies with proper blockchain information', async function () {
+        const result = await repo.userViewsCurrencies({ type: 'all' });
+
+        ok(result.currencies.length > 0, 'Should have currencies');
+
+        // Check that each currency has complete blockchain information
+        for (const currency of result.currencies) {
+          ok(currency.blockchain, 'Should have blockchain info');
+          ok(currency.blockchain.key, 'Should have blockchain key');
+          ok(currency.blockchain.name, 'Should have blockchain name');
+          ok(currency.blockchain.shortName, 'Should have blockchain short name');
+          ok(currency.blockchain.image, 'Should have blockchain image URL');
+
+          // Blockchain key should match currency's blockchain key
+          equal(currency.blockchain.key, currency.blockchainKey);
+        }
+      });
+
+      it('should return currencies ordered with collateral currencies first', async function () {
+        const result = await repo.userViewsCurrencies({ type: 'all' });
+
+        ok(result.currencies.length > 0, 'Should have currencies');
+
+        let foundLoanCurrency = false;
+        for (const currency of result.currencies) {
+          if (foundLoanCurrency && currency.isCollateralCurrency) {
+            throw new Error('Collateral currencies should come before loan currencies');
+          }
+          if (currency.isLoanCurrency) {
+            foundLoanCurrency = true;
+          }
+        }
+      });
+    });
   });
 }

@@ -293,3 +293,44 @@ export interface PlatformCreatesUserAccountResult {
   balance: string;
   accountType: string;
 }
+
+// Currency Management Types
+export interface UserViewsCurrenciesParams {
+  type?: 'collateral' | 'loan' | 'all';
+  blockchainKey?: string;
+  minLtv?: number;
+  maxLtv?: number;
+}
+
+export interface Blockchain {
+  key: string;
+  name: string;
+  shortName: string;
+  image: string;
+}
+
+export interface Currency {
+  blockchainKey: string;
+  tokenId: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  logoUrl: string;
+  isCollateralCurrency: boolean;
+  isLoanCurrency: boolean;
+  maxLtv: number;
+  ltvWarningThreshold: number;
+  ltvCriticalThreshold: number;
+  ltvLiquidationThreshold: number;
+  minLoanPrincipalAmount: string;
+  maxLoanPrincipalAmount: string;
+  minWithdrawalAmount: string;
+  maxWithdrawalAmount: string;
+  maxDailyWithdrawalAmount: string;
+  withdrawalFeeRate: number;
+  blockchain: Blockchain;
+}
+
+export interface UserViewsCurrenciesResult {
+  currencies: Currency[];
+}

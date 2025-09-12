@@ -1,3 +1,4 @@
+import { doesNotReject } from 'node:assert';
 import { deepEqual, equal, notEqual, ok, rejects } from 'node:assert/strict';
 import { describe, suite } from 'node:test';
 
@@ -70,24 +71,27 @@ export async function runLoanUserRepositoryTestSuite(
             maxLoanPrincipalAmount: '5000000000',
             interestRate: 12.5,
             termInMonthsOptions: [3, 6, 12],
+            createdDate: new Date('2025-10-30'),
             expirationDate: new Date('2025-12-31'),
-            createdDate: new Date(),
           });
 
-          const loanApplicationResult = await repo.borrowerCreatesLoanApplication({
-            borrowerUserId: '2',
-            loanOfferId: loanOfferResult.id,
-            collateralBlockchainKey: 'eip155:56',
-            collateralTokenId: 'slip44:714',
-            principalBlockchainKey: 'eip155:56',
-            principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-            principalAmount: '2000000000',
-            maxInterestRate: 15.0,
-            termInMonths: 6,
-            liquidationMode: 'Partial',
-            appliedDate: new Date(),
-            expirationDate: new Date('2025-11-30'),
-          });
+          await doesNotReject(
+            repo.borrowerCreatesLoanApplication({
+              borrowerUserId: '2',
+              loanOfferId: loanOfferResult.id,
+              collateralBlockchainKey: 'eip155:56',
+              collateralTokenId: 'slip44:714',
+              principalBlockchainKey: 'eip155:56',
+              principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+              principalAmount: '2000000000',
+              maxInterestRate: 15.0,
+              termInMonths: 6,
+              liquidationMode: 'Partial',
+              appliedDate: new Date('2025-11-01'),
+              expirationDate: new Date('2025-11-30'),
+            }),
+            'Borrower should be able to create loan application',
+          );
 
           // Mock loan creation (in real implementation, platform would create loan)
           const mockLoanId = '123';

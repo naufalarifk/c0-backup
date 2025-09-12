@@ -40,6 +40,8 @@ import {
   UserRetrievesAccountBalancesResult,
   UserViewsAccountTransactionHistoryParams,
   UserViewsAccountTransactionHistoryResult,
+  UserViewsCurrenciesParams,
+  UserViewsCurrenciesResult,
   UserViewsInvoiceDetailsParams,
   UserViewsInvoiceDetailsResult,
   UserViewsWithdrawalBeneficiariesParams,
@@ -887,6 +889,115 @@ export abstract class FinanceRepository extends UserRepository {
       await tx.rollbackTransaction();
       throw error;
     }
+  }
+
+  // Currency Management Methods
+  async userViewsCurrencies(params: UserViewsCurrenciesParams): Promise<UserViewsCurrenciesResult> {
+    const { type = 'all', blockchainKey, minLtv, maxLtv } = params;
+
+    const rows = await this.sql`
+      SELECT
+        c.blockchain_key,
+        c.token_id,
+        c.name,
+        c.symbol,
+        c.decimals,
+        c.image as logo_url,
+        c.withdrawal_fee_rate,
+        c.min_withdrawal_amount,
+        c.max_withdrawal_amount,
+        c.max_daily_withdrawal_amount,
+        c.min_loan_principal_amount,
+        c.max_loan_principal_amount,
+        c.max_ltv,
+        c.ltv_warning_threshold,
+        c.ltv_critical_threshold,
+        c.ltv_liquidation_threshold,
+        b.key as blockchain_key_ref,
+        b.name as blockchain_name,
+        b.short_name as blockchain_short_name,
+        b.image as blockchain_image
+      FROM currencies c
+      JOIN blockchains b ON c.blockchain_key = b.key
+      WHERE (${blockchainKey}::text IS NULL OR c.blockchain_key = ${blockchainKey})
+        AND (${minLtv}::numeric IS NULL OR c.max_ltv >= ${minLtv})
+        AND (${maxLtv}::numeric IS NULL OR c.max_ltv <= ${maxLtv})
+        AND (
+          ${type}::text = 'all' OR
+          (${type}::text = 'collateral' AND c.max_ltv > 0) OR
+          (${type}::text = 'loan' AND c.symbol IN ('USDC', 'USDT', 'USD') AND c.max_ltv = 0)
+        )
+      ORDER BY 
+        CASE 
+          WHEN c.max_ltv > 0 THEN 0  -- Collateral currencies first
+          ELSE 1                     -- Loan currencies second
+        END,
+        c.blockchain_key, 
+        c.token_id
+    `;
+
+    const currencies = rows;
+
+    return {
+      currencies: currencies.map(function (currency: unknown) {
+        assertDefined(currency, 'Currency record is undefined');
+        assertPropString(currency, 'blockchain_key');
+        assertPropString(currency, 'token_id');
+        assertPropString(currency, 'name');
+        assertPropString(currency, 'symbol');
+        assertPropStringOrNumber(currency, 'decimals');
+        assertPropString(currency, 'logo_url');
+        assertPropStringOrNumber(currency, 'withdrawal_fee_rate');
+        assertPropStringOrNumber(currency, 'min_withdrawal_amount');
+        assertPropStringOrNumber(currency, 'max_withdrawal_amount');
+        assertPropStringOrNumber(currency, 'max_daily_withdrawal_amount');
+        assertPropStringOrNumber(currency, 'min_loan_principal_amount');
+        assertPropStringOrNumber(currency, 'max_loan_principal_amount');
+        assertPropStringOrNumber(currency, 'max_ltv');
+        assertPropStringOrNumber(currency, 'ltv_warning_threshold');
+        assertPropStringOrNumber(currency, 'ltv_critical_threshold');
+        assertPropStringOrNumber(currency, 'ltv_liquidation_threshold');
+        assertPropString(currency, 'blockchain_key_ref');
+        assertPropString(currency, 'blockchain_name');
+        assertPropString(currency, 'blockchain_short_name');
+        assertPropString(currency, 'blockchain_image');
+
+        // Determine currency type based on configuration
+        const maxLtv = Number(currency.max_ltv);
+        const isCollateralCurrency = maxLtv > 0;
+        // USDT/USDC currencies are loan currencies (based on SRS - loans only in USDT form)
+        const isLoanCurrency =
+          (currency.symbol === 'USDC' || currency.symbol === 'USDT' || currency.symbol === 'USD') &&
+          maxLtv === 0;
+
+        return {
+          blockchainKey: currency.blockchain_key,
+          tokenId: currency.token_id,
+          name: currency.name,
+          symbol: currency.symbol,
+          decimals: Number(currency.decimals),
+          logoUrl: currency.logo_url,
+          isCollateralCurrency,
+          isLoanCurrency,
+          maxLtv: Number(currency.max_ltv),
+          ltvWarningThreshold: Number(currency.ltv_warning_threshold),
+          ltvCriticalThreshold: Number(currency.ltv_critical_threshold),
+          ltvLiquidationThreshold: Number(currency.ltv_liquidation_threshold),
+          minLoanPrincipalAmount: String(currency.min_loan_principal_amount),
+          maxLoanPrincipalAmount: String(currency.max_loan_principal_amount),
+          minWithdrawalAmount: String(currency.min_withdrawal_amount),
+          maxWithdrawalAmount: String(currency.max_withdrawal_amount),
+          maxDailyWithdrawalAmount: String(currency.max_daily_withdrawal_amount),
+          withdrawalFeeRate: Number(currency.withdrawal_fee_rate),
+          blockchain: {
+            key: currency.blockchain_key_ref,
+            name: currency.blockchain_name,
+            shortName: currency.blockchain_short_name,
+            image: currency.blockchain_image,
+          },
+        };
+      }),
+    };
   }
 
   // Minimal test helpers for test suite only

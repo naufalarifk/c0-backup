@@ -40,6 +40,318 @@ security:
   - bearerAuth: []
 
 paths:
+  # Currency Management
+  /currencies:
+    get:
+      tags:
+        - Currency Management
+      summary: Get supported currencies
+      description: |
+        Retrieve list of supported currencies for collateral and loan operations.
+        
+        **Currency Types:**
+        - Collateral currencies: BTC, ETH, BNB, SOL with LTV configuration
+        - Loan currencies: USDT on various networks
+        
+        **Usage:**
+        - Loan creation forms to display available collateral options
+        - Portfolio management to show supported assets
+        - LTV calculation and risk assessment
+      operationId: getCurrencies
+      parameters:
+        - name: type
+          in: query
+          description: Filter by currency usage type
+          schema:
+            type: string
+            enum:
+              - collateral
+              - loan
+              - all
+            default: all
+        - name: blockchainKey
+          in: query
+          description: Filter by blockchain key (CAIP-2 format)
+          schema:
+            type: string
+            example: "eip155:1"
+        - name: minLtv
+          in: query
+          description: Filter currencies with minimum LTV ratio
+          schema:
+            type: number
+            minimum: 0
+            maximum: 100
+            example: 50.0
+        - name: maxLtv
+          in: query
+          description: Filter currencies with maximum LTV ratio
+          schema:
+            type: number
+            minimum: 0
+            maximum: 100
+            example: 70.0
+      responses:
+        '200':
+          description: Currencies retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrenciesResponse'
+              examples:
+                all_currencies:
+                  summary: All supported currencies
+                  value:
+                    success: true
+                    data:
+                      currencies:
+                        - blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                          tokenId: "slip44:0"
+                          name: "Bitcoin"
+                          symbol: "BTC"
+                          decimals: 8
+                          logoUrl: "https://cryptologos.cc/logos/bitcoin-btc-logo.png"
+                          isCollateralCurrency: true
+                          isLoanCurrency: false
+                          maxLtv: 60.0
+                          ltvWarningThreshold: 48.0
+                          ltvCriticalThreshold: 57.0
+                          ltvLiquidationThreshold: 60.0
+                          minLoanPrincipalAmount: "0"
+                          maxLoanPrincipalAmount: "0"
+                          minWithdrawalAmount: "0"
+                          maxWithdrawalAmount: "0"
+                          maxDailyWithdrawalAmount: "0"
+                          withdrawalFeeRate: 0.0000
+                          blockchain:
+                            key: "bip122:000000000019d6689c085ae165831e93"
+                            name: "Bitcoin"
+                            shortName: "BTC"
+                            image: "https://cryptologos.cc/logos/bitcoin-btc-logo.png"
+                        - blockchainKey: "eip155:1"
+                          tokenId: "slip44:60"
+                          name: "Ethereum"
+                          symbol: "ETH"
+                          decimals: 18
+                          logoUrl: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
+                          isCollateralCurrency: true
+                          isLoanCurrency: false
+                          maxLtv: 70.0
+                          ltvWarningThreshold: 56.0
+                          ltvCriticalThreshold: 66.5
+                          ltvLiquidationThreshold: 70.0
+                          minLoanPrincipalAmount: "0"
+                          maxLoanPrincipalAmount: "0"
+                          minWithdrawalAmount: "0"
+                          maxWithdrawalAmount: "0"
+                          maxDailyWithdrawalAmount: "0"
+                          withdrawalFeeRate: 0.0000
+                          blockchain:
+                            key: "eip155:1"
+                            name: "Ethereum Mainnet"
+                            shortName: "ETH"
+                            image: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
+                        - blockchainKey: "eip155:56"
+                          tokenId: "slip44:714"
+                          name: "Binance Coin"
+                          symbol: "BNB"
+                          decimals: 18
+                          logoUrl: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
+                          isCollateralCurrency: true
+                          isLoanCurrency: false
+                          maxLtv: 50.0
+                          ltvWarningThreshold: 40.0
+                          ltvCriticalThreshold: 47.5
+                          ltvLiquidationThreshold: 50.0
+                          minLoanPrincipalAmount: "0"
+                          maxLoanPrincipalAmount: "0"
+                          minWithdrawalAmount: "0"
+                          maxWithdrawalAmount: "0"
+                          maxDailyWithdrawalAmount: "0"
+                          withdrawalFeeRate: 0.0000
+                          blockchain:
+                            key: "eip155:56"
+                            name: "Binance Smart Chain"
+                            shortName: "BSC"
+                            image: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
+                        - blockchainKey: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+                          tokenId: "slip44:501"
+                          name: "Solana"
+                          symbol: "SOL"
+                          decimals: 9
+                          logoUrl: "https://cryptologos.cc/logos/solana-sol-logo.png"
+                          isCollateralCurrency: true
+                          isLoanCurrency: false
+                          maxLtv: 50.0
+                          ltvWarningThreshold: 40.0
+                          ltvCriticalThreshold: 47.5
+                          ltvLiquidationThreshold: 50.0
+                          minLoanPrincipalAmount: "0"
+                          maxLoanPrincipalAmount: "0"
+                          minWithdrawalAmount: "0"
+                          maxWithdrawalAmount: "0"
+                          maxDailyWithdrawalAmount: "0"
+                          withdrawalFeeRate: 0.0000
+                          blockchain:
+                            key: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+                            name: "Solana"
+                            shortName: "SOL"
+                            image: "https://cryptologos.cc/logos/solana-sol-logo.png"
+                        - blockchainKey: "eip155:56"
+                          tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                          name: "Binance-Peg USD Coin"
+                          symbol: "USDC"
+                          decimals: 18
+                          logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                          isCollateralCurrency: false
+                          isLoanCurrency: true
+                          maxLtv: 0.0
+                          ltvWarningThreshold: 0.0
+                          ltvCriticalThreshold: 0.0
+                          ltvLiquidationThreshold: 0.0
+                          minLoanPrincipalAmount: "500000000000000000000"
+                          maxLoanPrincipalAmount: "0"
+                          minWithdrawalAmount: "100000000000000000000"
+                          maxWithdrawalAmount: "0"
+                          maxDailyWithdrawalAmount: "0"
+                          withdrawalFeeRate: 0.0000
+                          blockchain:
+                            key: "eip155:56"
+                            name: "Binance Smart Chain"
+                            shortName: "BSC"
+                            image: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
+                collateral_currencies:
+                  summary: Collateral currencies only
+                  value:
+                    success: true
+                    data:
+                      currencies:
+                        - blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                          tokenId: "slip44:0"
+                          name: "Bitcoin"
+                          symbol: "BTC"
+                          decimals: 8
+                          logoUrl: "https://cryptologos.cc/logos/bitcoin-btc-logo.png"
+                          isCollateralCurrency: true
+                          isLoanCurrency: false
+                          maxLtv: 60.0
+                          ltvWarningThreshold: 48.0
+                          ltvCriticalThreshold: 57.0
+                          ltvLiquidationThreshold: 60.0
+                          minLoanPrincipalAmount: "0"
+                          maxLoanPrincipalAmount: "0"
+                          minWithdrawalAmount: "0"
+                          maxWithdrawalAmount: "0"
+                          maxDailyWithdrawalAmount: "0"
+                          withdrawalFeeRate: 0.0000
+                          blockchain:
+                            key: "bip122:000000000019d6689c085ae165831e93"
+                            name: "Bitcoin"
+                            shortName: "BTC"
+                            image: "https://cryptologos.cc/logos/bitcoin-btc-logo.png"
+                        - blockchainKey: "eip155:1"
+                          tokenId: "slip44:60"
+                          name: "Ethereum"
+                          symbol: "ETH"
+                          decimals: 18
+                          logoUrl: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
+                          isCollateralCurrency: true
+                          isLoanCurrency: false
+                          maxLtv: 70.0
+                          ltvWarningThreshold: 56.0
+                          ltvCriticalThreshold: 66.5
+                          ltvLiquidationThreshold: 70.0
+                          minLoanPrincipalAmount: "0"
+                          maxLoanPrincipalAmount: "0"
+                          minWithdrawalAmount: "0"
+                          maxWithdrawalAmount: "0"
+                          maxDailyWithdrawalAmount: "0"
+                          withdrawalFeeRate: 0.0000
+                          blockchain:
+                            key: "eip155:1"
+                            name: "Ethereum Mainnet"
+                            shortName: "ETH"
+                            image: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
+                        - blockchainKey: "eip155:56"
+                          tokenId: "slip44:714"
+                          name: "Binance Coin"
+                          symbol: "BNB"
+                          decimals: 18
+                          logoUrl: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
+                          isCollateralCurrency: true
+                          isLoanCurrency: false
+                          maxLtv: 50.0
+                          ltvWarningThreshold: 40.0
+                          ltvCriticalThreshold: 47.5
+                          ltvLiquidationThreshold: 50.0
+                          minLoanPrincipalAmount: "0"
+                          maxLoanPrincipalAmount: "0"
+                          minWithdrawalAmount: "0"
+                          maxWithdrawalAmount: "0"
+                          maxDailyWithdrawalAmount: "0"
+                          withdrawalFeeRate: 0.0000
+                          blockchain:
+                            key: "eip155:56"
+                            name: "Binance Smart Chain"
+                            shortName: "BSC"
+                            image: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
+                        - blockchainKey: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+                          tokenId: "slip44:501"
+                          name: "Solana"
+                          symbol: "SOL"
+                          decimals: 9
+                          logoUrl: "https://cryptologos.cc/logos/solana-sol-logo.png"
+                          isCollateralCurrency: true
+                          isLoanCurrency: false
+                          maxLtv: 50.0
+                          ltvWarningThreshold: 40.0
+                          ltvCriticalThreshold: 47.5
+                          ltvLiquidationThreshold: 50.0
+                          minLoanPrincipalAmount: "0"
+                          maxLoanPrincipalAmount: "0"
+                          minWithdrawalAmount: "0"
+                          maxWithdrawalAmount: "0"
+                          maxDailyWithdrawalAmount: "0"
+                          withdrawalFeeRate: 0.0000
+                          blockchain:
+                            key: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+                            name: "Solana"
+                            shortName: "SOL"
+                            image: "https://cryptologos.cc/logos/solana-sol-logo.png"
+                loan_currencies:
+                  summary: Loan currencies only
+                  value:
+                    success: true
+                    data:
+                      currencies:
+                        - blockchainKey: "eip155:56"
+                          tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                          name: "Binance-Peg USD Coin"
+                          symbol: "USDC"
+                          decimals: 18
+                          logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                          isCollateralCurrency: false
+                          isLoanCurrency: true
+                          maxLtv: 0.0
+                          ltvWarningThreshold: 0.0
+                          ltvCriticalThreshold: 0.0
+                          ltvLiquidationThreshold: 0.0
+                          minLoanPrincipalAmount: "500000000000000000000"
+                          maxLoanPrincipalAmount: "0"
+                          minWithdrawalAmount: "100000000000000000000"
+                          maxWithdrawalAmount: "0"
+                          maxDailyWithdrawalAmount: "0"
+                          withdrawalFeeRate: 0.0000
+                          blockchain:
+                            key: "eip155:56"
+                            name: "Binance Smart Chain"
+                            shortName: "BSC"
+                            image: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   # Exchange Rate Management
   /exchange-rates:
     get:
@@ -1179,6 +1491,166 @@ components:
       description: Better Auth Bearer token authentication
 
   schemas:
+    # Currency Management Schemas
+    CurrenciesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            currencies:
+              type: array
+              items:
+                $ref: '#/components/schemas/CurrencyDetail'
+      required:
+        - success
+        - data
+
+    CurrencyDetail:
+      type: object
+      properties:
+        blockchainKey:
+          type: string
+          description: CAIP-2 compliant blockchain identifier
+          example: "eip155:1"
+          maxLength: 64
+        tokenId:
+          type: string
+          description: Token identifier within the blockchain (CAIP-19 format)
+          example: "slip44:60"
+          maxLength: 64
+        name:
+          type: string
+          description: Human-readable currency name
+          example: "Ethereum"
+        symbol:
+          type: string
+          description: Currency symbol/ticker
+          example: "ETH"
+        decimals:
+          type: integer
+          description: Number of decimal places for precision
+          example: 18
+          minimum: 0
+          maximum: 18
+        logoUrl:
+          type: string
+          format: uri
+          description: URL to currency logo image
+          example: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
+        isCollateralCurrency:
+          type: boolean
+          description: Whether this currency can be used as collateral
+          example: true
+        isLoanCurrency:
+          type: boolean
+          description: Whether this currency can be used for loans
+          example: false
+        maxLtv:
+          type: number
+          format: decimal
+          description: Maximum Loan-to-Value ratio for collateral (percentage)
+          example: 70.0
+          minimum: 0
+          maximum: 100
+        ltvWarningThreshold:
+          type: number
+          format: decimal
+          description: LTV threshold that triggers warning notifications
+          example: 56.0
+          minimum: 0
+          maximum: 100
+        ltvCriticalThreshold:
+          type: number
+          format: decimal
+          description: LTV threshold that triggers critical alerts
+          example: 66.5
+          minimum: 0
+          maximum: 100
+        ltvLiquidationThreshold:
+          type: number
+          format: decimal
+          description: LTV threshold that triggers automatic liquidation
+          example: 70.0
+          minimum: 0
+          maximum: 100
+        minLoanPrincipalAmount:
+          type: string
+          description: Minimum loan amount in smallest unit (wei/satoshi equivalent)
+          example: "1000000000000000000000"
+        maxLoanPrincipalAmount:
+          type: string
+          description: Maximum loan amount in smallest unit (0 means no limit)
+          example: "0"
+        minWithdrawalAmount:
+          type: string
+          description: Minimum withdrawal amount in smallest unit
+          example: "100000000000000000000"
+        maxWithdrawalAmount:
+          type: string
+          description: Maximum withdrawal amount in smallest unit (0 means no limit)
+          example: "0"
+        maxDailyWithdrawalAmount:
+          type: string
+          description: Maximum daily withdrawal amount in smallest unit (0 means no limit)
+          example: "0"
+        withdrawalFeeRate:
+          type: number
+          format: decimal
+          description: Withdrawal fee rate (decimal, e.g., 0.001 = 0.1%)
+          example: 0.0000
+          minimum: 0
+          maximum: 1
+        blockchain:
+          type: object
+          description: Associated blockchain information
+          properties:
+            key:
+              type: string
+              description: CAIP-2 blockchain identifier
+              example: "eip155:1"
+            name:
+              type: string
+              description: Blockchain network name
+              example: "Ethereum Mainnet"
+            shortName:
+              type: string
+              description: Blockchain short name
+              example: "ETH"
+            image:
+              type: string
+              format: uri
+              description: Blockchain logo URL
+              example: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
+          required:
+            - key
+            - name
+            - shortName
+            - image
+      required:
+        - blockchainKey
+        - tokenId
+        - name
+        - symbol
+        - decimals
+        - logoUrl
+        - isCollateralCurrency
+        - isLoanCurrency
+        - maxLtv
+        - ltvWarningThreshold
+        - ltvCriticalThreshold
+        - ltvLiquidationThreshold
+        - minLoanPrincipalAmount
+        - maxLoanPrincipalAmount
+        - minWithdrawalAmount
+        - maxWithdrawalAmount
+        - maxDailyWithdrawalAmount
+        - withdrawalFeeRate
+        - blockchain
+
     # Account Management Schemas
     AccountBalancesResponse:
       type: object
@@ -1992,6 +2464,8 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
 
 tags:
+  - name: Currency Management
+    description: Supported currency information and configuration for collateral and loans
   - name: Account Management
     description: Account balance and transaction history operations
   - name: Withdrawal Management

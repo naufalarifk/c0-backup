@@ -191,7 +191,7 @@ export async function runLoanRepositoryTestSuite(
       });
 
       describe('lenderClosesLoanOffer', function () {
-        it('should pause published loan offer successfully', async function () {
+        it('should close published loan offer successfully', async function () {
           const lender = await repo.betterAuthCreateUser({
             name: 'Update Lender',
             email: 'update-lender@example.com',
@@ -238,19 +238,19 @@ export async function runLoanRepositoryTestSuite(
             WHERE id = ${offer.id}
           `;
 
-          // Test pause action
-          const updateDate = new Date('2024-01-01T02:00:00Z');
+          // Test close action
+          const closedDate = new Date('2024-01-01T02:00:00Z');
           const result = await repo.lenderClosesLoanOffer({
             loanOfferId: offer.id,
             lenderUserId: lender.id,
-            closedDate: updateDate,
-            closureReason: 'Temporary pause for maintenance',
+            closedDate: closedDate,
+            closureReason: 'Colse for some reason',
           });
 
           equal(result.id, offer.id);
           equal(result.status, 'Closed');
-          equal(result.closedDate.toISOString(), updateDate.toISOString());
-          equal(result.closureReason, 'Temporary pause for maintenance');
+          equal(result.closedDate.toISOString(), closedDate.toISOString());
+          equal(result.closureReason, 'Colse for some reason');
         });
 
         it('should close funding loan offer successfully', async function () {

@@ -167,15 +167,6 @@ export abstract class LoanUserRepository extends LoanRepository {
     const validatedLimit = Math.min(Math.max(1, limit), 100);
     const offset = (validatedPage - 1) * validatedLimit;
 
-    let roleFilter = '';
-    if (role === 'borrower') {
-      roleFilter = 'AND la.borrower_user_id = $userId';
-    } else if (role === 'lender') {
-      roleFilter = 'AND lo.lender_user_id = $userId';
-    } else {
-      roleFilter = 'AND (la.borrower_user_id = $userId OR lo.lender_user_id = $userId)';
-    }
-
     // Get total count
     const countRows = await this.sql`
       SELECT COUNT(*) as total
