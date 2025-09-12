@@ -407,3 +407,18 @@ export type UserDeletesNotificationResult = {
   id: string;
   deleted: boolean;
 };
+
+export type PlatformNotifyUserParams = {
+  userId: string;
+  type: NotificationType;
+  title: string;
+  content: string;
+  creationDate?: Date;
+  userKycId?: string;
+  institutionApplicationId?: string;
+};
+
+export type PlatformNotifyUserResult = {
+  id: string;
+  userId: string;
+};

@@ -1,0 +1,431 @@
+import {
+  assertArrayOf,
+  assertDefined,
+  assertPropDate,
+  assertPropNullableDate,
+  assertPropNullableString,
+  assertPropString,
+  assertPropStringOrNumber,
+  hasPropArray,
+} from '../utils/assertions';
+import { LoanRepository } from './loan.repository';
+import {
+  UserViewsLoanDetailsParams,
+  UserViewsLoanDetailsResult,
+  UserViewsLoansParams,
+  UserViewsLoansResult,
+  UserViewsLoanValuationHistoryParams,
+  UserViewsLoanValuationHistoryResult,
+} from './loan.types';
+
+export abstract class LoanUserRepository extends LoanRepository {
+  async userViewsLoanDetails(
+    params: UserViewsLoanDetailsParams,
+  ): Promise<UserViewsLoanDetailsResult> {
+    const { loanId, userId } = params;
+
+    const loanRows = await this.sql`
+      SELECT 
+        l.id,
+        l.loan_offer_id,
+        l.loan_application_id,
+        l.principal_currency_blockchain_key,
+        l.principal_currency_token_id,
+        l.principal_amount,
+        l.interest_amount,
+        l.repayment_amount,
+        l.redelivery_fee_amount,
+        l.redelivery_amount,
+        l.premi_amount,
+        l.liquidation_fee_amount,
+        l.min_collateral_valuation,
+        l.collateral_currency_blockchain_key,
+        l.collateral_currency_token_id,
+        l.collateral_amount,
+        l.status,
+        l.origination_date,
+        l.disbursement_date,
+        l.maturity_date,
+        l.concluded_date,
+        l.conclusion_reason,
+        l.current_ltv_ratio,
+        l.mc_ltv_ratio,
+        l.mc_ltv_ratio_date,
+        l.legal_document_path,
+        l.legal_document_hash,
+        l.legal_document_created_date,
+        la.borrower_user_id,
+        lo.lender_user_id,
+        pc.decimals as principal_decimals,
+        pc.symbol as principal_symbol,
+        pc.name as principal_name,
+        cc.decimals as collateral_decimals,
+        cc.symbol as collateral_symbol,
+        cc.name as collateral_name
+      FROM loans l
+      JOIN loan_applications la ON l.loan_application_id = la.id
+      JOIN loan_offers lo ON l.loan_offer_id = lo.id
+      JOIN currencies pc ON l.principal_currency_blockchain_key = pc.blockchain_key
+        AND l.principal_currency_token_id = pc.token_id
+      JOIN currencies cc ON l.collateral_currency_blockchain_key = cc.blockchain_key
+        AND l.collateral_currency_token_id = cc.token_id
+      WHERE l.id = ${loanId}
+        AND (la.borrower_user_id = ${userId} OR lo.lender_user_id = ${userId})
+    `;
+
+    if (loanRows.length === 0) {
+      throw new Error('Loan not found or access denied');
+    }
+
+    const loan = loanRows[0];
+    assertDefined(loan, 'Loan validation failed');
+    assertPropStringOrNumber(loan, 'id');
+    assertPropStringOrNumber(loan, 'loan_offer_id');
+    assertPropStringOrNumber(loan, 'loan_application_id');
+    assertPropString(loan, 'principal_currency_blockchain_key');
+    assertPropString(loan, 'principal_currency_token_id');
+    assertPropStringOrNumber(loan, 'principal_amount');
+    assertPropStringOrNumber(loan, 'interest_amount');
+    assertPropStringOrNumber(loan, 'repayment_amount');
+    assertPropStringOrNumber(loan, 'redelivery_fee_amount');
+    assertPropStringOrNumber(loan, 'redelivery_amount');
+    assertPropStringOrNumber(loan, 'premi_amount');
+    assertPropStringOrNumber(loan, 'liquidation_fee_amount');
+    assertPropStringOrNumber(loan, 'min_collateral_valuation');
+    assertPropString(loan, 'collateral_currency_blockchain_key');
+    assertPropString(loan, 'collateral_currency_token_id');
+    assertPropStringOrNumber(loan, 'collateral_amount');
+    assertPropString(loan, 'status');
+    assertPropDate(loan, 'origination_date');
+    assertPropNullableDate(loan, 'disbursement_date');
+    assertPropDate(loan, 'maturity_date');
+    assertPropNullableDate(loan, 'concluded_date');
+    assertPropNullableString(loan, 'conclusion_reason');
+    assertPropNullableString(loan, 'current_ltv_ratio');
+    assertPropStringOrNumber(loan, 'mc_ltv_ratio');
+    assertPropNullableDate(loan, 'mc_ltv_ratio_date');
+    assertPropNullableString(loan, 'legal_document_path');
+    assertPropNullableString(loan, 'legal_document_hash');
+    assertPropNullableDate(loan, 'legal_document_created_date');
+    assertPropStringOrNumber(loan, 'borrower_user_id');
+    assertPropStringOrNumber(loan, 'lender_user_id');
+    assertPropStringOrNumber(loan, 'principal_decimals');
+    assertPropString(loan, 'principal_symbol');
+    assertPropString(loan, 'principal_name');
+    assertPropStringOrNumber(loan, 'collateral_decimals');
+    assertPropString(loan, 'collateral_symbol');
+    assertPropString(loan, 'collateral_name');
+
+    return {
+      id: String(loan.id),
+      loanOfferId: String(loan.loan_offer_id),
+      loanApplicationId: String(loan.loan_application_id),
+      borrowerUserId: String(loan.borrower_user_id),
+      lenderUserId: String(loan.lender_user_id),
+      principalCurrency: {
+        blockchainKey: loan.principal_currency_blockchain_key,
+        tokenId: loan.principal_currency_token_id,
+        decimals: Number(loan.principal_decimals),
+        symbol: loan.principal_symbol,
+        name: loan.principal_name,
+      },
+      principalAmount: String(loan.principal_amount),
+      interestAmount: String(loan.interest_amount),
+      repaymentAmount: String(loan.repayment_amount),
+      redeliveryFeeAmount: String(loan.redelivery_fee_amount),
+      redeliveryAmount: String(loan.redelivery_amount),
+      premiAmount: String(loan.premi_amount),
+      liquidationFeeAmount: String(loan.liquidation_fee_amount),
+      minCollateralValuation: String(loan.min_collateral_valuation),
+      collateralCurrency: {
+        blockchainKey: loan.collateral_currency_blockchain_key,
+        tokenId: loan.collateral_currency_token_id,
+        decimals: Number(loan.collateral_decimals),
+        symbol: loan.collateral_symbol,
+        name: loan.collateral_name,
+      },
+      collateralAmount: String(loan.collateral_amount),
+      status: loan.status as 'Originated' | 'Active' | 'Liquidated' | 'Repaid' | 'Defaulted',
+      originationDate: loan.origination_date,
+      disbursementDate: loan.disbursement_date || undefined,
+      maturityDate: loan.maturity_date,
+      concludedDate: loan.concluded_date || undefined,
+      conclusionReason: loan.conclusion_reason || undefined,
+      currentLtvRatio: loan.current_ltv_ratio ? Number(loan.current_ltv_ratio) : undefined,
+      mcLtvRatio: Number(loan.mc_ltv_ratio),
+      mcLtvRatioDate: loan.mc_ltv_ratio_date || undefined,
+      legalDocumentPath: loan.legal_document_path || undefined,
+      legalDocumentHash: loan.legal_document_hash || undefined,
+      legalDocumentCreatedDate: loan.legal_document_created_date || undefined,
+    };
+  }
+
+  async userViewsLoans(params: UserViewsLoansParams): Promise<UserViewsLoansResult> {
+    const { userId, role, page = 1, limit = 20, status } = params;
+
+    const validatedPage = Math.max(1, page);
+    const validatedLimit = Math.min(Math.max(1, limit), 100);
+    const offset = (validatedPage - 1) * validatedLimit;
+
+    let roleFilter = '';
+    if (role === 'borrower') {
+      roleFilter = 'AND la.borrower_user_id = $userId';
+    } else if (role === 'lender') {
+      roleFilter = 'AND lo.lender_user_id = $userId';
+    } else {
+      roleFilter = 'AND (la.borrower_user_id = $userId OR lo.lender_user_id = $userId)';
+    }
+
+    // Get total count
+    const countRows = await this.sql`
+      SELECT COUNT(*) as total
+      FROM loans l
+      JOIN loan_applications la ON l.loan_application_id = la.id
+      JOIN loan_offers lo ON l.loan_offer_id = lo.id
+      WHERE (la.borrower_user_id = ${userId} OR lo.lender_user_id = ${userId})
+        AND (${role}::text IS NULL 
+             OR (${role} = 'borrower' AND la.borrower_user_id = ${userId})
+             OR (${role} = 'lender' AND lo.lender_user_id = ${userId}))
+        AND (${status}::text IS NULL OR l.status = ${status})
+    `;
+
+    const countRow = countRows[0];
+    assertDefined(countRow, 'Count query failed');
+    assertPropStringOrNumber(countRow, 'total');
+    const totalCount = Number(countRow.total);
+
+    // Get loans with details
+    const loanRows = await this.sql`
+      SELECT 
+        l.id,
+        l.loan_offer_id,
+        l.loan_application_id,
+        l.principal_currency_blockchain_key,
+        l.principal_currency_token_id,
+        l.principal_amount,
+        l.interest_amount,
+        l.repayment_amount,
+        l.collateral_currency_blockchain_key,
+        l.collateral_currency_token_id,
+        l.collateral_amount,
+        l.status,
+        l.origination_date,
+        l.disbursement_date,
+        l.maturity_date,
+        l.concluded_date,
+        l.current_ltv_ratio,
+        l.mc_ltv_ratio,
+        la.borrower_user_id,
+        lo.lender_user_id,
+        pc.decimals as principal_decimals,
+        pc.symbol as principal_symbol,
+        pc.name as principal_name,
+        cc.decimals as collateral_decimals,
+        cc.symbol as collateral_symbol,
+        cc.name as collateral_name
+      FROM loans l
+      JOIN loan_applications la ON l.loan_application_id = la.id
+      JOIN loan_offers lo ON l.loan_offer_id = lo.id
+      JOIN currencies pc ON l.principal_currency_blockchain_key = pc.blockchain_key
+        AND l.principal_currency_token_id = pc.token_id
+      JOIN currencies cc ON l.collateral_currency_blockchain_key = cc.blockchain_key
+        AND l.collateral_currency_token_id = cc.token_id
+      WHERE (la.borrower_user_id = ${userId} OR lo.lender_user_id = ${userId})
+        AND (${role}::text IS NULL 
+             OR (${role} = 'borrower' AND la.borrower_user_id = ${userId})
+             OR (${role} = 'lender' AND lo.lender_user_id = ${userId}))
+        AND (${status}::text IS NULL OR l.status = ${status})
+      ORDER BY l.origination_date DESC
+      LIMIT ${validatedLimit}
+      OFFSET ${offset}
+    `;
+
+    const loans = loanRows.map(function (row: unknown) {
+      assertDefined(row, 'Loan row is undefined');
+      assertPropStringOrNumber(row, 'id');
+      assertPropStringOrNumber(row, 'loan_offer_id');
+      assertPropStringOrNumber(row, 'loan_application_id');
+      assertPropString(row, 'principal_currency_blockchain_key');
+      assertPropString(row, 'principal_currency_token_id');
+      assertPropStringOrNumber(row, 'principal_amount');
+      assertPropStringOrNumber(row, 'interest_amount');
+      assertPropStringOrNumber(row, 'repayment_amount');
+      assertPropString(row, 'collateral_currency_blockchain_key');
+      assertPropString(row, 'collateral_currency_token_id');
+      assertPropStringOrNumber(row, 'collateral_amount');
+      assertPropString(row, 'status');
+      assertPropDate(row, 'origination_date');
+      assertPropNullableDate(row, 'disbursement_date');
+      assertPropDate(row, 'maturity_date');
+      assertPropNullableDate(row, 'concluded_date');
+      assertPropNullableString(row, 'current_ltv_ratio');
+      assertPropStringOrNumber(row, 'mc_ltv_ratio');
+      assertPropStringOrNumber(row, 'borrower_user_id');
+      assertPropStringOrNumber(row, 'lender_user_id');
+      assertPropStringOrNumber(row, 'principal_decimals');
+      assertPropString(row, 'principal_symbol');
+      assertPropString(row, 'principal_name');
+      assertPropStringOrNumber(row, 'collateral_decimals');
+      assertPropString(row, 'collateral_symbol');
+      assertPropString(row, 'collateral_name');
+
+      return {
+        id: String(row.id),
+        loanOfferId: String(row.loan_offer_id),
+        loanApplicationId: String(row.loan_application_id),
+        borrowerUserId: String(row.borrower_user_id),
+        lenderUserId: String(row.lender_user_id),
+        principalCurrency: {
+          blockchainKey: row.principal_currency_blockchain_key,
+          tokenId: row.principal_currency_token_id,
+          decimals: Number(row.principal_decimals),
+          symbol: row.principal_symbol,
+          name: row.principal_name,
+        },
+        principalAmount: String(row.principal_amount),
+        interestAmount: String(row.interest_amount),
+        repaymentAmount: String(row.repayment_amount),
+        collateralCurrency: {
+          blockchainKey: row.collateral_currency_blockchain_key,
+          tokenId: row.collateral_currency_token_id,
+          decimals: Number(row.collateral_decimals),
+          symbol: row.collateral_symbol,
+          name: row.collateral_name,
+        },
+        collateralAmount: String(row.collateral_amount),
+        status: row.status as 'Originated' | 'Active' | 'Liquidated' | 'Repaid' | 'Defaulted',
+        originationDate: row.origination_date,
+        disbursementDate: row.disbursement_date || undefined,
+        maturityDate: row.maturity_date,
+        concludedDate: row.concluded_date || undefined,
+        currentLtvRatio: row.current_ltv_ratio ? Number(row.current_ltv_ratio) : undefined,
+        mcLtvRatio: Number(row.mc_ltv_ratio),
+      };
+    });
+
+    const totalPages = Math.ceil(totalCount / validatedLimit);
+
+    return {
+      loans,
+      pagination: {
+        page: validatedPage,
+        limit: validatedLimit,
+        total: totalCount,
+        totalPages,
+        hasNext: validatedPage < totalPages,
+        hasPrev: validatedPage > 1,
+      },
+    };
+  }
+
+  async userViewsLoanValuationHistory(
+    params: UserViewsLoanValuationHistoryParams,
+  ): Promise<UserViewsLoanValuationHistoryResult> {
+    const { loanId, userId, limit = 50, startDate, endDate } = params;
+
+    // First verify user has access to this loan
+    const loanAccessRows = await this.sql`
+      SELECT l.id
+      FROM loans l
+      JOIN loan_applications la ON l.loan_application_id = la.id
+      JOIN loan_offers lo ON l.loan_offer_id = lo.id
+      WHERE l.id = ${loanId}
+        AND (la.borrower_user_id = ${userId} OR lo.lender_user_id = ${userId})
+    `;
+
+    if (loanAccessRows.length === 0) {
+      throw new Error('Loan not found or access denied');
+    }
+
+    const validatedLimit = Math.min(Math.max(1, limit), 500);
+
+    // Get loan valuation history with currency details
+    const valuationRows = await this.sql`
+      SELECT 
+        lv.loan_id,
+        lv.exchange_rate_id,
+        lv.valuation_date,
+        lv.ltv_ratio,
+        lv.collateral_valuation_amount,
+        l.collateral_currency_blockchain_key,
+        l.collateral_currency_token_id,
+        l.principal_currency_blockchain_key,
+        l.principal_currency_token_id,
+        cc.decimals as collateral_decimals,
+        cc.symbol as collateral_symbol,
+        cc.name as collateral_name,
+        pc.decimals as principal_decimals,
+        pc.symbol as principal_symbol,
+        pc.name as principal_name
+      FROM loan_valuations lv
+      JOIN loans l ON lv.loan_id = l.id
+      JOIN currencies cc ON l.collateral_currency_blockchain_key = cc.blockchain_key
+        AND l.collateral_currency_token_id = cc.token_id
+      JOIN currencies pc ON l.principal_currency_blockchain_key = pc.blockchain_key
+        AND l.principal_currency_token_id = pc.token_id
+      WHERE lv.loan_id = ${loanId}
+        AND (${startDate}::timestamp IS NULL OR lv.valuation_date >= ${startDate?.toISOString()})
+        AND (${endDate}::timestamp IS NULL OR lv.valuation_date <= ${endDate?.toISOString()})
+      ORDER BY lv.valuation_date DESC
+      LIMIT ${validatedLimit}
+    `;
+
+    const valuationHistory = valuationRows.map(function (row: unknown, index: number) {
+      assertDefined(row, 'Valuation row is undefined');
+      assertPropStringOrNumber(row, 'loan_id');
+      assertPropStringOrNumber(row, 'exchange_rate_id');
+      assertPropDate(row, 'valuation_date');
+      assertPropStringOrNumber(row, 'ltv_ratio');
+      assertPropStringOrNumber(row, 'collateral_valuation_amount');
+      assertPropString(row, 'collateral_currency_blockchain_key');
+      assertPropString(row, 'collateral_currency_token_id');
+      assertPropString(row, 'principal_currency_blockchain_key');
+      assertPropString(row, 'principal_currency_token_id');
+      assertPropStringOrNumber(row, 'collateral_decimals');
+      assertPropString(row, 'collateral_symbol');
+      assertPropString(row, 'collateral_name');
+      assertPropStringOrNumber(row, 'principal_decimals');
+      assertPropString(row, 'principal_symbol');
+      assertPropString(row, 'principal_name');
+
+      // Calculate LTV change from previous valuation
+      let ltvChange: number | undefined;
+      if (index > 0) {
+        const prevRow = valuationRows[index - 1];
+        assertDefined(prevRow, 'Previous valuation row is undefined');
+        assertPropStringOrNumber(prevRow, 'ltv_ratio');
+        const currentLtv = Number(row.ltv_ratio);
+        const prevLtv = Number(prevRow.ltv_ratio);
+        ltvChange = ((currentLtv - prevLtv) / prevLtv) * 100; // Percentage change
+      }
+
+      return {
+        loanId: String(row.loan_id),
+        exchangeRateId: String(row.exchange_rate_id),
+        valuationDate: row.valuation_date,
+        ltvRatio: Number(row.ltv_ratio),
+        collateralValuationAmount: String(row.collateral_valuation_amount),
+        collateralCurrency: {
+          blockchainKey: row.collateral_currency_blockchain_key,
+          tokenId: row.collateral_currency_token_id,
+          decimals: Number(row.collateral_decimals),
+          symbol: row.collateral_symbol,
+          name: row.collateral_name,
+        },
+        principalCurrency: {
+          blockchainKey: row.principal_currency_blockchain_key,
+          tokenId: row.principal_currency_token_id,
+          decimals: Number(row.principal_decimals),
+          symbol: row.principal_symbol,
+          name: row.principal_name,
+        },
+        ltvChange,
+      };
+    });
+
+    return {
+      success: true,
+      data: valuationHistory,
+    };
+  }
+}

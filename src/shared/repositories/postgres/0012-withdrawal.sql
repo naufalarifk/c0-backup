@@ -215,21 +215,6 @@ BEGIN
       NEW.id
     );
 
-    INSERT INTO notifications (
-      user_id,
-      type,
-      title,
-      content,
-      withdrawal_id,
-      creation_date
-    ) VALUES (
-      beneficiary_record.user_id,
-      'WithdrawalRequested',
-      'Withdrawal Request Submitted',
-      'Your withdrawal request of ' || NEW.amount || ' has been submitted and is being processed.',
-      NEW.id,
-      NEW.request_date
-    );
 
   END IF;
 
@@ -285,22 +270,6 @@ BEGIN
       NEW.id
     );
 
-    -- Create notification for withdrawal refund
-    INSERT INTO notifications (
-      user_id,
-      type,
-      title,
-      content,
-      withdrawal_id,
-      creation_date
-    ) VALUES (
-      beneficiary_record.user_id,
-      'WithdrawalRefunded',
-      'Withdrawal Refunded',
-      'Your withdrawal request of ' || NEW.amount || ' has been refunded due to processing failure. You may retry the withdrawal.',
-      NEW.id,
-      NEW.failure_refund_approved_date
-    );
 
   END IF;
 

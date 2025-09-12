@@ -1,7 +1,8 @@
 import { rejects } from 'node:assert';
 import { equal, ok, throws } from 'node:assert/strict';
-import { afterEach, beforeEach, describe, it, suite } from 'node:test';
+import { describe, suite } from 'node:test';
 
+import { createEarlyExitNodeTestIt } from '../utils/node-test';
 import { BaseRepository } from './base.repository';
 
 export async function runBaseRepositoryTestSuite(
@@ -9,6 +10,7 @@ export async function runBaseRepositoryTestSuite(
   teardownRepo: (repo: BaseRepository) => Promise<void>,
 ): Promise<void> {
   await suite('BaseRepository', function () {
+    const { afterEach, beforeEach, it } = createEarlyExitNodeTestIt();
     let repo: BaseRepository;
 
     beforeEach(async function () {

@@ -113,7 +113,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       return user;
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -173,7 +173,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       return null;
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       throw error;
     }
   }
@@ -285,7 +285,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       return users;
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       throw error;
     }
   }
@@ -341,7 +341,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       return row;
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -404,7 +404,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       return rows;
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -440,7 +440,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       return row;
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -473,7 +473,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       return rows;
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -505,7 +505,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       return session;
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       throw error;
     }
   }
@@ -547,7 +547,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       return null;
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       throw error;
     }
   }
@@ -600,7 +600,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       return session;
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       throw error;
     }
   }
@@ -681,7 +681,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
           'updated_date' in row && row.updated_date instanceof Date ? row.updated_date : undefined,
       };
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       throw error;
     }
   }
@@ -772,7 +772,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       return null;
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       throw error;
     }
   }
@@ -789,7 +789,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
       const account = await this.betterAuthFindOneAccount(where);
       return account ? [account] : [];
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       throw error;
     }
   }
@@ -854,7 +854,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
           'updated_date' in row && row.updated_date instanceof Date ? row.updated_date : undefined,
       };
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -876,7 +876,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
       await tx.commitTransaction();
       return account;
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -931,7 +931,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       return verification;
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       throw error;
     }
   }
@@ -988,7 +988,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       return null;
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       throw error;
     }
   }
@@ -1035,7 +1035,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       return [];
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       throw error;
     }
   }
@@ -1079,7 +1079,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       return updatedVerification;
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       throw error;
     }
   }
@@ -1119,7 +1119,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       return verification;
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('BetterAuthRepository', error);
       throw error;
     }
   }

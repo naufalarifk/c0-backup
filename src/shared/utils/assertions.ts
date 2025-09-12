@@ -22,6 +22,18 @@ export function hasProp<K extends string>(obj: unknown, propKey: K): obj is Reco
   return typeof obj === 'object' && obj !== null && propKey in obj;
 }
 
+export function hasPropArray<K extends string>(
+  obj: unknown,
+  propKey: K,
+): obj is Record<K, unknown[]> {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    propKey in obj &&
+    Array.isArray((obj as Record<string, unknown>)[propKey])
+  );
+}
+
 export function isDefined(value: unknown): value is NonNullable<typeof value> {
   return value !== undefined && value !== null;
 }

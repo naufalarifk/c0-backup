@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 
-import { FinanceRepository } from './finance.repository';
+import { LoanPlatformRepository } from './loan-platform.repository';
 
 /**
- * CryptogadaiRepository <- AdminRepository <- LoanRepository <- FinanceRepository <- UserRepository <- DatabaseRepository
+ * CryptogadaiRepository <- LoanPlatformRepository <- LoanUserRepository <- LoanRepository <- FinanceRepository <- UserRepository <- DatabaseRepository
  */
 @Injectable()
-export abstract class CryptogadaiRepository extends FinanceRepository {}
+export abstract class CryptogadaiRepository extends LoanPlatformRepository {}
