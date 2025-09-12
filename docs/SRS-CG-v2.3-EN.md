@@ -783,7 +783,7 @@ Main functions of the Crypto Collateral platform include:
 **RF-029: Loan Offer Management**
 - **Priority**: High
 - **Description**: Lender manages active offers
-- **Input**: Offer ID, action (pause/resume/close)
+- **Input**: Offer ID, action (close)
 - **Processing**:
   1. View portfolio
   2. Update status

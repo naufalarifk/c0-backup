@@ -274,7 +274,7 @@ paths:
     patch:
       tags: [Loan Offers]
       summary: Update loan offer
-      description: Update loan offer status (pause, resume, close)
+      description: Update loan offer status (close)
       parameters:
         - name: id
           in: path
