@@ -30,6 +30,9 @@ import {
 } from './loan.types';
 import { LoanUserRepository } from './loan-user.repository';
 
+/**
+ * LoanPlatformRepository <- LoanUserRepository <- LoanBorrowerRepository <- LoanLenderRepository <- LoanTestRepository <- FinanceRepository <- UserRepository <- DatabaseRepository
+ */
 export abstract class LoanPlatformRepository extends LoanUserRepository {
   async platformPublishesLoanOffer(
     params: PlatformPublishesLoanOfferParams,

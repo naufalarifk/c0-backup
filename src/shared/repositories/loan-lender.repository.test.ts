@@ -1,7 +1,7 @@
 import { InMemoryCryptogadaiRepository } from './in-memory-cryptogadai.repository';
-import { runLoanRepositoryTestSuite } from './loan.repository-test-suite';
+import { runLoanLenderRepositoryTestSuite } from './loan-lender.repository-test-suite';
 
-runLoanRepositoryTestSuite(
+runLoanLenderRepositoryTestSuite(
   async function () {
     const repo = new InMemoryCryptogadaiRepository();
     await repo.connect();
