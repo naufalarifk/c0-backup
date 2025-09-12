@@ -64,7 +64,7 @@ jobs:
             
             # Install dependencies
             echo "📦 Installing dependencies..."
-            pnpm install --frozen-lockfile
+            pnpm install --frozen-lockfile --ignore-scripts
             
             # Build the application
             echo "🔨 Building application..."
