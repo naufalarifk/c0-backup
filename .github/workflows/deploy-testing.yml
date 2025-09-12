@@ -47,58 +47,49 @@ jobs:
             --exclude "coverage/" \
             --exclude ".nyc_output/" \
             -e "ssh -i $HOME/.ssh/id_ed25519 -p $SSH_PORT -o StrictHostKeyChecking=yes -o ConnectTimeout=30 -o ServerAliveInterval=60" \
-            ./ "$SSH_USER@$SSH_HOST:/root/cg/"
+            ./ "$SSH_USER@$SSH_HOST:/opt/cg-backend/"
         shell: bash
         timeout-minutes: 10
 
-      - name: Deploy with Zero Downtime
+      - name: Deploy with systemd
         run: |
           ssh -i $HOME/.ssh/id_ed25519 -p "$SSH_PORT" -o StrictHostKeyChecking=yes -o ConnectTimeout=30 -o ServerAliveInterval=60 "$SSH_USER@$SSH_HOST" << 'EOF'
             set -euo pipefail
-            cd /root/cg
+            cd /opt/cg-backend
             
-            # Export commit SHA for deployment labeling
+            # Export commit SHA for logging
             export GITHUB_SHA="${{ github.sha }}"
             
-            # Check if this is the first deployment
-            if ! docker compose -f docker-compose.testing.yml ps api -q >/dev/null 2>&1; then
-              echo "🚀 First deployment detected, performing initial setup..."
-              docker compose -f docker-compose.testing.yml up --build -d
-              
-              # Wait for initial services to be healthy
-              echo "⏳ Waiting for services to be healthy..."
-              timeout 300 bash -c 'until docker compose -f docker-compose.testing.yml ps --format json | jq -r ".[] | select(.Service == \"api\") | .Health" | grep -q "healthy"; do sleep 5; echo "Waiting for API to be healthy..."; done'
-              echo "✅ Initial deployment completed successfully"
-            else
-              echo "🔄 Existing deployment detected, performing zero-downtime update..."
-              
-              # Ensure deployment script exists and is executable
-              if [ ! -f scripts/deploy-zero-downtime.sh ]; then
-                echo "❌ Zero downtime deployment script not found!"
-                exit 1
-              fi
-              
-              # Set up environment
-              export COMPOSE_FILE="docker-compose.testing.yml"
-              export SERVICE_NAME="api"
-              export HEALTH_CHECK_URL="http://localhost:3100/api/health"
-              
-              # Execute zero downtime deployment
-              bash scripts/deploy-zero-downtime.sh
-            fi
+            echo "🚀 Starting deployment of commit $GITHUB_SHA"
             
-            # Verify final deployment state
+            # Install dependencies
+            echo "📦 Installing dependencies..."
+            pnpm install --frozen-lockfile --ignore-scripts
+            
+            # Build the application
+            echo "🔨 Building application..."
+            pnpm run build
+            
+            # Restart the service
+            echo "🔄 Restarting cg-backend service..."
+            systemctl restart cg-backend
+            
+            # Wait for service to be running
+            echo "⏳ Waiting for service to start..."
+            timeout 60 bash -c 'until systemctl is-active --quiet cg-backend; do sleep 2; echo "Waiting for service to be active..."; done'
+            
+            # Verify deployment
             echo "🔍 Verifying deployment..."
-            docker compose -f docker-compose.testing.yml ps api
+            systemctl status cg-backend
             
-            # Test API endpoint
-            echo "🧪 Testing API endpoint..."
-            timeout 60 bash -c 'until curl -sf http://localhost:3100/api/health >/dev/null; do sleep 2; echo "Waiting for API to respond..."; done'
+            # Test health endpoint
+            echo "🧪 Testing health endpoint..."
+            timeout 30 bash -c 'until curl -sf http://localhost:3100/api/health >/dev/null; do sleep 2; echo "Waiting for API to respond..."; done'
             
-            echo "✅ Zero downtime deployment completed successfully!"
+            echo "✅ Deployment completed successfully!"
           EOF
         shell: bash
-        timeout-minutes: 20
+        timeout-minutes: 15
 
       - name: Cleanup
         if: always()
