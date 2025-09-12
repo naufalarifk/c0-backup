@@ -85,21 +85,6 @@ BEGIN
     SET kyc_id = NEW.id
     WHERE id = NEW.user_id;
 
-    INSERT INTO notifications (
-      user_id,
-      type,
-      title,
-      content,
-      user_kyc_id,
-      creation_date
-    ) VALUES (
-      NEW.user_id,
-      'UserKycVerified',
-      'KYC Verification Approved',
-      'Your identity verification has been approved. You can now access all platform features.',
-      NEW.id,
-      NEW.verified_date
-    );
 
   END IF;
 
@@ -107,26 +92,6 @@ BEGIN
 
     NEW.status = 'Rejected';
 
-    INSERT INTO notifications (
-      user_id,
-      type,
-      title,
-      content,
-      user_kyc_id,
-      creation_date
-    ) VALUES (
-      NEW.user_id,
-      'UserKycRejected',
-      'KYC Verification Rejected',
-      CASE
-        WHEN NEW.rejection_reason IS NOT NULL THEN
-          'Your identity verification was rejected. Reason: ' || NEW.rejection_reason || '. You may resubmit your documents.'
-        ELSE
-          'Your identity verification was rejected. Please resubmit your documents with correct information.'
-      END,
-      NEW.id,
-      NEW.rejected_date
-    );
 
   END IF;
 

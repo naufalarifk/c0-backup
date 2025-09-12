@@ -64,6 +64,10 @@ paths:
                     data:
                       id: "12345"
                       lenderId: "user_67890"
+                      lender:
+                        id: "user_67890"
+                        type: "Individual"
+                        name: "John Doe"
                       principalCurrency:
                         blockchainKey: "eip155:56"
                         tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
@@ -99,6 +103,11 @@ paths:
                     data:
                       id: "54321"
                       lenderId: "company_13579"
+                      lender:
+                        id: "company_13579"
+                        type: "Institution"
+                        name: "PT Fintech Solutions"
+                        businessType: "PT"
                       principalCurrency:
                         blockchainKey: "eip155:56"
                         tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
@@ -175,6 +184,10 @@ paths:
                       offers:
                         - id: "12345"
                           lenderId: "user_67890"
+                          lender:
+                            id: "user_67890"
+                            type: "Individual"
+                            name: "John Doe"
                           principalCurrency:
                             blockchainKey: "eip155:56"
                             tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
@@ -192,6 +205,11 @@ paths:
                           publishedDate: "2025-09-10T10:45:00Z"
                         - id: "54321"
                           lenderId: "company_13579"
+                          lender:
+                            id: "company_13579"
+                            type: "Institution"
+                            name: "PT Fintech Solutions"
+                            businessType: "PT"
                           principalCurrency:
                             blockchainKey: "eip155:56"
                             tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
@@ -209,6 +227,10 @@ paths:
                           publishedDate: "2025-09-09T09:15:00Z"
                         - id: "67890"
                           lenderId: "user_24680"
+                          lender:
+                            id: "user_24680"
+                            type: "Individual"
+                            name: "Sarah Chen"
                           principalCurrency:
                             blockchainKey: "eip155:56"
                             tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
@@ -1415,6 +1437,8 @@ components:
           type: string
         lenderId:
           type: string
+        lender:
+          $ref: '#/components/schemas/LenderInfo'
         principalCurrency:
           $ref: '#/components/schemas/Currency'
         totalAmount:
@@ -1799,6 +1823,33 @@ components:
               $ref: '#/components/schemas/PaginationMeta'
 
     # Common Schemas
+    LenderInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Lender user identifier
+          example: "user_67890"
+        type:
+          type: string
+          enum: [Individual, Institution]
+          description: Type of lender
+          example: "Individual"
+        name:
+          type: string
+          description: Lender display name (user.name for Individual, business_name for Institution)
+          example: "John Doe"
+        businessType:
+          type: string
+          description: Business type (only for Institution lenders)
+          example: "PT"
+          nullable: true
+      required:
+        - id
+        - type
+        - name
+        - verified
+
     Currency:
       type: object
       properties:

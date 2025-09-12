@@ -1,7 +1,6 @@
 import { Injectable, LoggerService, Optional } from '@nestjs/common';
 
-import * as logsAPI from '@opentelemetry/api-logs';
-import { SeverityNumber } from '@opentelemetry/api-logs';
+import { Logger, logs, SeverityNumber } from '@opentelemetry/api-logs';
 
 export interface LogContext {
   [key: string]: string | number | boolean | null | undefined;
@@ -17,7 +16,7 @@ export interface LogEntry {
 
 @Injectable()
 export class TelemetryLogger implements LoggerService {
-  private readonly logger: logsAPI.Logger;
+  private readonly logger: Logger;
   private readonly serviceName: string;
   private readonly serviceVersion: string;
 
@@ -26,7 +25,7 @@ export class TelemetryLogger implements LoggerService {
     this.serviceVersion = serviceVersion || process.env.OTEL_SERVICE_VERSION || '1.0.0';
 
     // Get the logger from the global LoggerProvider (set up in telemetry.ts)
-    this.logger = logsAPI.logs.getLogger(this.serviceName, this.serviceVersion);
+    this.logger = logs.getLogger(this.serviceName, this.serviceVersion);
   }
 
   /**

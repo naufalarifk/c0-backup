@@ -116,58 +116,13 @@ BEGIN
 
     NEW.status = 'Accepted';
 
-    INSERT INTO notifications (
-      user_id,
-      type,
-      title,
-      content,
-      admin_invitation_id,
-      creation_date
-    ) VALUES (
-      NEW.inviter_user_id,
-      'AdminInvitationAccepted',
-      'Admin Invitation Accepted',
-      target_user_record.name || ' (' || target_user_record.email || ') has accepted the admin invitation.',
-      NEW.id,
-      NEW.accepted_date
-    );
 
-    INSERT INTO notifications (
-      user_id,
-      type,
-      title,
-      content,
-      admin_invitation_id,
-      creation_date
-    ) VALUES (
-      NEW.target_user_id,
-      'AdminInvitationAccepted',
-      'Welcome to Admin Role',
-      'You have been successfully promoted to admin role. You now have access to admin features.',
-      NEW.id,
-      NEW.accepted_date
-    );
 
   END IF;
 
   IF OLD.rejected_date IS NULL AND NEW.rejected_date IS NOT NULL THEN
     NEW.status = 'Rejected';
 
-    INSERT INTO notifications (
-      user_id,
-      type,
-      title,
-      content,
-      admin_invitation_id,
-      creation_date
-    ) VALUES (
-      NEW.inviter_user_id,
-      'AdminInvitationRejected',
-      'Admin Invitation Declined',
-      'The admin invitation has been declined.',
-      NEW.id,
-      NEW.rejected_date
-    );
   END IF;
 
   RETURN NEW;

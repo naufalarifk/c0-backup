@@ -238,53 +238,8 @@ BEGIN
   WHERE id = NEW.invoice_id;
 
   IF new_paid_amount >= invoice_record.invoiced_amount THEN
-    INSERT INTO notifications (
-      user_id,
-      type,
-      title,
-      content,
-      invoice_id,
-      creation_date
-    ) VALUES (
-      invoice_record.user_id,
-      'InvoicePaid',
-      'Invoice Fully Paid',
-      'Invoice #' || invoice_record.id || ' has been fully paid.',
-      invoice_record.id,
-      NEW.payment_date
-    );
   ELSIF previous_paid_amount = 0 AND new_paid_amount > 0 THEN
-    INSERT INTO notifications (
-      user_id,
-      type,
-      title,
-      content,
-      invoice_id,
-      creation_date
-    ) VALUES (
-      invoice_record.user_id,
-      'InvoicePartiallyPaid',
-      'Invoice Payment Received',
-      'Payment received for invoice #' || invoice_record.id || '. Amount: ' || NEW.amount,
-      invoice_record.id,
-      NEW.payment_date
-    );
   ELSIF new_paid_amount > previous_paid_amount THEN
-    INSERT INTO notifications (
-      user_id,
-      type,
-      title,
-      content,
-      invoice_id,
-      creation_date
-    ) VALUES (
-      invoice_record.user_id,
-      'InvoicePartiallyPaid',
-      'Additional Invoice Payment Received',
-      'Additional payment received for invoice #' || invoice_record.id || '. Amount: ' || NEW.amount,
-      invoice_record.id,
-      NEW.payment_date
-    );
   END IF;
 
   RETURN NEW;

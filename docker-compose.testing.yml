@@ -246,12 +246,14 @@ services:
       timeout: 10s
       retries: 20
     environment:
-      NODE_ENV: production
+      url: ${PROTOCOL:-https}://${GHOST_DOMAIN:-cg-blog.fh47.my.id}
+      NODE_ENV: development
       database__client: sqlite3
       database__connection__filename: /var/lib/ghost/content/data/ghost.db
     restart: unless-stopped
     volumes:
       - ghost-data:/var/lib/ghost/content
+      - ./ghost-testing.config.json:/var/lib/ghost/config.production.json
     networks:
       - cg-private-network
       - cg-public-network

@@ -198,21 +198,6 @@ BEGIN
         institution_role = 'Owner'
     WHERE id = NEW.applicant_user_id;
 
-    INSERT INTO notifications (
-      user_id,
-      type,
-      title,
-      content,
-      institution_application_id,
-      creation_date
-    ) VALUES (
-      NEW.applicant_user_id,
-      'InstitutionApplicationVerified',
-      'Institution Application Approved',
-      'Your institution application for "' || NEW.business_name || '" has been approved.',
-      NEW.id,
-      NEW.verified_date
-    );
 
   END IF;
 
@@ -220,26 +205,6 @@ BEGIN
 
     NEW.status = 'Rejected';
 
-    INSERT INTO notifications (
-      user_id,
-      type,
-      title,
-      content,
-      institution_application_id,
-      creation_date
-    ) VALUES (
-      NEW.applicant_user_id,
-      'InstitutionApplicationRejected',
-      'Institution Application Rejected',
-      CASE
-        WHEN NEW.rejection_reason IS NOT NULL THEN
-          'Your institution application was rejected. Reason: ' || NEW.rejection_reason
-        ELSE
-          'Your institution application was rejected. Please contact support for more information.'
-      END,
-      NEW.id,
-      NEW.rejected_date
-    );
 
   END IF;
 
@@ -348,19 +313,6 @@ BEGIN
         institution_role = NEW.role
     WHERE id = NEW.target_user_id;
 
-    INSERT INTO notifications (
-      user_id,
-      type,
-      title,
-      content,
-      creation_date
-    ) VALUES (
-      NEW.target_user_id,
-      'InstitutionMemberAccepted',
-      'Institution Invitation Accepted',
-      'You have successfully joined the institution as ' || NEW.role || '.',
-      NEW.accepted_date
-    );
 
   END IF;
 
@@ -368,24 +320,6 @@ BEGIN
 
     NEW.status = 'Rejected';
 
-    INSERT INTO notifications (
-      user_id,
-      type,
-      title,
-      content,
-      creation_date
-    ) VALUES (
-      NEW.target_user_id,
-      'InstitutionMemberRejected',
-      'Institution Invitation Rejected',
-      CASE
-        WHEN NEW.rejection_reason IS NOT NULL THEN
-          'You have declined the institution invitation. Reason: ' || NEW.rejection_reason
-        ELSE
-          'You have declined the institution invitation.'
-      END,
-      NEW.rejected_date
-    );
 
   END IF;
 
