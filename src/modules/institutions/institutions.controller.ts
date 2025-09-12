@@ -15,6 +15,7 @@ import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 
 import { Auth } from '../../decorators/auth.decorator';
 import { ApiFile } from '../../decorators/swagger.schema';
+import { RequireUserType } from '../../decorators/user-type.decorator';
 import { SubmitCreateInstitutionDto } from './dto/create-institution.dto';
 import { CreateInstitutionInviteDto } from './dto/create-institution-invite.dto';
 import { InvitationStatus, UpdateInvitationStatusDto } from './dto/update-invitation-status.dto';
@@ -22,6 +23,7 @@ import { InstitutionsService } from './institutions.service';
 
 @Controller('institutions')
 @Auth()
+@RequireUserType('Institution')
 export class InstitutionsController {
   constructor(private readonly institutionsService: InstitutionsService) {}
 

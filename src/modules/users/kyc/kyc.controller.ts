@@ -10,6 +10,7 @@ import {
   Post,
   Session,
   UploadedFiles,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -21,13 +22,15 @@ import {
 
 import { Auth } from '../../../decorators/auth.decorator';
 import { ApiFile } from '../../../decorators/swagger.schema';
-import { CreateKycDto, SubmitKycDto } from './dto/create-kyc.dto';
+import { RequireUserType } from '../../../decorators/user-type.decorator';
+import { SubmitKycDto } from './dto/create-kyc.dto';
 import { KycStatusResponseDto } from './dto/kyc-status-response.dto';
 import { KycService } from './kyc.service';
 
 @Controller()
 @ApiTags('KYC')
 @Auth()
+@RequireUserType('Individual')
 export class KycController {
   constructor(private readonly kycService: KycService) {}
 

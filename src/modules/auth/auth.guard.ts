@@ -47,7 +47,7 @@ export class AuthGuard implements CanActivate {
     ]);
     if (isPublic) return true;
 
-    const isOptional = this.reflector.getAllAndOverride<boolean>(Optional, [
+    const isOptional = this.reflector.getAllAndOverride(Optional, [
       context.getHandler(),
       context.getClass(),
     ]);
