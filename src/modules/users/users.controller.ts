@@ -2,7 +2,7 @@ import type { UserViewsProfileResult } from '../../shared/types';
 import type { UserSession } from '../auth/types';
 
 import { Body, Controller, HttpStatus, Patch, UseGuards } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 import { Session } from '../auth/auth.decorator';
 import { AuthGuard } from '../auth/auth.guard';

@@ -11,13 +11,13 @@ export class ProfileService {
   private readonly logger = new TelemetryLogger(ProfileService.name);
 
   constructor(
-    private readonly userRepo: CryptogadaiRepository,
+    private readonly repo: CryptogadaiRepository,
     private readonly minioService: MinioService,
     private readonly fileValidatorService: FileValidatorService,
   ) {}
 
   async findOne(userId: string) {
-    const profile = await this.userRepo.userViewsProfile({ userId });
+    const profile = await this.repo.userViewsProfile({ userId });
 
     // Convert profilePicture based on its format
     if (profile.profilePicture) {

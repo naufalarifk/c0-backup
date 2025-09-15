@@ -1,17 +1,16 @@
-import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { UserDecidesUserTypeParams } from '../../shared/types';
+import { ensureExists, ResponseHelper } from '../../shared/utils';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly userRepo: CryptogadaiRepository) {}
+  constructor(private readonly repo: CryptogadaiRepository) {}
 
   async setUserType(userId: string, userType: UserDecidesUserTypeParams['userType']) {
-    const user = await this.userRepo.betterAuthFindOneUser([{ field: 'id', value: userId }]);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+    const user = await this.repo.betterAuthFindOneUser([{ field: 'id', value: userId }]);
+    ensureExists(user, 'User not found');
 
     const payload: UserDecidesUserTypeParams = {
       userId,
@@ -19,11 +18,10 @@ export class UsersService {
       decisionDate: new Date(),
     };
 
-    await this.userRepo.userDecidesUserType(payload);
+    await this.repo.userDecidesUserType(payload);
 
-    return {
-      statusCode: HttpStatus.OK,
-      message: 'User type set successfully',
-    };
+    return ResponseHelper.action('User type set', {
+      userType: payload.userType,
+    });
   }
 }

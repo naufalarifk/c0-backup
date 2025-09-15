@@ -1,10 +1,11 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+/** biome-ignore-all lint/suspicious/noFallthroughSwitchClause: <explanation> */
+import { Injectable } from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { FileValidatorService } from '../../../shared/services/file-validator.service';
 import { MinioService } from '../../../shared/services/minio.service';
 import { File } from '../../../shared/types';
-import { ResponseHelper } from '../../../shared/utils';
+import { ensure, ensureUnique, ResponseHelper } from '../../../shared/utils';
 import { TelemetryLogger } from '../../../telemetry.logger';
 import { CreateKycDto, SubmitKycDto } from './dto/create-kyc.dto';
 
@@ -13,13 +14,13 @@ export class KycService {
   private readonly logger = new TelemetryLogger(KycService.name);
 
   constructor(
-    private readonly userRepo: CryptogadaiRepository,
+    private readonly repo: CryptogadaiRepository,
     private readonly minioService: MinioService,
     private readonly fileValidatorService: FileValidatorService,
   ) {}
 
   getKyc(userId: string) {
-    return this.userRepo.userViewsKYCStatus({ userId });
+    return this.repo.userViewsKYCStatus({ userId });
   }
 
   /**
@@ -69,27 +70,30 @@ export class KycService {
    */
   private async submitKyc(userId: string, createKycDto: CreateKycDto) {
     // 1. Get current user KYC status to enforce security policies
-    const kycStatus = await this.userRepo.userViewsKYCStatus({ userId });
+    const userKyc = await this.repo.userViewsKYCStatus({ userId });
 
     // 2. Security check: Prevent duplicate or unauthorized submissions
-    if (kycStatus.id && kycStatus.submittedDate) {
-      switch (kycStatus.status) {
-        case 'pending':
-          throw new ConflictException(
-            'KYC submission is already pending review. Please wait for verification.',
-          );
-        case 'verified':
-          throw new ConflictException('KYC is already verified. No need for resubmission.');
-        case 'rejected':
-          if (!kycStatus.canResubmit) {
-            throw new ConflictException(
-              'KYC resubmission is not allowed at this time. Please contact support.',
-            );
-          }
-          this.logger.log(`KYC resubmission after rejection`, { userId, kycId: kycStatus.id });
-          break;
+    if (userKyc.id && userKyc.submittedDate) {
+      ensureUnique(
+        userKyc.status !== 'pending',
+        'KYC submission is already pending review. Please wait for verification.',
+      );
+
+      ensureUnique(
+        userKyc.status !== 'verified',
+        'KYC is already verified. No need for resubmission.',
+      );
+
+      ensureUnique(
+        userKyc.status !== 'rejected' || userKyc.canResubmit,
+        'KYC resubmission is not allowed at this time. Please contact support.',
+      );
+
+      // Log resubmission attempt for rejected KYC (only reached if canResubmit is true)
+      if (userKyc.status === 'rejected' && userKyc.canResubmit) {
+        this.logger.log(`KYC resubmission after rejection`, { userId, kycId: userKyc.id });
       }
-    } else if (kycStatus.status === 'none') {
+    } else if (userKyc.status === 'none') {
       this.logger.log(`First-time KYC submission`, { userId });
     }
 
@@ -103,7 +107,7 @@ export class KycService {
       submissionDate: new Date(), // Server-generated timestamp, not exposed in API contract
     };
 
-    const res = await this.userRepo.userSubmitsKyc(kycData);
+    const res = await this.repo.userSubmitsKyc(kycData);
 
     // 5. Log successful submission
     this.logger.log(`KYC submitted successfully`, { userId, kycId: res.id });
@@ -120,12 +124,8 @@ export class KycService {
    * Validate that all required KYC files are present
    */
   private validateFiles(files: { idCardPhoto: File[]; selfieWithIdCardPhoto: File[] }) {
-    if (!files?.idCardPhoto?.[0]) {
-      throw new BadRequestException('ID Card Photo is required');
-    }
-    if (!files?.selfieWithIdCardPhoto?.[0]) {
-      throw new BadRequestException('Selfie with ID Card Photo is required');
-    }
+    ensure(files?.idCardPhoto?.[0], 'ID Card Photo is required');
+    ensure(files?.selfieWithIdCardPhoto?.[0], 'Selfie with ID Card Photo is required');
 
     return {
       idCardPhoto: files.idCardPhoto[0],
@@ -144,8 +144,8 @@ export class KycService {
     documentType: string,
     mimeType?: string,
   ): Promise<{ objectPath: string; bucket: string; size: number }> {
-    // Validate file before upload using shared validator (10MB for KYC documents)
-    this.fileValidatorService.validateDocumentFile(fileBuffer, 10, mimeType, originalName);
+    // Validate file before upload using shared validator (2MB for KYC documents)
+    this.fileValidatorService.validateDocumentFile(fileBuffer, 2, mimeType, originalName);
 
     const folder = `kyc/${userId}`;
     const sanitizedFileName = this.fileValidatorService.sanitizeFileName(originalName);

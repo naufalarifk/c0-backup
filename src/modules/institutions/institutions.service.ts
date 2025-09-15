@@ -1,9 +1,10 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { FileValidatorService } from '../../shared/services/file-validator.service';
 import { MinioService } from '../../shared/services/minio.service';
 import { File } from '../../shared/types';
+import { ensure, ensureExists, ensurePrecondition } from '../../shared/utils';
 import { ResponseHelper } from '../../shared/utils/response.helper';
 import { TelemetryLogger } from '../../telemetry.logger';
 import { CreateInstitutionDto, SubmitCreateInstitutionDto } from './dto/create-institution.dto';
@@ -14,7 +15,7 @@ export class InstitutionsService {
   private readonly logger = new TelemetryLogger(InstitutionsService.name);
 
   constructor(
-    private readonly userRepo: CryptogadaiRepository,
+    private readonly repo: CryptogadaiRepository,
     private readonly minioService: MinioService,
     private readonly fileValidatorService: FileValidatorService,
   ) {}
@@ -48,7 +49,7 @@ export class InstitutionsService {
       applicationDate: new Date(),
     };
 
-    const result = await this.userRepo.userAppliesForInstitution(payload);
+    const result = await this.repo.userAppliesForInstitution(payload);
 
     return ResponseHelper.created('Institution application', {
       applicationId: result.id,
@@ -127,18 +128,10 @@ export class InstitutionsService {
     deedOfEstablishment: File[];
     directorIdCard: File[];
   }) {
-    if (!files?.npwpDocument?.[0]) {
-      throw new BadRequestException('NPWP document is required');
-    }
-    if (!files?.registrationDocument?.[0]) {
-      throw new BadRequestException('Registration document is required');
-    }
-    if (!files?.deedOfEstablishment?.[0]) {
-      throw new BadRequestException('Deed of establishment document is required');
-    }
-    if (!files?.directorIdCard?.[0]) {
-      throw new BadRequestException('Director ID card is required');
-    }
+    ensure(files?.npwpDocument?.[0], 'NPWP document is required');
+    ensure(files?.registrationDocument?.[0], 'Registration document is required');
+    ensure(files?.deedOfEstablishment?.[0], 'Deed of establishment document is required');
+    ensure(files?.directorIdCard?.[0], 'Director ID card is required');
 
     return {
       npwpDocument: files.npwpDocument[0],
@@ -148,13 +141,40 @@ export class InstitutionsService {
     };
   }
 
-  invite(userId: string, createInstitutionInviteDto: CreateInstitutionInviteDto) {
+  async invite(userId: string, createInstitutionInviteDto: CreateInstitutionInviteDto) {
+    const userInstitution = await this.repo.userViewsProfile({ userId });
+    ensurePrecondition(userInstitution.emailVerified, 'Email verification required');
+    ensurePrecondition(userInstitution.kycStatus === 'verified', 'KYC verification required');
+
+    const targetUser = await this.repo.userViewsProfile({
+      userId: createInstitutionInviteDto.userId,
+    });
+
+    // Ensure target user exists
+    ensureExists(targetUser, 'User not found');
+
+    // Check if target user has verified KYC (only if not already institution member)
+    ensure(targetUser.kycStatus === 'verified', 'Can only invite users with verified KYC');
+
+    // Target must be Individual user
+    ensure(targetUser.userType === 'Individual', 'Can only invite Individual users');
+
+    // Check if user is already a member of ANY institution (from targetUser data)
+    ensure(!targetUser.institutionUserId, 'User is already a member of an institution');
+
+    // Check for pending invitations to this specific institution
+    const hasPendingInvitation = await this.checkPendingInvitation(
+      createInstitutionInviteDto.userId,
+      createInstitutionInviteDto.institutionId,
+    );
+    ensure(!hasPendingInvitation, 'User already has a pending invitation to this institution');
+
     const payload = {
       ...createInstitutionInviteDto,
       inviterUserId: userId,
       invitationDate: new Date(),
     };
-    return this.userRepo.ownerUserInvitesUserToInstitution(payload);
+    return this.repo.ownerUserInvitesUserToInstitution(payload);
   }
 
   async acceptInvite(userId: string, inviteId: string) {
@@ -163,7 +183,7 @@ export class InstitutionsService {
       userId: userId,
       acceptanceDate: new Date(),
     };
-    const result = await this.userRepo.userAcceptsInstitutionInvitation(payload);
+    const result = await this.repo.userAcceptsInstitutionInvitation(payload);
 
     return ResponseHelper.action('Invitation acceptance', {
       invitationId: inviteId,
@@ -180,7 +200,7 @@ export class InstitutionsService {
       rejectionReason: reason,
       rejectionDate: new Date(),
     };
-    const result = await this.userRepo.userRejectsInstitutionInvitation(payload);
+    const result = await this.repo.userRejectsInstitutionInvitation(payload);
 
     return ResponseHelper.action('Invitation rejection', {
       invitationId: inviteId,
@@ -235,5 +255,34 @@ export class InstitutionsService {
       bucket: uploadResult.bucket,
       size: uploadResult.size,
     };
+  }
+
+  /**
+   * Check if user has pending invitation to specific institution
+   */
+  private async checkPendingInvitation(userId: string, institutionId: string): Promise<boolean> {
+    try {
+      // Check for pending invitations to this specific institution
+      const pendingInvitation = await this.repo.sql`
+        SELECT id
+        FROM institution_invitations
+        WHERE institution_user_id = ${institutionId}
+          AND target_user_id = ${userId}
+          AND status = 'pending'
+          AND accepted_date IS NULL
+          AND rejected_date IS NULL
+      `;
+
+      return pendingInvitation.length > 0;
+    } catch (error) {
+      this.logger.error('Error checking pending invitation', {
+        userId,
+        institutionId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+
+      // On error, be conservative and allow the invitation
+      return false;
+    }
   }
 }
