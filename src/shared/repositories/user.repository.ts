@@ -138,7 +138,7 @@ export abstract class UserRepository extends BetterAuthRepository {
     try {
       const kyc = await this.userViewsKYCStatus({ userId });
       if (kyc && kyc.status) kycStatus = kyc.status;
-    } catch (error) {
+    } catch (_error) {
       // Ignore errors and default to 'none'
     }
 
@@ -625,7 +625,7 @@ export abstract class UserRepository extends BetterAuthRepository {
   ): Promise<UserAcceptsInstitutionInvitationResult> {
     const tx = await this.beginTransaction();
     try {
-      const { invitationId, userId, acceptanceDate } = params;
+      const { invitationId, userId: _userId, acceptanceDate } = params;
 
       // Get invitation details
       const invitationRows = await tx.sql`
@@ -675,7 +675,7 @@ export abstract class UserRepository extends BetterAuthRepository {
   ): Promise<UserRejectsInstitutionInvitationResult> {
     const tx = await this.beginTransaction();
     try {
-      const { invitationId, userId, rejectionReason, rejectionDate } = params;
+      const { invitationId, userId: _userId, rejectionReason, rejectionDate } = params;
 
       // Convert Date to UTC timestamp for database storage
       const rejectionTimestamp = rejectionDate.toISOString();
@@ -717,7 +717,7 @@ export abstract class UserRepository extends BetterAuthRepository {
   ): Promise<AdminAddUserToInstitutionResult> {
     const tx = await this.beginTransaction();
     try {
-      const { userId, institutionId, role, assignedDate } = params;
+      const { userId, institutionId, role, assignedDate: _assignedDate } = params;
 
       const rows = await tx.sql`
         UPDATE users
@@ -760,7 +760,7 @@ export abstract class UserRepository extends BetterAuthRepository {
   ): Promise<AdminRemoveUserFromInstitutionResult> {
     const tx = await this.beginTransaction();
     try {
-      const { userId, removedDate } = params;
+      const { userId, removedDate: _removedDate } = params;
 
       const rows = await tx.sql`
         UPDATE users
@@ -1105,8 +1105,8 @@ export abstract class UserRepository extends BetterAuthRepository {
         title,
         content,
         creationDate = new Date(),
-        userKycId,
-        institutionApplicationId,
+        userKycId: _userKycId,
+        institutionApplicationId: _institutionApplicationId,
       } = params;
 
       // For now, create notification without optional fields due to in-memory database limitations

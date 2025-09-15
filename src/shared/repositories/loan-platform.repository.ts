@@ -155,8 +155,8 @@ export abstract class LoanPlatformRepository extends LoanUserRepository {
     params: PlatformListsAvailableLoanOffersParams,
   ): Promise<PlatformListsAvailableLoanOffersResult> {
     const {
-      collateralBlockchainKey,
-      collateralTokenId,
+      collateralBlockchainKey: _collateralBlockchainKey,
+      collateralTokenId: _collateralTokenId,
       principalBlockchainKey,
       principalTokenId,
       page = 1,

@@ -144,7 +144,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
     // Calculate collateral requirements
     const provisionRate = Number(platformConfig.loan_provision_rate);
     const minLtvRatio = Number(platformConfig.loan_min_ltv_ratio) / 100; // Convert percentage to decimal
-    const maxLtvRatio = Number(platformConfig.loan_max_ltv_ratio) / 100;
+    const _maxLtvRatio = Number(platformConfig.loan_max_ltv_ratio) / 100;
     const provisionAmount = Math.floor(Number(principalAmount) * (provisionRate / 100));
 
     // Calculate required collateral using minimum LTV ratio (more conservative)
@@ -1024,7 +1024,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   async borrowerRequestsEarlyLiquidation(
     params: BorrowerRequestsEarlyLiquidationParams,
   ): Promise<BorrowerRequestsEarlyLiquidationResult> {
-    const { loanId, borrowerUserId, acknowledgment, requestDate } = params;
+    const { loanId, borrowerUserId, acknowledgment: _acknowledgment, requestDate } = params;
 
     const tx = await this.beginTransaction();
     try {
@@ -1116,7 +1116,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   async borrowerRequestsEarlyRepayment(
     params: BorrowerRequestsEarlyRepaymentParams,
   ): Promise<BorrowerRequestsEarlyRepaymentResult> {
-    const { loanId, borrowerUserId, acknowledgment, requestDate } = params;
+    const { loanId, borrowerUserId, acknowledgment: _acknowledgment, requestDate } = params;
 
     const tx = await this.beginTransaction();
     try {
@@ -1174,7 +1174,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
       // Calculate early repayment details
       const originationDate = new Date(loan.origination_date);
       const maturityDate = new Date(loan.maturity_date);
-      const termInMonths = Number(loan.term_in_months);
+      const _termInMonths = Number(loan.term_in_months);
       const totalTermDays = Math.ceil(
         (maturityDate.getTime() - originationDate.getTime()) / (1000 * 60 * 60 * 24),
       );

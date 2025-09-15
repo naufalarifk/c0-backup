@@ -1,0 +1,188 @@
+import type { UserSession } from '../../auth/types';
+
+import {
+  Body,
+  Controller,
+  Get,
+  HttpStatus,
+  Logger,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+  ValidationPipe,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+
+import { Session } from '../../auth/auth.decorator';
+import { AuthGuard } from '../../auth/auth.guard';
+import { ErrorResponseDto } from '../dto/common.dto';
+import {
+  CreateLoanApplicationDto,
+  LoanApplicationListResponseDto,
+  LoanApplicationResponseDto,
+  LoanCalculationRequestDto,
+  LoanCalculationResponseDto,
+  UpdateLoanApplicationDto,
+} from '../dto/loan-applications.dto';
+import { LoanApplicationsService } from '../services/loan-applications.service';
+
+@ApiTags('Loan Applications')
+@ApiBearerAuth()
+@UseGuards(AuthGuard)
+@Controller('loan-applications')
+export class LoanApplicationsController {
+  private readonly logger = new Logger(LoanApplicationsController.name);
+
+  constructor(private readonly loanApplicationsService: LoanApplicationsService) {}
+
+  /**
+   * Calculate loan application requirements
+   */
+  @Post('calculate')
+  @ApiOperation({
+    summary: 'Calculate loan application requirements',
+    description: 'Calculate required collateral amount and generate preview for loan application',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Loan calculation results',
+    type: LoanCalculationResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Validation error',
+    type: ErrorResponseDto,
+  })
+  async calculateLoanRequirements(
+    @Body(ValidationPipe) calculationRequest: LoanCalculationRequestDto,
+  ): Promise<LoanCalculationResponseDto> {
+    this.logger.log('Calculating loan requirements');
+    return await this.loanApplicationsService.calculateLoanRequirements(calculationRequest);
+  }
+
+  /**
+   * Create a new loan application
+   */
+  @Post()
+  @ApiOperation({
+    summary: 'Create loan application',
+    description: 'Create a new loan application. Requires collateral deposit to be published.',
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Loan application created',
+    type: LoanApplicationResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Validation error',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.CONFLICT,
+    description: 'Insufficient balance',
+    type: ErrorResponseDto,
+  })
+  async createLoanApplication(
+    @Session() session: UserSession,
+    @Body(ValidationPipe) createLoanApplicationDto: CreateLoanApplicationDto,
+  ): Promise<{ success: boolean; data: LoanApplicationResponseDto }> {
+    this.logger.log(`Creating loan application for borrower: ${session.user.id}`);
+    const loanApplication = await this.loanApplicationsService.createLoanApplication(
+      session.user.id,
+      createLoanApplicationDto,
+    );
+    return {
+      success: true,
+      data: loanApplication,
+    };
+  }
+
+  /**
+   * Get my loan applications
+   */
+  @Get('my-applications')
+  @ApiOperation({
+    summary: 'Get my loan applications',
+    description: 'Retrieve all loan applications created by the authenticated borrower',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (1-based)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (1-100)',
+    example: 20,
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "Borrower's loan applications",
+    type: LoanApplicationListResponseDto,
+  })
+  async getMyLoanApplications(
+    @Session() session: UserSession,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ): Promise<LoanApplicationListResponseDto> {
+    this.logger.log(`Getting loan applications for borrower: ${session.user.id}`);
+    return await this.loanApplicationsService.getMyLoanApplications(session.user.id, {
+      page: page || 1,
+      limit: limit || 20,
+    });
+  }
+
+  /**
+   * Update loan application
+   */
+  @Patch(':id')
+  @ApiOperation({
+    summary: 'Update loan application',
+    description: 'Update loan application (cancel, extend, modify terms)',
+  })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Loan application ID',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Loan application updated',
+    type: LoanApplicationResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Loan application not found',
+    type: ErrorResponseDto,
+  })
+  async updateLoanApplication(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+    @Body(ValidationPipe) updateLoanApplicationDto: UpdateLoanApplicationDto,
+  ): Promise<{ success: boolean; data: LoanApplicationResponseDto }> {
+    this.logger.log(`Updating loan application ${id} for borrower: ${session.user.id}`);
+    const loanApplication = await this.loanApplicationsService.updateLoanApplication(
+      session.user.id,
+      id,
+      updateLoanApplicationDto,
+    );
+    return {
+      success: true,
+      data: loanApplication,
+    };
+  }
+}

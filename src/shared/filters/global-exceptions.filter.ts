@@ -1,4 +1,4 @@
-/** biome-ignore-all lint/suspicious/noExplicitAny: <explanation> */
+// biome-ignore-all lint/suspicious/noExplicitAny: Global exception filter needs flexible typing for error objects
 import { STATUS_CODES } from 'node:http';
 
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
