@@ -992,7 +992,7 @@ export async function runUserRepositoryTestSuite(
           ),
         );
 
-        const result = await repo.rejectInstitutionApplication({
+        const result = await repo.adminRejectInstitutionApplication({
           applicationId: application.id,
           reviewerUserId: admin.id,
           rejectionReason: 'Incomplete documentation',
@@ -1308,7 +1308,7 @@ export async function runUserRepositoryTestSuite(
             ),
           );
 
-          await repo.rejectInstitutionApplication({
+          await repo.adminRejectInstitutionApplication({
             applicationId: application.id,
             reviewerUserId: admin.id,
             rejectionReason: 'Missing required documents',
@@ -1359,7 +1359,7 @@ export async function runUserRepositoryTestSuite(
           // Test invalid NPWP format - should throw error due to trigger validation
           let errorThrown = false;
           try {
-            await repo.systemCreatesInstitutionApplicationWithValidation({
+            await repo.testCreatesInstitutionApplicationWithValidation({
               applicantUserId: applicant.id,
               businessName: 'Test Business',
               npwpNumber: '12345678901234567',
@@ -1383,7 +1383,7 @@ export async function runUserRepositoryTestSuite(
           ok(errorThrown, 'Expected NPWP validation error');
 
           // Test valid NPWP format - should succeed
-          const validResult = await repo.systemCreatesInstitutionApplicationWithValidation({
+          const validResult = await repo.testCreatesInstitutionApplicationWithValidation({
             applicantUserId: applicant.id,
             businessName: 'Test Business',
             npwpNumber: '12.345.678.9-123.456',
@@ -1431,7 +1431,7 @@ export async function runUserRepositoryTestSuite(
           });
 
           // Create first application with NPWP
-          await repo.systemCreatesInstitutionApplicationWithValidation({
+          await repo.testCreatesInstitutionApplicationWithValidation({
             applicantUserId: applicant1.id,
             businessName: 'First Business',
             npwpNumber: '12.345.678.9-123.456',
@@ -1452,7 +1452,7 @@ export async function runUserRepositoryTestSuite(
           // Try to create second application with same NPWP - should fail
           let errorThrown = false;
           try {
-            await repo.systemCreatesInstitutionApplicationWithValidation({
+            await repo.testCreatesInstitutionApplicationWithValidation({
               applicantUserId: applicant2.id,
               businessName: 'Second Business',
               npwpNumber: '12.345.678.9-123.456',

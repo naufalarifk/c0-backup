@@ -242,31 +242,6 @@ export type AdminViewsNotificationsByTypeResult = {
   }>;
 };
 
-// System types
-export type SystemCreatesInstitutionApplicationWithValidationParams = {
-  applicantUserId: string;
-  businessName: string;
-  npwpNumber: string;
-  npwpDocumentPath: string;
-  registrationNumber: string;
-  registrationDocumentPath: string;
-  deedOfEstablishmentPath: string;
-  // domicileCertificatePath: string; // TBD
-  businessAddress: string;
-  businessCity: string;
-  businessProvince: string;
-  businessPostalCode: string;
-  directorName: string;
-  directorIdCardPath: string;
-  submittedDate: Date;
-};
-
-export type SystemCreatesInstitutionApplicationWithValidationResult = {
-  id: string;
-  applicantUserId: string;
-  businessName: string;
-};
-
 // User profile viewing types
 export type UserViewsProfileParams = {
   userId: string;
@@ -421,4 +396,28 @@ export type PlatformNotifyUserParams = {
 export type PlatformNotifyUserResult = {
   id: string;
   userId: string;
+};
+
+export type TestCreatesInstitutionApplicationWithValidationParams = {
+  applicantUserId: string;
+  businessName: string;
+  npwpNumber: string;
+  npwpDocumentPath: string;
+  registrationNumber: string;
+  registrationDocumentPath: string;
+  deedOfEstablishmentPath: string;
+  // domicileCertificatePath: string; // TBD
+  businessAddress: string;
+  businessCity: string;
+  businessProvince: string;
+  businessPostalCode: string;
+  directorName: string;
+  directorIdCardPath: string;
+  submittedDate: Date;
+};
+
+export type TestCreatesInstitutionApplicationWithValidationResult = {
+  id: string;
+  applicantUserId: string;
+  businessName: string;
 };
