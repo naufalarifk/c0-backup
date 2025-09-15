@@ -5,15 +5,20 @@ import { Pool } from 'pg';
 
 import { AppConfigService } from '../services/app-config.service';
 import { CryptogadaiRepository } from './cryptogadai.repository';
+import { InMemoryCryptogadaiRepository } from './in-memory-cryptogadai.repository';
 import { PgRedisCryptogadaiRepository } from './pg-redis-cryptogadai.repository';
 
 @Module({
   providers: [
     {
       provide: CryptogadaiRepository,
-      async useFactory(configService: AppConfigService): Promise<CryptogadaiRepository> {
+      async useFactory(appConfig: AppConfigService): Promise<CryptogadaiRepository> {
+        if (appConfig.databaseUrl === ':inmemory:') {
+          return new InMemoryCryptogadaiRepository();
+        }
+
         const pool = new Pool({
-          connectionString: configService.databaseUrl,
+          connectionString: appConfig.databaseUrl,
           // Connection pool configuration to prevent hanging
           max: 20, // Maximum number of clients in the pool
           idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
@@ -25,7 +30,7 @@ import { PgRedisCryptogadaiRepository } from './pg-redis-cryptogadai.repository'
           keepAlive: true,
           keepAliveInitialDelayMillis: 0,
         });
-        const redis = new Redis(configService.redisConfig);
+        const redis = new Redis(appConfig.redisConfig);
         const repo = new PgRedisCryptogadaiRepository(pool, redis);
         await repo.connect();
         return repo;

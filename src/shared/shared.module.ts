@@ -3,7 +3,7 @@ import type { Provider } from '@nestjs/common';
 import { Global, Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 
-import { VaultService } from './cryptography/cryptography.service';
+import { CryptographyModule } from './cryptography/cryptography.module';
 import { DatabaseModule } from './database/database.module';
 import { TelemetryInterceptor } from './interceptors';
 import { RepositoryModule } from './repositories/repository.module';
@@ -13,6 +13,8 @@ import { EmailService } from './services/email.service';
 import { FileValidatorService } from './services/file-validator.service';
 import { MailerService } from './services/mailer.service';
 import { MinioService } from './services/minio.service';
+import { MinioMockController } from './services/minio-mock.controller';
+import { MinioMockService } from './services/minio-mock.service';
 import { RedisService } from './services/redis.service';
 import { TelemetryService } from './services/telemetry.service';
 import { TwilioService } from './services/twilio.service';
@@ -23,18 +25,28 @@ const providers: Provider[] = [
   EmailService,
   FileValidatorService,
   MailerService,
-  MinioService,
   RedisService,
   TelemetryInterceptor,
   TelemetryService,
   TwilioService,
-  VaultService,
+  {
+    provide: MinioService,
+    inject: [AppConfigService],
+    useFactory(appConfigService: AppConfigService) {
+      if (appConfigService.minioConfig.endpoint === 'local') {
+        return new MinioMockService(appConfigService);
+      }
+
+      return new MinioService(appConfigService);
+    },
+  },
 ];
 
 @Global()
 @Module({
   providers,
-  imports: [CqrsModule, DatabaseModule, RepositoryModule],
-  exports: [...providers, CqrsModule, DatabaseModule, RepositoryModule],
+  imports: [CqrsModule, CryptographyModule, DatabaseModule, RepositoryModule],
+  controllers: [MinioMockController],
+  exports: [...providers, CqrsModule, CryptographyModule, DatabaseModule, RepositoryModule],
 })
 export class SharedModule {}
