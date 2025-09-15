@@ -111,6 +111,20 @@ export class AppConfigService {
     };
   }
 
+  get cryptographyConfig() {
+    return {
+      engine: this.getString('CRYPTOGRAPHY_ENGINE', 'local'),
+      localEncryptionKey: this.getString(
+        'CRYPTOGRAPHY_LOCAL_ENCRYPTION_KEY',
+        'default_local_encryption_key',
+      ),
+      vaultAddress: this.getString('CRYPTOGRAPHY_VAULT_ADDRESS', 'http://localhost:8200'),
+      vaultToken: this.getString('CRYPTOGRAPHY_VAULT_TOKEN', 'root'),
+      vaultRoleId: this.getString('CRYPTOGRAPHY_VAULT_ROLE_ID', ''),
+      vaultSecretId: this.getString('CRYPTOGRAPHY_VAULT_SECRET_ID', ''),
+    };
+  }
+
   get databaseUrl() {
     return this.getString('DATABASE_URL');
   }
@@ -225,10 +239,10 @@ export class AppConfigService {
 
   get minioConfig() {
     return {
-      endpoint: this.getString('MINIO_ENDPOINT'),
-      accessKey: this.getString('MINIO_ROOT_USER'),
-      secretKey: this.getString('MINIO_ROOT_PASSWORD'),
-      useSSL: this.getBoolean('MINIO_USE_SSL'),
+      endpoint: this.getString('MINIO_ENDPOINT', 'localhost:9000'),
+      accessKey: this.getString('MINIO_ROOT_USER', 'minioadmin'),
+      secretKey: this.getString('MINIO_ROOT_PASSWORD', 'minioadmin'),
+      useSSL: this.getBoolean('MINIO_USE_SSL', false),
       defaultBuckets: this.getString('MINIO_DEFAULT_BUCKETS', 'uploads,documents,images')
         .split(',')
         .map(bucket => bucket.trim()),
