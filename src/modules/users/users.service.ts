@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { UserDecidesUserTypeParams } from '../../shared/types';
-import { ensureExists, ResponseHelper } from '../../shared/utils';
+import { ensureExists, ensurePrecondition, ResponseHelper } from '../../shared/utils';
 
 @Injectable()
 export class UsersService {
@@ -11,6 +11,7 @@ export class UsersService {
   async setUserType(userId: string, userType: UserDecidesUserTypeParams['userType']) {
     const user = await this.repo.betterAuthFindOneUser([{ field: 'id', value: userId }]);
     ensureExists(user, 'User not found');
+    ensurePrecondition(user.emailVerified, 'Email must be verified before setting user type');
 
     const payload: UserDecidesUserTypeParams = {
       userId,

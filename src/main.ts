@@ -98,7 +98,7 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe(validationOptions));
 
   if (configService.documentationEnabled) {
-    await docs(app);
+    await docs(app, configService.authConfig.url);
   }
 
   // Starts listening for shutdown hooks

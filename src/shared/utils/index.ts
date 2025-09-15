@@ -1,3 +1,4 @@
+export * from './address-validator';
 export * from './assertions';
 export * from './deep-resolver';
 export * from './ensures';

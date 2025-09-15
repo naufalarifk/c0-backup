@@ -1,4 +1,3 @@
-/** biome-ignore-all lint/suspicious/noFallthroughSwitchClause: <explanation> */
 import { Injectable } from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
