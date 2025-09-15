@@ -23,8 +23,8 @@ import {
   OwnerUserInvitesUserToInstitutionResult,
   PlatformNotifyUserParams,
   PlatformNotifyUserResult,
-  SystemCreatesInstitutionApplicationWithValidationParams,
-  SystemCreatesInstitutionApplicationWithValidationResult,
+  TestCreatesInstitutionApplicationWithValidationParams,
+  TestCreatesInstitutionApplicationWithValidationResult,
   UserAcceptsInstitutionInvitationParams,
   UserAcceptsInstitutionInvitationResult,
   UserAppliesForInstitutionParams,
@@ -537,7 +537,7 @@ export abstract class UserRepository extends BetterAuthRepository {
     }
   }
 
-  async rejectInstitutionApplication(
+  async adminRejectInstitutionApplication(
     params: AdminRejectsInstitutionApplicationParams,
   ): Promise<AdminRejectsInstitutionApplicationResult> {
     const tx = await this.beginTransaction();
@@ -865,63 +865,6 @@ export abstract class UserRepository extends BetterAuthRepository {
     };
   }
 
-  async systemCreatesInstitutionApplicationWithValidation(
-    params: SystemCreatesInstitutionApplicationWithValidationParams,
-  ): Promise<SystemCreatesInstitutionApplicationWithValidationResult> {
-    const tx = await this.beginTransaction();
-    try {
-      const {
-        applicantUserId,
-        businessName,
-        npwpNumber,
-        npwpDocumentPath,
-        registrationNumber,
-        registrationDocumentPath,
-        deedOfEstablishmentPath,
-        // domicileCertificatePath, # TBD
-        businessAddress,
-        businessCity,
-        businessProvince,
-        businessPostalCode,
-        directorName,
-        directorIdCardPath,
-        submittedDate,
-      } = params;
-
-      const rows = await tx.sql`
-        INSERT INTO institution_applications (
-          applicant_user_id, business_name, npwp_number, npwp_document_path,
-          registration_number, registration_document_path, deed_of_establishment_path,
-          business_address, business_city, business_province,
-          business_postal_code, director_name, director_id_card_path, submitted_date
-        ) VALUES (
-          ${applicantUserId}, ${businessName}, ${npwpNumber}, ${npwpDocumentPath},
-          ${registrationNumber}, ${registrationDocumentPath}, ${deedOfEstablishmentPath},
-          ${businessAddress}, ${businessCity}, ${businessProvince},
-          ${businessPostalCode}, ${directorName}, ${directorIdCardPath}, ${submittedDate}
-        ) RETURNING id, applicant_user_id, business_name
-      `;
-
-      const application = rows[0];
-      assertDefined(application, 'Institution application creation failed');
-      assertPropStringOrNumber(application, 'id');
-      assertPropStringOrNumber(application, 'applicant_user_id');
-      assertPropString(application, 'business_name');
-
-      await tx.commitTransaction();
-
-      return {
-        id: String(application.id),
-        applicantUserId: String(application.applicant_user_id),
-        businessName: application.business_name,
-      };
-    } catch (error) {
-      console.error('UserRepository', error);
-      await tx.rollbackTransaction();
-      throw error;
-    }
-  }
-
   // Notification management methods
   async userListsNotifications(
     params: UserListsNotificationsParams,
@@ -1153,7 +1096,6 @@ export abstract class UserRepository extends BetterAuthRepository {
     }
   }
 
-  // Platform notification method
   async platformNotifyUser(params: PlatformNotifyUserParams): Promise<PlatformNotifyUserResult> {
     const tx = await this.beginTransaction();
     try {
@@ -1205,6 +1147,63 @@ export abstract class UserRepository extends BetterAuthRepository {
       return {
         id: String(notification.id),
         userId: String(notification.user_id),
+      };
+    } catch (error) {
+      console.error('UserRepository', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  async testCreatesInstitutionApplicationWithValidation(
+    params: TestCreatesInstitutionApplicationWithValidationParams,
+  ): Promise<TestCreatesInstitutionApplicationWithValidationResult> {
+    const tx = await this.beginTransaction();
+    try {
+      const {
+        applicantUserId,
+        businessName,
+        npwpNumber,
+        npwpDocumentPath,
+        registrationNumber,
+        registrationDocumentPath,
+        deedOfEstablishmentPath,
+        // domicileCertificatePath, # TBD
+        businessAddress,
+        businessCity,
+        businessProvince,
+        businessPostalCode,
+        directorName,
+        directorIdCardPath,
+        submittedDate,
+      } = params;
+
+      const rows = await tx.sql`
+        INSERT INTO institution_applications (
+          applicant_user_id, business_name, npwp_number, npwp_document_path,
+          registration_number, registration_document_path, deed_of_establishment_path,
+          business_address, business_city, business_province,
+          business_postal_code, director_name, director_id_card_path, submitted_date
+        ) VALUES (
+          ${applicantUserId}, ${businessName}, ${npwpNumber}, ${npwpDocumentPath},
+          ${registrationNumber}, ${registrationDocumentPath}, ${deedOfEstablishmentPath},
+          ${businessAddress}, ${businessCity}, ${businessProvince},
+          ${businessPostalCode}, ${directorName}, ${directorIdCardPath}, ${submittedDate}
+        ) RETURNING id, applicant_user_id, business_name
+      `;
+
+      const application = rows[0];
+      assertDefined(application, 'Institution application creation failed');
+      assertPropStringOrNumber(application, 'id');
+      assertPropStringOrNumber(application, 'applicant_user_id');
+      assertPropString(application, 'business_name');
+
+      await tx.commitTransaction();
+
+      return {
+        id: String(application.id),
+        applicantUserId: String(application.applicant_user_id),
+        businessName: application.business_name,
       };
     } catch (error) {
       console.error('UserRepository', error);

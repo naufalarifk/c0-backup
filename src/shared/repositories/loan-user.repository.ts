@@ -8,7 +8,6 @@ import {
   assertPropStringOrNumber,
   hasPropArray,
 } from '../utils/assertions';
-import { LoanRepository } from './loan.repository';
 import {
   UserViewsLoanDetailsParams,
   UserViewsLoanDetailsResult,
@@ -17,8 +16,12 @@ import {
   UserViewsLoanValuationHistoryParams,
   UserViewsLoanValuationHistoryResult,
 } from './loan.types';
+import { LoanBorrowerRepository } from './loan-borrower.repository';
 
-export abstract class LoanUserRepository extends LoanRepository {
+/**
+ * LoanUserRepository <- LoanBorrowerRepository <- LoanLenderRepository <- LoanTestRepository <- FinanceRepository <- UserRepository <- DatabaseRepository
+ */
+export abstract class LoanUserRepository extends LoanBorrowerRepository {
   async userViewsLoanDetails(
     params: UserViewsLoanDetailsParams,
   ): Promise<UserViewsLoanDetailsResult> {
