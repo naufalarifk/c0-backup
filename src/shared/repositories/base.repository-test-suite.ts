@@ -1,4 +1,4 @@
-import { rejects } from 'node:assert';
+import { doesNotReject, rejects } from 'node:assert';
 import { equal, ok, throws } from 'node:assert/strict';
 import { describe, suite } from 'node:test';
 
@@ -19,6 +19,18 @@ export async function runBaseRepositoryTestSuite(
 
     afterEach(async function () {
       await teardownRepo(repo);
+    });
+
+    describe('Idempotency', function () {
+      it('should allow multiple connects without error', async function () {
+        await doesNotReject(repo.connect(), 'First connect should not throw');
+        await doesNotReject(repo.connect(), 'Multiple connects should not throw');
+      });
+
+      it('should allow multiple closes without error', async function () {
+        await doesNotReject(repo.close(), 'First close should not throw');
+        await doesNotReject(repo.close(), 'Multiple closes should not throw');
+      });
     });
 
     describe('SQL Operations', function () {

@@ -10,8 +10,15 @@ CREATE TABLE IF NOT EXISTS beneficiaries (
 ALTER TABLE beneficiaries DROP CONSTRAINT IF EXISTS fk_beneficiaries_currency;
 ALTER TABLE beneficiaries DROP COLUMN IF EXISTS currency_blockchain_key;
 ALTER TABLE beneficiaries DROP COLUMN IF EXISTS currency_token_id;
-ALTER TABLE beneficiaries ADD CONSTRAINT fk_beneficiaries_blockchain FOREIGN KEY (blockchain_key) REFERENCES blockchains (key);
-ALTER TABLE beneficiaries ADD CONSTRAINT uq_beneficiaries_user_blockchain_address UNIQUE (user_id, blockchain_key, address);
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'fk_beneficiaries_blockchain') THEN
+        ALTER TABLE beneficiaries ADD CONSTRAINT fk_beneficiaries_blockchain FOREIGN KEY (blockchain_key) REFERENCES blockchains (key);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'uq_beneficiaries_user_blockchain_address') THEN
+        ALTER TABLE beneficiaries ADD CONSTRAINT uq_beneficiaries_user_blockchain_address UNIQUE (user_id, blockchain_key, address);
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS withdrawals (
   id BIGSERIAL PRIMARY KEY,
@@ -54,7 +61,12 @@ CREATE TABLE IF NOT EXISTS withdrawals (
 
 ALTER TABLE withdrawals ADD COLUMN IF NOT EXISTS currency_token_id VARCHAR(64) NOT NULL;
 ALTER TABLE withdrawals ADD COLUMN IF NOT EXISTS currency_blockchain_key VARCHAR(64) NOT NULL;
-ALTER TABLE withdrawals ADD CONSTRAINT fk_withdrawals_currency FOREIGN KEY (currency_blockchain_key, currency_token_id) REFERENCES currencies (blockchain_key, token_id);
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'fk_withdrawals_currency') THEN
+        ALTER TABLE withdrawals ADD CONSTRAINT fk_withdrawals_currency FOREIGN KEY (currency_blockchain_key, currency_token_id) REFERENCES currencies (blockchain_key, token_id);
+    END IF;
+END $$;
 
 --- DEPENDENCY ---
 
