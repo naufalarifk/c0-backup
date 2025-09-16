@@ -201,6 +201,8 @@ export async function runLoanBorrowerRepositoryTestSuite(
             liquidationMode: 'Partial',
             appliedDate,
             expirationDate,
+            collateralWalletDerivationPath: "m/44'/0'/0'/0/12345",
+            collateralWalletAddress: 'collateral_test_address_12345',
           });
 
           // Verify loan application details
@@ -246,6 +248,8 @@ export async function runLoanBorrowerRepositoryTestSuite(
               liquidationMode: 'Partial',
               appliedDate,
               expirationDate,
+              collateralWalletDerivationPath: "m/44'/0'/0'/0/99999",
+              collateralWalletAddress: 'invalid_test_address_99999',
             }),
             (error: Error) => error.message.includes('Currency pair'),
           );
@@ -333,6 +337,8 @@ export async function runLoanBorrowerRepositoryTestSuite(
             liquidationMode: 'Partial',
             appliedDate,
             expirationDate: new Date('2024-02-01T00:00:00Z'),
+            collateralWalletDerivationPath: "m/44'/0'/0'/0/33333",
+            collateralWalletAddress: 'update_test_address_33333',
           });
 
           // Cancel the application
@@ -427,6 +433,8 @@ export async function runLoanBorrowerRepositoryTestSuite(
               liquidationMode: 'Partial',
               appliedDate: applicationDate,
               expirationDate: new Date('2024-02-01T00:00:00Z'),
+              collateralWalletDerivationPath: `m/44'/0'/0'/0/${44444 + i}`,
+              collateralWalletAddress: `view_test_address_${44444 + i}`,
             });
             applications.push(application);
           }
@@ -520,6 +528,8 @@ export async function runLoanBorrowerRepositoryTestSuite(
             liquidationMode: 'Partial',
             appliedDate,
             expirationDate: new Date('2024-02-01T00:00:00Z'),
+            collateralWalletDerivationPath: "m/44'/0'/0'/0/55555",
+            collateralWalletAddress: 'filter_test_address1_55555',
           });
 
           const application2 = await repo.borrowerCreatesLoanApplication({
@@ -534,6 +544,8 @@ export async function runLoanBorrowerRepositoryTestSuite(
             liquidationMode: 'Partial',
             appliedDate: new Date('2024-01-02T00:00:00Z'),
             expirationDate: new Date('2024-02-01T00:00:00Z'),
+            collateralWalletDerivationPath: "m/44'/0'/0'/0/66666",
+            collateralWalletAddress: 'filter_test_address2_66666',
           });
 
           // Cancel one application

@@ -206,6 +206,8 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
       liquidationMode,
       appliedDate,
       expirationDate,
+      collateralWalletDerivationPath,
+      collateralWalletAddress,
     } = params;
 
     const tx = await this.beginTransaction();
@@ -376,9 +378,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
       assertPropDate(loanApplication, 'applied_date');
       assertPropDate(loanApplication, 'expired_date');
 
-      // Generate unique wallet derivation path for collateral deposit invoice
-      const walletDerivationPath = `m/44'/0'/0'/0/${Date.now()}`;
-      const walletAddress = `collateral_address_${loanApplication.id}_${Date.now()}`;
+      // Use provided wallet information for collateral deposit invoice
 
       // Create collateral deposit invoice
       const invoiceRows = await tx.sql`
@@ -401,8 +401,8 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           ${collateralBlockchainKey},
           ${collateralTokenId},
           ${collateralDepositAmount},
-          ${walletDerivationPath},
-          ${walletAddress},
+          ${collateralWalletDerivationPath},
+          ${collateralWalletAddress},
           'LoanCollateral',
           'Pending',
           ${appliedDate.toISOString()},
@@ -743,7 +743,13 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   }
 
   async borrowerRepaysLoan(params: BorrowerRepaysLoanParams): Promise<BorrowerRepaysLoanResult> {
-    const { loanId, borrowerUserId, repaymentDate } = params;
+    const {
+      loanId,
+      borrowerUserId,
+      repaymentDate,
+      repaymentWalletDerivationPath,
+      repaymentWalletAddress,
+    } = params;
 
     const tx = await this.beginTransaction();
     try {
@@ -786,9 +792,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
         throw new Error(`Cannot repay loan with status: ${loan.status}`);
       }
 
-      // Generate unique wallet derivation path for repayment invoice
-      const walletDerivationPath = `m/44'/0'/0'/0/${Date.now()}`;
-      const walletAddress = `repayment_address_${loanId}_${Date.now()}`;
+      // Use provided wallet information for repayment invoice
 
       // Create repayment invoice
       const invoiceRows = await tx.sql`
@@ -811,8 +815,8 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           ${loan.principal_currency_blockchain_key},
           ${loan.principal_currency_token_id},
           ${loan.repayment_amount},
-          ${walletDerivationPath},
-          ${walletAddress},
+          ${repaymentWalletDerivationPath},
+          ${repaymentWalletAddress},
           'LoanRepayment',
           'Pending',
           ${repaymentDate.toISOString()},
@@ -1116,7 +1120,14 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   async borrowerRequestsEarlyRepayment(
     params: BorrowerRequestsEarlyRepaymentParams,
   ): Promise<BorrowerRequestsEarlyRepaymentResult> {
-    const { loanId, borrowerUserId, acknowledgment, requestDate } = params;
+    const {
+      loanId,
+      borrowerUserId,
+      acknowledgment,
+      requestDate,
+      repaymentWalletDerivationPath,
+      repaymentWalletAddress,
+    } = params;
 
     const tx = await this.beginTransaction();
     try {
@@ -1187,9 +1198,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
       const fullInterestCharged = true;
       const totalRepaymentAmount = Number(loan.repayment_amount); // Full repayment amount
 
-      // Generate unique wallet derivation path for early repayment invoice
-      const walletDerivationPath = `m/44'/0'/0'/0/${Date.now()}`;
-      const walletAddress = `early_repayment_address_${loanId}_${Date.now()}`;
+      // Use provided wallet information for early repayment invoice
 
       // Create early repayment invoice
       const invoiceRows = await tx.sql`
@@ -1212,8 +1221,8 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           ${loan.principal_currency_blockchain_key},
           ${loan.principal_currency_token_id},
           ${totalRepaymentAmount},
-          ${walletDerivationPath},
-          ${walletAddress},
+          ${repaymentWalletDerivationPath},
+          ${repaymentWalletAddress},
           'LoanEarlyRepayment',
           'Pending',
           ${requestDate.toISOString()},

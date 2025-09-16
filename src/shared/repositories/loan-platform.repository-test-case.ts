@@ -67,6 +67,8 @@ export async function runLoanPlatformRepositoryTestSuite(
             termInMonthsOptions: [3, 6, 12],
             expirationDate,
             createdDate,
+            fundingWalletDerivationPath: "m/44'/0'/0'/0/50",
+            fundingWalletAddress: 'test-funding-wallet-address-50',
           });
 
           const publishedDate = new Date('2024-01-02T10:00:00.000Z');
@@ -126,6 +128,8 @@ export async function runLoanPlatformRepositoryTestSuite(
             termInMonthsOptions: [3, 6, 12],
             expirationDate,
             createdDate,
+            fundingWalletDerivationPath: "m/44'/0'/0'/0/51",
+            fundingWalletAddress: 'test-funding-wallet-address-51',
           });
 
           const publishedDate = new Date('2024-01-02T10:00:00.000Z');
@@ -188,6 +192,8 @@ export async function runLoanPlatformRepositoryTestSuite(
             termInMonthsOptions: [3, 6, 12],
             expirationDate,
             createdDate,
+            fundingWalletDerivationPath: "m/44'/0'/0'/0/52",
+            fundingWalletAddress: 'test-funding-wallet-address-52',
           });
 
           const loanOffer2 = await repo.lenderCreatesLoanOffer({
@@ -201,6 +207,8 @@ export async function runLoanPlatformRepositoryTestSuite(
             termInMonthsOptions: [6, 12],
             expirationDate,
             createdDate,
+            fundingWalletDerivationPath: "m/44'/0'/0'/0/53",
+            fundingWalletAddress: 'test-funding-wallet-address-53',
           });
 
           // Publish both offers
@@ -270,6 +278,8 @@ export async function runLoanPlatformRepositoryTestSuite(
             termInMonthsOptions: [3, 6, 12],
             expirationDate,
             createdDate,
+            fundingWalletDerivationPath: "m/44'/0'/0'/0/54",
+            fundingWalletAddress: 'test-funding-wallet-address-54',
           });
 
           // Publish the offer
@@ -355,6 +365,8 @@ export async function runLoanPlatformRepositoryTestSuite(
             liquidationMode: 'Partial',
             appliedDate,
             expirationDate,
+            collateralWalletDerivationPath: "m/44'/0'/0'/0/88888",
+            collateralWalletAddress: 'platform_test_address1_88888',
           });
 
           const publishedDate = new Date('2024-01-02T10:00:00.000Z');
@@ -436,6 +448,8 @@ export async function runLoanPlatformRepositoryTestSuite(
             liquidationMode: 'Partial',
             appliedDate,
             expirationDate,
+            collateralWalletDerivationPath: "m/44'/0'/0'/0/88889",
+            collateralWalletAddress: 'platform_test_address2_88889',
           });
 
           const publishedDate = new Date('2024-01-02T10:00:00.000Z');
@@ -522,6 +536,8 @@ export async function runLoanPlatformRepositoryTestSuite(
           termInMonthsOptions: [3, 6, 12],
           expirationDate,
           createdDate,
+          fundingWalletDerivationPath: "m/44'/0'/0'/0/55",
+          fundingWalletAddress: 'test-funding-wallet-address-55',
         });
 
         await repo.platformPublishesLoanOffer({
@@ -542,6 +558,8 @@ export async function runLoanPlatformRepositoryTestSuite(
           liquidationMode: 'Partial',
           appliedDate: createdDate,
           expirationDate,
+          collateralWalletDerivationPath: "m/44'/0'/0'/0/88890",
+          collateralWalletAddress: 'platform_test_address3_88890',
         });
 
         await repo.platformPublishesLoanApplication({
@@ -600,6 +618,8 @@ export async function runLoanPlatformRepositoryTestSuite(
             liquidationMode: 'Partial',
             appliedDate: new Date('2024-01-01T10:00:00.000Z'),
             expirationDate: new Date('2024-01-31T23:59:59.999Z'),
+            collateralWalletDerivationPath: "m/44'/0'/0'/0/88891",
+            collateralWalletAddress: 'platform_test_address4_88891',
           });
 
           await repo.platformPublishesLoanApplication({
@@ -707,6 +727,8 @@ export async function runLoanPlatformRepositoryTestSuite(
             liquidationMode: 'Partial',
             appliedDate: new Date('2024-01-01T10:00:00.000Z'),
             expirationDate: new Date('2024-01-31T23:59:59.999Z'),
+            collateralWalletDerivationPath: "m/44'/0'/0'/0/88892",
+            collateralWalletAddress: 'platform_test_address5_88892',
           });
 
           await repo.platformPublishesLoanApplication({
@@ -798,6 +820,8 @@ export async function runLoanPlatformRepositoryTestSuite(
           termInMonthsOptions: [3, 6, 12],
           expirationDate: new Date('2024-01-31T23:59:59.999Z'),
           createdDate: new Date('2024-01-01T10:00:00.000Z'),
+          fundingWalletDerivationPath: "m/44'/0'/0'/0/56",
+          fundingWalletAddress: 'test-funding-wallet-address-56',
         });
 
         await repo.platformPublishesLoanOffer({
@@ -818,6 +842,8 @@ export async function runLoanPlatformRepositoryTestSuite(
           liquidationMode: 'Partial',
           appliedDate: new Date('2024-01-01T10:00:00.000Z'),
           expirationDate: new Date('2024-01-31T23:59:59.999Z'),
+          collateralWalletDerivationPath: "m/44'/0'/0'/0/88893",
+          collateralWalletAddress: 'platform_test_address6_88893',
         });
 
         await repo.platformPublishesLoanApplication({

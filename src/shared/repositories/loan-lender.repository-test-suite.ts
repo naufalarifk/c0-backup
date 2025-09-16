@@ -65,6 +65,8 @@ export async function runLoanLenderRepositoryTestSuite(
             termInMonthsOptions: [3, 6, 12],
             expirationDate,
             createdDate: createDate,
+            fundingWalletDerivationPath: "m/44'/0'/0'/0/1",
+            fundingWalletAddress: 'test-funding-wallet-address-1',
           });
 
           // Verify loan offer details
@@ -122,6 +124,8 @@ export async function runLoanLenderRepositoryTestSuite(
               termInMonthsOptions: [3, 6, 12],
               expirationDate,
               createdDate: createDate,
+              fundingWalletDerivationPath: "m/44'/0'/0'/0/2",
+              fundingWalletAddress: 'test-funding-wallet-address-2',
             }),
             (error: Error) => error.message.includes('Currency invalid:INVALID does not exist'),
           );
@@ -167,6 +171,8 @@ export async function runLoanLenderRepositoryTestSuite(
             termInMonthsOptions: [3, 6],
             expirationDate: new Date('2024-02-01T00:00:00Z'),
             createdDate: createDate,
+            fundingWalletDerivationPath: "m/44'/0'/0'/0/3",
+            fundingWalletAddress: 'test-funding-wallet-address-3',
           });
 
           // Create second offer
@@ -181,6 +187,8 @@ export async function runLoanLenderRepositoryTestSuite(
             termInMonthsOptions: [6, 12],
             expirationDate: new Date('2024-03-01T00:00:00Z'),
             createdDate: createDate,
+            fundingWalletDerivationPath: "m/44'/0'/0'/0/4",
+            fundingWalletAddress: 'test-funding-wallet-address-4',
           });
 
           notEqual(offer1.id, offer2.id);
@@ -229,6 +237,8 @@ export async function runLoanLenderRepositoryTestSuite(
             termInMonthsOptions: [6],
             expirationDate: new Date('2024-02-01T00:00:00Z'),
             createdDate: new Date('2024-01-01T00:00:00Z'),
+            fundingWalletDerivationPath: "m/44'/0'/0'/0/5",
+            fundingWalletAddress: 'test-funding-wallet-address-5',
           });
 
           // Simulate offer being published (would happen via invoice payment trigger)
@@ -290,6 +300,8 @@ export async function runLoanLenderRepositoryTestSuite(
             termInMonthsOptions: [6],
             expirationDate: new Date('2024-02-01T00:00:00Z'),
             createdDate: new Date('2024-01-01T00:00:00Z'),
+            fundingWalletDerivationPath: "m/44'/0'/0'/0/6",
+            fundingWalletAddress: 'test-funding-wallet-address-6',
           });
 
           const updateDate = new Date('2024-01-01T02:00:00Z');
@@ -343,6 +355,8 @@ export async function runLoanLenderRepositoryTestSuite(
             termInMonthsOptions: [6],
             expirationDate: new Date('2024-02-01T00:00:00Z'),
             createdDate: new Date('2024-01-01T00:00:00Z'),
+            fundingWalletDerivationPath: "m/44'/0'/0'/0/7",
+            fundingWalletAddress: 'test-funding-wallet-address-7',
           });
         });
 
@@ -409,6 +423,8 @@ export async function runLoanLenderRepositoryTestSuite(
               termInMonthsOptions: [3, 6, 12],
               expirationDate: new Date('2024-02-01T00:00:00Z'),
               createdDate: offerDate,
+              fundingWalletDerivationPath: `m/44'/0'/0'/0/${8 + i}`,
+              fundingWalletAddress: `test-funding-wallet-address-${8 + i}`,
             });
             offers.push(offer);
           }
@@ -494,6 +510,8 @@ export async function runLoanLenderRepositoryTestSuite(
             termInMonthsOptions: [6],
             expirationDate: new Date('2024-02-01T00:00:00Z'),
             createdDate: new Date('2024-01-01T00:00:00Z'),
+            fundingWalletDerivationPath: "m/44'/0'/0'/0/11",
+            fundingWalletAddress: 'test-funding-wallet-address-11',
           });
 
           const offer2 = await repo.lenderCreatesLoanOffer({
@@ -507,6 +525,8 @@ export async function runLoanLenderRepositoryTestSuite(
             termInMonthsOptions: [3, 6],
             expirationDate: new Date('2024-03-01T00:00:00Z'),
             createdDate: new Date('2024-01-02T00:00:00Z'),
+            fundingWalletDerivationPath: "m/44'/0'/0'/0/12",
+            fundingWalletAddress: 'test-funding-wallet-address-12',
           });
 
           // Update one offer to Published status
@@ -635,6 +655,8 @@ export async function runLoanLenderRepositoryTestSuite(
             termInMonthsOptions: [3, 6, 12],
             expirationDate: new Date('2024-02-01T00:00:00Z'),
             createdDate: new Date('2024-01-01T00:00:00Z'),
+            fundingWalletDerivationPath: "m/44'/0'/0'/0/13",
+            fundingWalletAddress: 'test-funding-wallet-address-13',
           });
 
           const result = await repo.lenderViewsMyLoanOffers({

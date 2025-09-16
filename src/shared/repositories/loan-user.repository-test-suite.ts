@@ -73,6 +73,8 @@ export async function runLoanUserRepositoryTestSuite(
             termInMonthsOptions: [3, 6, 12],
             createdDate: new Date('2025-10-30'),
             expirationDate: new Date('2025-12-31'),
+            fundingWalletDerivationPath: "m/44'/0'/0'/0/100",
+            fundingWalletAddress: 'test-funding-wallet-address-100',
           });
 
           await doesNotReject(
@@ -89,6 +91,8 @@ export async function runLoanUserRepositoryTestSuite(
               liquidationMode: 'Partial',
               appliedDate: new Date('2025-11-01'),
               expirationDate: new Date('2025-11-30'),
+              collateralWalletDerivationPath: "m/44'/0'/0'/0/77777",
+              collateralWalletAddress: 'user_test_address_77777',
             }),
             'Borrower should be able to create loan application',
           );

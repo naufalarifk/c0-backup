@@ -45,6 +45,8 @@ export type LenderCreatesLoanOfferParams = {
   termInMonthsOptions: number[];
   expirationDate: Date;
   createdDate: Date;
+  fundingWalletDerivationPath: string;
+  fundingWalletAddress: string;
 };
 
 export type LenderCreatesLoanOfferResult = {
@@ -187,6 +189,8 @@ export type BorrowerCreatesLoanApplicationParams = {
   liquidationMode: LiquidationMode;
   appliedDate: Date;
   expirationDate: Date;
+  collateralWalletDerivationPath: string;
+  collateralWalletAddress: string;
 };
 
 export type BorrowerCreatesLoanApplicationResult = {
@@ -464,6 +468,8 @@ export type BorrowerRepaysLoanParams = {
   loanId: string;
   borrowerUserId: string;
   repaymentDate: Date;
+  repaymentWalletDerivationPath: string;
+  repaymentWalletAddress: string;
 };
 
 export type BorrowerRepaysLoanResult = {
@@ -478,6 +484,8 @@ export type BorrowerRequestsEarlyRepaymentParams = {
   borrowerUserId: string;
   acknowledgment: string;
   requestDate: Date;
+  repaymentWalletDerivationPath: string;
+  repaymentWalletAddress: string;
 };
 
 export type BorrowerRequestsEarlyRepaymentResult = {
