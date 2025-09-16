@@ -133,17 +133,6 @@ export type PlatformListsAvailableLoanOffersResult = {
   pagination: PaginationMeta;
 };
 
-export type PlatformPublishesLoanOfferParams = {
-  loanOfferId: string;
-  publishedDate: Date;
-};
-
-export type PlatformPublishesLoanOfferResult = {
-  id: string;
-  status: LoanOfferStatus;
-  publishedDate: Date;
-};
-
 // Loan Application Types
 export type BorrowerCalculatesLoanRequirementsParams = {
   collateralBlockchainKey: string;
@@ -261,17 +250,6 @@ export type BorrowerViewsMyLoanApplicationsResult = {
     closureReason?: string;
   }>;
   pagination: PaginationMeta;
-};
-
-export type PlatformPublishesLoanApplicationParams = {
-  loanApplicationId: string;
-  publishedDate: Date;
-};
-
-export type PlatformPublishesLoanApplicationResult = {
-  id: string;
-  status: LoanApplicationStatus;
-  publishedDate: Date;
 };
 
 // Loan Matching Types
