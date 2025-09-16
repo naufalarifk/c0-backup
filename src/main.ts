@@ -33,29 +33,21 @@ async function bootstrap() {
 
   app.use(
     helmet({
-      contentSecurityPolicy: configService.isDevelopment
-        ? {
-            directives: {
-              defaultSrc: ["'self'"],
-              scriptSrc: ["'self'", "'unsafe-inline'", 'https:'],
-              styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
-              fontSrc: ["'self'", 'https:', 'data:'],
-              imgSrc: ["'self'", 'https:', 'data:'],
-              connectSrc: ["'self'", 'https:'],
-            },
-          }
-        : {
-            directives: {
-              defaultSrc: ["'self'"],
-              scriptSrc: ["'self'", 'https://cdn.jsdelivr.net'],
-              styleSrc: ["'self'", 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com'],
-              fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
-              imgSrc: ["'self'", 'https:', 'data:'],
-              connectSrc: ["'self'"],
-              frameSrc: ["'none'"],
-              objectSrc: ["'none'"],
-            },
-          },
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            "'unsafe-eval'", // Scalar might need this
+            'https://cdn.jsdelivr.net',
+          ],
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+          imgSrc: ["'self'", 'data:', 'https:'],
+          fontSrc: ["'self'", 'https:', 'data:'],
+          connectSrc: ["'self'", 'https://cdn.jsdelivr.net'],
+        },
+      },
     }),
   );
   app.use(compression());
