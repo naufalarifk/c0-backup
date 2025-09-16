@@ -1,7 +1,143 @@
 import { deepEqual, equal, notEqual, ok, rejects } from 'node:assert/strict';
 import { describe, suite } from 'node:test';
 
-import { assertArrayOf, assertDefined, assertPropStringOrNumber } from '../utils';
+// Helper function to simulate paying a loan offer's principal invoice
+async function simulateLoanOfferInvoicePayment(
+  repo: LoanPlatformRepository,
+  loanOfferId: string,
+  paymentDate: Date,
+): Promise<void> {
+  // Get the loan offer and invoice details
+  const loanOfferRows = await repo.sql`
+    SELECT lo.lender_user_id, lo.offered_principal_amount, lo.principal_currency_blockchain_key, lo.principal_currency_token_id,
+           i.id as invoice_id
+    FROM loan_offers lo
+    JOIN invoices i ON i.loan_offer_id = lo.id AND i.invoice_type = 'LoanPrincipal'
+    WHERE lo.id = ${loanOfferId}
+  `;
+
+  if (loanOfferRows.length === 0) {
+    throw new Error(`No principal invoice found for loan offer ${loanOfferId}`);
+  }
+
+  const loanOffer = loanOfferRows[0];
+  assertDefined(loanOffer, 'Loan offer validation failed');
+  assertPropStringOrNumber(loanOffer, 'lender_user_id');
+  assertPropStringOrNumber(loanOffer, 'offered_principal_amount');
+  assertPropString(loanOffer, 'principal_currency_blockchain_key');
+  assertPropString(loanOffer, 'principal_currency_token_id');
+  assertPropStringOrNumber(loanOffer, 'invoice_id');
+
+  // First, ensure the lender has sufficient balance by adding funds
+  await repo.sql`
+    INSERT INTO account_mutation_entries (
+      user_id,
+      currency_blockchain_key,
+      currency_token_id,
+      account_type,
+      mutation_type,
+      mutation_date,
+      amount
+    ) VALUES (
+      ${loanOffer.lender_user_id},
+      ${loanOffer.principal_currency_blockchain_key},
+      ${loanOffer.principal_currency_token_id},
+      'User',
+      'AdminManualAdjustment',
+      ${paymentDate.toISOString()},
+      ${loanOffer.offered_principal_amount}
+    )
+  `;
+
+  // Now simulate blockchain payment by inserting into invoice_payments
+  // This will trigger the process_invoice_payment trigger which updates the invoice
+  await repo.sql`
+    INSERT INTO invoice_payments (
+      invoice_id,
+      payment_date,
+      payment_hash,
+      amount
+    ) VALUES (
+      ${loanOffer.invoice_id},
+      ${paymentDate.toISOString()},
+      ${'test_payment_hash_' + loanOffer.invoice_id + '_' + Date.now()},
+      ${loanOffer.offered_principal_amount}
+    )
+  `;
+}
+
+// Helper function to simulate paying a loan application's collateral invoice
+async function simulateLoanApplicationInvoicePayment(
+  repo: LoanPlatformRepository,
+  loanApplicationId: string,
+  paymentDate: Date,
+): Promise<void> {
+  // Get the loan application and invoice details
+  const loanApplicationRows = await repo.sql`
+    SELECT la.borrower_user_id, la.collateral_deposit_amount, la.collateral_currency_blockchain_key, la.collateral_currency_token_id,
+           i.id as invoice_id
+    FROM loan_applications la
+    JOIN invoices i ON i.loan_application_id = la.id AND i.invoice_type = 'LoanCollateral'
+    WHERE la.id = ${loanApplicationId}
+  `;
+
+  if (loanApplicationRows.length === 0) {
+    throw new Error(`No collateral invoice found for loan application ${loanApplicationId}`);
+  }
+
+  const loanApplication = loanApplicationRows[0];
+  assertDefined(loanApplication, 'Loan application validation failed');
+  assertPropStringOrNumber(loanApplication, 'borrower_user_id');
+  assertPropStringOrNumber(loanApplication, 'collateral_deposit_amount');
+  assertPropString(loanApplication, 'collateral_currency_blockchain_key');
+  assertPropString(loanApplication, 'collateral_currency_token_id');
+  assertPropStringOrNumber(loanApplication, 'invoice_id');
+
+  // First, ensure the borrower has sufficient balance by adding funds
+  await repo.sql`
+    INSERT INTO account_mutation_entries (
+      user_id,
+      currency_blockchain_key,
+      currency_token_id,
+      account_type,
+      mutation_type,
+      mutation_date,
+      amount
+    ) VALUES (
+      ${loanApplication.borrower_user_id},
+      ${loanApplication.collateral_currency_blockchain_key},
+      ${loanApplication.collateral_currency_token_id},
+      'User',
+      'AdminManualAdjustment',
+      ${paymentDate.toISOString()},
+      ${loanApplication.collateral_deposit_amount}
+    )
+  `;
+
+  // Now simulate blockchain payment by inserting into invoice_payments
+  // This will trigger the process_invoice_payment trigger which updates the invoice
+  await repo.sql`
+    INSERT INTO invoice_payments (
+      invoice_id,
+      payment_date,
+      payment_hash,
+      amount
+    ) VALUES (
+      ${loanApplication.invoice_id},
+      ${paymentDate.toISOString()},
+      ${'test_payment_hash_' + loanApplication.invoice_id + '_' + Date.now()},
+      ${loanApplication.collateral_deposit_amount}
+    )
+  `;
+}
+
+import {
+  assertArrayOf,
+  assertDefined,
+  assertPropDate,
+  assertPropString,
+  assertPropStringOrNumber,
+} from '../utils';
 import { createEarlyExitNodeTestIt } from '../utils/node-test';
 import {
   BorrowerCreatesLoanApplicationResult,
@@ -35,121 +171,153 @@ export async function runLoanPlatformRepositoryTestSuite(
     });
 
     describe('Loan Offer Platform Management', function () {
-      describe('platformPublishesLoanOffer', function () {
-        it('should publish loan offer successfully', async function () {
-          // Setup test data
-          const lender = await repo.betterAuthCreateUser({
-            name: 'Lender User',
-            email: 'lender@example.com',
-            emailVerified: true,
+      describe('Database Trigger Tests', function () {
+        describe('Loan Offer Publishing Trigger', function () {
+          it('should automatically publish loan offer when principal invoice is paid', async function () {
+            // Setup test data
+            const lender = await repo.betterAuthCreateUser({
+              name: 'Lender User',
+              email: 'lender@example.com',
+              emailVerified: true,
+            });
+
+            await repo.systemCreatesTestBlockchains({
+              blockchains: [
+                { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
+              ],
+            });
+
+            const createdDate = new Date('2024-01-01T10:00:00.000Z');
+            const expirationDate = new Date('2024-01-31T23:59:59.999Z');
+
+            // Create loan offer (should be in 'Funding' status)
+            const loanOffer = await repo.lenderCreatesLoanOffer({
+              lenderUserId: lender.id,
+              principalBlockchainKey: 'eip155:56',
+              principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+              offeredPrincipalAmount: '1000000000', // 1000 USDT
+              minLoanPrincipalAmount: '100000000', // 100 USDT
+              maxLoanPrincipalAmount: '500000000', // 500 USDT
+              interestRate: 15.5,
+              termInMonthsOptions: [3, 6, 12],
+              expirationDate,
+              createdDate,
+              fundingWalletDerivationPath: "m/44'/0'/0'/0/500",
+              fundingWalletAddress: 'test-funding-wallet-address-500',
+            });
+
+            // Verify loan offer is initially in 'Funding' status
+            equal(loanOffer.status, 'Funding');
+
+            const paymentDate = new Date('2024-01-02T10:00:00.000Z');
+
+            // Simulate paying the principal invoice (this should trigger automatic publishing)
+            await simulateLoanOfferInvoicePayment(repo, loanOffer.id, paymentDate);
+
+            // Verify loan offer was automatically published
+            const publishedOfferRows = await repo.sql`
+              SELECT id, status, published_date 
+              FROM loan_offers 
+              WHERE id = ${loanOffer.id}
+            `;
+
+            equal(publishedOfferRows.length, 1);
+            const publishedOffer = publishedOfferRows[0];
+            assertDefined(publishedOffer, 'Published offer validation failed');
+            assertPropStringOrNumber(publishedOffer, 'id');
+            assertPropString(publishedOffer, 'status');
+            assertPropDate(publishedOffer, 'published_date');
+
+            equal(publishedOffer.status, 'Published');
+            deepEqual(new Date(publishedOffer.published_date), paymentDate);
           });
-
-          await repo.systemCreatesTestBlockchains({
-            blockchains: [
-              { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
-            ],
-          });
-
-          // Use currencies already defined in the database schema
-
-          const createdDate = new Date('2024-01-01T10:00:00.000Z');
-          const expirationDate = new Date('2024-01-31T23:59:59.999Z');
-
-          // Create loan offer
-          const loanOffer = await repo.lenderCreatesLoanOffer({
-            lenderUserId: lender.id,
-            principalBlockchainKey: 'eip155:56',
-            principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-            offeredPrincipalAmount: '1000000000', // 1000 USDT
-            minLoanPrincipalAmount: '100000000', // 100 USDT
-            maxLoanPrincipalAmount: '500000000', // 500 USDT
-            interestRate: 15.5,
-            termInMonthsOptions: [3, 6, 12],
-            expirationDate,
-            createdDate,
-            fundingWalletDerivationPath: "m/44'/0'/0'/0/50",
-            fundingWalletAddress: 'test-funding-wallet-address-50',
-          });
-
-          const publishedDate = new Date('2024-01-02T10:00:00.000Z');
-
-          // Publish the loan offer
-          const publishResult = await repo.platformPublishesLoanOffer({
-            loanOfferId: loanOffer.id,
-            publishedDate,
-          });
-
-          equal(publishResult.id, loanOffer.id);
-          equal(publishResult.status, 'Published');
-          deepEqual(publishResult.publishedDate, publishedDate);
         });
 
-        it('should reject publishing non-existent loan offer', async function () {
-          const publishedDate = new Date('2024-01-02T10:00:00.000Z');
+        describe('Loan Application Publishing Trigger', function () {
+          it('should automatically publish loan application when collateral invoice is paid', async function () {
+            // Setup borrower and currencies
+            const borrower = await repo.betterAuthCreateUser({
+              name: 'Borrower User',
+              email: 'borrower@example.com',
+              emailVerified: true,
+            });
 
-          await rejects(
-            async () => {
-              await repo.platformPublishesLoanOffer({
-                loanOfferId: '999999',
-                publishedDate,
-              });
-            },
-            { message: 'Loan offer not found' },
-          );
-        });
+            await repo.systemCreatesTestBlockchains({
+              blockchains: [
+                { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
+              ],
+            });
 
-        it('should reject publishing loan offer not in Funding status', async function () {
-          // Setup test data with already published loan offer
-          const lender = await repo.betterAuthCreateUser({
-            name: 'Lender User',
-            email: 'lender@example.com',
-            emailVerified: true,
+            // Setup platform config and exchange rates
+            await repo.testSetupPlatformConfig({
+              effectiveDate: generateUniqueConfigDate(),
+              adminUserId: 1,
+              loanProvisionRate: 2.5,
+              loanIndividualRedeliveryFeeRate: 1.0,
+              loanInstitutionRedeliveryFeeRate: 0.5,
+              loanMinLtvRatio: 50,
+              loanMaxLtvRatio: 75,
+              loanRepaymentDurationInDays: 30,
+            });
+
+            await repo.testSetupPriceFeeds({
+              blockchainKey: 'eip155:56',
+              baseCurrencyTokenId: 'slip44:714',
+              quoteCurrencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+              source: 'test',
+              bidPrice: 2000,
+              askPrice: 2010,
+              sourceDate: new Date('2024-01-01T10:00:00.000Z'),
+            });
+
+            const appliedDate = new Date('2024-01-01T10:00:00.000Z');
+            const expirationDate = new Date('2024-01-31T23:59:59.999Z');
+
+            // Create loan application (should be in 'PendingCollateral' status)
+            const loanApplication = await repo.borrowerCreatesLoanApplication({
+              borrowerUserId: borrower.id,
+              collateralBlockchainKey: 'eip155:56',
+              collateralTokenId: 'slip44:714',
+              principalBlockchainKey: 'eip155:56',
+              principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+              principalAmount: '1000000000', // 1000 USDT
+              maxInterestRate: 20.0,
+              termInMonths: 6,
+              liquidationMode: 'Partial',
+              appliedDate,
+              expirationDate,
+              collateralWalletDerivationPath: "m/44'/0'/0'/0/88800",
+              collateralWalletAddress: 'platform_test_address_88800',
+            });
+
+            // Verify loan application is initially in 'PendingCollateral' status
+            equal(loanApplication.status, 'PendingCollateral');
+
+            const paymentDate = new Date('2024-01-02T10:00:00.000Z');
+
+            // Simulate paying the collateral invoice (this should trigger automatic publishing)
+            await simulateLoanApplicationInvoicePayment(repo, loanApplication.id, paymentDate);
+
+            // Verify loan application was automatically published
+            const publishedApplicationRows = await repo.sql`
+              SELECT id, status, published_date, collateral_prepaid_amount
+              FROM loan_applications 
+              WHERE id = ${loanApplication.id}
+            `;
+
+            equal(publishedApplicationRows.length, 1);
+            const publishedApplication = publishedApplicationRows[0];
+            assertDefined(publishedApplication, 'Published application validation failed');
+            assertPropStringOrNumber(publishedApplication, 'id');
+            assertPropString(publishedApplication, 'status');
+            assertPropStringOrNumber(publishedApplication, 'collateral_prepaid_amount');
+            assertPropDate(publishedApplication, 'published_date');
+
+            equal(publishedApplication.status, 'Published');
+            deepEqual(new Date(publishedApplication.published_date), paymentDate);
+            // Verify collateral_prepaid_amount was set
+            ok(Number(publishedApplication.collateral_prepaid_amount) > 0);
           });
-
-          await repo.systemCreatesTestBlockchains({
-            blockchains: [
-              { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
-            ],
-          });
-
-          // Use currencies already defined in the database schema
-
-          const createdDate = new Date('2024-01-01T10:00:00.000Z');
-          const expirationDate = new Date('2024-01-31T23:59:59.999Z');
-
-          const loanOffer = await repo.lenderCreatesLoanOffer({
-            lenderUserId: lender.id,
-            principalBlockchainKey: 'eip155:56',
-            principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-            offeredPrincipalAmount: '1000000000',
-            minLoanPrincipalAmount: '100000000',
-            maxLoanPrincipalAmount: '500000000',
-            interestRate: 15.5,
-            termInMonthsOptions: [3, 6, 12],
-            expirationDate,
-            createdDate,
-            fundingWalletDerivationPath: "m/44'/0'/0'/0/51",
-            fundingWalletAddress: 'test-funding-wallet-address-51',
-          });
-
-          const publishedDate = new Date('2024-01-02T10:00:00.000Z');
-
-          // First publish should work
-          await repo.platformPublishesLoanOffer({
-            loanOfferId: loanOffer.id,
-            publishedDate,
-          });
-
-          // Second publish should fail
-          await rejects(
-            async () => {
-              await repo.platformPublishesLoanOffer({
-                loanOfferId: loanOffer.id,
-                publishedDate: new Date('2024-01-03T10:00:00.000Z'),
-              });
-            },
-            { message: 'Cannot publish loan offer from status: Published' },
-          );
         });
       });
 
@@ -211,16 +379,9 @@ export async function runLoanPlatformRepositoryTestSuite(
             fundingWalletAddress: 'test-funding-wallet-address-53',
           });
 
-          // Publish both offers
-          await repo.platformPublishesLoanOffer({
-            loanOfferId: loanOffer1.id,
-            publishedDate,
-          });
-
-          await repo.platformPublishesLoanOffer({
-            loanOfferId: loanOffer2.id,
-            publishedDate,
-          });
+          // Publish both offers by simulating invoice payments
+          await simulateLoanOfferInvoicePayment(repo, loanOffer1.id, publishedDate);
+          await simulateLoanOfferInvoicePayment(repo, loanOffer2.id, publishedDate);
 
           // List available loan offers
           const result = await repo.platformListsAvailableLoanOffers({
@@ -271,9 +432,9 @@ export async function runLoanPlatformRepositoryTestSuite(
             lenderUserId: lender.id,
             principalBlockchainKey: 'eip155:56',
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-            offeredPrincipalAmount: '1000000000000000000000',
-            minLoanPrincipalAmount: '100000000000000000000',
-            maxLoanPrincipalAmount: '500000000000000000000',
+            offeredPrincipalAmount: '1000000000', // 1000 USDT
+            minLoanPrincipalAmount: '100000000', // 100 USDT
+            maxLoanPrincipalAmount: '500000000', // 500 USDT
             interestRate: 15.5,
             termInMonthsOptions: [3, 6, 12],
             expirationDate,
@@ -282,11 +443,8 @@ export async function runLoanPlatformRepositoryTestSuite(
             fundingWalletAddress: 'test-funding-wallet-address-54',
           });
 
-          // Publish the offer
-          await repo.platformPublishesLoanOffer({
-            loanOfferId: usdcOffer.id,
-            publishedDate,
-          });
+          // Publish the offer by simulating invoice payment
+          await simulateLoanOfferInvoicePayment(repo, usdcOffer.id, publishedDate);
 
           // Filter by USDC
           const usdcResult = await repo.platformListsAvailableLoanOffers({
@@ -305,171 +463,6 @@ export async function runLoanPlatformRepositoryTestSuite(
           });
 
           equal(emptyResult.loanOffers.length, 0);
-        });
-      });
-    });
-
-    describe('Loan Application Platform Management', function () {
-      describe('platformPublishesLoanApplication', function () {
-        it('should publish loan application successfully', async function () {
-          // Setup borrower and currencies
-          const borrower = await repo.betterAuthCreateUser({
-            name: 'Borrower User',
-            email: 'borrower@example.com',
-            emailVerified: true,
-          });
-
-          await repo.systemCreatesTestBlockchains({
-            blockchains: [
-              { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
-            ],
-          });
-
-          // Use currencies already defined in the database schema
-
-          // Setup platform config and exchange rates
-          await repo.testSetupPlatformConfig({
-            effectiveDate: generateUniqueConfigDate(),
-            adminUserId: 1,
-            loanProvisionRate: 2.5,
-            loanIndividualRedeliveryFeeRate: 1.0,
-            loanInstitutionRedeliveryFeeRate: 0.5,
-            loanMinLtvRatio: 50,
-            loanMaxLtvRatio: 75,
-            loanRepaymentDurationInDays: 30,
-          });
-
-          await repo.testSetupPriceFeeds({
-            blockchainKey: 'eip155:56',
-            baseCurrencyTokenId: 'slip44:714',
-            quoteCurrencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-            source: 'test',
-            bidPrice: 2000,
-            askPrice: 2010,
-            sourceDate: new Date('2024-01-01T10:00:00.000Z'),
-          });
-
-          const appliedDate = new Date('2024-01-01T10:00:00.000Z');
-          const expirationDate = new Date('2024-01-31T23:59:59.999Z');
-
-          // Create loan application
-          const loanApplication = await repo.borrowerCreatesLoanApplication({
-            borrowerUserId: borrower.id,
-            collateralBlockchainKey: 'eip155:56',
-            collateralTokenId: 'slip44:714',
-            principalBlockchainKey: 'eip155:56',
-            principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-            principalAmount: '1000000000', // 1000 USDT
-            maxInterestRate: 20.0,
-            termInMonths: 6,
-            liquidationMode: 'Partial',
-            appliedDate,
-            expirationDate,
-            collateralWalletDerivationPath: "m/44'/0'/0'/0/88888",
-            collateralWalletAddress: 'platform_test_address1_88888',
-          });
-
-          const publishedDate = new Date('2024-01-02T10:00:00.000Z');
-
-          // Publish the loan application
-          const publishResult = await repo.platformPublishesLoanApplication({
-            loanApplicationId: loanApplication.id,
-            publishedDate,
-          });
-
-          equal(publishResult.id, loanApplication.id);
-          equal(publishResult.status, 'Published');
-          deepEqual(publishResult.publishedDate, publishedDate);
-        });
-
-        it('should reject publishing non-existent loan application', async function () {
-          const publishedDate = new Date('2024-01-02T10:00:00.000Z');
-
-          await rejects(
-            async () => {
-              await repo.platformPublishesLoanApplication({
-                loanApplicationId: '999999',
-                publishedDate,
-              });
-            },
-            { message: 'Loan application not found' },
-          );
-        });
-
-        it('should reject publishing application not in PendingCollateral status', async function () {
-          // Setup test data with already published loan application
-          const borrower = await repo.betterAuthCreateUser({
-            name: 'Borrower User',
-            email: 'borrower@example.com',
-            emailVerified: true,
-          });
-
-          await repo.systemCreatesTestBlockchains({
-            blockchains: [
-              { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
-            ],
-          });
-
-          // Use currencies already defined in the database schema
-
-          await repo.testSetupPlatformConfig({
-            effectiveDate: generateUniqueConfigDate(),
-            adminUserId: 1,
-            loanProvisionRate: 2.5,
-            loanIndividualRedeliveryFeeRate: 1.0,
-            loanInstitutionRedeliveryFeeRate: 0.5,
-            loanMinLtvRatio: 50,
-            loanMaxLtvRatio: 75,
-            loanRepaymentDurationInDays: 30,
-          });
-
-          await repo.testSetupPriceFeeds({
-            blockchainKey: 'eip155:56',
-            baseCurrencyTokenId: 'slip44:714',
-            quoteCurrencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-            source: 'test',
-            bidPrice: 2000,
-            askPrice: 2010,
-            sourceDate: new Date('2024-01-01T10:00:00.000Z'),
-          });
-
-          const appliedDate = new Date('2024-01-01T10:00:00.000Z');
-          const expirationDate = new Date('2024-01-31T23:59:59.999Z');
-
-          const loanApplication = await repo.borrowerCreatesLoanApplication({
-            borrowerUserId: borrower.id,
-            collateralBlockchainKey: 'eip155:56',
-            collateralTokenId: 'slip44:714',
-            principalBlockchainKey: 'eip155:56',
-            principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-            principalAmount: '1000000000',
-            maxInterestRate: 20.0,
-            termInMonths: 6,
-            liquidationMode: 'Partial',
-            appliedDate,
-            expirationDate,
-            collateralWalletDerivationPath: "m/44'/0'/0'/0/88889",
-            collateralWalletAddress: 'platform_test_address2_88889',
-          });
-
-          const publishedDate = new Date('2024-01-02T10:00:00.000Z');
-
-          // First publish should work
-          await repo.platformPublishesLoanApplication({
-            loanApplicationId: loanApplication.id,
-            publishedDate,
-          });
-
-          // Second publish should fail
-          await rejects(
-            async () => {
-              await repo.platformPublishesLoanApplication({
-                loanApplicationId: loanApplication.id,
-                publishedDate: new Date('2024-01-03T10:00:00.000Z'),
-              });
-            },
-            { message: 'Cannot publish loan application from status: Published' },
-          );
         });
       });
     });
@@ -540,10 +533,11 @@ export async function runLoanPlatformRepositoryTestSuite(
           fundingWalletAddress: 'test-funding-wallet-address-55',
         });
 
-        await repo.platformPublishesLoanOffer({
-          loanOfferId: loanOffer.id,
-          publishedDate: new Date('2024-01-02T10:00:00.000Z'),
-        });
+        await simulateLoanOfferInvoicePayment(
+          repo,
+          loanOffer.id,
+          new Date('2024-01-02T10:00:00.000Z'),
+        );
 
         // Create and publish loan application
         loanApplication = await repo.borrowerCreatesLoanApplication({
@@ -562,10 +556,11 @@ export async function runLoanPlatformRepositoryTestSuite(
           collateralWalletAddress: 'platform_test_address3_88890',
         });
 
-        await repo.platformPublishesLoanApplication({
-          loanApplicationId: loanApplication.id,
-          publishedDate: new Date('2024-01-02T10:00:00.000Z'),
-        });
+        await simulateLoanApplicationInvoicePayment(
+          repo,
+          loanApplication.id,
+          new Date('2024-01-02T10:00:00.000Z'),
+        );
       });
 
       describe('platformMatchesLoanOffers', function () {
@@ -622,10 +617,11 @@ export async function runLoanPlatformRepositoryTestSuite(
             collateralWalletAddress: 'platform_test_address4_88891',
           });
 
-          await repo.platformPublishesLoanApplication({
-            loanApplicationId: sameLenderApplication.id,
-            publishedDate: new Date('2024-01-02T10:00:00.000Z'),
-          });
+          await simulateLoanApplicationInvoicePayment(
+            repo,
+            sameLenderApplication.id,
+            new Date('2024-01-02T10:00:00.000Z'),
+          );
 
           await rejects(
             async () => {
@@ -731,10 +727,11 @@ export async function runLoanPlatformRepositoryTestSuite(
             collateralWalletAddress: 'platform_test_address5_88892',
           });
 
-          await repo.platformPublishesLoanApplication({
-            loanApplicationId: unmatchedApplication.id,
-            publishedDate: new Date('2024-01-02T10:00:00.000Z'),
-          });
+          await simulateLoanApplicationInvoicePayment(
+            repo,
+            unmatchedApplication.id,
+            new Date('2024-01-02T10:00:00.000Z'),
+          );
 
           await rejects(
             async () => {
@@ -824,10 +821,11 @@ export async function runLoanPlatformRepositoryTestSuite(
           fundingWalletAddress: 'test-funding-wallet-address-56',
         });
 
-        await repo.platformPublishesLoanOffer({
-          loanOfferId: loanOffer.id,
-          publishedDate: new Date('2024-01-02T10:00:00.000Z'),
-        });
+        await simulateLoanOfferInvoicePayment(
+          repo,
+          loanOffer.id,
+          new Date('2024-01-02T10:00:00.000Z'),
+        );
 
         // Create and publish loan application
         const loanApplication = await repo.borrowerCreatesLoanApplication({
@@ -846,10 +844,11 @@ export async function runLoanPlatformRepositoryTestSuite(
           collateralWalletAddress: 'platform_test_address6_88893',
         });
 
-        await repo.platformPublishesLoanApplication({
-          loanApplicationId: loanApplication.id,
-          publishedDate: new Date('2024-01-02T10:00:00.000Z'),
-        });
+        await simulateLoanApplicationInvoicePayment(
+          repo,
+          loanApplication.id,
+          new Date('2024-01-02T10:00:00.000Z'),
+        );
 
         // Match loan offer and application
         await repo.platformMatchesLoanOffers({
