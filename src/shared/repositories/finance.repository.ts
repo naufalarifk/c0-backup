@@ -924,12 +924,12 @@ export abstract class FinanceRepository extends UserRepository {
           (${type}::text = 'collateral' AND c.max_ltv > 0) OR
           (${type}::text = 'loan' AND c.symbol IN ('USDC', 'USDT', 'USD') AND c.max_ltv = 0)
         )
-      ORDER BY 
-        CASE 
+      ORDER BY
+        CASE
           WHEN c.max_ltv > 0 THEN 0  -- Collateral currencies first
           ELSE 1                     -- Loan currencies second
         END,
-        c.blockchain_key, 
+        c.blockchain_key,
         c.token_id
     `;
 

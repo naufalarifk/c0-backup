@@ -215,6 +215,7 @@ export class AppConfigService {
 
   get authConfig() {
     return {
+      secret: this.getString('BETTER_AUTH_SECRET', 'your-secret'),
       url: this.getString('BETTER_AUTH_URL'),
       expirationTime: this.getNumber('BETTER_AUTH_EXPIRATION_TIME'),
       cookiePrefix: this.getString('BETTER_AUTH_COOKIE_PREFIX'),

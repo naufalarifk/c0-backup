@@ -41,43 +41,6 @@ export class CreateBeneficiaryDto {
   blockchainKey: string;
 
   @ApiProperty({
-    description: 'Token identifier using appropriate standard based on blockchain',
-    examples: {
-      erc20: {
-        summary: 'ERC-20 Token (Ethereum/EVM)',
-        value: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-      },
-      spl: {
-        summary: 'SPL Token (Solana)',
-        value: 'spl:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-      },
-      native_eth: {
-        summary: 'Native ETH',
-        value: 'native',
-      },
-      native_btc: {
-        summary: 'Native Bitcoin',
-        value: 'native',
-      },
-      bep20: {
-        summary: 'BEP-20 Token (BSC)',
-        value: 'bep20:0x55d398326f99059ff775485246999027b3197955',
-      },
-    },
-  })
-  @IsString({ message: 'Token ID must be a string' })
-  @IsNotEmpty({ message: 'Token ID is required' })
-  @Matches(
-    /^(erc20:0x[a-fA-F0-9]{40}|bep20:0x[a-fA-F0-9]{40}|spl:[a-zA-Z0-9]{32,44}|brc20:[a-zA-Z0-9]+|native)$/,
-    {
-      message:
-        'Token ID must be valid format (erc20:0x..., bep20:0x..., spl:..., brc20:..., or native)',
-    },
-  )
-  @Transform(({ value }) => value?.trim())
-  tokenId: string;
-
-  @ApiProperty({
     description: 'Recipient wallet address (format depends on blockchain)',
     examples: {
       ethereum: {
