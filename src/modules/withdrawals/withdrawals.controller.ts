@@ -1,6 +1,6 @@
 import type { UserSession } from '../auth/types';
 
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
 
 import { Auth } from '../../decorators/auth.decorator';
 import { Session } from '../auth/auth.decorator';
@@ -14,8 +14,12 @@ export class WithdrawalsController {
   constructor(private readonly withdrawalsService: WithdrawalsService) {}
 
   @Post()
-  create(@Session() session: UserSession, @Body() createWithdrawalDto: CreateWithdrawalDto) {
-    return this.withdrawalsService.create(session.user.id, createWithdrawalDto);
+  create(
+    @Headers() headers: HeadersInit,
+    @Session() session: UserSession,
+    @Body() createWithdrawalDto: CreateWithdrawalDto,
+  ) {
+    return this.withdrawalsService.create(headers, session.user.id, createWithdrawalDto);
   }
 
   @Get()

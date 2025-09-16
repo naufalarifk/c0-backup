@@ -9,9 +9,7 @@ import { TelemetryLogger } from './telemetry.logger';
 
 export default async function docs(app: NestExpressApplication, url: string) {
   const authService = app.get<AuthService>(AuthService);
-  const documentAuth = await (
-    authService.api as unknown as { generateOpenAPISchema(): Promise<OpenAPIObject> }
-  ).generateOpenAPISchema();
+  const documentAuth = await authService.api.generateOpenAPISchema();
 
   const logger = new TelemetryLogger(docs.name);
 
