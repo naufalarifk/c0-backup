@@ -8,6 +8,10 @@ import { UserAppliesForInstitutionParams } from '../../../shared/types';
 export class CreateInstitutionDto
   implements Omit<UserAppliesForInstitutionParams, 'applicantUserId' | 'applicationDate'>
 {
+  /** @TODO */
+  businessDistrict: string;
+  businessSubdistrict: string;
+
   @ApiProperty({
     description: 'Name of the business/institution',
     example: 'PT. Teknologi Finansial Indonesia',

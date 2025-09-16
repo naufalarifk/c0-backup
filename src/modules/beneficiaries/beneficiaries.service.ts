@@ -111,7 +111,7 @@ export class BeneficiariesService {
 
     if (query?.blockchainKey) {
       filteredBeneficiaries = filteredBeneficiaries.filter(
-        beneficiary => beneficiary.currencyBlockchainKey === query.blockchainKey,
+        beneficiary => beneficiary.blockchainKey === query.blockchainKey,
       );
     }
 
@@ -162,7 +162,7 @@ export class BeneficiariesService {
 
     const duplicate = existingBeneficiaries.beneficiaries.find(
       beneficiary =>
-        beneficiary.currencyBlockchainKey === createBeneficiaryDto.blockchainKey &&
+        beneficiary.blockchainKey === createBeneficiaryDto.blockchainKey &&
         beneficiary.address.toLowerCase() === createBeneficiaryDto.address.toLowerCase(),
     );
 
@@ -222,7 +222,7 @@ export class BeneficiariesService {
     // Create beneficiary in database (immediately active)
     const beneficiary = await this.repo.userRegistersWithdrawalBeneficiary({
       userId: tokenPayload.userId,
-      currencyBlockchainKey: tokenPayload.blockchain,
+      blockchainKey: tokenPayload.blockchain,
       address: tokenPayload.address,
     });
 
@@ -234,7 +234,7 @@ export class BeneficiariesService {
 
     return ResponseHelper.success('Beneficiary address activated', {
       id: beneficiary.id,
-      blockchainKey: beneficiary.currencyBlockchainKey,
+      blockchainKey: beneficiary.blockchainKey,
       address: beneficiary.address,
       label: tokenPayload.label,
       status: 'active',
