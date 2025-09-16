@@ -127,21 +127,21 @@ export interface UserViewsInvoiceDetailsResult {
 // Withdrawal Management Types
 export interface UserRegistersWithdrawalBeneficiaryParams {
   userId: string;
-  currencyBlockchainKey: string;
-  currencyTokenId: string;
+  blockchainKey: string;
   address: string;
 }
 
 export interface UserRegistersWithdrawalBeneficiaryResult {
   id: string;
   userId: string;
-  currencyBlockchainKey: string;
-  currencyTokenId: string;
+  blockchainKey: string;
   address: string;
 }
 
 export interface UserRequestsWithdrawalParams {
   beneficiaryId: string;
+  currencyBlockchainKey: string;
+  currencyTokenId: string;
   amount: string;
   requestDate: Date;
 }
@@ -227,8 +227,7 @@ export interface UserViewsWithdrawalBeneficiariesParams {
 export interface WithdrawalBeneficiary {
   id: string;
   userId: string;
-  currencyBlockchainKey: string;
-  currencyTokenId: string;
+  blockchainKey: string;
   address: string;
 }
 

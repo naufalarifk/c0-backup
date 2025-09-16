@@ -34,9 +34,11 @@ CREATE TABLE IF NOT EXISTS institution_applications (
   -- domicile_certificate_number VARCHAR(50),
 
   -- Business Address Information
-  business_address TEXT NOT NULL,
-  business_city VARCHAR(100) NOT NULL,
   business_province VARCHAR(100) NOT NULL,
+  business_city VARCHAR(100) NOT NULL,
+  business_district VARCHAR(100) NOT NULL,
+  business_subdistrict VARCHAR(100) NOT NULL,
+  business_address TEXT NOT NULL,
   business_postal_code VARCHAR(10) NOT NULL,
 
   -- Director/Owner Information
@@ -87,6 +89,8 @@ CREATE TABLE IF NOT EXISTS institution_applications (
   )
 );
 
+ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS business_district VARCHAR(100);
+ALTER TABLE institution_applications ADD COLUMN IF NOT EXISTS business_subdistrict VARCHAR(100);
 COMMENT ON TABLE institution_applications IS 'Complete institution application with Indonesian business verification requirements';
 
 CREATE TABLE IF NOT EXISTS institution_invitations (

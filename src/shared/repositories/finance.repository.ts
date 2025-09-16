@@ -171,7 +171,7 @@ export abstract class FinanceRepository extends UserRepository {
     };
   }
 
-  async platformCreatesUserAccount(
+  async testCreatesUserAccount(
     params: PlatformCreatesUserAccountParams,
   ): Promise<PlatformCreatesUserAccountResult> {
     const { userId, currencyBlockchainKey, currencyTokenId, accountType = 'User' } = params;
@@ -224,7 +224,7 @@ export abstract class FinanceRepository extends UserRepository {
   }
 
   // Invoice Management Methods
-  async platformCreatesInvoice(
+  async testCreatesInvoice(
     params: PlatformCreatesInvoiceParams,
   ): Promise<PlatformCreatesInvoiceResult> {
     const {
@@ -345,7 +345,7 @@ export abstract class FinanceRepository extends UserRepository {
     }
   }
 
-  async platformUpdatesInvoiceStatus(
+  async testUpdatesInvoiceStatus(
     params: PlatformUpdatesInvoiceStatusParams,
   ): Promise<PlatformUpdatesInvoiceStatusResult> {
     const { invoiceId, status, expiredDate, notifiedDate } = params;
@@ -451,32 +451,29 @@ export abstract class FinanceRepository extends UserRepository {
   async userRegistersWithdrawalBeneficiary(
     params: UserRegistersWithdrawalBeneficiaryParams,
   ): Promise<UserRegistersWithdrawalBeneficiaryResult> {
-    const { userId, currencyBlockchainKey, currencyTokenId, address } = params;
+    const { userId, blockchainKey, address } = params;
 
     const tx = await this.beginTransaction();
     try {
       const rows = await this.sql`
         INSERT INTO beneficiaries (
           user_id,
-          currency_blockchain_key,
-          currency_token_id,
+          blockchain_key,
           address
         )
         VALUES (
           ${userId},
-          ${currencyBlockchainKey},
-          ${currencyTokenId},
+          ${blockchainKey},
           ${address}
         )
-        RETURNING id, user_id, currency_blockchain_key, currency_token_id, address
+        RETURNING id, user_id, blockchain_key, address
       `;
 
       const beneficiary = rows[0];
       assertDefined(beneficiary, 'Beneficiary registration failed');
       assertPropStringOrNumber(beneficiary, 'id');
       assertPropStringOrNumber(beneficiary, 'user_id');
-      assertPropString(beneficiary, 'currency_blockchain_key');
-      assertPropString(beneficiary, 'currency_token_id');
+      assertPropString(beneficiary, 'blockchain_key');
       assertPropString(beneficiary, 'address');
 
       await tx.commitTransaction();
@@ -484,8 +481,7 @@ export abstract class FinanceRepository extends UserRepository {
       return {
         id: String(beneficiary.id),
         userId: String(beneficiary.user_id),
-        currencyBlockchainKey: beneficiary.currency_blockchain_key,
-        currencyTokenId: beneficiary.currency_token_id,
+        blockchainKey: beneficiary.blockchain_key,
         address: beneficiary.address,
       };
     } catch (error) {
@@ -497,13 +493,15 @@ export abstract class FinanceRepository extends UserRepository {
   async userRequestsWithdrawal(
     params: UserRequestsWithdrawalParams,
   ): Promise<UserRequestsWithdrawalResult> {
-    const { beneficiaryId, amount, requestDate } = params;
+    const { beneficiaryId, currencyBlockchainKey, currencyTokenId, amount, requestDate } = params;
 
     const tx = await this.beginTransaction();
     try {
       const rows = await this.sql`
         INSERT INTO withdrawals (
           beneficiary_id,
+          currency_blockchain_key,
+          currency_token_id,
           amount,
           request_amount,
           request_date,
@@ -511,6 +509,8 @@ export abstract class FinanceRepository extends UserRepository {
         )
         VALUES (
           ${beneficiaryId},
+          ${currencyBlockchainKey},
+          ${currencyTokenId},
           ${amount},
           ${amount},
           ${requestDate.toISOString()},
@@ -755,12 +755,11 @@ export abstract class FinanceRepository extends UserRepository {
       SELECT
         id,
         user_id,
-        currency_blockchain_key,
-        currency_token_id,
+        blockchain_key,
         address
       FROM beneficiaries
       WHERE user_id = ${userId}
-      ORDER BY currency_blockchain_key, currency_token_id, address
+      ORDER BY blockchain_key, address
     `;
 
     const beneficiaries = rows;
@@ -770,14 +769,12 @@ export abstract class FinanceRepository extends UserRepository {
         assertDefined(beneficiary, 'Beneficiary record is undefined');
         assertPropStringOrNumber(beneficiary, 'id');
         assertPropStringOrNumber(beneficiary, 'user_id');
-        assertPropString(beneficiary, 'currency_blockchain_key');
-        assertPropString(beneficiary, 'currency_token_id');
+        assertPropString(beneficiary, 'blockchain_key');
         assertPropString(beneficiary, 'address');
         return {
           id: String(beneficiary.id),
           userId: String(beneficiary.user_id),
-          currencyBlockchainKey: beneficiary.currency_blockchain_key,
-          currencyTokenId: beneficiary.currency_token_id,
+          blockchainKey: beneficiary.blockchain_key,
           address: beneficiary.address,
         };
       }),
@@ -1029,7 +1026,7 @@ export abstract class FinanceRepository extends UserRepository {
     }
   }
 
-  async systemCreatesTestAccountMutations(params: {
+  async testCreatesAccountMutations(params: {
     accountId: string;
     mutations: Array<{ mutationType: string; mutationDate: string; amount: string }>;
   }) {

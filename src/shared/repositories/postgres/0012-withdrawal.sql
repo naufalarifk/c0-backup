@@ -3,14 +3,20 @@
 CREATE TABLE IF NOT EXISTS beneficiaries (
   id BIGSERIAL PRIMARY KEY,
   user_id BIGINT NOT NULL REFERENCES users (id),
-  currency_blockchain_key VARCHAR(64) NOT NULL,
-  currency_token_id VARCHAR(64) NOT NULL,
-  address VARCHAR(64) NOT NULL,
-  FOREIGN KEY (currency_blockchain_key, currency_token_id) REFERENCES currencies (blockchain_key, token_id)
+  blockchain_key VARCHAR(64) NOT NULL,
+  address VARCHAR(64) NOT NULL
 );
+
+ALTER TABLE beneficiaries DROP CONSTRAINT IF EXISTS fk_beneficiaries_currency;
+ALTER TABLE beneficiaries DROP COLUMN IF EXISTS currency_blockchain_key;
+ALTER TABLE beneficiaries DROP COLUMN IF EXISTS currency_token_id;
+ALTER TABLE beneficiaries ADD CONSTRAINT fk_beneficiaries_blockchain FOREIGN KEY (blockchain_key) REFERENCES blockchains (key);
+ALTER TABLE beneficiaries ADD CONSTRAINT uq_beneficiaries_user_blockchain_address UNIQUE (user_id, blockchain_key, address);
 
 CREATE TABLE IF NOT EXISTS withdrawals (
   id BIGSERIAL PRIMARY KEY,
+  currency_blockchain_key VARCHAR(64) NOT NULL,
+  currency_token_id VARCHAR(64) NOT NULL,
   beneficiary_id BIGINT NOT NULL REFERENCES beneficiaries (id),
   amount BIGINT NOT NULL,
   request_date TIMESTAMP NOT NULL,
@@ -26,6 +32,7 @@ CREATE TABLE IF NOT EXISTS withdrawals (
   failure_refund_approved_date TIMESTAMP,
   failure_refund_rejected_date TIMESTAMP,
   failure_refund_rejection_reason TEXT,
+  FOREIGN KEY (currency_blockchain_key, currency_token_id) REFERENCES currencies (blockchain_key, token_id),
   CHECK (
     -- Status validation
     status IN ('Requested', 'Sent', 'Confirmed', 'Failed', 'RefundApproved', 'RefundRejected') AND
@@ -45,6 +52,10 @@ CREATE TABLE IF NOT EXISTS withdrawals (
   )
 );
 
+ALTER TABLE withdrawals ADD COLUMN IF NOT EXISTS currency_token_id VARCHAR(64) NOT NULL;
+ALTER TABLE withdrawals ADD COLUMN IF NOT EXISTS currency_blockchain_key VARCHAR(64) NOT NULL;
+ALTER TABLE withdrawals ADD CONSTRAINT fk_withdrawals_currency FOREIGN KEY (currency_blockchain_key, currency_token_id) REFERENCES currencies (blockchain_key, token_id);
+
 --- DEPENDENCY ---
 
 ALTER TABLE account_mutations ADD COLUMN IF NOT EXISTS withdrawal_id BIGINT REFERENCES withdrawals (id);
@@ -56,11 +67,10 @@ CREATE OR REPLACE FUNCTION validate_beneficiary_data()
 RETURNS TRIGGER AS $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM currencies
-    WHERE blockchain_key = NEW.currency_blockchain_key
-    AND token_id = NEW.currency_token_id
+    SELECT 1 FROM blockchains
+    WHERE key = NEW.blockchain_key
   ) THEN
-    RAISE EXCEPTION 'Currency does not exist: % %', NEW.currency_blockchain_key, NEW.currency_token_id;
+    RAISE EXCEPTION 'Blockchain does not exist: %', NEW.blockchain_key;
   END IF;
   IF NEW.address IS NULL OR LENGTH(TRIM(NEW.address)) = 0 THEN
     RAISE EXCEPTION 'Beneficiary address cannot be empty';
@@ -68,12 +78,11 @@ BEGIN
   IF EXISTS (
     SELECT 1 FROM beneficiaries
     WHERE user_id = NEW.user_id
-    AND currency_blockchain_key = NEW.currency_blockchain_key
-    AND currency_token_id = NEW.currency_token_id
+    AND blockchain_key = NEW.blockchain_key
     AND address = NEW.address
     AND (TG_OP = 'INSERT' OR id != NEW.id)
   ) THEN
-    RAISE EXCEPTION 'Duplicate beneficiary address for user and currency combination';
+    RAISE EXCEPTION 'Duplicate beneficiary address for user and blockchain combination';
   END IF;
   RETURN NEW;
 END;
@@ -103,6 +112,21 @@ BEGIN
 
   IF beneficiary_record.id IS NULL THEN
     RAISE EXCEPTION 'Beneficiary with id % does not exist', NEW.beneficiary_id;
+  END IF;
+
+  -- Validate that currency exists
+  IF NOT EXISTS (
+    SELECT 1 FROM currencies
+    WHERE blockchain_key = NEW.currency_blockchain_key
+    AND token_id = NEW.currency_token_id
+  ) THEN
+    RAISE EXCEPTION 'Currency does not exist: % %', NEW.currency_blockchain_key, NEW.currency_token_id;
+  END IF;
+
+  -- Validate that beneficiary's blockchain matches withdrawal currency's blockchain
+  IF beneficiary_record.blockchain_key != NEW.currency_blockchain_key THEN
+    RAISE EXCEPTION 'Withdrawal currency blockchain % does not match beneficiary blockchain %', 
+      NEW.currency_blockchain_key, beneficiary_record.blockchain_key;
   END IF;
 
   -- Status transition validation
@@ -180,11 +204,12 @@ BEGIN
     FROM beneficiaries
     WHERE id = NEW.beneficiary_id;
 
+    -- Get account by user and currency from the withdrawal record
     SELECT * INTO account_record
     FROM accounts
     WHERE user_id = beneficiary_record.user_id
-      AND currency_blockchain_key = beneficiary_record.currency_blockchain_key
-      AND currency_token_id = beneficiary_record.currency_token_id;
+      AND currency_blockchain_key = NEW.currency_blockchain_key
+      AND currency_token_id = NEW.currency_token_id;
 
     -- Create account if it doesn't exist
     IF account_record.id IS NULL THEN
@@ -195,8 +220,8 @@ BEGIN
         balance
       ) VALUES (
         beneficiary_record.user_id,
-        beneficiary_record.currency_blockchain_key,
-        beneficiary_record.currency_token_id,
+        NEW.currency_blockchain_key,
+        NEW.currency_token_id,
         0
       ) RETURNING * INTO account_record;
     END IF;
@@ -248,12 +273,12 @@ BEGIN
     FROM beneficiaries
     WHERE id = NEW.beneficiary_id;
 
-    -- Find the appropriate account for the withdrawal owner
+    -- Find the appropriate account for the withdrawal owner using currency from withdrawal
     SELECT * INTO account_record
     FROM accounts
     WHERE user_id = beneficiary_record.user_id
-      AND currency_blockchain_key = beneficiary_record.currency_blockchain_key
-      AND currency_token_id = beneficiary_record.currency_token_id;
+      AND currency_blockchain_key = NEW.currency_blockchain_key
+      AND currency_token_id = NEW.currency_token_id;
 
     -- Create account mutation for withdrawal refund (credit)
     INSERT INTO account_mutations (
@@ -305,12 +330,12 @@ BEGIN
     AND w.request_date >= CURRENT_DATE
     AND w.status NOT IN ('Confirmed', 'RefundApproved');
 
-    -- Get current account balance
+    -- Get current account balance using currency from withdrawal
     SELECT COALESCE(balance, 0) INTO account_balance
     FROM accounts
     WHERE user_id = beneficiary_record.user_id
-    AND currency_blockchain_key = beneficiary_record.currency_blockchain_key
-    AND currency_token_id = beneficiary_record.currency_token_id;
+    AND currency_blockchain_key = NEW.currency_blockchain_key
+    AND currency_token_id = NEW.currency_token_id;
 
     -- Ensure sufficient balance including this withdrawal
     IF account_balance < NEW.amount THEN

@@ -106,6 +106,8 @@ export type UserAppliesForInstitutionParams = {
   businessAddress: string;
   businessCity: string;
   businessProvince: string;
+  businessDistrict: string;
+  businessSubdistrict: string;
   businessPostalCode: string;
   directorName: string;
   directorIdCardPath: string;
@@ -410,6 +412,8 @@ export type TestCreatesInstitutionApplicationWithValidationParams = {
   businessAddress: string;
   businessCity: string;
   businessProvince: string;
+  businessDistrict: string;
+  businessSubdistrict: string;
   businessPostalCode: string;
   directorName: string;
   directorIdCardPath: string;
