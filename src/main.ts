@@ -3,7 +3,7 @@ import type { Request } from 'express';
 
 import { randomUUID } from 'crypto';
 
-import { ClassSerializerInterceptor, Logger, ValidationPipe } from '@nestjs/common';
+import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 
@@ -13,7 +13,7 @@ import morgan from 'morgan';
 
 import { AppModule } from './app.module';
 import docs from './docs';
-import { GlobalExceptionFilter } from './shared/filters';
+import { GlobalExceptionFilter } from './filters';
 import { ResolvePromisesInterceptor, TelemetryInterceptor } from './shared/interceptors';
 import { AppConfigService } from './shared/services/app-config.service';
 import { SharedModule } from './shared/shared.module';
