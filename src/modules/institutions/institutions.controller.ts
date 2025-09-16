@@ -23,7 +23,6 @@ import { InstitutionsService } from './institutions.service';
 
 @Controller('institutions')
 @Auth()
-@RequireUserType('Institution')
 export class InstitutionsController {
   constructor(private readonly institutionsService: InstitutionsService) {}
 
@@ -62,6 +61,7 @@ export class InstitutionsController {
     ],
     { isRequired: true },
   )
+  @RequireUserType('Institution')
   async apply(
     @Session() session: UserSession,
     @UploadedFiles() files: {
@@ -76,6 +76,7 @@ export class InstitutionsController {
   }
 
   @Post('invitations')
+  @RequireUserType('Institution')
   @ApiOperation({ summary: 'Invite user to institution' })
   @ApiResponse({ status: HttpStatus.CREATED, description: 'Invitation sent successfully' })
   @ApiResponse({
@@ -98,11 +99,14 @@ export class InstitutionsController {
   })
   @ApiResponse({ status: HttpStatus.OK, description: 'Invitation status updated successfully' })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Invitation not found' })
+  @RequireUserType('Individual')
   updateInvitationStatus(
     @Session() session: UserSession,
     @Param('id') inviteId: string,
     @Body() updateStatusDto: UpdateInvitationStatusDto,
   ) {
+    console.log(session);
+
     if (updateStatusDto.status === InvitationStatus.ACCEPTED) {
       return this.institutionsService.acceptInvite(session.user.id, inviteId);
     } else {

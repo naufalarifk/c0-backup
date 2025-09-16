@@ -10,9 +10,10 @@ import { AccountsModule } from './modules/accounts/accounts.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuthConfig } from './modules/auth/auth.config';
 import { AuthModule } from './modules/auth/auth.module';
-import { BlockchainsModule } from './modules/blockchains/blockchains.module';
+import { BeneficiariesModule } from './modules/beneficiaries/beneficiaries.module';
 import { InstitutionsModule } from './modules/institutions/institutions.module';
 import { UsersModule } from './modules/users/users.module';
+import { WithdrawalsModule } from './modules/withdrawals/withdrawals.module';
 import { AppConfigService } from './shared/services/app-config.service';
 import { SharedModule } from './shared/shared.module';
 import { TestController } from './test.controller';
@@ -51,7 +52,8 @@ import { TestController } from './test.controller';
     UsersModule,
     InstitutionsModule,
     AccountsModule,
-    BlockchainsModule,
+    BeneficiariesModule,
+    WithdrawalsModule,
     AdminModule,
   ],
   providers: [

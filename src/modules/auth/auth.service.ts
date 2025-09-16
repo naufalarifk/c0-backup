@@ -1,14 +1,13 @@
-import type { Auth } from 'better-auth';
-
 import { Inject } from '@nestjs/common';
 
 import { AUTH_INSTANCE_KEY } from './auth.symbols';
+import { ExtendedAuth } from './types';
 
 /**
  * NestJS service that provides access to the Better Auth instance
  * Use generics to support auth instances extended by plugins
  */
-export class AuthService<T extends { api: T['api'] } = Auth> {
+export class AuthService<T extends { api: T['api'] } = ExtendedAuth> {
   constructor(
     @Inject(AUTH_INSTANCE_KEY)
     private readonly auth: T,

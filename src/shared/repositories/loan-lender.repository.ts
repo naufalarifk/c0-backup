@@ -37,6 +37,8 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
       termInMonthsOptions,
       expirationDate,
       createdDate,
+      fundingWalletDerivationPath,
+      fundingWalletAddress,
     } = params;
 
     const tx = await this.beginTransaction();
@@ -115,10 +117,6 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
       assertPropDate(loanOffer, 'created_date');
       assertPropDate(loanOffer, 'expired_date');
 
-      // Generate unique wallet derivation path for funding invoice
-      const walletDerivationPath = `m/44'/0'/0'/0/${Date.now()}`;
-      const walletAddress = `funding_address_${loanOffer.id}_${Date.now()}`;
-
       // Create funding invoice
       const invoiceRows = await tx.sql`
         INSERT INTO invoices (
@@ -140,8 +138,8 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
           ${principalBlockchainKey},
           ${principalTokenId},
           ${offeredPrincipalAmount},
-          ${walletDerivationPath},
-          ${walletAddress},
+          ${fundingWalletDerivationPath},
+          ${fundingWalletAddress},
           'LoanPrincipal',
           'Pending',
           ${createdDate.toISOString()},

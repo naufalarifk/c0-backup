@@ -1,7 +1,7 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: Find other way if possible */
 import { ok } from 'node:assert/strict';
 
-export function isArray(value: unknown): value is unknown[] {
+export function isArray<T = any>(value: unknown): value is T[] {
   return Array.isArray(value);
 }
 

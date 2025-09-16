@@ -21,10 +21,6 @@ import {
   PlatformMonitorsLtvRatiosResult,
   PlatformOriginatesLoanParams,
   PlatformOriginatesLoanResult,
-  PlatformPublishesLoanApplicationParams,
-  PlatformPublishesLoanApplicationResult,
-  PlatformPublishesLoanOfferParams,
-  PlatformPublishesLoanOfferResult,
   PlatformUpdatesLoanValuationsParams,
   PlatformUpdatesLoanValuationsResult,
 } from './loan.types';
@@ -34,123 +30,6 @@ import { LoanUserRepository } from './loan-user.repository';
  * LoanPlatformRepository <- LoanUserRepository <- LoanBorrowerRepository <- LoanLenderRepository <- LoanTestRepository <- FinanceRepository <- UserRepository <- DatabaseRepository
  */
 export abstract class LoanPlatformRepository extends LoanUserRepository {
-  async platformPublishesLoanOffer(
-    params: PlatformPublishesLoanOfferParams,
-  ): Promise<PlatformPublishesLoanOfferResult> {
-    const { loanOfferId, publishedDate } = params;
-
-    const tx = await this.beginTransaction();
-    try {
-      // Validate that the loan offer exists and is in 'Funding' status
-      const loanOfferRows = await tx.sql`
-        SELECT id, status FROM loan_offers WHERE id = ${loanOfferId}
-      `;
-
-      if (loanOfferRows.length === 0) {
-        throw new Error('Loan offer not found');
-      }
-
-      const loanOffer = loanOfferRows[0];
-      assertDefined(loanOffer, 'Loan offer validation failed');
-      assertPropStringOrNumber(loanOffer, 'id');
-      assertPropString(loanOffer, 'status');
-
-      if (loanOffer.status !== 'Funding') {
-        throw new Error(`Cannot publish loan offer from status: ${loanOffer.status}`);
-      }
-
-      // Update the loan offer to 'Published' status
-      const updateRows = await tx.sql`
-        UPDATE loan_offers
-        SET status = 'Published', published_date = ${publishedDate.toISOString()}
-        WHERE id = ${loanOfferId}
-        RETURNING id, status, published_date
-      `;
-
-      if (updateRows.length === 0) {
-        throw new Error('Failed to publish loan offer');
-      }
-
-      const updatedOffer = updateRows[0];
-      assertDefined(updatedOffer, 'Updated loan offer validation failed');
-      assertPropStringOrNumber(updatedOffer, 'id');
-      assertPropString(updatedOffer, 'status');
-      assertPropDate(updatedOffer, 'published_date');
-
-      await tx.commitTransaction();
-
-      return {
-        id: String(updatedOffer.id),
-        status: updatedOffer.status as 'Funding' | 'Published' | 'Closed' | 'Expired',
-        publishedDate: updatedOffer.published_date,
-      };
-    } catch (error) {
-      await tx.rollbackTransaction();
-      throw error;
-    }
-  }
-
-  async platformPublishesLoanApplication(
-    params: PlatformPublishesLoanApplicationParams,
-  ): Promise<PlatformPublishesLoanApplicationResult> {
-    const { loanApplicationId, publishedDate } = params;
-
-    const tx = await this.beginTransaction();
-    try {
-      // Validate that the loan application exists and is in 'PendingCollateral' status
-      const applicationRows = await tx.sql`
-        SELECT id, status FROM loan_applications WHERE id = ${loanApplicationId}
-      `;
-
-      if (applicationRows.length === 0) {
-        throw new Error('Loan application not found');
-      }
-
-      const application = applicationRows[0];
-      assertDefined(application, 'Loan application validation failed');
-      assertPropStringOrNumber(application, 'id');
-      assertPropString(application, 'status');
-
-      if (application.status !== 'PendingCollateral') {
-        throw new Error(`Cannot publish loan application from status: ${application.status}`);
-      }
-
-      // Update the loan application to 'Published' status
-      const updateRows = await tx.sql`
-        UPDATE loan_applications
-        SET status = 'Published', published_date = ${publishedDate.toISOString()}
-        WHERE id = ${loanApplicationId}
-        RETURNING id, status, published_date
-      `;
-
-      if (updateRows.length === 0) {
-        throw new Error('Failed to publish loan application');
-      }
-
-      const updatedApplication = updateRows[0];
-      assertDefined(updatedApplication, 'Updated loan application validation failed');
-      assertPropStringOrNumber(updatedApplication, 'id');
-      assertPropString(updatedApplication, 'status');
-      assertPropDate(updatedApplication, 'published_date');
-
-      await tx.commitTransaction();
-
-      return {
-        id: String(updatedApplication.id),
-        status: updatedApplication.status as
-          | 'PendingCollateral'
-          | 'Published'
-          | 'Matched'
-          | 'Closed'
-          | 'Expired',
-        publishedDate: updatedApplication.published_date,
-      };
-    } catch (error) {
-      await tx.rollbackTransaction();
-      throw error;
-    }
-  }
-
   async platformListsAvailableLoanOffers(
     params: PlatformListsAvailableLoanOffersParams,
   ): Promise<PlatformListsAvailableLoanOffersResult> {

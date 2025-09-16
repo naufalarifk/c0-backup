@@ -3,7 +3,7 @@ import type { Request } from 'express';
 
 import { randomUUID } from 'crypto';
 
-import { ClassSerializerInterceptor, Logger, ValidationPipe } from '@nestjs/common';
+import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 
@@ -13,7 +13,7 @@ import morgan from 'morgan';
 
 import { AppModule } from './app.module';
 import docs from './docs';
-import { GlobalExceptionFilter } from './shared/filters';
+import { GlobalExceptionFilter } from './filters';
 import { ResolvePromisesInterceptor, TelemetryInterceptor } from './shared/interceptors';
 import { AppConfigService } from './shared/services/app-config.service';
 import { SharedModule } from './shared/shared.module';
@@ -33,29 +33,21 @@ async function bootstrap() {
 
   app.use(
     helmet({
-      contentSecurityPolicy: configService.isDevelopment
-        ? {
-            directives: {
-              defaultSrc: ["'self'"],
-              scriptSrc: ["'self'", "'unsafe-inline'", 'https:'],
-              styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
-              fontSrc: ["'self'", 'https:', 'data:'],
-              imgSrc: ["'self'", 'https:', 'data:'],
-              connectSrc: ["'self'", 'https:'],
-            },
-          }
-        : {
-            directives: {
-              defaultSrc: ["'self'"],
-              scriptSrc: ["'self'", 'https://cdn.jsdelivr.net'],
-              styleSrc: ["'self'", 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com'],
-              fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
-              imgSrc: ["'self'", 'https:', 'data:'],
-              connectSrc: ["'self'"],
-              frameSrc: ["'none'"],
-              objectSrc: ["'none'"],
-            },
-          },
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            "'unsafe-eval'", // Scalar might need this
+            'https://cdn.jsdelivr.net',
+          ],
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+          imgSrc: ["'self'", 'data:', 'https:'],
+          fontSrc: ["'self'", 'https:', 'data:'],
+          connectSrc: ["'self'", 'https://cdn.jsdelivr.net'],
+        },
+      },
     }),
   );
   app.use(compression());
@@ -98,7 +90,7 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe(validationOptions));
 
   if (configService.documentationEnabled) {
-    await docs(app);
+    await docs(app, configService.authConfig.url);
   }
 
   // Starts listening for shutdown hooks

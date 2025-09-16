@@ -470,3 +470,108 @@ CREATE OR REPLACE TRIGGER publish_loan_offer_on_principal_invoice_paid_trigger
 AFTER UPDATE ON invoices
 FOR EACH ROW
 EXECUTE FUNCTION publish_loan_offer_on_principal_invoice_paid();
+
+CREATE OR REPLACE FUNCTION publish_loan_application_on_collateral_invoice_paid()
+RETURNS TRIGGER AS $$
+DECLARE
+  loan_application_record RECORD;
+BEGIN
+  -- Only process when invoice gets paid (paid_date changes from NULL to a date) and has loan_application_id
+  IF OLD.paid_date IS NULL AND NEW.paid_date IS NOT NULL AND NEW.loan_application_id IS NOT NULL THEN
+    
+    -- Get loan application details
+    SELECT 
+      id, 
+      borrower_user_id, 
+      collateral_currency_blockchain_key, 
+      collateral_currency_token_id,
+      collateral_deposit_amount,
+      status
+    INTO loan_application_record
+    FROM loan_applications 
+    WHERE id = NEW.loan_application_id;
+    
+    -- Only process if loan application exists and is in 'PendingCollateral' status
+    IF loan_application_record.id IS NOT NULL AND loan_application_record.status = 'PendingCollateral' THEN
+      
+      -- Update loan application status to 'Published' and set published_date
+      UPDATE loan_applications 
+      SET 
+        status = 'Published',
+        published_date = NEW.paid_date,
+        collateral_prepaid_amount = loan_application_record.collateral_deposit_amount
+      WHERE id = NEW.loan_application_id;
+      
+      -- Move collateral from borrower's user account to platform escrow
+      INSERT INTO account_mutation_entries (
+        user_id,
+        currency_blockchain_key,
+        currency_token_id,
+        account_type,
+        mutation_type,
+        mutation_date,
+        amount
+      ) VALUES (
+        loan_application_record.borrower_user_id,
+        loan_application_record.collateral_currency_blockchain_key,
+        loan_application_record.collateral_currency_token_id,
+        'User',
+        'LoanCollateralDeposit',
+        NEW.paid_date,
+        -loan_application_record.collateral_deposit_amount
+      );
+
+      UPDATE account_mutations
+      SET loan_application_id = NEW.loan_application_id
+      FROM accounts
+      WHERE account_mutations.account_id = accounts.id
+        AND account_mutations.loan_application_id IS NULL
+        AND account_mutations.mutation_type = 'LoanCollateralDeposit'
+        AND account_mutations.mutation_date = NEW.paid_date
+        AND accounts.user_id = loan_application_record.borrower_user_id
+        AND accounts.currency_blockchain_key = loan_application_record.collateral_currency_blockchain_key
+        AND accounts.currency_token_id = loan_application_record.collateral_currency_token_id
+        AND accounts.account_type = 'User';
+
+      -- Add corresponding credit to platform escrow account
+      INSERT INTO account_mutation_entries (
+        user_id,
+        currency_blockchain_key,
+        currency_token_id,
+        account_type,
+        mutation_type,
+        mutation_date,
+        amount
+      ) VALUES (
+        1, -- Platform user_id
+        loan_application_record.collateral_currency_blockchain_key,
+        loan_application_record.collateral_currency_token_id,
+        'PlatformEscrow',
+        'LoanCollateralDeposit',
+        NEW.paid_date,
+        loan_application_record.collateral_deposit_amount
+      );
+
+      UPDATE account_mutations
+      SET loan_application_id = NEW.loan_application_id
+      FROM accounts
+      WHERE account_mutations.account_id = accounts.id
+        AND account_mutations.loan_application_id IS NULL
+        AND account_mutations.mutation_type = 'LoanCollateralDeposit'
+        AND account_mutations.mutation_date = NEW.paid_date
+        AND accounts.user_id = 1 -- Platform user_id
+        AND accounts.currency_blockchain_key = loan_application_record.collateral_currency_blockchain_key
+        AND accounts.currency_token_id = loan_application_record.collateral_currency_token_id
+        AND accounts.account_type = 'PlatformEscrow';
+      
+    END IF;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER publish_loan_application_on_collateral_invoice_paid_trigger
+AFTER UPDATE ON invoices
+FOR EACH ROW
+EXECUTE FUNCTION publish_loan_application_on_collateral_invoice_paid();

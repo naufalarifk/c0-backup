@@ -1,6 +1,5 @@
 import type { BetterAuthOptions } from 'better-auth';
 import type { DrizzleDB } from '../../shared/database/database.module';
-import type { UserViewsProfileResult } from '../../shared/types';
 import type { AuthModuleOptions } from './auth.module';
 
 import { Inject, Injectable } from '@nestjs/common';
@@ -40,7 +39,7 @@ export class AuthConfig {
     private readonly mailerService: MailerService,
     private readonly twilioService: TwilioService,
     private readonly redisService: RedisService,
-    private readonly userRepository: CryptogadaiRepository,
+    private readonly repo: CryptogadaiRepository,
     private readonly minioService: MinioService,
   ) {}
 
@@ -72,10 +71,7 @@ export class AuthConfig {
         },
       },
       trustedOrigins: this.configService.appConfig.allowedOrigins,
-      rateLimit: {
-        enabled: true,
-        ...this.configService.throttlerConfigs,
-      },
+      rateLimit: this.rateLimit(),
       onAPIError: {
         throw: true,
       },
@@ -89,7 +85,7 @@ export class AuthConfig {
 
   private database(): BetterAuthOptions['database'] {
     return authAdapter({
-      userRepo: this.userRepository,
+      userRepo: this.repo,
       debugLogs: this.configService.databaseLogger,
     });
   }
@@ -225,7 +221,7 @@ export class AuthConfig {
       sso(),
       multiSession({ maximumSessions: this.configService.authConfig.maximumSessions }),
       customSession(async ({ session, user }) => {
-        const rows = await this.userRepository
+        const rows = await this.repo
           .sql`SELECT profile_picture, email_verified_date, two_factor_enabled_date, user_type FROM users WHERE id = ${user.id} LIMIT 1`;
 
         // biome-ignore lint/suspicious/noExplicitAny: Enable explicit any for database result
@@ -269,6 +265,24 @@ export class AuthConfig {
       expo(),
       openAPI(),
     ];
+  }
+
+  private rateLimit(): BetterAuthOptions['rateLimit'] {
+    return {
+      enabled: true,
+      window: +this.configService.throttlerConfigs.ttl,
+      max: +this.configService.throttlerConfigs.limit,
+      customRules: {
+        '/sign-in/*': {
+          window: 60,
+          max: 5,
+        },
+        '/forget-password': {
+          window: 3600,
+          max: 3,
+        },
+      },
+    };
   }
 
   private advanced(): BetterAuthOptions['advanced'] {

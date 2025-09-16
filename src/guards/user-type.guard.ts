@@ -23,7 +23,7 @@ export class UserTypeGuard implements CanActivate {
     private readonly reflector: Reflector,
     @Inject(AUTH_INSTANCE_KEY)
     private readonly auth: Auth,
-    private readonly userRepo: CryptogadaiRepository,
+    private readonly repo: CryptogadaiRepository,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -48,7 +48,7 @@ export class UserTypeGuard implements CanActivate {
     }
 
     // Get user profile to check user type
-    const userProfile = await this.userRepo.userViewsProfile({ userId });
+    const userProfile = await this.repo.userViewsProfile({ userId });
 
     if (userProfile.userType === 'Undecided') {
       throw new ForbiddenException(

@@ -10,7 +10,6 @@ import {
   Post,
   Session,
   UploadedFiles,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,

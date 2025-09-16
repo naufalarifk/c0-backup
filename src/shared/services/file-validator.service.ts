@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
+import { ensure } from '../utils';
 import { MinioService } from './minio.service';
 
 export interface FileValidationOptions {
@@ -23,17 +24,14 @@ export class FileValidatorService {
     originalName?: string,
   ): void {
     // Check file size
-    if (fileBuffer.length > options.maxSize) {
-      throw new Error(
-        `File size exceeds limit. Maximum allowed: ${options.maxSize / (1024 * 1024)}MB`,
-      );
-    }
+    ensure(
+      fileBuffer.length <= options.maxSize,
+      `File size exceeds limit. Maximum allowed: ${options.maxSize / (1024 * 1024)}MB`,
+    );
 
     // Check minimum file size (basic corruption check)
     const minSize = options.minSize || 8;
-    if (fileBuffer.length < minSize) {
-      throw new Error('File appears to be corrupted or invalid');
-    }
+    ensure(fileBuffer.length >= minSize, 'File appears to be corrupted or invalid');
 
     // SECURITY: If strict image-only mode, perform additional checks
     if (options.allowOnlyImages) {
@@ -52,7 +50,8 @@ export class FileValidatorService {
 
     // If both validations fail, reject
     const detectedMimeType = originalName ? this.minioService.getMimeType(originalName) : 'unknown';
-    throw new Error(
+    ensure(
+      false,
       `Invalid file type. Allowed types: ${options.allowedMimeTypes.join(', ')}. Detected: ${mimeType || detectedMimeType}`,
     );
   }
@@ -70,23 +69,21 @@ export class FileValidatorService {
 
     // JPEG signatures
     if (mimeType?.includes('jpeg') || originalName?.match(/\.(jpg|jpeg)$/i)) {
-      if (!(fileSignature[0] === 0xff && fileSignature[1] === 0xd8)) {
-        throw new Error('Invalid JPEG file signature - possible malicious file');
-      }
+      ensure(
+        fileSignature[0] === 0xff && fileSignature[1] === 0xd8,
+        'Invalid JPEG file signature - possible malicious file',
+      );
     }
 
     // PNG signature
     else if (mimeType?.includes('png') || originalName?.match(/\.png$/i)) {
-      if (
-        !(
-          fileSignature[0] === 0x89 &&
+      ensure(
+        fileSignature[0] === 0x89 &&
           fileSignature[1] === 0x50 &&
           fileSignature[2] === 0x4e &&
-          fileSignature[3] === 0x47
-        )
-      ) {
-        throw new Error('Invalid PNG file signature - possible malicious file');
-      }
+          fileSignature[3] === 0x47,
+        'Invalid PNG file signature - possible malicious file',
+      );
     }
 
     // WebP signature - more flexible check
@@ -123,9 +120,10 @@ export class FileValidatorService {
     ];
 
     for (const pattern of suspiciousPatterns) {
-      if (content.toLowerCase().includes(pattern)) {
-        throw new Error(`Suspicious content detected in image file: ${pattern}`);
-      }
+      ensure(
+        !content.toLowerCase().includes(pattern),
+        `Suspicious content detected in image file: ${pattern}`,
+      );
     }
   }
 

@@ -17,7 +17,7 @@ export class AdminKycController {
 
   constructor(
     private readonly minioService: MinioService,
-    private readonly userRepo: CryptogadaiRepository,
+    private readonly repo: CryptogadaiRepository,
   ) {}
 
   @Get('users/:userId/documents/:docType')
@@ -54,7 +54,7 @@ export class AdminKycController {
   ) {
     try {
       // Get KYC data from database with document paths
-      const rows = await this.userRepo.sql`
+      const rows = await this.repo.sql`
         SELECT id_card_photo, selfie_with_id_card_photo
         FROM user_kycs
         WHERE user_id = ${userId}
