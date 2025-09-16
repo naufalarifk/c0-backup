@@ -1,7 +1,7 @@
 import type { UserViewsProfileResult } from '../../shared/types';
 import type { UserSession } from '../auth/types';
 
-import { Body, Controller, HttpStatus, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpStatus, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 import { Session } from '../auth/auth.decorator';
@@ -72,5 +72,20 @@ export class UsersController {
       session.user.id,
       createCredentialProviderDto.password,
     );
+  }
+
+  @Get('provider-accounts')
+  @ApiOperation({
+    summary: 'Get all authentication provider accounts linked to the user',
+    description:
+      'Retrieves a list of all authentication providers associated with the user account',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'List of authentication provider accounts retrieved successfully',
+  })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
+  getProviderAccounts(@Session() session: UserSession) {
+    return this.usersService.getProviderAccounts(session.user.id);
   }
 }

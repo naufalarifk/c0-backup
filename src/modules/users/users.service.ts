@@ -49,4 +49,41 @@ export class UsersService {
       providerId: 'credential',
     });
   }
+
+  async getProviderAccounts(userId: string) {
+    const accounts = await this.repo.betterAuthFindManyAccounts([
+      { field: 'userId', value: userId },
+    ]);
+
+    // Map provider IDs to human-readable names with metadata
+    const providers = accounts.map(account => ({
+      provider: account.providerId,
+      displayName: this.getProviderDisplayName(account.providerId),
+      hasPassword: account.providerId === 'credential',
+      createdAt: account.createdAt,
+    }));
+
+    return ResponseHelper.success('User login providers retrieved', {
+      providers,
+      availableProviders: this.getAvailableProviders(providers.map(p => p.provider)),
+    });
+  }
+
+  private getProviderDisplayName(providerId: string) {
+    const providerNames: Record<string, string> = {
+      credential: 'Email & Password',
+      google: 'Google',
+      facebook: 'Facebook',
+      github: 'GitHub',
+      twitter: 'Twitter',
+      apple: 'Apple',
+    };
+
+    return providerNames[providerId] || providerId;
+  }
+
+  private getAvailableProviders(currentProviders: string[]): string[] {
+    const allProviders = ['credential', 'google']; // Add more as you support them
+    return allProviders.filter(provider => !currentProviders.includes(provider));
+  }
 }
