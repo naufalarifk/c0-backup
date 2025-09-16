@@ -320,6 +320,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
           phone_number = COALESCE(${phoneNumber}, phone_number),
           phone_number_verified = COALESCE(${phoneNumberVerified}, phone_number_verified),
           email_verified_date = CASE
+            WHEN email_verified_date IS NOT NULL THEN email_verified_date
             WHEN ${emailVerified ? 1 : 0} = 1 AND email_verified_date IS NULL THEN ${updatedAtUtc}
             WHEN ${emailVerified ? 1 : 0} = 0 THEN NULL
             ELSE email_verified_date
