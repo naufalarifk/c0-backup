@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
 
+import { hashPassword } from 'better-auth/crypto';
+
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { FileValidatorService } from '../../../shared/services/file-validator.service';
 import { MinioService } from '../../../shared/services/minio.service';
 import { File } from '../../../shared/types';
+import { ensureExists, ensureUnique, ResponseHelper } from '../../../shared/utils';
 import { TelemetryLogger } from '../../../telemetry.logger';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+
 @Injectable()
 export class ProfileService {
   private readonly logger = new TelemetryLogger(ProfileService.name);
@@ -15,6 +19,28 @@ export class ProfileService {
     private readonly minioService: MinioService,
     private readonly fileValidatorService: FileValidatorService,
   ) {}
+
+  async addCredentialProvider(userId: string, password: string) {
+    const credentialAccount = await this.repo.betterAuthFindOneAccount([
+      { field: 'userId', value: userId },
+      { field: 'providerId', value: 'credential' },
+    ]);
+    ensureUnique(!credentialAccount, 'Credential provider already exists');
+
+    const hashedPassword = await hashPassword(password);
+    await this.repo.betterAuthCreateAccount({
+      accountId: userId,
+      userId,
+      providerId: 'credential',
+      password: hashedPassword,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    return ResponseHelper.success('Credential provider added successfully', {
+      providerId: 'credential',
+    });
+  }
 
   async findOne(userId: string) {
     const profile = await this.repo.userViewsProfile({ userId });
@@ -92,7 +118,7 @@ export class ProfileService {
    * Upload a profile picture to Minio and return the object info (NOT URL)
    * Moved from ProfileFileService for better cohesion
    */
-  async uploadProfilePicture(
+  private async uploadProfilePicture(
     fileBuffer: Buffer,
     originalName: string,
     userId: string,

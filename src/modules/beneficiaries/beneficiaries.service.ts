@@ -80,7 +80,7 @@ export class BeneficiariesService {
       tokenId: beneficiary.currencyTokenId,
       address: beneficiary.address,
       label: createBeneficiaryDto.label,
-      status: 'pending_confirmation',
+      status: 'pending',
       message: 'Beneficiary created successfully. Please check your email to confirm the address.',
     });
   }
@@ -177,6 +177,8 @@ export class BeneficiariesService {
    */
   private async validateCurrencySupported(blockchainKey: string, tokenId: string): Promise<void> {
     const { currencies } = await this.repo.userViewsCurrencies({ type: 'all' });
+
+    console.log(currencies);
 
     const currency = currencies.find(
       c => c.blockchainKey === blockchainKey && c.tokenId === tokenId,

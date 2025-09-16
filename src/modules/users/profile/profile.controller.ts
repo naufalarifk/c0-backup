@@ -8,6 +8,7 @@ import {
   Headers,
   HttpStatus,
   Patch,
+  Post,
   UploadedFile,
   UseGuards,
 } from '@nestjs/common';
@@ -17,6 +18,7 @@ import { ApiFile } from '../../../decorators/swagger.schema';
 import { Session } from '../../auth/auth.decorator';
 import { AuthGuard } from '../../auth/auth.guard';
 import { AuthService } from '../../auth/auth.service';
+import { CreateCredentialProviderDto } from './dto/create-credential-provider.dto';
 import { ProfileResponseDto } from './dto/profile-response.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateProfileResponseDto } from './dto/update-profile-response.dto';
@@ -30,6 +32,27 @@ export class ProfileController {
     private readonly profileService: ProfileService,
     private readonly auth: AuthService,
   ) {}
+
+  @Post('credential-provider')
+  @ApiOperation({
+    summary: 'Add credential provider (email/password) to existing user',
+    description: 'Allows users who signed up via social provider to add email/password login',
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Credential provider added successfully',
+  })
+  @ApiResponse({ status: HttpStatus.CONFLICT, description: 'Credential provider already exists' })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
+  addCredentialProvider(
+    @Session() session: UserSession,
+    @Body() createCredentialProviderDto: CreateCredentialProviderDto,
+  ) {
+    return this.profileService.addCredentialProvider(
+      session.user.id,
+      createCredentialProviderDto.password,
+    );
+  }
 
   @Get()
   @ApiOperation({
