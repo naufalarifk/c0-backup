@@ -128,7 +128,6 @@ export interface UserViewsInvoiceDetailsResult {
 export interface UserRegistersWithdrawalBeneficiaryParams {
   userId: string;
   currencyBlockchainKey: string;
-  currencyTokenId: string;
   address: string;
 }
 
@@ -136,7 +135,6 @@ export interface UserRegistersWithdrawalBeneficiaryResult {
   id: string;
   userId: string;
   currencyBlockchainKey: string;
-  currencyTokenId: string;
   address: string;
 }
 

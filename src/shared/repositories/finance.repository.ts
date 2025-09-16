@@ -451,7 +451,7 @@ export abstract class FinanceRepository extends UserRepository {
   async userRegistersWithdrawalBeneficiary(
     params: UserRegistersWithdrawalBeneficiaryParams,
   ): Promise<UserRegistersWithdrawalBeneficiaryResult> {
-    const { userId, currencyBlockchainKey, currencyTokenId, address } = params;
+    const { userId, currencyBlockchainKey, address } = params;
 
     const tx = await this.beginTransaction();
     try {
@@ -465,10 +465,9 @@ export abstract class FinanceRepository extends UserRepository {
         VALUES (
           ${userId},
           ${currencyBlockchainKey},
-          ${currencyTokenId},
           ${address}
         )
-        RETURNING id, user_id, currency_blockchain_key, currency_token_id, address
+        RETURNING id, user_id, currency_blockchain_key, address
       `;
 
       const beneficiary = rows[0];
@@ -485,7 +484,6 @@ export abstract class FinanceRepository extends UserRepository {
         id: String(beneficiary.id),
         userId: String(beneficiary.user_id),
         currencyBlockchainKey: beneficiary.currency_blockchain_key,
-        currencyTokenId: beneficiary.currency_token_id,
         address: beneficiary.address,
       };
     } catch (error) {
@@ -927,12 +925,12 @@ export abstract class FinanceRepository extends UserRepository {
           (${type}::text = 'collateral' AND c.max_ltv > 0) OR
           (${type}::text = 'loan' AND c.symbol IN ('USDC', 'USDT', 'USD') AND c.max_ltv = 0)
         )
-      ORDER BY 
-        CASE 
+      ORDER BY
+        CASE
           WHEN c.max_ltv > 0 THEN 0  -- Collateral currencies first
           ELSE 1                     -- Loan currencies second
         END,
-        c.blockchain_key, 
+        c.blockchain_key,
         c.token_id
     `;
 

@@ -483,13 +483,11 @@ export async function runFinanceRepositoryTestSuite(
         const result = await repo.userRegistersWithdrawalBeneficiary({
           userId,
           currencyBlockchainKey: 'eip155:56',
-          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           address,
         });
 
         equal(result.userId, userId);
         equal(result.currencyBlockchainKey, 'eip155:56');
-        equal(result.currencyTokenId, 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d');
         equal(result.address, address);
         equal(typeof result.id, 'string');
       });
@@ -506,14 +504,12 @@ export async function runFinanceRepositoryTestSuite(
         await repo.userRegistersWithdrawalBeneficiary({
           userId,
           currencyBlockchainKey: 'eip155:56',
-          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           address: '0x5234567890123456789012345678901234567890',
         });
 
         await repo.userRegistersWithdrawalBeneficiary({
           userId,
           currencyBlockchainKey: 'bip122:000000000019d6689c085ae165831e93',
-          currencyTokenId: 'slip44:0',
           address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0w21',
         });
 
@@ -568,7 +564,6 @@ export async function runFinanceRepositoryTestSuite(
         const beneficiaryResult = await repo.userRegistersWithdrawalBeneficiary({
           userId,
           currencyBlockchainKey: 'eip155:56',
-          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           address: '0x6234567890123456789012345678901234567822',
         });
 
@@ -618,7 +613,6 @@ export async function runFinanceRepositoryTestSuite(
         const beneficiaryResult = await repo.userRegistersWithdrawalBeneficiary({
           userId,
           currencyBlockchainKey: 'eip155:56',
-          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           address: '0x7234567890123456789012345678901234567823',
         });
 
@@ -679,7 +673,6 @@ export async function runFinanceRepositoryTestSuite(
         const beneficiaryResult = await repo.userRegistersWithdrawalBeneficiary({
           userId,
           currencyBlockchainKey: 'bip122:000000000019d6689c085ae165831e93',
-          currencyTokenId: 'slip44:0',
           address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
         });
 
@@ -739,7 +732,6 @@ export async function runFinanceRepositoryTestSuite(
         const beneficiaryResult = await repo.userRegistersWithdrawalBeneficiary({
           userId,
           currencyBlockchainKey: 'eip155:56',
-          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           address: '0x8234567890123456789012345678901234567825',
         });
 
@@ -812,7 +804,6 @@ export async function runFinanceRepositoryTestSuite(
         const beneficiaryResult = await repo.userRegistersWithdrawalBeneficiary({
           userId,
           currencyBlockchainKey: 'eip155:56',
-          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           address: '0x9234567890123456789012345678901234567826',
         });
 
@@ -876,7 +867,6 @@ export async function runFinanceRepositoryTestSuite(
         const beneficiaryResult = await repo.userRegistersWithdrawalBeneficiary({
           userId,
           currencyBlockchainKey: 'bip122:000000000019d6689c085ae165831e93',
-          currencyTokenId: 'slip44:0',
           address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0w27',
         });
 
@@ -942,7 +932,6 @@ export async function runFinanceRepositoryTestSuite(
         const beneficiaryResult = await repo.userRegistersWithdrawalBeneficiary({
           userId,
           currencyBlockchainKey: 'eip155:56',
-          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           address: '0xa234567890123456789012345678901234567828',
         });
 

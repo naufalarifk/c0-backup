@@ -38,36 +38,4 @@ export class GetBeneficiariesDto {
     },
   )
   blockchainKey?: string;
-
-  @ApiPropertyOptional({
-    description: 'Filter by token ID',
-    examples: {
-      ethUsdc: {
-        summary: 'Ethereum USDC',
-        value: 'erc20:0xa0b86a33e6ba4c2f8b3dcc56b4c3b3f7b123f456',
-      },
-      bscUsdt: {
-        summary: 'BSC USDT',
-        value: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-      },
-      solUsdc: {
-        summary: 'Solana USDC',
-        value: 'spl:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-      },
-      btc: {
-        summary: 'Bitcoin',
-        value: 'slip44:0',
-      },
-    },
-  })
-  @IsOptional()
-  @IsString()
-  @Matches(
-    /^(erc20:0x[a-fA-F0-9]{40}|bep20:0x[a-fA-F0-9]{40}|spl:[1-9A-HJ-NP-Za-km-z]{32,44}|brc20:[a-zA-Z0-9]{1,4}|slip44:\d+)$/,
-    {
-      message:
-        'tokenId must be in valid format (e.g., erc20:0x..., bep20:0x..., spl:..., brc20:..., slip44:0)',
-    },
-  )
-  tokenId?: string;
 }

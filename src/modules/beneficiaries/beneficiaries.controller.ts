@@ -66,6 +66,39 @@ export class BeneficiariesController {
     return this.beneficiariesService.create(session.user.id, createBeneficiaryDto);
   }
 
+  @Get('verify')
+  @ApiOperation({
+    summary: 'Verify beneficiary address',
+    description: 'Verify and activate a beneficiary address using the token sent via email',
+  })
+  @ApiQuery({
+    name: 'token',
+    description: 'Verification token received via email',
+    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    required: true,
+  })
+  @ApiQuery({
+    name: 'callbackURL',
+    description: 'Optional callback URL to redirect after verification',
+    example: '/withdrawal',
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Beneficiary address verified and activated successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid or expired token',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Address already exists or conflicts with existing beneficiary',
+  })
+  verify(@Query('token') token: string, @Query('callbackURL') callbackURL?: string) {
+    return this.beneficiariesService.verify({ token, callbackURL });
+  }
+
   @Get()
   @ApiOperation({
     summary: 'Get all beneficiaries',
