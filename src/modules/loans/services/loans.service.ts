@@ -7,6 +7,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import BigNumber from 'bignumber.js';
+
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { LoanStatus as RepositoryLoanStatus } from '../../../shared/repositories/loan.types';
 import { LoanStatus, PaginationMetaDto, UserRole } from '../dto/common.dto';
@@ -70,68 +72,70 @@ export class LoansService {
         status: this.mapDtoStatusToRepository(params.status),
       });
 
-      // Map repository loans to DTO format
-      const loans = result.loans.map(loan => {
-        // Map repository loan status to DTO status
-        let dtoStatus;
-        switch (loan.status) {
-          case 'Originated':
-            dtoStatus = loan.disbursementDate ? 'DISBURSED' : 'ORIGINATED';
-            break;
-          case 'Active':
-            dtoStatus = 'ACTIVE';
-            break;
-          case 'Liquidated':
-            dtoStatus = 'LIQUIDATED';
-            break;
-          case 'Repaid':
-            dtoStatus = 'REPAID';
-            break;
-          case 'Defaulted':
-            dtoStatus = 'LIQUIDATED'; // Map defaulted to liquidated for now
-            break;
-          default:
-            dtoStatus = 'ORIGINATED';
-        }
+      // Map repository loans to DTO format - need to use Promise.all since calculateProvisionFee is async
+      const loans = await Promise.all(
+        result.loans.map(async loan => {
+          // Map repository loan status to DTO status
+          let dtoStatus;
+          switch (loan.status) {
+            case 'Originated':
+              dtoStatus = loan.disbursementDate ? 'DISBURSED' : 'ORIGINATED';
+              break;
+            case 'Active':
+              dtoStatus = 'ACTIVE';
+              break;
+            case 'Liquidated':
+              dtoStatus = 'LIQUIDATED';
+              break;
+            case 'Repaid':
+              dtoStatus = 'REPAID';
+              break;
+            case 'Defaulted':
+              dtoStatus = 'LIQUIDATED'; // Map defaulted to liquidated for now
+              break;
+            default:
+              dtoStatus = 'ORIGINATED';
+          }
 
-        return {
-          id: loan.id,
-          borrowerId: loan.borrowerUserId,
-          lenderId: loan.lenderUserId,
-          principalCurrency: {
-            blockchainKey: loan.principalCurrency.blockchainKey,
-            tokenId: loan.principalCurrency.tokenId,
-            symbol: loan.principalCurrency.symbol,
-            name: loan.principalCurrency.name,
-            decimals: loan.principalCurrency.decimals,
-            logoUrl: `https://assets.cryptogadai.com/currencies/${loan.principalCurrency.symbol.toLowerCase()}.png`,
-          },
-          principalAmount: loan.principalAmount,
-          collateralCurrency: {
-            blockchainKey: loan.collateralCurrency.blockchainKey,
-            tokenId: loan.collateralCurrency.tokenId,
-            symbol: loan.collateralCurrency.symbol,
-            name: loan.collateralCurrency.name,
-            decimals: loan.collateralCurrency.decimals,
-            logoUrl: `https://assets.cryptogadai.com/currencies/${loan.collateralCurrency.symbol.toLowerCase()}.png`,
-          },
-          collateralAmount: loan.collateralAmount,
-          interestRate: this.calculateInterestRate(loan.interestAmount, loan.principalAmount),
-          termMonths: this.calculateTermMonths(loan.originationDate, loan.maturityDate),
-          currentLtv: loan.currentLtvRatio || 0,
-          maxLtvRatio: loan.mcLtvRatio,
-          status: dtoStatus,
-          originationDate: loan.originationDate.toISOString(),
-          disbursementDate: loan.disbursementDate?.toISOString(),
-          maturityDate: loan.maturityDate.toISOString(),
-          loanBreakdown: {
+          return {
+            id: loan.id,
+            borrowerId: loan.borrowerUserId,
+            lenderId: loan.lenderUserId,
+            principalCurrency: {
+              blockchainKey: loan.principalCurrency.blockchainKey,
+              tokenId: loan.principalCurrency.tokenId,
+              symbol: loan.principalCurrency.symbol,
+              name: loan.principalCurrency.name,
+              decimals: loan.principalCurrency.decimals,
+              logoUrl: `https://assets.cryptogadai.com/currencies/${loan.principalCurrency.symbol.toLowerCase()}.png`,
+            },
             principalAmount: loan.principalAmount,
-            interestAmount: loan.interestAmount,
-            provisionFeeAmount: this.calculateProvisionFee(loan.principalAmount),
-            totalRepaymentAmount: loan.repaymentAmount,
-          },
-        };
-      });
+            collateralCurrency: {
+              blockchainKey: loan.collateralCurrency.blockchainKey,
+              tokenId: loan.collateralCurrency.tokenId,
+              symbol: loan.collateralCurrency.symbol,
+              name: loan.collateralCurrency.name,
+              decimals: loan.collateralCurrency.decimals,
+              logoUrl: `https://assets.cryptogadai.com/currencies/${loan.collateralCurrency.symbol.toLowerCase()}.png`,
+            },
+            collateralAmount: loan.collateralAmount,
+            interestRate: this.calculateInterestRate(loan.interestAmount, loan.principalAmount),
+            termMonths: this.calculateTermMonths(loan.originationDate, loan.maturityDate),
+            currentLtv: loan.currentLtvRatio || 0,
+            maxLtvRatio: loan.mcLtvRatio,
+            status: dtoStatus,
+            originationDate: loan.originationDate.toISOString(),
+            disbursementDate: loan.disbursementDate?.toISOString(),
+            maturityDate: loan.maturityDate.toISOString(),
+            loanBreakdown: {
+              principalAmount: loan.principalAmount,
+              interestAmount: loan.interestAmount,
+              provisionFeeAmount: await this.calculateProvisionFee(loan.principalAmount),
+              totalRepaymentAmount: loan.repaymentAmount,
+            },
+          };
+        }),
+      );
 
       const pagination: PaginationMetaDto = {
         page: result.pagination.page,
@@ -222,7 +226,7 @@ export class LoansService {
         loanBreakdown: {
           principalAmount: result.principalAmount,
           interestAmount: result.interestAmount,
-          provisionFeeAmount: this.calculateProvisionFee(result.principalAmount),
+          provisionFeeAmount: await this.calculateProvisionFee(result.principalAmount),
           totalRepaymentAmount: result.redeliveryAmount,
         },
       };
@@ -303,13 +307,10 @@ export class LoansService {
       }
 
       // 3. Calculate liquidation breakdown
-      const liquidationFeeRate = 0.01; // 1% fee
-      const liquidationFee = (
-        parseFloat(loanDetails.collateralAmount) * liquidationFeeRate
-      ).toString();
-      const estimatedProceeds = (
-        parseFloat(loanDetails.collateralAmount) - parseFloat(liquidationFee)
-      ).toString();
+      const liquidationFeeRate = new BigNumber(0.01); // 1% fee
+      const collateralAmount = new BigNumber(loanDetails.collateralAmount);
+      const liquidationFee = collateralAmount.times(liquidationFeeRate);
+      const estimatedProceeds = collateralAmount.minus(liquidationFee);
 
       return {
         success: true,
@@ -318,8 +319,8 @@ export class LoansService {
           calculationDate: new Date().toISOString(),
           currentCollateralValue: loanDetails.collateralAmount,
           currentLtvRatio: loanDetails.currentLtvRatio || 0,
-          liquidationFee: liquidationFee + '.000000000000000000',
-          estimatedProceeds: estimatedProceeds + '.000000000000000000',
+          liquidationFee: liquidationFee.toFixed(),
+          estimatedProceeds: estimatedProceeds.toFixed(),
           disclaimers: [
             'Actual liquidation proceeds may vary due to market conditions',
             'Exchange rates are subject to change until execution',
@@ -452,12 +453,12 @@ export class LoansService {
     }
   }
 
-  //todo fix calculation precision, use big number
+  // Using BigNumber for precise decimal calculations of DECIMAL(78, 0) fields
 
   private calculateInterestRate(interestAmount: string, principalAmount: string): number {
-    const interest = parseFloat(interestAmount);
-    const principal = parseFloat(principalAmount);
-    return principal > 0 ? (interest / principal) * 100 : 0;
+    const interest = new BigNumber(interestAmount);
+    const principal = new BigNumber(principalAmount);
+    return principal.gt(0) ? interest.div(principal).times(100).toNumber() : 0;
   }
 
   private calculateTermMonths(originationDate: Date, maturityDate: Date): number {
@@ -466,11 +467,15 @@ export class LoansService {
     return Math.round(diffMonths);
   }
 
-  private calculateProvisionFee(principalAmount: string): string {
-    const principal = parseFloat(principalAmount);
-    // get from platform.sql loan provision rate
-    const fee = principal * 0.03; // 3% fee
-    return fee.toFixed(18);
+  private async calculateProvisionFee(principalAmount: string): Promise<string> {
+    const principal = new BigNumber(principalAmount);
+
+    // Get current platform configuration to retrieve loan provision rate
+    const provisionRateConfig = await this.repository.platformRetrievesProvisionRate();
+
+    const provisionRate = new BigNumber(provisionRateConfig.loanProvisionRate).div(100); // Convert percentage to decimal
+    const fee = principal.times(provisionRate);
+    return fee.toFixed();
   }
 
   private mapDtoStatusToRepository(status?: LoanStatus): RepositoryLoanStatus | undefined {

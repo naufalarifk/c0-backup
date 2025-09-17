@@ -26,6 +26,7 @@ import {
   PlatformFailsWithdrawalResult,
   PlatformRetrievesExchangeRatesParams,
   PlatformRetrievesExchangeRatesResult,
+  PlatformRetrievesProvisionRateResult,
   PlatformSendsWithdrawalParams,
   PlatformSendsWithdrawalResult,
   PlatformUpdatesExchangeRateParams,
@@ -997,6 +998,32 @@ export abstract class FinanceRepository extends UserRepository {
           },
         };
       }),
+    };
+  }
+
+  // Platform Configuration Methods
+  async platformRetrievesProvisionRate(): Promise<PlatformRetrievesProvisionRateResult> {
+    const rows = await this.sql`
+      SELECT 
+        loan_provision_rate,
+        effective_date
+      FROM platform_configs
+      ORDER BY effective_date DESC
+      LIMIT 1
+    `;
+
+    if (rows.length === 0) {
+      throw new Error('Platform configuration not found');
+    }
+
+    const config = rows[0];
+    assertDefined(config, 'Platform configuration is undefined');
+    assertPropStringOrNumber(config, 'loan_provision_rate');
+    assertPropDate(config, 'effective_date');
+
+    return {
+      loanProvisionRate: String(config.loan_provision_rate),
+      effectiveDate: config.effective_date,
     };
   }
 

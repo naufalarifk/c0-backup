@@ -334,3 +334,7 @@ export interface Currency {
 export interface UserViewsCurrenciesResult {
   currencies: Currency[];
 }
+export interface PlatformRetrievesProvisionRateResult {
+  loanProvisionRate: string; // The provision rate as decimal string (e.g., "3.0" for 3.0%)
+  effectiveDate: Date;
+}
