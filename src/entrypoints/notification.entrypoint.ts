@@ -1,10 +1,10 @@
 import { NestFactory } from '@nestjs/core';
 
 import { TelemetryLogger } from '../shared/telemetry.logger';
-import { NotificationModule } from './notification.module';
+import { NotificationEntrypointModule } from './notification.module';
 
 export async function notificationEntrypoint() {
-  const app = await NestFactory.createApplicationContext(NotificationModule);
+  const app = await NestFactory.createApplicationContext(NotificationEntrypointModule);
   const logger = new TelemetryLogger('NotificationWorker');
 
   // Handle graceful shutdown

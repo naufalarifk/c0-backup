@@ -3,7 +3,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 
-import { NotificationModule as TheNotificationModule } from '../modules/notifications/notification.module';
+import { NotificationModule } from '../modules/notifications/notification.module';
+import { NotificationProcessor } from '../modules/notifications/notification.processor';
 import { AppConfigService } from '../shared/services/app-config.service';
 import { SharedModule } from '../shared/shared.module';
 
@@ -35,7 +36,8 @@ import { SharedModule } from '../shared/shared.module';
     BullModule.registerQueue({
       name: 'notificationQueue',
     }),
-    TheNotificationModule,
+    NotificationModule,
   ],
+  providers: [NotificationProcessor],
 })
-export class NotificationModule {}
+export class NotificationEntrypointModule {}

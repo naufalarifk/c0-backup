@@ -7,10 +7,10 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "start": "pnpm run start:api & pnpm run start:notification",
+    "start": "nest start -- api notification",
     "start:api": "nest start -- api",
     "start:notification": "nest start -- notification",
-    "start:dev": "pnpm run start:dev:api & pnpm run start:dev:notification",
+    "start:dev": "nest start --watch -- --builder swc api notification",
     "start:dev:api": "nest start --watch -- --builder swc api",
     "start:dev:notification": "nest start --watch -- --builder swc notification",
     "start:debug": "nest start --debug --watch api notification",
