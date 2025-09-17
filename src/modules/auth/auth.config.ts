@@ -24,6 +24,7 @@ import { RedisService } from '../../shared/services/redis.service';
 import { TwilioService } from '../../shared/services/twilio.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { EmailVerificationNotificationData } from '../notifications/composers/email-verification-notification.composer';
+import { UserRegisteredNotificationData } from '../notifications/composers/user-registered-notification.composer';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
 import { authAdapter } from './auth.adapter';
 import { forgotPasswordEmail } from './template/forget-password';
@@ -146,6 +147,16 @@ export class AuthConfig {
           name: 'Verify your email address',
           email: user.email,
           url,
+        };
+
+        await this.notificationQueueService.queueNotification(notificationData);
+      },
+      onEmailVerification: async ({ id, email, name }) => {
+        const notificationData: UserRegisteredNotificationData = {
+          type: 'UserRegistered',
+          userId: id,
+          email,
+          name,
         };
 
         await this.notificationQueueService.queueNotification(notificationData);
