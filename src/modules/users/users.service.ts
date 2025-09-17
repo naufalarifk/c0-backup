@@ -11,9 +11,13 @@ export class UsersService {
   constructor(private readonly repo: CryptogadaiRepository) {}
 
   async setUserType(userId: string, userType: UserDecidesUserTypeParams['userType']) {
-    const user = await this.repo.betterAuthFindOneUser([{ field: 'id', value: userId }]);
+    const user = await this.repo.userViewsProfile({ userId });
     ensureExists(user, 'User not found');
     ensurePrecondition(user.emailVerified, 'Email must be verified before setting user type');
+    ensureUnique(
+      user.userType === 'Undecided',
+      'User type has already been set with ' + user.userType,
+    );
 
     const payload: UserDecidesUserTypeParams = {
       userId,

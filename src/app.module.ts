@@ -12,6 +12,7 @@ import { AuthConfig } from './modules/auth/auth.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { BeneficiariesModule } from './modules/beneficiaries/beneficiaries.module';
 import { InstitutionsModule } from './modules/institutions/institutions.module';
+import { NotificationModule } from './modules/notifications/notification.module';
 import { UsersModule } from './modules/users/users.module';
 import { WithdrawalsModule } from './modules/withdrawals/withdrawals.module';
 import { AppConfigService } from './shared/services/app-config.service';
@@ -48,7 +49,7 @@ import { TestController } from './test.controller';
 
     EventEmitterModule.forRoot(),
 
-    AuthModule.forRootAsync({ useClass: AuthConfig }),
+    AuthModule.forRootAsync({ imports: [NotificationModule], useClass: AuthConfig }),
     UsersModule,
     InstitutionsModule,
     AccountsModule,

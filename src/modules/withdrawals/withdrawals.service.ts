@@ -38,9 +38,8 @@ export class WithdrawalsService {
     console.log('verifyTOTP :>> ', verifyTOTP);
 
     const payload: Parameters<typeof this.repo.userRequestsWithdrawal>[0] = {
-      /** @TODO */
-      currencyBlockchainKey: 'TODO',
-      currencyTokenId: 'TODO',
+      currencyBlockchainKey: createWithdrawalDto.currencyBlockchainKey,
+      currencyTokenId: createWithdrawalDto.currencyTokenId,
       beneficiaryId: createWithdrawalDto.beneficiaryId,
       amount: createWithdrawalDto.amount,
       requestDate: new Date(),

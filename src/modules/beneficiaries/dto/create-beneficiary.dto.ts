@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsString, Length, Matches } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, Length, Matches } from 'class-validator';
 
 import { IsValidBlockchainAddress } from './validators/blockchain-address.validator';
 
@@ -72,12 +72,9 @@ export class CreateBeneficiaryDto {
   @ApiProperty({
     description: 'Human-readable label for the beneficiary',
     example: 'My BSC Exchange Address',
-    minLength: 1,
-    maxLength: 100,
   })
+  @IsOptional()
   @IsString({ message: 'Label must be a string' })
-  @IsNotEmpty({ message: 'Label is required' })
-  @Length(1, 100, { message: 'Label must be between 1 and 100 characters' })
   @Transform(({ value }) => value?.trim().replace(/\s+/g, ' '))
-  label: string;
+  label?: string;
 }

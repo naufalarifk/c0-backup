@@ -25,9 +25,10 @@ import { MinioService } from '../../shared/services/minio.service';
 import { RedisService } from '../../shared/services/redis.service';
 import { TwilioService } from '../../shared/services/twilio.service';
 import { TelemetryLogger } from '../../telemetry.logger';
+import { EmailVerificationNotificationData } from '../notifications/composers/email-verification-notification.composer';
+import { NotificationQueueService } from '../notifications/notification-queue.service';
 import { authAdapter } from './auth.adapter';
 import { forgotPasswordEmail } from './template/forget-password';
-import { verificationEmail } from './template/verification-email';
 
 @Injectable()
 export class AuthConfig {
@@ -41,6 +42,7 @@ export class AuthConfig {
     private readonly redisService: RedisService,
     private readonly repo: CryptogadaiRepository,
     private readonly minioService: MinioService,
+    private readonly notificationQueueService: NotificationQueueService,
   ) {}
 
   /**
@@ -142,29 +144,14 @@ export class AuthConfig {
       sendOnSignUp: true,
       autoSignInAfterVerification: true,
       sendVerificationEmail: async ({ user, url }) => {
-        const html = verificationEmail({
+        const notificationData: EmailVerificationNotificationData = {
+          type: 'EmailVerification',
+          name: 'Verify your email address',
+          email: user.email,
           url,
-          userName: user.email,
-          companyName: this.configService.appConfig.name,
-        });
+        };
 
-        const emailConfirmTitle = 'Verify your email address';
-
-        await this.mailerService.sendMail({
-          to: user.email,
-          subject: emailConfirmTitle,
-          html,
-        });
-
-        //   // const res = await this.emailService.sendEmail({
-        //   //   to: user.email,
-        //   //   subject: emailConfirmTitle,
-        //   //   html,
-        //   // });
-
-        //   // if (res.error) {
-        //   //   this.logger.error('Failed to send verification email :>> ', res.error);
-        //   // }
+        await this.notificationQueueService.queueNotification(notificationData);
       },
     };
   }
@@ -172,7 +159,7 @@ export class AuthConfig {
   private emailAndPassword(): BetterAuthOptions['emailAndPassword'] {
     return {
       enabled: true,
-      requireEmailVerification: this.configService.isProduction,
+      requireEmailVerification: true,
       sendResetPassword: async ({ user, url, token }) => {
         const isDev = this.configService.isDevelopment;
         const parsed = new URL(url);

@@ -27,7 +27,6 @@ export class BeneficiariesController {
         description: 'Example for registering BSC USDT withdrawal address',
         value: {
           blockchainKey: 'eip155:56',
-          tokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           address: '0x1234567890abcdef1234567890abcdef12345678',
           label: 'My BSC Exchange Address',
         },
@@ -37,7 +36,6 @@ export class BeneficiariesController {
         description: 'Example for registering Ethereum USDC withdrawal address',
         value: {
           blockchainKey: 'eip155:1',
-          tokenId: 'erc20:0xa0b86a33e6ba4c2f8b3dcc56b4c3b3f7b123f456',
           address: '0x8ba1f109551bd432803012645aa136ba40b34567',
           label: 'Hardware Wallet Ethereum',
         },
@@ -47,7 +45,6 @@ export class BeneficiariesController {
         description: 'Example for registering Solana USDC withdrawal address',
         value: {
           blockchainKey: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-          tokenId: 'spl:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
           address: '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM',
           label: 'Solana Mobile Wallet',
         },
@@ -110,12 +107,6 @@ export class BeneficiariesController {
     required: false,
     description: 'Filter by blockchain key (CAIP-2 format)',
     example: 'eip155:56',
-  })
-  @ApiQuery({
-    name: 'tokenId',
-    required: false,
-    description: 'Filter by token ID',
-    example: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
   })
   @ApiResponse({
     status: 200,

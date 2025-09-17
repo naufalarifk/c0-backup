@@ -2,6 +2,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
 
+import { BeneficiaryVerificationNotificationComposer } from './composers/beneficiary-verification.composer';
 import { EmailVerificationNotificationComposer } from './composers/email-verification-notification.composer';
 import { InvoiceCreatedNotificationComposer } from './composers/invoice-created-notification.composer';
 import { InvoicePaidNotificationComposer } from './composers/invoice-paid-notification.composer';
@@ -54,6 +55,7 @@ import { SMSNotificationProvider } from './providers/sms-notification.provider';
     APNSNotificationProvider,
 
     // Notification Composers
+    BeneficiaryVerificationNotificationComposer,
     EmailVerificationNotificationComposer,
     InvoiceCreatedNotificationComposer,
     InvoicePaidNotificationComposer,

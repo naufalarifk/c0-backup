@@ -96,6 +96,7 @@ export class AppConfigService {
 
   get emailConfig() {
     return {
+      useSmtp: this.getBoolean('USE_SMTP', true),
       apiKey: this.getString('RESEND_API_KEY', 'test_api_key'),
       from: this.getString('EMAIL_FROM', 'test@cryptogadai.com'),
       host: this.getString('MAIL_HOST', 'localhost'),

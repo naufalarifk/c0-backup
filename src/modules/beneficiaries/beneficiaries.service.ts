@@ -19,6 +19,7 @@ import {
   ResponseHelper,
 } from '../../shared/utils';
 import { TelemetryLogger } from '../../telemetry.logger';
+import { BeneficiaryVerificationNotificationData } from '../notifications/composers/beneficiary-verification.composer';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
 import { CreateBeneficiaryDto } from './dto/create-beneficiary.dto';
 import { GetBeneficiariesDto } from './dto/get-beneficiaries.dto';
@@ -62,11 +63,7 @@ export class BeneficiariesService {
     await this.validateUniqueAddress(userId, createBeneficiaryDto);
 
     // Verify the currency is supported and withdrawals are enabled
-    // Todo: Skip currency validation for now to allow any blockchain/address
-    // await this.validateCurrencySupported(
-    //   createBeneficiaryDto.blockchainKey,
-    //   createBeneficiaryDto.tokenId,
-    // );
+    await this.validateCurrencySupported(createBeneficiaryDto.blockchainKey);
 
     // Generate JWT verification token (6 hour expiry) with all data embedded
     const tokenPayload = {
@@ -179,22 +176,20 @@ export class BeneficiariesService {
    * @param tokenId - The token identifier on the blockchain
    * @throws Error if currency is not supported or withdrawals are disabled
    */
-  private async validateCurrencySupported(blockchainKey: string, tokenId: string): Promise<void> {
+  private async validateCurrencySupported(blockchainKey: string): Promise<void> {
     const { currencies } = await this.repo.userViewsCurrencies({ type: 'all' });
 
-    console.log(currencies);
+    const currency = currencies.find(c => c.blockchainKey === blockchainKey);
 
-    const currency = currencies.find(
-      c => c.blockchainKey === blockchainKey && c.tokenId === tokenId,
-    );
-
-    ensureExists(currency, `Currency ${blockchainKey}:${tokenId} is not supported`);
+    ensureExists(currency, `Currency ${blockchainKey} is not supported`);
 
     // Verify withdrawals are enabled by checking minimum withdrawal amount
-    ensure(
-      currency.minWithdrawalAmount !== null && currency.minWithdrawalAmount !== '0',
-      `Withdrawals are not currently supported for ${currency.symbol}`,
-    );
+    // Todo: Implement withdrawal checks based on actual business rules
+    // For now, we assume if minWithdrawalAmount is set and non-zero, withdrawals are enabled
+    // ensure(
+    //   currency.minWithdrawalAmount !== null && currency.minWithdrawalAmount !== '0',
+    //   `Withdrawals are not currently supported for ${currency.symbol}`,
+    // );
   }
 
   /**
@@ -260,16 +255,15 @@ export class BeneficiariesService {
       ensureExists(user, 'User not found');
 
       // Queue verification email notification
-      await this.notificationQueueService.queueNotification({
+      const notificationData: BeneficiaryVerificationNotificationData = {
         type: 'BeneficiaryVerification',
-        userId,
+        url: `${this.configService.authConfig.url}/api/beneficiaries/verify?token=${token}`,
         email: user.email,
-        verificationToken: token,
-        address: beneficiaryDto.address,
         blockchain: beneficiaryDto.blockchainKey,
+        address: beneficiaryDto.address,
         label: beneficiaryDto.label,
-        message: `Please verify your withdrawal address: ${beneficiaryDto.address}`,
-      });
+      };
+      await this.notificationQueueService.queueNotification(notificationData);
 
       this.logger.log('Verification email queued', {
         userId,
