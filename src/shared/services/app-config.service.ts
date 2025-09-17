@@ -242,10 +242,10 @@ export class AppConfigService {
 
   get minioConfig() {
     return {
-      endpoint: this.getString('MINIO_ENDPOINT'),
+      endpoint: this.getString('MINIO_ENDPOINT', 'localhost:9000'),
       accessKey: this.getString('MINIO_ROOT_USER', 'minioadmin'),
       secretKey: this.getString('MINIO_ROOT_PASSWORD', 'minioadmin'),
-      useSSL: this.getBoolean('MINIO_USE_SSL'),
+      useSSL: this.getBoolean('MINIO_USE_SSL', false),
       defaultBuckets: this.getString('MINIO_DEFAULT_BUCKETS', 'uploads,documents,images')
         .split(',')
         .map(bucket => bucket.trim()),

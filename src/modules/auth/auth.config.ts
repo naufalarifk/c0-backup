@@ -14,7 +14,6 @@ import {
   phoneNumber,
   twoFactor,
 } from 'better-auth/plugins';
-import { v7 as uuidv7 } from 'uuid';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../shared/services/app-config.service';
@@ -157,6 +156,7 @@ export class AuthConfig {
     return {
       enabled: true,
       requireEmailVerification: true,
+      autoSignIn: true,
       sendResetPassword: async ({ user, url, token }) => {
         const isDev = this.configService.isDevelopment;
         const parsed = new URL(url);
@@ -272,14 +272,15 @@ export class AuthConfig {
   private advanced(): BetterAuthOptions['advanced'] {
     return {
       cookiePrefix: this.configService.authConfig.cookiePrefix,
-      useSecureCookies: true,
+      useSecureCookies: this.configService.isProduction,
       disableCSRFCheck: false,
+      crossSubDomainCookies: {
+        enabled: !this.configService.isProduction,
+      },
       defaultCookieAttributes: {
         httpOnly: true,
         secure: true,
-      },
-      database: {
-        generateId: () => uuidv7(),
+        sameSite: this.configService.isProduction ? 'Strict' : 'None',
       },
     };
   }
