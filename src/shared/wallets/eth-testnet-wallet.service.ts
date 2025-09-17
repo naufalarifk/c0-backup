@@ -4,6 +4,7 @@ import { HDKey } from '@scure/bip32';
 import { ethers } from 'ethers';
 
 import { BaseEthereumWallet } from './base-ethereum-wallet';
+import { WalletProvider } from './Iwallet.service';
 import { IWallet, IWalletService } from './Iwallet.types';
 
 class EthereumTestnetWallet extends BaseEthereumWallet {
@@ -16,6 +17,7 @@ class EthereumTestnetWallet extends BaseEthereumWallet {
 }
 
 @Injectable()
+@WalletProvider('eip155:11155111')
 export class EthTestnetWalletService extends IWalletService {
   get bip44CoinType(): number {
     return 60;

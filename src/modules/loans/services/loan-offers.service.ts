@@ -1,6 +1,11 @@
 import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 
+import { HDKey } from '@scure/bip32';
+import { generateMnemonic, mnemonicToSeed } from '@scure/bip39';
+import { wordlist } from '@scure/bip39/wordlists/english';
+
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { WalletFactory } from '../../../shared/wallets/Iwallet.service';
 import { LenderType, LoanOfferStatus, PaginationMetaDto } from '../dto/common.dto';
 import {
   CreateLoanOfferDto,
@@ -30,6 +35,7 @@ export class LoanOffersService {
   constructor(
     @Inject(CryptogadaiRepository)
     private readonly repository: CryptogadaiRepository,
+    private readonly walletFactory: WalletFactory,
   ) {}
 
   /**
@@ -67,6 +73,31 @@ export class LoanOffersService {
         ? new Date(createLoanOfferDto.expirationDate)
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
+      // Generate wallet for funding
+      const mnemonic = generateMnemonic(wordlist);
+      const seed = await mnemonicToSeed(mnemonic);
+      const masterKey = HDKey.fromMasterSeed(seed);
+
+      const walletService = this.walletFactory.getWalletService(
+        createLoanOfferDto.principalBlockchainKey,
+      );
+      if (!walletService) {
+        throw new BadRequestException(
+          `Unsupported blockchain key: ${createLoanOfferDto.principalBlockchainKey}`,
+        );
+      }
+
+      // Generate unique derivation path for this loan offer
+      const offerTimestamp = Date.now();
+      const derivationPath = `m/44'/${walletService.bip44CoinType}'/1100'/0/${offerTimestamp % 2147483647}`;
+
+      // Create wallet and get address
+      const wallet = await walletService.derivedPathToWallet({
+        masterKey,
+        derivationPath,
+      });
+      const walletAddress = await wallet.getAddress();
+
       const result = await this.repository.lenderCreatesLoanOffer({
         lenderUserId: lenderId,
         principalBlockchainKey: createLoanOfferDto.principalBlockchainKey,
@@ -78,6 +109,8 @@ export class LoanOffersService {
         termInMonthsOptions: createLoanOfferDto.termOptions,
         expirationDate,
         createdDate,
+        fundingWalletAddress: walletAddress,
+        fundingWalletDerivationPath: derivationPath,
       });
 
       return {

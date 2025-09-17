@@ -12,6 +12,7 @@ import { AuthConfig } from './modules/auth/auth.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { BeneficiariesModule } from './modules/beneficiaries/beneficiaries.module';
 import { InstitutionsModule } from './modules/institutions/institutions.module';
+import { LoansModule } from './modules/loans/loans.module';
 import { UsersModule } from './modules/users/users.module';
 import { WithdrawalsModule } from './modules/withdrawals/withdrawals.module';
 import { AppConfigService } from './shared/services/app-config.service';
@@ -54,6 +55,7 @@ import { TestController } from './test.controller';
     AccountsModule,
     BeneficiariesModule,
     WithdrawalsModule,
+    LoansModule,
     AdminModule,
   ],
   providers: [

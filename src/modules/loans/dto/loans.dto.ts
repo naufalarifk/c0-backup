@@ -38,7 +38,7 @@ export class LoanBreakdownDto {
   })
   @IsString()
   @IsDecimalAmount()
-  originationFeeAmount: string;
+  provisionFeeAmount: string;
 
   @ApiProperty({
     description: 'Total amount to repay',

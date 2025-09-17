@@ -18,6 +18,7 @@ import { MinioMockService } from './services/minio-mock.service';
 import { RedisService } from './services/redis.service';
 import { TelemetryService } from './services/telemetry.service';
 import { TwilioService } from './services/twilio.service';
+import { WalletsModule } from './wallets/wallets.module';
 
 const providers: Provider[] = [
   AppConfigService,
@@ -45,8 +46,15 @@ const providers: Provider[] = [
 @Global()
 @Module({
   providers,
-  imports: [CqrsModule, CryptographyModule, DatabaseModule, RepositoryModule],
+  imports: [CqrsModule, CryptographyModule, DatabaseModule, RepositoryModule, WalletsModule],
   controllers: [MinioMockController],
-  exports: [...providers, CqrsModule, CryptographyModule, DatabaseModule, RepositoryModule],
+  exports: [
+    ...providers,
+    CqrsModule,
+    CryptographyModule,
+    DatabaseModule,
+    RepositoryModule,
+    WalletsModule,
+  ],
 })
 export class SharedModule {}

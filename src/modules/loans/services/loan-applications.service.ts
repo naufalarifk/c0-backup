@@ -1,6 +1,11 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 
+import { HDKey } from '@scure/bip32';
+import { generateMnemonic, mnemonicToSeed } from '@scure/bip39';
+import { wordlist } from '@scure/bip39/wordlists/english';
+
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { WalletFactory } from '../../../shared/wallets/Iwallet.service';
 import {
   CurrencyDto,
   InvoiceDto,
@@ -21,7 +26,10 @@ import {
 export class LoanApplicationsService {
   private readonly logger = new Logger(LoanApplicationsService.name);
 
-  constructor(private readonly cryptogadaiRepository: CryptogadaiRepository) {}
+  constructor(
+    private readonly cryptogadaiRepository: CryptogadaiRepository,
+    private readonly walletFactory: WalletFactory,
+  ) {}
 
   async calculateLoanRequirements(
     calculationRequest: LoanCalculationRequestDto,
@@ -29,15 +37,31 @@ export class LoanApplicationsService {
     this.logger.log('Calculating loan requirements for request');
 
     try {
+      // Validate principal amount is positive
+      const principalAmount = parseFloat(calculationRequest.principalAmount);
+      if (principalAmount <= 0) {
+        throw new BadRequestException('Principal amount must be greater than zero');
+      }
+
+      // Validate term in months
+      const termInMonths = calculationRequest.termInMonths || 6;
+      if (termInMonths < 1 || termInMonths > 60) {
+        throw new BadRequestException('Term in months must be between 1 and 60');
+      }
+
       const result = await this.cryptogadaiRepository.borrowerCalculatesLoanRequirements({
         collateralBlockchainKey: calculationRequest.collateralBlockchainKey,
         collateralTokenId: calculationRequest.collateralTokenId,
         principalBlockchainKey: calculationRequest.principalBlockchainKey,
         principalTokenId: calculationRequest.principalTokenId,
         principalAmount: calculationRequest.principalAmount,
-        termInMonths: calculationRequest.termInMonths || 6,
+        termInMonths: termInMonths,
         calculationDate: new Date(),
       });
+
+      if (!result.success) {
+        throw new BadRequestException('Failed to calculate loan requirements');
+      }
 
       return {
         success: result.success,
@@ -74,7 +98,22 @@ export class LoanApplicationsService {
       };
     } catch (error) {
       this.logger.error('Failed to calculate loan requirements', error);
-      throw new BadRequestException('Failed to calculate loan requirements');
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      // Handle specific repository errors
+      if (error.message?.includes('Exchange rate not found')) {
+        throw new BadRequestException('Exchange rate not available for the selected currency pair');
+      }
+      if (
+        error.message?.includes('Currency not found') ||
+        error.message?.includes('not supported')
+      ) {
+        throw new BadRequestException('One or more currencies are not supported');
+      }
+      throw new BadRequestException(
+        'Failed to calculate loan requirements. Please check your input parameters.',
+      );
     }
   }
 
@@ -85,6 +124,37 @@ export class LoanApplicationsService {
     this.logger.log(`Creating loan application for borrower: ${borrowerId}`);
 
     try {
+      // Generate wallet information for collateral deposit
+      const mnemonic = generateMnemonic(wordlist, 256);
+      const seed = await mnemonicToSeed(mnemonic);
+      const masterKey = HDKey.fromMasterSeed(seed);
+
+      // Get wallet service for collateral blockchain
+      const walletService = this.walletFactory.getWalletService(
+        createLoanApplicationDto.collateralBlockchainKey,
+      );
+
+      if (!walletService) {
+        throw new BadRequestException(
+          `Unsupported collateral blockchain: ${createLoanApplicationDto.collateralBlockchainKey}`,
+        );
+      }
+
+      // Generate unique derivation path for this loan application
+      const applicationTimestamp = Date.now();
+      const derivationPath = `m/44'/${walletService.bip44CoinType}'/1200'/0/${applicationTimestamp % 2147483647}`;
+
+      // Create wallet and get address
+      const wallet = await walletService.derivedPathToWallet({
+        masterKey,
+        derivationPath,
+      });
+      const walletAddress = await wallet.getAddress();
+
+      if (!walletAddress) {
+        throw new BadRequestException('Failed to generate wallet address for collateral deposit');
+      }
+
       const result = await this.cryptogadaiRepository.borrowerCreatesLoanApplication({
         borrowerUserId: borrowerId,
         collateralBlockchainKey: createLoanApplicationDto.collateralBlockchainKey,
@@ -97,6 +167,8 @@ export class LoanApplicationsService {
         liquidationMode: createLoanApplicationDto.liquidationMode,
         appliedDate: new Date(),
         expirationDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+        collateralWalletDerivationPath: derivationPath,
+        collateralWalletAddress: walletAddress,
       });
 
       // Map the result to our response DTO
@@ -142,13 +214,31 @@ export class LoanApplicationsService {
             decimals: result.collateralCurrency.decimals,
             logoUrl: `https://assets.cryptogadai.com/currencies/${result.collateralCurrency.symbol.toLowerCase()}.png`,
           },
-          walletAddress: '0x742d35Cc6634C0532925a3b8D...', // TODO: Get from blockchain service
+          walletAddress: walletAddress,
           expiryDate: result.collateralDepositInvoice.expiryDate.toISOString(),
         },
       };
     } catch (error) {
       this.logger.error(`Failed to create loan application: ${error.message}`, error.stack);
-      throw error;
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+      // Handle specific repository/wallet errors
+      if (error.message?.includes('WalletService not supported')) {
+        throw new BadRequestException(
+          `Unsupported blockchain: ${createLoanApplicationDto.collateralBlockchainKey}`,
+        );
+      }
+      if (error.message?.includes('Exchange rate not found')) {
+        throw new BadRequestException('Exchange rate not available for the selected currency pair');
+      }
+      if (error.message?.includes('Currency not found')) {
+        throw new BadRequestException('One or more currencies are not supported');
+      }
+      if (error.message?.includes('Insufficient balance') || error.message?.includes('balance')) {
+        throw new BadRequestException('Insufficient balance to create loan application');
+      }
+      throw new BadRequestException('Failed to create loan application. Please try again.');
     }
   }
 
@@ -159,6 +249,14 @@ export class LoanApplicationsService {
     this.logger.log(`Getting loan applications for borrower: ${borrowerId}`);
 
     try {
+      // Validate pagination parameters
+      if (pagination.page < 1) {
+        throw new BadRequestException('Page number must be greater than 0');
+      }
+      if (pagination.limit < 1 || pagination.limit > 100) {
+        throw new BadRequestException('Limit must be between 1 and 100');
+      }
+
       const result = await this.cryptogadaiRepository.borrowerViewsMyLoanApplications({
         borrowerUserId: borrowerId,
         page: pagination.page,
@@ -209,7 +307,7 @@ export class LoanApplicationsService {
               decimals: app.collateralCurrency.decimals,
               logoUrl: `https://assets.cryptogadai.com/currencies/${app.collateralCurrency.symbol.toLowerCase()}.png`,
             },
-            walletAddress: '0x742d35Cc6634C0532925a3b8D...', // TODO: Get from blockchain service
+            walletAddress: 'Wallet address available via invoice details', // List view doesn't include wallet address
             expiryDate: app.expirationDate.toISOString(),
           },
         };
@@ -233,7 +331,14 @@ export class LoanApplicationsService {
       };
     } catch (error) {
       this.logger.error(`Failed to get loan applications: ${error.message}`, error.stack);
-      throw error;
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+      // Handle repository errors
+      if (error.message?.includes('not found') || error.message?.includes('does not exist')) {
+        throw new NotFoundException('User not found or no loan applications available');
+      }
+      throw new BadRequestException('Failed to retrieve loan applications. Please try again.');
     }
   }
 
@@ -248,15 +353,21 @@ export class LoanApplicationsService {
       let action: 'cancel' | 'modify';
       let closureReason: string | undefined;
 
+      // Validate action
+      if (!updateLoanApplicationDto.action) {
+        throw new BadRequestException('Action is required');
+      }
+
       // Map DTO action to repository action
       if (updateLoanApplicationDto.action === 'Cancel') {
         action = 'cancel';
         closureReason = 'Cancelled by borrower';
       } else {
-        action = 'modify';
+        throw new BadRequestException(`Unsupported action: ${updateLoanApplicationDto.action}`);
       }
 
-      const result = await this.cryptogadaiRepository.borrowerUpdatesLoanApplication({
+      // Perform the update
+      await this.cryptogadaiRepository.borrowerUpdatesLoanApplication({
         loanApplicationId: applicationId,
         borrowerUserId: borrowerId,
         action,
@@ -264,9 +375,25 @@ export class LoanApplicationsService {
         closureReason,
       });
 
+      // Fetch the updated loan application details
+      const applicationsResult = await this.cryptogadaiRepository.borrowerViewsMyLoanApplications({
+        borrowerUserId: borrowerId,
+        page: 1,
+        limit: 100, // Use a large limit to ensure we find the application
+      });
+
+      // Find the specific application that was updated
+      const updatedApplication = applicationsResult.loanApplications.find(
+        app => app.id === applicationId,
+      );
+
+      if (!updatedApplication) {
+        throw new NotFoundException(`Loan application ${applicationId} not found after update`);
+      }
+
       // Convert repository status to DTO status
       let dtoStatus: LoanApplicationStatus;
-      switch (result.status) {
+      switch (updatedApplication.status) {
         case 'PendingCollateral':
           dtoStatus = LoanApplicationStatus.DRAFT;
           break;
@@ -286,34 +413,53 @@ export class LoanApplicationsService {
           dtoStatus = LoanApplicationStatus.DRAFT;
       }
 
-      // For updates/cancellations, we return minimal response since repository only returns updated fields
+      // Return the full updated loan application details
       return {
-        id: result.id,
+        id: updatedApplication.id,
         borrowerId,
-        collateralCurrency: 'Unknown', // Not available in update response
-        principalAmount: '0.000000000000000000', // Not available in update response
+        collateralCurrency: updatedApplication.collateralCurrency.symbol,
+        principalAmount: updatedApplication.principalAmount,
         status: dtoStatus,
-        createdDate: result.updatedDate.toISOString(),
-        publishedDate: undefined,
-        expiryDate: result.expirationDate?.toISOString() || new Date().toISOString(),
+        createdDate: updatedApplication.appliedDate.toISOString(),
+        publishedDate: updatedApplication.publishedDate?.toISOString(),
+        expiryDate: updatedApplication.expirationDate.toISOString(),
         collateralInvoice: {
-          id: `inv_${result.id}`,
-          amount: '0.000000000000000000',
+          id: `inv_${updatedApplication.id}`, // Generated invoice ID from application ID for list view
+          amount: updatedApplication.collateralDepositAmount,
           currency: {
-            blockchainKey: 'unknown',
-            tokenId: 'unknown',
-            symbol: 'Unknown',
-            name: 'Unknown',
-            decimals: 18,
-            logoUrl: '',
+            blockchainKey: updatedApplication.collateralCurrency.blockchainKey,
+            tokenId: updatedApplication.collateralCurrency.tokenId,
+            symbol: updatedApplication.collateralCurrency.symbol,
+            name: updatedApplication.collateralCurrency.name,
+            decimals: updatedApplication.collateralCurrency.decimals,
+            logoUrl: `https://assets.cryptogadai.com/currencies/${updatedApplication.collateralCurrency.symbol.toLowerCase()}.png`,
           },
-          walletAddress: '0x742d35Cc6634C0532925a3b8D...',
-          expiryDate: result.expirationDate?.toISOString() || new Date().toISOString(),
+          walletAddress: 'Wallet address available via invoice details', // List view doesn't include wallet address
+          expiryDate: updatedApplication.expirationDate.toISOString(),
         },
       };
     } catch (error) {
       this.logger.error(`Failed to update loan application: ${error.message}`, error.stack);
-      throw error;
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+      // Handle specific repository errors
+      if (error.message?.includes('not found') || error.message?.includes('does not exist')) {
+        throw new NotFoundException(`Loan application ${applicationId} not found`);
+      }
+      if (
+        error.message?.includes('not authorized') ||
+        error.message?.includes('permission denied')
+      ) {
+        throw new NotFoundException(`Loan application ${applicationId} not found`); // Don't expose authorization details
+      }
+      if (
+        error.message?.includes('cannot be modified') ||
+        error.message?.includes('invalid status')
+      ) {
+        throw new BadRequestException('Loan application cannot be modified in its current status');
+      }
+      throw new BadRequestException('Failed to update loan application. Please try again.');
     }
   }
 }

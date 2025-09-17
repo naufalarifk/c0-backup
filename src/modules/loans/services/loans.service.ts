@@ -127,7 +127,7 @@ export class LoansService {
           loanBreakdown: {
             principalAmount: loan.principalAmount,
             interestAmount: loan.interestAmount,
-            originationFeeAmount: this.calculateOriginationFee(loan.principalAmount),
+            provisionFeeAmount: this.calculateProvisionFee(loan.principalAmount),
             totalRepaymentAmount: loan.repaymentAmount,
           },
         };
@@ -222,7 +222,7 @@ export class LoansService {
         loanBreakdown: {
           principalAmount: result.principalAmount,
           interestAmount: result.interestAmount,
-          originationFeeAmount: this.calculateOriginationFee(result.principalAmount),
+          provisionFeeAmount: this.calculateProvisionFee(result.principalAmount),
           totalRepaymentAmount: result.redeliveryAmount,
         },
       };
@@ -452,6 +452,8 @@ export class LoansService {
     }
   }
 
+  //todo fix calculation precision, use big number
+
   private calculateInterestRate(interestAmount: string, principalAmount: string): number {
     const interest = parseFloat(interestAmount);
     const principal = parseFloat(principalAmount);
@@ -464,8 +466,9 @@ export class LoansService {
     return Math.round(diffMonths);
   }
 
-  private calculateOriginationFee(principalAmount: string): string {
+  private calculateProvisionFee(principalAmount: string): string {
     const principal = parseFloat(principalAmount);
+    // get from platform.sql loan provision rate
     const fee = principal * 0.03; // 3% fee
     return fee.toFixed(18);
   }
