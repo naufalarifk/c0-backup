@@ -114,9 +114,7 @@ export class BeneficiariesController {
       const errorRedirectURL = callbackURL || '/';
 
       return res.redirect(
-        `${errorRedirectURL}?status=error&message=${encodeURIComponent(
-          error?.message || 'Verification failed',
-        )}`,
+        `${errorRedirectURL}?status=error&message=${error?.message || 'Verification failed'}`,
       );
     }
   }
