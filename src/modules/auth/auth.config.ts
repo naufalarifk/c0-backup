@@ -166,8 +166,8 @@ export class AuthConfig {
   private emailAndPassword(): BetterAuthOptions['emailAndPassword'] {
     return {
       enabled: true,
-      requireEmailVerification: true,
       autoSignIn: true,
+      requireEmailVerification: false, // autoSignIn wont work if true
       sendResetPassword: async ({ user, url, token }) => {
         const isDev = this.configService.isDevelopment;
         const parsed = new URL(url);
