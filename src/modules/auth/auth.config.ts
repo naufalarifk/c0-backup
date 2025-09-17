@@ -24,10 +24,10 @@ import { RedisService } from '../../shared/services/redis.service';
 import { TwilioService } from '../../shared/services/twilio.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { EmailVerificationNotificationData } from '../notifications/composers/email-verification-notification.composer';
+import { EmailPasswordResetNotificationData } from '../notifications/composers/password-reset-notification.composer';
 import { UserRegisteredNotificationData } from '../notifications/composers/user-registered-notification.composer';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
 import { authAdapter } from './auth.adapter';
-import { forgotPasswordEmail } from './template/forget-password';
 
 @Injectable()
 export class AuthConfig {
@@ -178,20 +178,23 @@ export class AuthConfig {
           ? `${this.configService.appConfig.expoUrl}${callbackURL}?token=${token}`
           : `${this.configService.appConfig.scheme}${callbackURL}?token=${token}`;
 
-        const html = forgotPasswordEmail({
+        const notificationData: EmailPasswordResetNotificationData = {
+          type: 'PasswordResetRequested',
+          email: user.email,
           url,
-          userName: user.email,
-          companyName: this.configService.appConfig.name,
           deepLink,
-        });
+        };
 
-        const emailConfirmTitle = 'Reset your password';
+        await this.notificationQueueService.queueNotification(notificationData);
+      },
+      onPasswordReset: async ({ user }) => {
+        console.log('user :>> ', user);
+        // const notificationData: SMSPasswordResetCompletedNotificationData = {
+        //   type: 'PasswordResetCompleted',
+        //   phoneNumber: user.phoneNumber,
+        // };
 
-        await this.mailerService.sendMail({
-          to: user.email,
-          subject: emailConfirmTitle,
-          html,
-        });
+        // await this.notificationQueueService.queueNotification(notificationData);
       },
     };
   }
@@ -265,8 +268,8 @@ export class AuthConfig {
   private rateLimit(): BetterAuthOptions['rateLimit'] {
     return {
       enabled: true,
-      window: +this.configService.throttlerConfigs.ttl,
-      max: +this.configService.throttlerConfigs.limit,
+      window: +this.configService.rateLimitConfigs.ttl,
+      max: +this.configService.rateLimitConfigs.limit,
       customRules: {
         '/sign-in/*': {
           window: 60,
