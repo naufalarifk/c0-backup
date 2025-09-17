@@ -117,8 +117,13 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
 
     try {
       for (const schemaPath of schemaPaths) {
-        const schemaSqlQueries = await readFile(schemaPath, { encoding: 'utf-8' });
-        await client.query(schemaSqlQueries);
+        try {
+          const schemaSqlQueries = await readFile(schemaPath, { encoding: 'utf-8' });
+          await client.query(schemaSqlQueries);
+        } catch (error) {
+          this.#logger.error('Error applying schema', { schemaPath, error });
+          throw error;
+        }
       }
     } finally {
       // CRITICAL: Always release the client back to the pool
