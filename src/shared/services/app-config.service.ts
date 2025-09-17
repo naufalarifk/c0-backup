@@ -2,6 +2,8 @@ import type { ThrottlerOptions } from '@nestjs/throttler';
 import type { SocialProviders } from 'better-auth/social-providers';
 import type { RedisOptions } from 'ioredis';
 
+import { networkInterfaces } from 'node:os';
+
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
@@ -214,9 +216,14 @@ export class AppConfigService {
   }
 
   get authConfig() {
+    const betterAuthDefaultUrl = this.getDefaultAuthUrl();
+    let betterAuthUrl = this.getString('BETTER_AUTH_URL', betterAuthDefaultUrl);
+    if (betterAuthUrl === 'local') {
+      betterAuthUrl = betterAuthDefaultUrl;
+    }
     return {
       secret: this.getString('BETTER_AUTH_SECRET', 'your-secret'),
-      url: this.getString('BETTER_AUTH_URL'),
+      url: betterAuthUrl,
       expirationTime: this.getNumber('BETTER_AUTH_EXPIRATION_TIME'),
       cookiePrefix: this.getString('BETTER_AUTH_COOKIE_PREFIX'),
       maximumSessions: this.getNumber('BETTER_AUTH_MAXIMUM_SESSIONS'),
@@ -256,5 +263,25 @@ export class AppConfigService {
     invariant(value != null, `Environment variable ${key} is not set`);
 
     return value;
+  }
+
+  private getDefaultAuthUrl(): string {
+    const ip = this.getLocalNetworkIP();
+    if (typeof ip === 'string') {
+      return `http://${ip}:${this.appConfig.port}`;
+    }
+    return 'http://localhost:3000';
+  }
+
+  private getLocalNetworkIP(): string | null {
+    const interfaces = networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name]!) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          return iface.address;
+        }
+      }
+    }
+    return null;
   }
 }
