@@ -1,8 +1,7 @@
 import type { BetterAuthOptions } from 'better-auth';
-import type { DrizzleDB } from '../../shared/database/database.module';
 import type { AuthModuleOptions } from './auth.module';
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { expo } from '@better-auth/expo';
 import { sso } from '@better-auth/sso';
@@ -17,14 +16,13 @@ import {
 } from 'better-auth/plugins';
 import { v7 as uuidv7 } from 'uuid';
 
-import { DRIZZLE_DB } from '../../shared/database/database.module';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../shared/services/app-config.service';
 import { MailerService } from '../../shared/services/mailer.service';
 import { MinioService } from '../../shared/services/minio.service';
 import { RedisService } from '../../shared/services/redis.service';
 import { TwilioService } from '../../shared/services/twilio.service';
-import { TelemetryLogger } from '../../telemetry.logger';
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { EmailVerificationNotificationData } from '../notifications/composers/email-verification-notification.composer';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
 import { authAdapter } from './auth.adapter';
@@ -35,7 +33,6 @@ export class AuthConfig {
   private readonly logger = new TelemetryLogger(AuthConfig.name);
 
   constructor(
-    @Inject(DRIZZLE_DB) readonly _database: DrizzleDB,
     private readonly configService: AppConfigService,
     private readonly mailerService: MailerService,
     private readonly twilioService: TwilioService,

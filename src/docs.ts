@@ -5,7 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { apiReference } from '@scalar/nestjs-api-reference';
 
 import { AuthService } from './modules/auth/auth.service';
-import { TelemetryLogger } from './telemetry.logger';
+import { TelemetryLogger } from './shared/telemetry.logger';
 
 export default async function docs(app: NestExpressApplication, url: string) {
   const authService = app.get<AuthService>(AuthService);

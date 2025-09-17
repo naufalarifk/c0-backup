@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { Redis } from 'ioredis';
 import { Pool, PoolClient } from 'pg';
 
-import { TelemetryLogger } from '../../telemetry.logger';
+import { TelemetryLogger } from '../telemetry.logger';
 import { DbRepository } from './base.repository';
 import { CryptogadaiRepository } from './cryptogadai.repository';
 
@@ -117,8 +117,13 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
 
     try {
       for (const schemaPath of schemaPaths) {
-        const schemaSqlQueries = await readFile(schemaPath, { encoding: 'utf-8' });
-        await client.query(schemaSqlQueries);
+        try {
+          const schemaSqlQueries = await readFile(schemaPath, { encoding: 'utf-8' });
+          await client.query(schemaSqlQueries);
+        } catch (error) {
+          this.#logger.error('Error applying schema', { schemaPath, error });
+          throw error;
+        }
       }
     } finally {
       // CRITICAL: Always release the client back to the pool

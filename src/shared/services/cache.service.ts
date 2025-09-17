@@ -2,7 +2,7 @@ import type { CacheOptions } from '../types/redis.types';
 
 import { Injectable } from '@nestjs/common';
 
-import { TelemetryLogger } from '../../telemetry.logger';
+import { TelemetryLogger } from '../telemetry.logger';
 import { RedisService } from './redis.service';
 
 @Injectable()

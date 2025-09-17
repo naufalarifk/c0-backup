@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { FileValidatorService } from '../../../shared/services/file-validator.service';
 import { MinioService } from '../../../shared/services/minio.service';
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { File } from '../../../shared/types';
-import { TelemetryLogger } from '../../../telemetry.logger';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()

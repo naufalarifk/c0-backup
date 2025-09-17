@@ -21,7 +21,6 @@ import { UserKycRejectedNotificationComposer } from './composers/user-kyc-reject
 import { UserKycVerifiedNotificationComposer } from './composers/user-kyc-verified-notification.composer';
 import { UserRegisteredNotificationComposer } from './composers/user-registered-notification.composer';
 import { WithdrawalRequestedNotificationComposer } from './composers/withdrawal-requested-notification.composer';
-import { NotificationProcessor } from './notification.processor';
 import { NotificationService } from './notification.service';
 import { NotificationComposerFactory } from './notification-composer.factory';
 import { NotificationProviderFactory } from './notification-provider.factory';
@@ -42,7 +41,6 @@ import { SMSNotificationProvider } from './providers/sms-notification.provider';
     // Core services
     NotificationService,
     NotificationQueueService,
-    NotificationProcessor,
 
     // Factories
     NotificationComposerFactory,
@@ -75,6 +73,6 @@ import { SMSNotificationProvider } from './providers/sms-notification.provider';
     UserKycRejectedNotificationComposer,
     WithdrawalRequestedNotificationComposer,
   ],
-  exports: [NotificationQueueService],
+  exports: [NotificationQueueService, NotificationService],
 })
 export class NotificationModule {}

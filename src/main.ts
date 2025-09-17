@@ -1,107 +1,40 @@
-import type { NestExpressApplication } from '@nestjs/platform-express';
-import type { Request } from 'express';
+import { networkInterfaces } from 'node:os';
+import { argv, env } from 'node:process';
 
-import { randomUUID } from 'crypto';
+import { notificationEntrypoint } from './entrypoints/notification.entrypoint';
+import { userApiEntrypoint } from './entrypoints/user-api.entrypoint';
 
-import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
-import { NestFactory, Reflector } from '@nestjs/core';
-import { ExpressAdapter } from '@nestjs/platform-express';
+const [, , ...commands] = argv;
 
-import compression from 'compression';
-import helmet from 'helmet';
-import morgan from 'morgan';
-
-import { AppModule } from './app.module';
-import docs from './docs';
-import { GlobalExceptionFilter } from './filters';
-import { ResolvePromisesInterceptor, TelemetryInterceptor } from './shared/interceptors';
-import { AppConfigService } from './shared/services/app-config.service';
-import { SharedModule } from './shared/shared.module';
-import { validationOptions } from './shared/utils';
-import { TelemetryLogger } from './telemetry.logger';
-
-async function bootstrap() {
-  const logger = new TelemetryLogger();
-
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter(), {
-    bodyParser: false,
-    logger,
-  });
-
-  const reflector = app.get(Reflector);
-  const configService = app.select(SharedModule).get(AppConfigService);
-
-  app.use(
-    helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: [
-            "'self'",
-            "'unsafe-inline'",
-            "'unsafe-eval'", // Scalar might need this
-            'https://cdn.jsdelivr.net',
-          ],
-          styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
-          imgSrc: ["'self'", 'data:', 'https:'],
-          fontSrc: ["'self'", 'https:', 'data:'],
-          connectSrc: ["'self'", 'https://cdn.jsdelivr.net'],
-        },
-      },
-    }),
-  );
-  app.use(compression());
-
-  // Add request ID middleware
-  app.use((req: Request, res, next) => {
-    const requestId = req.get('x-request-id') || req.get('request-id') || randomUUID();
-    req.headers['x-request-id'] = requestId;
-    res.set('x-request-id', requestId);
-    next();
-  });
-
-  app.use(
-    morgan(
-      ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :req[x-request-id] - :response-time ms',
-      {
-        stream: {
-          write: (message: string) => logger.log(message.trim()),
-        },
-        skip(req: Request, _res) {
-          const url = req.originalUrl || req.url || '';
-          // Disable access logging for the healthcheck endpoint to keep logs clean
-          return /^(\/api)?\/health(\/|$)/.test(url);
-        },
-      },
-    ),
-  );
-
-  app.setGlobalPrefix('api');
-  app.enableVersioning();
-
-  app.useGlobalFilters(new GlobalExceptionFilter());
-
-  app.useGlobalInterceptors(
-    app.get(TelemetryInterceptor),
-    new ResolvePromisesInterceptor(),
-    new ClassSerializerInterceptor(reflector),
-  );
-
-  app.useGlobalPipes(new ValidationPipe(validationOptions));
-
-  if (configService.documentationEnabled) {
-    await docs(app, configService.authConfig.url);
-  }
-
-  // Starts listening for shutdown hooks
-  if (!configService.isDevelopment) {
-    app.enableShutdownHooks();
-  }
-
-  const port = configService.appConfig.port;
-  await app.listen(port, async () => {
-    logger.log(`Server is listening at ${await app.getUrl()}`);
-    logger.log(`Current environment is: ${configService.nodeEnv}`);
-  });
+if ('BETTER_AUTH_URL' in env && env.BETTER_AUTH_URL === 'local') {
+  env.BETTER_AUTH_URL = getDefaultAuthUrl();
 }
-void bootstrap();
+
+if (commands.includes('api')) {
+  void userApiEntrypoint();
+}
+
+if (commands.includes('notification')) {
+  void notificationEntrypoint();
+}
+
+function getDefaultAuthUrl(): string {
+  const defaultIP = getLocalNetworkIP();
+  const defaultPort = 'PORT' in env ? env.PORT : '3000';
+  if (typeof defaultIP === 'string') {
+    return `http://${defaultIP}:${defaultPort}`;
+  }
+  return 'http://localhost:3000';
+}
+
+function getLocalNetworkIP(): string | null {
+  const interfaces = networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]!) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return null;
+}

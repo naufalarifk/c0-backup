@@ -1,11 +1,11 @@
-import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
-import { NotificationWorkerModule } from './notification-worker.module';
+import { TelemetryLogger } from '../shared/telemetry.logger';
+import { NotificationEntrypointModule } from './notification.module';
 
-async function bootstrap() {
-  const app = await NestFactory.createApplicationContext(NotificationWorkerModule);
-  const logger = new Logger('NotificationWorker');
+export async function notificationEntrypoint() {
+  const app = await NestFactory.createApplicationContext(NotificationEntrypointModule);
+  const logger = new TelemetryLogger('NotificationWorker');
 
   // Handle graceful shutdown
   process.on('SIGINT', async () => {
@@ -22,8 +22,3 @@ async function bootstrap() {
 
   logger.log('Notification worker started successfully');
 }
-
-bootstrap().catch(error => {
-  console.error('Failed to start notification worker:', error);
-  process.exit(1);
-});

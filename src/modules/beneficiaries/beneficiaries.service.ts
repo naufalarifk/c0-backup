@@ -11,6 +11,7 @@ import {
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../shared/services/app-config.service';
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import {
   ensure,
   ensureExists,
@@ -18,7 +19,6 @@ import {
   ensureUnique,
   ResponseHelper,
 } from '../../shared/utils';
-import { TelemetryLogger } from '../../telemetry.logger';
 import { BeneficiaryVerificationNotificationData } from '../notifications/composers/beneficiary-verification.composer';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
 import { CreateBeneficiaryDto } from './dto/create-beneficiary.dto';

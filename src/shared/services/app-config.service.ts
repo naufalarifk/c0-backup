@@ -2,15 +2,13 @@ import type { ThrottlerOptions } from '@nestjs/throttler';
 import type { SocialProviders } from 'better-auth/social-providers';
 import type { RedisOptions } from 'ioredis';
 
+import { networkInterfaces } from 'node:os';
+
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { drizzle } from 'drizzle-orm/node-postgres';
 import parse from 'parse-duration';
-import { Pool } from 'pg';
 import invariant from 'tiny-invariant';
-
-import * as schema from '../database/schema';
 
 @Injectable()
 export class AppConfigService {
@@ -134,12 +132,6 @@ export class AppConfigService {
     return this.getBoolean('DATABASE_LOGGER');
   }
 
-  get drizzleConfig() {
-    const pool = new Pool({ connectionString: this.databaseUrl });
-
-    return drizzle(pool, { logger: this.databaseLogger, schema, casing: 'snake_case' });
-  }
-
   get throttlerConfigs(): ThrottlerOptions {
     return {
       ttl: this.getDuration('THROTTLER_TTL', 'second'),
@@ -215,9 +207,11 @@ export class AppConfigService {
   }
 
   get authConfig() {
+    const betterAuthDefaultUrl = this.getDefaultAuthUrl();
+    const betterAuthUrl = this.getString('BETTER_AUTH_URL', betterAuthDefaultUrl);
     return {
       secret: this.getString('BETTER_AUTH_SECRET', 'your-secret'),
-      url: this.getString('BETTER_AUTH_URL'),
+      url: betterAuthUrl === 'local' ? betterAuthDefaultUrl : betterAuthUrl,
       expirationTime: this.getNumber('BETTER_AUTH_EXPIRATION_TIME'),
       cookiePrefix: this.getString('BETTER_AUTH_COOKIE_PREFIX'),
       maximumSessions: this.getNumber('BETTER_AUTH_MAXIMUM_SESSIONS'),
@@ -257,5 +251,25 @@ export class AppConfigService {
     invariant(value != null, `Environment variable ${key} is not set`);
 
     return value;
+  }
+
+  private getDefaultAuthUrl(): string {
+    const ip = this.getLocalNetworkIP();
+    if (typeof ip === 'string') {
+      return `http://${ip}:${this.appConfig.port}`;
+    }
+    return 'http://localhost:3000';
+  }
+
+  private getLocalNetworkIP(): string | null {
+    const interfaces = networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name]!) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          return iface.address;
+        }
+      }
+    }
+    return null;
   }
 }
