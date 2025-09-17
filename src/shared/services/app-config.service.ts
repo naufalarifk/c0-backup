@@ -134,7 +134,14 @@ export class AppConfigService {
 
   get throttlerConfigs(): ThrottlerOptions {
     return {
-      ttl: this.getDuration('THROTTLER_TTL', 'second'),
+      ttl: this.getDuration('THROTTLER_TTL'),
+      limit: this.getNumber('THROTTLER_LIMIT'),
+    };
+  }
+
+  get rateLimitConfigs(): ThrottlerOptions {
+    return {
+      ttl: this.getDuration('THROTTLER_TTL', 's'),
       limit: this.getNumber('THROTTLER_LIMIT'),
     };
   }
@@ -235,10 +242,10 @@ export class AppConfigService {
 
   get minioConfig() {
     return {
-      endpoint: this.getString('MINIO_ENDPOINT', 'localhost:9000'),
+      endpoint: this.getString('MINIO_ENDPOINT'),
       accessKey: this.getString('MINIO_ROOT_USER', 'minioadmin'),
       secretKey: this.getString('MINIO_ROOT_PASSWORD', 'minioadmin'),
-      useSSL: this.getBoolean('MINIO_USE_SSL', false),
+      useSSL: this.getBoolean('MINIO_USE_SSL'),
       defaultBuckets: this.getString('MINIO_DEFAULT_BUCKETS', 'uploads,documents,images')
         .split(',')
         .map(bucket => bucket.trim()),

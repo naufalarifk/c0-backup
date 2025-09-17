@@ -55,10 +55,15 @@ export class UsersService {
   }
 
   async getProviderAccounts(userId: string) {
-    const accounts = await this.repo.betterAuthFindManyAccounts([
-      { field: 'userId', value: userId },
-    ]);
+    const raw = await this.repo
+      .sql`SELECT provider_id FROM auth_providers WHERE user_id = ${userId}`;
 
-    return accounts.map(account => account.providerId);
+    if (raw.length === 0) {
+      return [];
+    }
+
+    const accounts = raw as { provider_id: string }[];
+
+    return accounts.map(account => account.provider_id);
   }
 }

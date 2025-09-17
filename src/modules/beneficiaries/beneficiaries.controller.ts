@@ -1,7 +1,9 @@
+import type { Response } from 'express';
 import type { UserSession } from '../auth/types';
 
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Res } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 
 import { Auth } from '../../decorators/auth.decorator';
 import { Session } from '../auth/auth.decorator';
@@ -15,6 +17,7 @@ export class BeneficiariesController {
   constructor(private readonly beneficiariesService: BeneficiariesService) {}
 
   @Post()
+  @Throttle({ default: { limit: 3 } })
   @ApiOperation({
     summary: 'Register withdrawal address',
     description: 'Register a new beneficiary address for cryptocurrency withdrawals',
@@ -29,6 +32,7 @@ export class BeneficiariesController {
           blockchainKey: 'eip155:56',
           address: '0x1234567890abcdef1234567890abcdef12345678',
           label: 'My BSC Exchange Address',
+          callbackURL: 'https://example.com/withdrawals',
         },
       },
       ethUsdc: {
@@ -38,6 +42,7 @@ export class BeneficiariesController {
           blockchainKey: 'eip155:1',
           address: '0x8ba1f109551bd432803012645aa136ba40b34567',
           label: 'Hardware Wallet Ethereum',
+          callbackURL: '/withdrawals',
         },
       },
       solUsdc: {
@@ -47,6 +52,7 @@ export class BeneficiariesController {
           blockchainKey: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
           address: '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM',
           label: 'Solana Mobile Wallet',
+          callbackURL: '/withdrawals',
         },
       },
     },
@@ -55,10 +61,6 @@ export class BeneficiariesController {
     status: 201,
     description: 'Beneficiary address registered successfully',
   })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid request data',
-  })
   create(@Session() session: UserSession, @Body() createBeneficiaryDto: CreateBeneficiaryDto) {
     return this.beneficiariesService.create(session.user.id, createBeneficiaryDto);
   }
@@ -66,7 +68,8 @@ export class BeneficiariesController {
   @Get('verify')
   @ApiOperation({
     summary: 'Verify beneficiary address',
-    description: 'Verify and activate a beneficiary address using the token sent via email',
+    description:
+      'Verify and activate a beneficiary address using the token sent via email. On successful verification, redirects to the callback URL.',
   })
   @ApiQuery({
     name: 'token',
@@ -81,8 +84,9 @@ export class BeneficiariesController {
     required: false,
   })
   @ApiResponse({
-    status: 200,
-    description: 'Beneficiary address verified and activated successfully',
+    status: 302,
+    description:
+      'Beneficiary address verified and activated successfully, redirecting to callback URL',
   })
   @ApiResponse({
     status: 400,
@@ -92,8 +96,29 @@ export class BeneficiariesController {
     status: 409,
     description: 'Address already exists or conflicts with existing beneficiary',
   })
-  verify(@Query('token') token: string, @Query('callbackURL') callbackURL?: string) {
-    return this.beneficiariesService.verify({ token, callbackURL });
+  async verify(
+    @Query('token') token: string,
+    @Query('callbackURL') callbackURL: string | undefined,
+    @Res() res: Response,
+  ) {
+    try {
+      const result = await this.beneficiariesService.verify({ token, callbackURL });
+
+      // Extract redirect URL from the service response
+      const redirectURL = result.data?.redirectURL || '/';
+
+      // Redirect to the callback URL with success status
+      return res.redirect(`${redirectURL}?status=success&beneficiaryId=${result.data?.id}`);
+    } catch (error) {
+      // On error, redirect to callback URL with error status
+      const errorRedirectURL = callbackURL || '/';
+
+      return res.redirect(
+        `${errorRedirectURL}?status=error&message=${encodeURIComponent(
+          error?.message || 'Verification failed',
+        )}`,
+      );
+    }
   }
 
   @Get()

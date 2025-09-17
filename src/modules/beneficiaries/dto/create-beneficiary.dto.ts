@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsOptional, IsString, Length, Matches } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
 
 import { IsValidBlockchainAddress } from './validators/blockchain-address.validator';
 
@@ -77,4 +77,12 @@ export class CreateBeneficiaryDto {
   @IsString({ message: 'Label must be a string' })
   @Transform(({ value }) => value?.trim().replace(/\s+/g, ' '))
   label?: string;
+
+  @ApiProperty({
+    description: 'Optional callback URL for withdrawal status updates',
+    examples: ['https://example.com/withdrawals', '/withdrawals'],
+  })
+  @IsOptional()
+  @IsString({ message: 'Callback URL must be a string' })
+  callbackURL?: string;
 }

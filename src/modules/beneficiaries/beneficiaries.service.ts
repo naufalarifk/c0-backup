@@ -196,8 +196,8 @@ export class BeneficiariesService {
    * Verifies a beneficiary address using the email verification token
    * Creates the beneficiary record in database after successful verification
    *
-   * @param verifyDto - DTO containing the verification token
-   * @returns Created and activated beneficiary details
+   * @param verifyDto - DTO containing the verification token and optional callbackURL
+   * @returns Created and activated beneficiary details with redirect URL
    * @throws Error if token is invalid, expired, or verification fails
    */
   async verify(verifyDto: VerifyBeneficiaryDto) {
@@ -227,6 +227,9 @@ export class BeneficiariesService {
       address: tokenPayload.address,
     });
 
+    // Determine redirect URL: prioritize URL from query params, then from token, then default
+    const redirectURL = verifyDto.callbackURL || '/';
+
     return ResponseHelper.success('Beneficiary address activated', {
       id: beneficiary.id,
       blockchainKey: beneficiary.blockchainKey,
@@ -234,6 +237,7 @@ export class BeneficiariesService {
       label: tokenPayload.label,
       status: 'active',
       message: 'Your withdrawal address has been successfully verified and activated.',
+      redirectURL, // Include redirect URL for frontend to handle
     });
   }
 
@@ -249,35 +253,25 @@ export class BeneficiariesService {
     token: string,
     beneficiaryDto: CreateBeneficiaryDto,
   ): Promise<void> {
-    try {
-      // Get user details for email
-      const user = await this.repo.betterAuthFindOneUser([{ field: 'id', value: userId }]);
-      ensureExists(user, 'User not found');
+    // Get user details for email
+    const user = await this.repo.betterAuthFindOneUser([{ field: 'id', value: userId }]);
+    ensureExists(user, 'User not found');
 
-      // Queue verification email notification
-      const notificationData: BeneficiaryVerificationNotificationData = {
-        type: 'BeneficiaryVerification',
-        url: `${this.configService.authConfig.url}/api/beneficiaries/verify?token=${token}`,
-        email: user.email,
-        blockchain: beneficiaryDto.blockchainKey,
-        address: beneficiaryDto.address,
-        label: beneficiaryDto.label,
-      };
-      await this.notificationQueueService.queueNotification(notificationData);
-
-      this.logger.log('Verification email queued', {
-        userId,
-        address: beneficiaryDto.address,
-      });
-    } catch (error) {
-      this.logger.error('Failed to send verification email', error);
-      throw new Error('Failed to send verification email. Please try again.');
-    }
+    // Queue verification email notification
+    const notificationData: BeneficiaryVerificationNotificationData = {
+      type: 'BeneficiaryVerification',
+      url: `${this.configService.authConfig.url}/api/beneficiaries/verify?token=${token}&callbackURL=${beneficiaryDto.callbackURL || '/'}`,
+      email: user.email,
+      blockchain: beneficiaryDto.blockchainKey,
+      address: beneficiaryDto.address,
+      label: beneficiaryDto.label,
+    };
+    await this.notificationQueueService.queueNotification(notificationData);
   }
 
   /**
    * Generates a JWT verification token for beneficiary data
-   * @param payload - Data to encode in the JWT including optional label
+   * @param payload - Data to encode in the JWT including optional label and callbackURL
    * @returns Signed JWT token with 6 hour expiry
    */
   private async generateBeneficiaryToken(payload: {
@@ -285,6 +279,7 @@ export class BeneficiariesService {
     address: string;
     blockchain: string;
     label?: string;
+    callbackURL?: string;
   }): Promise<string> {
     return await signJWT(
       payload,
@@ -326,7 +321,6 @@ export class BeneficiariesService {
       if (error instanceof JWTExpired) {
         this.logger.warn('JWT token has expired', { token: tokenPreview });
         throw new BadRequestException({
-          error: 'token_expired',
           message: 'Verification token has expired. Please request a new verification email.',
         });
       }
@@ -336,7 +330,6 @@ export class BeneficiariesService {
           token: tokenPreview,
         });
         throw new BadRequestException({
-          error: 'signature_invalid',
           message: 'Invalid verification token signature. Please request a new verification email.',
         });
       }
@@ -348,7 +341,6 @@ export class BeneficiariesService {
           reason: error.reason,
         });
         throw new BadRequestException({
-          error: 'claim_invalid',
           message:
             'Verification token contains invalid claims. Please request a new verification email.',
         });
@@ -360,7 +352,6 @@ export class BeneficiariesService {
           reason: error.message,
         });
         throw new BadRequestException({
-          error: 'invalid_token',
           message: 'Invalid verification token format. Please request a new verification email.',
         });
       }
@@ -372,7 +363,6 @@ export class BeneficiariesService {
         token: tokenPreview,
       });
       throw new BadRequestException({
-        error: 'verification_failed',
         message: 'Token verification failed. Please request a new verification email.',
       });
     }
