@@ -5,18 +5,18 @@ import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
-import { HealthcheckController } from './healthcheck.controller';
-import { AccountsModule } from './modules/accounts/accounts.module';
-import { AdminModule } from './modules/admin/admin.module';
-import { AuthConfig } from './modules/auth/auth.config';
-import { AuthModule } from './modules/auth/auth.module';
-import { BeneficiariesModule } from './modules/beneficiaries/beneficiaries.module';
-import { InstitutionsModule } from './modules/institutions/institutions.module';
-import { UsersModule } from './modules/users/users.module';
-import { WithdrawalsModule } from './modules/withdrawals/withdrawals.module';
-import { AppConfigService } from './shared/services/app-config.service';
-import { SharedModule } from './shared/shared.module';
-import { TestController } from './test.controller';
+import { AccountsModule } from '../modules/accounts/accounts.module';
+import { AdminModule } from '../modules/admin/admin.module';
+import { AuthConfig } from '../modules/auth/auth.config';
+import { AuthModule } from '../modules/auth/auth.module';
+import { BeneficiariesModule } from '../modules/beneficiaries/beneficiaries.module';
+import { InstitutionsModule } from '../modules/institutions/institutions.module';
+import { UsersModule } from '../modules/users/users.module';
+import { WithdrawalsModule } from '../modules/withdrawals/withdrawals.module';
+import { HealthcheckController } from '../shared/healthcheck.controller';
+import { AppConfigService } from '../shared/services/app-config.service';
+import { SharedModule } from '../shared/shared.module';
+import { TestController } from '../shared/test.controller';
 
 @Module({
   imports: [

@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 
-import { CryptogadaiRepository } from './shared/repositories/cryptogadai.repository';
+import { CryptogadaiRepository } from './repositories/cryptogadai.repository';
 import { TelemetryLogger } from './telemetry.logger';
 
 @Controller()

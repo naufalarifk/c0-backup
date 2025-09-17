@@ -3,7 +3,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { extension as getExtension, lookup as getMimeType } from 'mime-types';
 import * as Minio from 'minio';
 
-import { TelemetryLogger } from '../../telemetry.logger';
+import { TelemetryLogger } from '../telemetry.logger';
 import { AppConfigService } from './app-config.service';
 
 export interface UploadResult {

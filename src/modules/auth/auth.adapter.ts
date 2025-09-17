@@ -5,8 +5,8 @@ import { BetterAuthError } from 'better-auth';
 import { createAdapter } from 'better-auth/adapters';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { unknownErrorToPlain } from '../../shared/utils';
-import { TelemetryLogger } from '../../telemetry.logger';
 
 interface AuthAdapterOptions {
   userRepo: CryptogadaiRepository;

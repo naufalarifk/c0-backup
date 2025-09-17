@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { Redis } from 'ioredis';
 import { Pool, PoolClient } from 'pg';
 
-import { TelemetryLogger } from '../../telemetry.logger';
+import { TelemetryLogger } from '../telemetry.logger';
 import { DbRepository } from './base.repository';
 import { CryptogadaiRepository } from './cryptogadai.repository';
 

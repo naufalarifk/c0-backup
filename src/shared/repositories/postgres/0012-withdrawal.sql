@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS beneficiaries (
 ALTER TABLE beneficiaries DROP CONSTRAINT IF EXISTS fk_beneficiaries_currency;
 ALTER TABLE beneficiaries DROP COLUMN IF EXISTS currency_blockchain_key;
 ALTER TABLE beneficiaries DROP COLUMN IF EXISTS currency_token_id;
+ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS blockchain_key VARCHAR(64);
+ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS address VARCHAR(64);
 DO $$ 
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'fk_beneficiaries_blockchain') THEN

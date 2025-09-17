@@ -6,7 +6,7 @@ import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Auth } from '../../../decorators/auth.decorator';
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { MinioService } from '../../../shared/services/minio.service';
-import { TelemetryLogger } from '../../../telemetry.logger';
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { Session } from '../../auth/auth.decorator';
 
 @Controller('admin/kyc')

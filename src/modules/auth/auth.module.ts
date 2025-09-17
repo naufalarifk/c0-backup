@@ -23,7 +23,7 @@ import { toNodeHandler } from 'better-auth/node';
 import { createAuthMiddleware } from 'better-auth/plugins';
 import invariant from 'tiny-invariant';
 
-import { TelemetryLogger } from '../../telemetry.logger';
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { NotificationModule } from '../notifications/notification.module';
 import { AuthFilter } from './auth.filter';
 import { AuthMiddleware } from './auth.middleware';

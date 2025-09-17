@@ -1,10 +1,9 @@
 # 🚀 CryptoGadai Backend API
 
-> NestJS backend application with Better Auth, Drizzle ORM, blockchain integration, and comprehensive financial services
+> NestJS backend application with Better Auth, blockchain integration, and comprehensive financial services
 
 [![NestJS](https://img.shields.io/badge/NestJS-v11-red?logo=nestjs)](https://nestjs.com)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?logo=typescript)](https://typescriptlang.org)
-[![Drizzle](https://img.shields.io/badge/Drizzle-ORM-green?logo=drizzle)](https://orm.drizzle.team)
 [![Better Auth](https://img.shields.io/badge/Better-Auth-purple)](https://better-auth.com)
 [![BullMQ](https://img.shields.io/badge/BullMQ-Queue-orange)](https://docs.bullmq.io)
 
@@ -466,7 +465,6 @@ chmod +x .lefthook/pre-commit/*
 
 ### **Framework Documentation**
 - [NestJS Documentation](https://docs.nestjs.com/)
-- [Drizzle ORM Documentation](https://orm.drizzle.team/)
 - [Better Auth Documentation](https://www.better-auth.com/)
 
 ### **Development Tools**

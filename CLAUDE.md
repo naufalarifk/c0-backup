@@ -49,7 +49,6 @@ src/
 │   ├── users/              # User management + KYC
 │   └── wallets/            # HD wallet management
 ├── shared/                 # Shared infrastructure
-│   ├── database/           # Drizzle schema & migrations (Deprecated, we use Repository Module)
 │   ├── repositories/       # Data access layer with test suites
 │   ├── services/           # Cross-cutting services
 │   ├── filters/            # Global exception handling
