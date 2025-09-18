@@ -34,7 +34,7 @@ export class AuthConfig {
 
   constructor(
     private readonly configService: AppConfigService,
-    private readonly mailerService: MailerService,
+    readonly _mailerService: MailerService,
     private readonly twilioService: TwilioService,
     private readonly redisService: RedisService,
     private readonly repo: CryptogadaiRepository,

@@ -12,11 +12,11 @@ describe('Loans API (e2e)', () => {
   let app: INestApplication;
   let authService: AuthService;
   let repository: CryptogadaiRepository;
-  let testUser: TestUser;
+  let _testUser: TestUser;
   let authToken: string;
-  let lenderAuthToken: string;
-  let borrowerUserId: string;
-  let lenderUserId: string;
+  let _lenderAuthToken: string;
+  let _borrowerUserId: string;
+  let _lenderUserId: string;
   let realLoanId: string;
 
   beforeAll(async () => {
@@ -90,7 +90,7 @@ describe('Loans API (e2e)', () => {
     // Get borrower session cookie and user ID
     const borrowerCookies = borrowerResponse.headers.get('set-cookie');
     authToken = borrowerCookies || '';
-    borrowerUserId = borrowerResponse.response.user.id;
+    _borrowerUserId = borrowerResponse.response.user.id;
 
     // Create lender user (different from borrower)
     const lenderUser = TestUserFactory.createUser();
@@ -101,8 +101,8 @@ describe('Loans API (e2e)', () => {
 
     // Get lender session cookie and user ID
     const lenderCookies = lenderResponse.headers.get('set-cookie');
-    lenderAuthToken = lenderCookies || '';
-    lenderUserId = lenderResponse.response.user.id;
+    _lenderAuthToken = lenderCookies || '';
+    _lenderUserId = lenderResponse.response.user.id;
 
     // Create a real loan for testing liquidation/repayment operations
     // First, set up platform configuration with unique date
@@ -166,7 +166,7 @@ describe('Loans API (e2e)', () => {
     await repository.sql`UPDATE loan_applications SET status = 'Published' WHERE id = ${loanApplicationResult.id}`;
 
     // Match the loan offer and application
-    const matchResult = await repository.platformMatchesLoanOffers({
+    const _matchResult = await repository.platformMatchesLoanOffers({
       loanApplicationId: loanApplicationResult.id,
       loanOfferId: loanOfferResult.id,
       matchedDate: new Date('2025-01-03'),

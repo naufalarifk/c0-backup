@@ -593,7 +593,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         const userId = userCreationResult.users[0].id;
-        const baseDate = new Date('2024-01-01T10:00:00Z');
+        const _baseDate = new Date('2024-01-01T10:00:00Z');
         const invoiceDate = new Date('2024-01-01T06:00:00Z'); // Created earlier
         const dueDatePast = new Date('2024-01-01T08:00:00Z');
 
