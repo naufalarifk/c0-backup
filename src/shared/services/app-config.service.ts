@@ -129,7 +129,7 @@ export class AppConfigService {
   }
 
   get databaseLogger() {
-    return this.getBoolean('DATABASE_LOGGER');
+    return this.getBoolean('DATABASE_LOGGER', false);
   }
 
   get throttlerConfigs(): ThrottlerOptions {
