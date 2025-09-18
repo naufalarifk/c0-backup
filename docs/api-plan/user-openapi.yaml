@@ -19,7 +19,6 @@ security:
   - bearerAuth: []
 
 paths:
-
   # User Type Selection
   /users/type-selection:
     post:
@@ -42,13 +41,13 @@ paths:
               individual:
                 summary: Select Individual user type
                 value:
-                  userType: "Individual"
+                  userType: Individual
               institution:
                 summary: Select Institution user type
                 value:
-                  userType: "Institution"
+                  userType: Institution
       responses:
-        '200':
+        200:
           description: User type selected successfully
           content:
             application/json:
@@ -64,16 +63,16 @@ paths:
                 individual_selected:
                   summary: Individual type selected
                   value:
-                    userType: "Individual"
-                    message: "User type Individual successfully selected"
+                    userType: Individual
+                    message: User type Individual successfully selected
                 institution_selected:
                   summary: Institution type selected
                   value:
-                    userType: "Institution"
-                    message: "User type Institution successfully selected"
-        '400':
+                    userType: Institution
+                    message: User type Institution successfully selected
+        400:
           $ref: '#/components/responses/ValidationError'
-        '409':
+        409:
           description: User type already selected
           content:
             application/json:
@@ -89,8 +88,8 @@ paths:
                 already_selected:
                   summary: User type already selected
                   value:
-                    userType: "Individual"
-                    message: "User type already selected"
+                    userType: Individual
+                    message: User type already selected
 
   # User Profile Management
   /users/profile:
@@ -99,7 +98,7 @@ paths:
       summary: Get user profile
       description: Retrieves user profile information and available actions
       responses:
-        '200':
+        200:
           description: Profile retrieved successfully
           content:
             application/json:
@@ -114,59 +113,59 @@ paths:
                   value:
                     user:
                       id: 12345
-                      role: "User"
-                      email: "john.doe@example.com"
-                      emailVerifiedDate: "2024-01-15T10:30:00Z"
-                      name: "John Doe"
-                      profilePictureUrl: "https://storage.cryptogadai.com/profiles/12345.jpg"
+                      role: User
+                      email: john.doe@example.com
+                      emailVerifiedDate: 2024-01-15T10:30:00Z
+                      name: John Doe
+                      profilePictureUrl: https://storage.cryptogadai.com/profiles/12345.jpg
                       googleId: null
-                      userType: "Individual"
+                      userType: Individual
                       kycId: 567
-                      kycStatus: "verified"
+                      kycStatus: verified
                       institutionId: null
                       institutionRole: null
                       twoFaEnabled: false
-                      createdDate: "2024-01-10T08:00:00Z"
-                      lastLoginDate: "2024-03-15T14:20:00Z"
+                      createdDate: 2024-01-10T08:00:00Z
+                      lastLoginDate: 2024-03-15T14:20:00Z
                 institution_owner:
                   summary: Institution owner profile
                   value:
                     user:
                       id: 98765
-                      role: "User"
-                      email: "ceo@techcorp.com"
-                      emailVerifiedDate: "2024-02-01T09:15:00Z"
-                      name: "Jane Smith"
-                      profilePictureUrl: "https://storage.cryptogadai.com/profiles/98765.jpg"
-                      googleId: "google_123456789"
-                      userType: "Institution"
+                      role: User
+                      email: ceo@techcorp.com
+                      emailVerifiedDate: 2024-02-01T09:15:00Z
+                      name: Jane Smith
+                      profilePictureUrl: https://storage.cryptogadai.com/profiles/98765.jpg
+                      googleId: google_123456789
+                      userType: Institution
                       kycId: null
-                      kycStatus: "none"
+                      kycStatus: none
                       institutionId: 98765
-                      institutionRole: "Owner"
+                      institutionRole: Owner
                       twoFaEnabled: true
-                      createdDate: "2024-01-20T10:00:00Z"
-                      lastLoginDate: "2024-03-15T16:45:00Z"
+                      createdDate: 2024-01-20T10:00:00Z
+                      lastLoginDate: 2024-03-15T16:45:00Z
                 new_user_no_type:
                   summary: New user without type selection
                   value:
                     user:
                       id: 54321
-                      role: "User"
-                      email: "newuser@example.com"
-                      emailVerifiedDate: "2024-03-14T12:00:00Z"
-                      name: "Alex Johnson"
+                      role: User
+                      email: newuser@example.com
+                      emailVerifiedDate: 2024-03-14T12:00:00Z
+                      name: Alex Johnson
                       profilePictureUrl: null
                       googleId: null
                       userType: null
                       kycId: null
-                      kycStatus: "none"
+                      kycStatus: none
                       institutionId: null
                       institutionRole: null
                       twoFaEnabled: false
-                      createdDate: "2024-03-14T12:00:00Z"
-                      lastLoginDate: "2024-03-15T09:30:00Z"
-        '401':
+                      createdDate: 2024-03-14T12:00:00Z
+                      lastLoginDate: 2024-03-15T09:30:00Z
+        401:
           $ref: '#/components/responses/Unauthorized'
 
     put:
@@ -191,14 +190,14 @@ paths:
               name_only:
                 summary: Update name only
                 value:
-                  name: "John Michael Doe"
+                  name: John Michael Doe
               with_picture:
                 summary: Update name and profile picture
                 value:
-                  name: "John Michael Doe"
-                  profilePicture: "[Binary image data]"
+                  name: John Michael Doe
+                  profilePicture: [Binary image data]
       responses:
-        '200':
+        200:
           description: Profile updated successfully
           content:
             application/json:
@@ -219,19 +218,19 @@ paths:
                   summary: Name updated successfully
                   value:
                     user:
-                      name: "John Michael Doe"
-                      profilePictureUrl: "https://storage.cryptogadai.com/profiles/12345.jpg"
-                    message: "Profile updated successfully"
+                      name: John Michael Doe
+                      profilePictureUrl: https://storage.cryptogadai.com/profiles/12345.jpg
+                    message: Profile updated successfully
                 picture_updated:
                   summary: Name and picture updated
                   value:
                     user:
-                      name: "John Michael Doe"
-                      profilePictureUrl: "https://storage.cryptogadai.com/profiles/12345_new.jpg"
-                    message: "Profile updated successfully"
-        '400':
+                      name: John Michael Doe
+                      profilePictureUrl: https://storage.cryptogadai.com/profiles/12345_new.jpg
+                    message: Profile updated successfully
+        400:
           $ref: '#/components/responses/ValidationError'
-        '413':
+        413:
           $ref: '#/components/responses/FileTooLarge'
 
   # KYC Management
@@ -250,7 +249,7 @@ paths:
               properties:
                 nik:
                   type: string
-                  pattern: '^[0-9]{16}$'
+                  pattern: ^[0-9]{16}$
                   description: 16-digit NIK
                 name:
                   type: string
@@ -282,7 +281,7 @@ paths:
                   description: Complete residential address
                 postalCode:
                   type: string
-                  pattern: '^[0-9]{5}$'
+                  pattern: ^[0-9]{5}$
                 idCardPhoto:
                   type: string
                   format: binary
@@ -293,35 +292,35 @@ paths:
               jakarta_resident:
                 summary: Jakarta resident KYC submission
                 value:
-                  nik: "3171012345678901"
-                  name: "John Doe Prasetyo"
-                  birthCity: "Jakarta"
-                  birthDate: "1990-05-15"
-                  province: "DKI Jakarta"
-                  city: "Jakarta Pusat"
-                  district: "Menteng"
-                  subdistrict: "Menteng"
-                  address: "Jl. MH Thamrin No. 123, RT 001 RW 002"
-                  postalCode: "10350"
-                  idCardPhoto: "[Binary image data - ID card]"
-                  selfieWithIdCardPhoto: "[Binary image data - Selfie with ID]"
+                  nik: 3171012345678901
+                  name: John Doe Prasetyo
+                  birthCity: Jakarta
+                  birthDate: 1990-05-15
+                  province: DKI Jakarta
+                  city: Jakarta Pusat
+                  district: Menteng
+                  subdistrict: Menteng
+                  address: Jl. MH Thamrin No. 123, RT 001 RW 002
+                  postalCode: 10350
+                  idCardPhoto: [Binary image data - ID card]
+                  selfieWithIdCardPhoto: [Binary image data - Selfie with ID]
               surabaya_resident:
                 summary: Surabaya resident KYC submission
                 value:
-                  nik: "3578012345678901"
-                  name: "Siti Aminah"
-                  birthCity: "Surabaya"
-                  birthDate: "1985-12-20"
-                  province: "Jawa Timur"
-                  city: "Surabaya"
-                  district: "Gubeng"
-                  subdistrict: "Gubeng"
-                  address: "Jl. Pemuda No. 45, RT 003 RW 001"
-                  postalCode: "60281"
-                  idCardPhoto: "[Binary image data - ID card]"
-                  selfieWithIdCardPhoto: "[Binary image data - Selfie with ID]"
+                  nik: 3578012345678901
+                  name: Siti Aminah
+                  birthCity: Surabaya
+                  birthDate: 1985-12-20
+                  province: Jawa Timur
+                  city: Surabaya
+                  district: Gubeng
+                  subdistrict: Gubeng
+                  address: Jl. Pemuda No. 45, RT 003 RW 001
+                  postalCode: 60281
+                  idCardPhoto: [Binary image data - ID card]
+                  selfieWithIdCardPhoto: [Binary image data - Selfie with ID]
       responses:
-        '201':
+        201:
           description: KYC submitted successfully
           content:
             application/json:
@@ -338,15 +337,15 @@ paths:
                   value:
                     kycSubmission:
                       id: 567
-                      status: "pending"
-                      submittedDate: "2024-03-15T10:30:00Z"
+                      status: pending
+                      submittedDate: 2024-03-15T10:30:00Z
                       verifiedDate: null
                       rejectedDate: null
                       rejectionReason: null
-                    message: "KYC documents submitted successfully and are under review"
-        '400':
+                    message: KYC documents submitted successfully and are under review
+        400:
           $ref: '#/components/responses/ValidationError'
-        '409':
+        409:
           $ref: '#/components/responses/DuplicateNIK'
 
   /users/kyc/status:
@@ -355,7 +354,7 @@ paths:
       summary: Get KYC status
       description: Retrieves current KYC verification status
       responses:
-        '200':
+        200:
           description: KYC status retrieved
           content:
             application/json:
@@ -374,11 +373,11 @@ paths:
                 pending_review:
                   summary: KYC pending review
                   value:
-                    kycStatus: "pending"
+                    kycStatus: pending
                     submission:
                       id: 567
-                      status: "pending"
-                      submittedDate: "2024-03-15T10:30:00Z"
+                      status: pending
+                      submittedDate: 2024-03-15T10:30:00Z
                       verifiedDate: null
                       rejectedDate: null
                       rejectionReason: null
@@ -386,34 +385,33 @@ paths:
                 verified_kyc:
                   summary: KYC verified
                   value:
-                    kycStatus: "verified"
+                    kycStatus: verified
                     submission:
                       id: 567
-                      status: "verified"
-                      submittedDate: "2024-03-15T10:30:00Z"
-                      verifiedDate: "2024-03-16T14:20:00Z"
+                      status: verified
+                      submittedDate: 2024-03-15T10:30:00Z
+                      verifiedDate: 2024-03-16T14:20:00Z
                       rejectedDate: null
                       rejectionReason: null
                     canResubmit: false
                 rejected_kyc:
                   summary: KYC rejected with resubmit option
                   value:
-                    kycStatus: "rejected"
+                    kycStatus: rejected
                     submission:
                       id: 567
-                      status: "rejected"
-                      submittedDate: "2024-03-15T10:30:00Z"
+                      status: rejected
+                      submittedDate: 2024-03-15T10:30:00Z
                       verifiedDate: null
-                      rejectedDate: "2024-03-16T16:45:00Z"
-                      rejectionReason: "ID card photo quality is too low. Please upload a clearer image."
+                      rejectedDate: 2024-03-16T16:45:00Z
+                      rejectionReason: ID card photo quality is too low. Please upload a clearer image.
                     canResubmit: true
                 no_submission:
                   summary: No KYC submission yet
                   value:
-                    kycStatus: "none"
+                    kycStatus: none
                     submission: null
                     canResubmit: true
-
 
   # Institution Management
   /institutions/apply:
@@ -438,7 +436,7 @@ paths:
                   description: NIB or TDP number
                 npwpNumber:
                   type: string
-                  pattern: '^[0-9]{2}\\.[0-9]{3}\\.[0-9]{3}\\.[0-9]-[0-9]{3}\\.[0-9]{3}$'
+                  pattern: ^[0-9]{2}\\.[0-9]{3}\\.[0-9]{3}\\.[0-9]-[0-9]{3}\\.[0-9]{3}$
                   maxLength: 20
                   description: NPWP number in format XX.XXX.XXX.X-XXX.XXX
                 businessType:
@@ -464,7 +462,7 @@ paths:
                   description: Complete business address
                 postalCode:
                   type: string
-                  pattern: '^[0-9]{5,10}$'
+                  pattern: ^[0-9]{5,10}$
                   maxLength: 10
                 directorName:
                   type: string
@@ -503,49 +501,49 @@ paths:
               tech_company:
                 summary: Technology company application
                 value:
-                  businessName: "PT Teknologi Nusantara"
-                  registrationNumber: "8120202123456"
-                  npwpNumber: "01.234.567.8-901.000"
-                  businessType: "PT"
-                  businessDescription: "Technology consulting and software development services"
-                  province: "DKI Jakarta"
-                  city: "Jakarta Selatan"
-                  district: "Kebayoran Baru"
-                  subdistrict: "Senayan"
-                  address: "Jl. Asia Afrika No. 8, Komplex Gelora Bung Karno"
-                  postalCode: "10270"
-                  directorName: "Budi Santoso"
-                  directorPosition: "CEO"
-                  npwpDocument: "[Binary PDF - NPWP document]"
-                  registrationDocument: "[Binary PDF - NIB certificate]"
-                  deedOfEstablishment: "[Binary PDF - Akta Pendirian]"
-                  directorIdCard: "[Binary Image - Director's KTP]"
-                  ministryApprovalDocument: "[Binary PDF - SK Kemenkumham]"
-                  businessLicense: "[Binary PDF - Additional license]"
+                  businessName: PT Teknologi Nusantara
+                  registrationNumber: 8120202123456
+                  npwpNumber: 01.234.567.8-901.000
+                  businessType: PT
+                  businessDescription: Technology consulting and software development services
+                  province: DKI Jakarta
+                  city: Jakarta Selatan
+                  district: Kebayoran Baru
+                  subdistrict: Senayan
+                  address: Jl. Asia Afrika No. 8, Komplex Gelora Bung Karno
+                  postalCode: 10270
+                  directorName: Budi Santoso
+                  directorPosition: CEO
+                  npwpDocument: [Binary PDF - NPWP document]
+                  registrationDocument: [Binary PDF - NIB certificate]
+                  deedOfEstablishment: [Binary PDF - Akta Pendirian]
+                  directorIdCard: '[Binary Image - Directors KTP]'
+                  ministryApprovalDocument: [Binary PDF - SK Kemenkumham]
+                  businessLicense: [Binary PDF - Additional license]
               trading_company:
                 summary: Trading company application
                 value:
-                  businessName: "CV Mitra Jaya Trading"
-                  registrationNumber: "1234567890123"
-                  npwpNumber: "02.345.678.9-012.000"
-                  businessType: "CV"
-                  businessDescription: "Import and export trading company specializing in electronics"
-                  province: "Jawa Timur"
-                  city: "Surabaya"
-                  district: "Wonokromo"
-                  subdistrict: "Wonokromo"
-                  address: "Jl. Raya Darmo No. 123"
-                  postalCode: "60241"
-                  directorName: "Siti Rahayu"
-                  directorPosition: "Director"
-                  npwpDocument: "[Binary PDF - NPWP document]"
-                  registrationDocument: "[Binary PDF - TDP certificate]"
-                  deedOfEstablishment: "[Binary PDF - Akta Pendirian]"
-                  directorIdCard: "[Binary Image - Director's KTP]"
-                  ministryApprovalDocument: "[Binary PDF - Ministry approval]"
-                  businessLicense: "[Binary PDF - Trading license]"
+                  businessName: CV Mitra Jaya Trading
+                  registrationNumber: 1234567890123
+                  npwpNumber: 02.345.678.9-012.000
+                  businessType: CV
+                  businessDescription: Import and export trading company specializing in electronics
+                  province: Jawa Timur
+                  city: Surabaya
+                  district: Wonokromo
+                  subdistrict: Wonokromo
+                  address: Jl. Raya Darmo No. 123
+                  postalCode: 60241
+                  directorName: Siti Rahayu
+                  directorPosition: Director
+                  npwpDocument: [Binary PDF - NPWP document]
+                  registrationDocument: [Binary PDF - TDP certificate]
+                  deedOfEstablishment: [Binary PDF - Akta Pendirian]
+                  directorIdCard: '[Binary Image - Directors KTP]'
+                  ministryApprovalDocument: [Binary PDF - Ministry approval]
+                  businessLicense: [Binary PDF - Trading license]
       responses:
-        '201':
+        201:
           description: Application submitted successfully
           content:
             application/json:
@@ -562,15 +560,14 @@ paths:
                   value:
                     application:
                       id: 789
-                      businessName: "PT Teknologi Nusantara"
-                      submittedDate: "2024-03-15T14:30:00Z"
-                      status: "Submitted"
-                    message: "Institution application submitted successfully and is under review"
-        '400':
+                      businessName: PT Teknologi Nusantara
+                      submittedDate: 2024-03-15T14:30:00Z
+                      status: Submitted
+                    message: Institution application submitted successfully and is under review
+        400:
           $ref: '#/components/responses/ValidationError'
-        '409':
+        409:
           $ref: '#/components/responses/BusinessNameExists'
-
 
   /institutions/invitations:
     post:
@@ -598,16 +595,16 @@ paths:
               finance_member:
                 summary: Invite finance member
                 value:
-                  userEmail: "finance.manager@example.com"
-                  role: "Finance"
-                  message: "We would like to invite you to join our institution as Finance member to help manage our lending operations."
+                  userEmail: finance.manager@example.com
+                  role: Finance
+                  message: We would like to invite you to join our institution as Finance member to help manage our lending operations.
               simple_invitation:
                 summary: Simple invitation without message
                 value:
-                  userEmail: "john.doe@example.com"
-                  role: "Finance"
+                  userEmail: john.doe@example.com
+                  role: Finance
       responses:
-        '201':
+        201:
           description: Invitation created
           content:
             application/json:
@@ -622,12 +619,12 @@ paths:
                   value:
                     invitation:
                       id: 123
-                      userEmail: "finance.manager@example.com"
-                      role: "Finance"
-                      invitedDate: "2024-03-15T16:30:00Z"
-        '400':
+                      userEmail: finance.manager@example.com
+                      role: Finance
+                      invitedDate: 2024-03-15T16:30:00Z
+        400:
           $ref: '#/components/responses/UserNotFound'
-        '409':
+        409:
           $ref: '#/components/responses/UserAlreadyMember'
 
   /institutions/invitations/{id}/accept:
@@ -644,7 +641,7 @@ paths:
             format: int64
           example: 123
       responses:
-        '200':
+        200:
           description: Invitation accepted
           content:
             application/json:
@@ -669,10 +666,10 @@ paths:
                   value:
                     institution:
                       id: 98765
-                      businessName: "PT Teknologi Nusantara"
-                      role: "Finance"
-                    message: "You have successfully joined PT Teknologi Nusantara as Finance member"
-        '400':
+                      businessName: PT Teknologi Nusantara
+                      role: Finance
+                    message: You have successfully joined PT Teknologi Nusantara as Finance member
+        400:
           $ref: '#/components/responses/InvitationExpired'
 
   # Notification Management
@@ -704,30 +701,60 @@ paths:
           description: Filter by notification type
           schema:
             type: string
-            enum: [
+            enum:
               # Authentication notifications
-              'UserRegistered', 'EmailVerificationSent', 'EmailVerified', 'PasswordResetRequested',
-              'PasswordResetCompleted', 'TwoFactorEnabled', 'TwoFactorDisabled', 'LoginFromNewDevice', 'SuspiciousLoginAttempt',
+              - UserRegistered
+              - EmailVerificationSent
+              - EmailVerified
+              - PasswordResetRequested
+              - PasswordResetCompleted
+              - TwoFactorEnabled
+              - TwoFactorDisabled
+              - LoginFromNewDevice
+              - SuspiciousLoginAttempt
               # KYC notifications
-              'UserKycVerified', 'UserKycRejected',
+              - UserKycVerified
+              - UserKycRejected
               # Institution notifications
-              'InstitutionApplicationVerified', 'InstitutionApplicationRejected', 'InstitutionMemberInvited',
-              'InstitutionMemberAccepted', 'InstitutionMemberRejected',
+              - InstitutionApplicationVerified
+              - InstitutionApplicationRejected
+              - InstitutionMemberInvited
+              - InstitutionMemberAccepted
+              - InstitutionMemberRejected
               # Invoice notifications
-              'InvoiceCreated', 'InvoiceDue', 'InvoiceExpired', 'InvoicePartiallyPaid', 'InvoicePaid',
+              - InvoiceCreated
+              - InvoiceDue
+              - InvoiceExpired
+              - InvoicePartiallyPaid
+              - InvoicePaid
               # Loan notifications
-              'LoanOfferPublished', 'LoanApplicationPublished', 'LoanApplicationMatched', 'LoanOfferMatched',
-              'LoanApplicationApproved', 'LoanApplicationRejected', 'LoanOfferClosed', 'LoanDisbursement',
-              'LoanActivated', 'LoanRepaymentDue', 'LoanRepaymentCompleted', 'LoanRepaymentReceived',
-              'LoanRepaymentFailed', 'LoanLiquidation', 'LoanLtvBreach',
+              - LoanOfferPublished
+              - LoanApplicationPublished
+              - LoanApplicationMatched
+              - LoanOfferMatched
+              - LoanApplicationApproved
+              - LoanApplicationRejected
+              - LoanOfferClosed
+              - LoanDisbursement
+              - LoanActivated
+              - LoanRepaymentDue
+              - LoanRepaymentCompleted
+              - LoanRepaymentReceived
+              - LoanRepaymentFailed
+              - LoanLiquidation
+              - LoanLtvBreach
               # Withdrawal notifications
-              'WithdrawalRequested', 'WithdrawalRefunded', 'WithdrawalRefundApproved', 'WithdrawalRefundRejected',
+              - WithdrawalRequested
+              - WithdrawalRefunded
+              - WithdrawalRefundApproved
+              - WithdrawalRefundRejected
               # Enhanced loan notifications
-              'LiquidationWarning', 'LiquidationCompleted',
+              - LiquidationWarning
+              - LiquidationCompleted
               # System notifications
-              'PlatformMaintenanceNotice', 'SecurityAlert'
-            ]
-          example: "LoanRepaymentDue"
+              - PlatformMaintenanceNotice,
+              - SecurityAlert
+          example: LoanRepaymentDue
         - name: unreadOnly
           in: query
           description: Filter to show only unread notifications
@@ -736,7 +763,7 @@ paths:
             default: false
           example: true
       responses:
-        '200':
+        200:
           description: Notifications retrieved successfully
           content:
             application/json:
@@ -748,26 +775,26 @@ paths:
                   value:
                     notifications:
                       - id: 456
-                        type: "LoanRepaymentDue"
-                        title: "Loan Repayment Due Tomorrow"
-                        content: "Your loan payment of 10,300 USDT is due tomorrow. Please ensure sufficient balance."
+                        type: LoanRepaymentDue
+                        title: Loan Repayment Due Tomorrow
+                        content: Your loan payment of 10,300 USDT is due tomorrow. Please ensure sufficient balance.
                         isRead: false
                         readDate: null
-                        createdDate: "2024-03-15T10:00:00Z"
+                        createdDate: 2024-03-15T10:00:00Z
                       - id: 455
-                        type: "UserKycVerified"
-                        title: "KYC Verification Approved"
-                        content: "Your identity verification has been approved. You can now access all platform features."
+                        type: UserKycVerified
+                        title: KYC Verification Approved
+                        content: Your identity verification has been approved. You can now access all platform features.
                         isRead: true
-                        readDate: "2024-03-14T15:30:00Z"
-                        createdDate: "2024-03-14T14:20:00Z"
+                        readDate: 2024-03-14T15:30:00Z
+                        createdDate: 2024-03-14T14:20:00Z
                       - id: 454
-                        type: "InstitutionMemberInvited"
-                        title: "Institution Invitation Received"
-                        content: "You have been invited to join PT Teknologi Nusantara as Finance member."
+                        type: InstitutionMemberInvited
+                        title: Institution Invitation Received
+                        content: You have been invited to join PT Teknologi Nusantara as Finance member.
                         isRead: false
                         readDate: null
-                        createdDate: "2024-03-13T16:45:00Z"
+                        createdDate: 2024-03-13T16:45:00Z
                     pagination:
                       page: 1
                       limit: 10
@@ -781,19 +808,19 @@ paths:
                   value:
                     notifications:
                       - id: 456
-                        type: "LoanRepaymentDue"
-                        title: "Loan Repayment Due Tomorrow"
-                        content: "Your loan payment of 10,300 USDT is due tomorrow. Please ensure sufficient balance."
+                        type: LoanRepaymentDue
+                        title: Loan Repayment Due Tomorrow
+                        content: Your loan payment of 10,300 USDT is due tomorrow. Please ensure sufficient balance.
                         isRead: false
                         readDate: null
-                        createdDate: "2024-03-15T10:00:00Z"
+                        createdDate: 2024-03-15T10:00:00Z
                       - id: 454
-                        type: "LiquidationWarning"
-                        title: "Collateral LTV Warning"
-                        content: "Your collateral LTV ratio has reached 66.5%. Please add more collateral or repay part of your loan."
+                        type: LiquidationWarning
+                        title: Collateral LTV Warning
+                        content: Your collateral LTV ratio has reached 66.5%. Please add more collateral or repay part of your loan.
                         isRead: false
                         readDate: null
-                        createdDate: "2024-03-13T16:45:00Z"
+                        createdDate: 2024-03-13T16:45:00Z
                     pagination:
                       page: 1
                       limit: 10
@@ -802,7 +829,7 @@ paths:
                       hasNext: true
                       hasPrev: false
                     unreadCount: 12
-        '401':
+        401:
           $ref: '#/components/responses/Unauthorized'
 
   /notifications/{id}/read:
@@ -819,7 +846,7 @@ paths:
             format: int64
           example: 456
       responses:
-        '200':
+        200:
           description: Notification marked as read
           content:
             application/json:
@@ -828,13 +855,13 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "Notification marked as read"
+                    example: Notification marked as read
               examples:
                 mark_read_success:
                   summary: Notification marked as read
                   value:
-                    message: "Notification marked as read"
-        '404':
+                    message: Notification marked as read
+        404:
           $ref: '#/components/responses/NotFound'
 
   /notifications/mark-all-read:
@@ -843,7 +870,7 @@ paths:
       summary: Mark all notifications as read
       description: Mark all unread notifications as read for authenticated user
       responses:
-        '200':
+        200:
           description: All notifications marked as read
           content:
             application/json:
@@ -852,7 +879,7 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "All notifications marked as read"
+                    example: All notifications marked as read
                   updatedCount:
                     type: integer
                     description: Number of notifications that were updated
@@ -860,14 +887,13 @@ paths:
                 multiple_marked:
                   summary: Multiple notifications marked as read
                   value:
-                    message: "All notifications marked as read"
+                    message: All notifications marked as read
                     updatedCount: 12
                 none_to_mark:
                   summary: No unread notifications to mark
                   value:
-                    message: "All notifications marked as read"
+                    message: All notifications marked as read
                     updatedCount: 0
-
 
   /institutions/invitations/{id}/reject:
     post:
@@ -896,12 +922,12 @@ paths:
               with_reason:
                 summary: Reject with reason
                 value:
-                  reason: "I am not interested in joining this institution at the moment"
+                  reason: I am not interested in joining this institution at the moment
               without_reason:
                 summary: Reject without reason
                 value: {}
       responses:
-        '200':
+        200:
           description: Invitation rejected
           content:
             application/json:
@@ -914,7 +940,7 @@ paths:
                 rejection_success:
                   summary: Invitation rejected successfully
                   value:
-                    message: "Institution invitation rejected successfully"
+                    message: Institution invitation rejected successfully
 
 components:
   securitySchemes:
@@ -996,10 +1022,10 @@ components:
             amount:
               type: string
               description: Total portfolio value in USD
-              example: "125000.50"
+              example: 125000.50
             currency:
               type: string
-              example: "USD"
+              example: USD
             lastUpdated:
               type: string
               format: date-time
@@ -1011,7 +1037,7 @@ components:
               properties:
                 amount:
                   type: string
-                  example: "1234.56"
+                  example: 1234.56
                 percentage:
                   type: number
                   example: 5.2
@@ -1036,7 +1062,7 @@ components:
                   example: 70.0
                 value:
                   type: string
-                  example: "87500.00"
+                  example: 87500.00
             stablecoins:
               type: object
               properties:
@@ -1045,7 +1071,7 @@ components:
                   example: 20.0
                 value:
                   type: string
-                  example: "25000.00"
+                  example: 25000.00
             activeLoanCollateral:
               type: object
               properties:
@@ -1054,7 +1080,7 @@ components:
                   example: 10.0
                 value:
                   type: string
-                  example: "12500.00"
+                  example: 12500.00
         loanMetrics:
           type: object
           properties:
@@ -1066,10 +1092,10 @@ components:
                   example: 3
                 totalPrincipal:
                   type: string
-                  example: "50000.00"
+                  example: 50000.00
                 totalCollateral:
                   type: string
-                  example: "65000.00"
+                  example: 65000.00
                 averageLTV:
                   type: number
                   example: 0.77
@@ -1081,10 +1107,10 @@ components:
                   example: 5
                 totalPrincipal:
                   type: string
-                  example: "75000.00"
+                  example: 75000.00
                 expectedInterest:
                   type: string
-                  example: "6750.00"
+                  example: 6750.00
 
     KYCSubmission:
       type: object
@@ -1259,38 +1285,69 @@ components:
         type:
           type: string
           enum: [
-            # Authentication notifications
-            'UserRegistered', 'EmailVerificationSent', 'EmailVerified', 'PasswordResetRequested',
-            'PasswordResetCompleted', 'TwoFactorEnabled', 'TwoFactorDisabled', 'LoginFromNewDevice', 'SuspiciousLoginAttempt',
-            # KYC notifications
-            'UserKycVerified', 'UserKycRejected',
-            # Institution notifications
-            'InstitutionApplicationVerified', 'InstitutionApplicationRejected', 'InstitutionMemberInvited',
-            'InstitutionMemberAccepted', 'InstitutionMemberRejected',
-            # Invoice notifications
-            'InvoiceCreated', 'InvoiceDue', 'InvoiceExpired', 'InvoicePartiallyPaid', 'InvoicePaid',
-            # Loan notifications
-            'LoanOfferPublished', 'LoanApplicationPublished', 'LoanApplicationMatched', 'LoanOfferMatched',
-            'LoanApplicationApproved', 'LoanApplicationRejected', 'LoanOfferClosed', 'LoanDisbursement',
-            'LoanActivated', 'LoanRepaymentDue', 'LoanRepaymentCompleted', 'LoanRepaymentReceived',
-            'LoanRepaymentFailed', 'LoanLiquidation', 'LoanLtvBreach',
-            # Withdrawal notifications
-            'WithdrawalRequested', 'WithdrawalRefunded', 'WithdrawalRefundApproved', 'WithdrawalRefundRejected',
-            # Enhanced loan notifications
-            'LiquidationWarning', 'LiquidationCompleted',
-            # System notifications
-            'PlatformMaintenanceNotice', 'SecurityAlert'
-          ]
+              # Authentication notifications
+              UserRegistered,
+              EmailVerificationSent,
+              EmailVerified,
+              PasswordResetRequested,
+              PasswordResetCompleted,
+              TwoFactorEnabled,
+              TwoFactorDisabled,
+              LoginFromNewDevice,
+              SuspiciousLoginAttempt,
+              # KYC notifications
+              UserKycVerified,
+              UserKycRejected,
+              # Institution notifications
+              InstitutionApplicationVerified,
+              InstitutionApplicationRejected,
+              InstitutionMemberInvited,
+              InstitutionMemberAccepted,
+              InstitutionMemberRejected,
+              # Invoice notifications
+              InvoiceCreated,
+              InvoiceDue,
+              InvoiceExpired,
+              InvoicePartiallyPaid,
+              InvoicePaid,
+              # Loan notifications
+              LoanOfferPublished,
+              LoanApplicationPublished,
+              LoanApplicationMatched,
+              LoanOfferMatched,
+              LoanApplicationApproved,
+              LoanApplicationRejected,
+              LoanOfferClosed,
+              LoanDisbursement,
+              LoanActivated,
+              LoanRepaymentDue,
+              LoanRepaymentCompleted,
+              LoanRepaymentReceived,
+              LoanRepaymentFailed,
+              LoanLiquidation,
+              LoanLtvBreach,
+              # Withdrawal notifications
+              WithdrawalRequested,
+              WithdrawalRefunded,
+              WithdrawalRefundApproved,
+              WithdrawalRefundRejected,
+              # Enhanced loan notifications
+              LiquidationWarning,
+              LiquidationCompleted,
+              # System notifications
+              PlatformMaintenanceNotice,
+              SecurityAlert,
+            ]
           description: Type of notification matching database enum
-          example: "LoanRepaymentDue"
+          example: LoanRepaymentDue
         title:
           type: string
           description: Notification title/subject
-          example: "Loan Repayment Due Tomorrow"
+          example: Loan Repayment Due Tomorrow
         content:
           type: string
           description: Notification body content
-          example: "Your loan payment of $500 is due tomorrow. Please ensure sufficient balance."
+          example: Your loan payment of $500 is due tomorrow. Please ensure sufficient balance.
         isRead:
           type: boolean
           description: Whether the notification has been read
@@ -1305,7 +1362,7 @@ components:
           type: string
           format: date-time
           description: When the notification was created
-          example: "2024-03-15T10:30:00Z"
+          example: 2024-03-15T10:30:00Z
 
     # Common Schemas
     PaginationMeta:
@@ -1354,21 +1411,21 @@ components:
         blockchainKey:
           type: string
           description: CAIP-2 compliant blockchain identifier
-          example: "eip155:1"
+          example: eip155:1
           maxLength: 64
         tokenId:
           type: string
           description: Token identifier within the blockchain
-          example: "slip44:60"
+          example: slip44:60
           maxLength: 64
         name:
           type: string
           description: Human-readable currency name
-          example: "Ethereum"
+          example: Ethereum
         symbol:
           type: string
           description: Currency symbol/ticker
-          example: "ETH"
+          example: ETH
         decimals:
           type: integer
           description: Number of decimal places for precision
@@ -1379,7 +1436,7 @@ components:
           type: string
           format: uri
           description: URL to currency logo image
-          example: "https://assets.cryptogadai.com/currencies/eth.png"
+          example: https://assets.cryptogadai.com/currencies/eth.png
       required:
         - blockchainKey
         - tokenId
@@ -1399,11 +1456,11 @@ components:
             code:
               type: string
               description: Error code
-              example: "VALIDATION_ERROR"
+              example: VALIDATION_ERROR
             message:
               type: string
               description: Human-readable error message
-              example: "Request validation failed"
+              example: Request validation failed
             details:
               type: object
               description: Additional error details
@@ -1411,7 +1468,7 @@ components:
         timestamp:
           type: string
           format: date-time
-          example: "2025-08-13T15:30:00Z"
+          example: 2025-08-13T15:30:00Z
         requestId:
           type: string
           format: uuid
@@ -1429,8 +1486,8 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: "INVALID_TOKEN"
-            message: "Token expired or invalid"
+            error: INVALID_TOKEN
+            message: Token expired or invalid
 
     ValidationError:
       description: Request validation failed
@@ -1439,44 +1496,44 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           examples:
-            kyc_validation_error:
+            validation_error:
               summary: KYC submission validation error
               value:
                 success: false
                 error:
-                  code: "VALIDATION_ERROR"
-                  message: "Request validation failed"
+                  code: VALIDATION_ERROR
+                  message: Request validation failed
                   details:
-                    nik: "NIK must be exactly 16 digits"
-                    birthDate: "Birth date cannot be in the future"
-                    postalCode: "Postal code must be 5 digits"
-                timestamp: "2024-03-15T10:30:00Z"
-                requestId: "req_123e4567-e89b-12d3-a456-426614174000"
+                    nik: NIK must be exactly 16 digits
+                    birthDate: Birth date cannot be in the future
+                    postalCode: Postal code must be 5 digits
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174000
             profile_validation_error:
               summary: Profile update validation error
               value:
                 success: false
                 error:
-                  code: "VALIDATION_ERROR"
-                  message: "Request validation failed"
+                  code: VALIDATION_ERROR
+                  message: Request validation failed
                   details:
-                    name: "Name cannot exceed 160 characters"
-                    profilePicture: "File must be an image (JPEG, PNG, GIF)"
-                timestamp: "2024-03-15T10:30:00Z"
-                requestId: "req_123e4567-e89b-12d3-a456-426614174001"
+                    name: Name cannot exceed 160 characters
+                    profilePicture: File must be an image (JPEG, PNG, GIF)
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174001
             institution_validation_error:
               summary: Institution application validation error
               value:
                 success: false
                 error:
-                  code: "VALIDATION_ERROR"
-                  message: "Request validation failed"
+                  code: VALIDATION_ERROR
+                  message: Request validation failed
                   details:
-                    npwpNumber: "NPWP format must be XX.XXX.XXX.X-XXX.XXX"
-                    businessName: "Business name already exists"
-                    registrationDocument: "Document file is required"
-                timestamp: "2024-03-15T10:30:00Z"
-                requestId: "req_123e4567-e89b-12d3-a456-426614174002"
+                    npwpNumber: NPWP format must be XX.XXX.XXX.X-XXX.XXX
+                    businessName: Business name already exists
+                    registrationDocument: Document file is required
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174002
 
     EmailExists:
       description: Email already registered
@@ -1485,8 +1542,8 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: "EMAIL_EXISTS"
-            message: "Email already registered"
+            error: EMAIL_EXISTS
+            message: Email already registered
 
     InvalidToken:
       description: Token expired or invalid
@@ -1495,8 +1552,8 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: "INVALID_TOKEN"
-            message: "Token expired or invalid"
+            error: INVALID_TOKEN
+            message: Token expired or invalid
 
     EmailAlreadyVerified:
       description: Email already verified
@@ -1505,8 +1562,8 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: "EMAIL_ALREADY_VERIFIED"
-            message: "Email already verified"
+            error: EMAIL_ALREADY_VERIFIED
+            message: Email already verified
 
     InvalidCredentials:
       description: Invalid email or password
@@ -1515,8 +1572,8 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: "INVALID_CREDENTIALS"
-            message: "Invalid email or password"
+            error: INVALID_CREDENTIALS
+            message: Invalid email or password
 
     EmailNotVerified:
       description: Email verification required
@@ -1525,8 +1582,8 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: "EMAIL_NOT_VERIFIED"
-            message: "Please verify your email"
+            error: EMAIL_NOT_VERIFIED
+            message: Please verify your email
 
     AccountLocked:
       description: Account temporarily locked
@@ -1541,8 +1598,8 @@ components:
                     type: integer
                     description: Seconds until retry allowed
           example:
-            error: "ACCOUNT_LOCKED"
-            message: "Account temporarily locked"
+            error: ACCOUNT_LOCKED
+            message: Account temporarily locked
             retryAfter: 900
 
     RateLimited:
@@ -1558,8 +1615,8 @@ components:
                     type: integer
                     description: Seconds until retry allowed
           example:
-            error: "RATE_LIMIT_EXCEEDED"
-            message: "Too many attempts"
+            error: RATE_LIMIT_EXCEEDED
+            message: Too many attempts
             retryAfter: 300
 
     Invalid2FA:
@@ -1569,8 +1626,8 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: "INVALID_2FA_CODE"
-            message: "Invalid 2FA code"
+            error: INVALID_2FA_CODE
+            message: Invalid 2FA code
 
     TwoFAAttemptsExceeded:
       description: 2FA attempts exceeded
@@ -1585,8 +1642,8 @@ components:
                     type: integer
                     description: Seconds until retry allowed
           example:
-            error: "2FA_ATTEMPTS_EXCEEDED"
-            message: "Too many 2FA attempts"
+            error: 2FA_ATTEMPTS_EXCEEDED
+            message: Too many 2FA attempts
             lockoutTime: 300
 
     InvalidGoogleToken:
@@ -1596,8 +1653,8 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: "INVALID_GOOGLE_TOKEN"
-            message: "Invalid Google ID token"
+            error: INVALID_GOOGLE_TOKEN
+            message: Invalid Google ID token
 
     EmailLinkedDifferentProvider:
       description: Email exists with different sign-in method
@@ -1606,8 +1663,8 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: "EMAIL_LINKED_DIFFERENT_PROVIDER"
-            message: "Email exists with different sign-in method"
+            error: EMAIL_LINKED_DIFFERENT_PROVIDER
+            message: Email exists with different sign-in method
 
     GoogleAccountAlreadyLinked:
       description: Google account already linked to another user
@@ -1616,8 +1673,8 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: "GOOGLE_ACCOUNT_ALREADY_LINKED"
-            message: "Google account linked to another user"
+            error: GOOGLE_ACCOUNT_ALREADY_LINKED
+            message: Google account linked to another user
 
     EmailAlreadyExists:
       description: Email already exists
@@ -1626,8 +1683,8 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: "EMAIL_ALREADY_EXISTS"
-            message: "Email is already registered"
+            error: EMAIL_ALREADY_EXISTS
+            message: Email is already registered
 
     TwoFAAlreadyEnabled:
       description: 2FA is already enabled
@@ -1636,8 +1693,8 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: "2FA_ALREADY_ENABLED"
-            message: "2FA is already enabled"
+            error: 2FA_ALREADY_ENABLED
+            message: 2FA is already enabled
 
     InvalidTOTPCode:
       description: Invalid TOTP code
@@ -1646,8 +1703,8 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: "INVALID_TOTP_CODE"
-            message: "Invalid TOTP code"
+            error: INVALID_TOTP_CODE
+            message: Invalid TOTP code
 
     FileTooLarge:
       description: File exceeds size limit
@@ -1656,8 +1713,8 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: "FILE_TOO_LARGE"
-            message: "Profile picture must be under 5MB"
+            error: FILE_TOO_LARGE
+            message: Profile picture must be under 5MB
 
     DuplicateNIK:
       description: NIK already in system
@@ -1671,13 +1728,13 @@ components:
               value:
                 success: false
                 error:
-                  code: "DUPLICATE_NIK"
-                  message: "NIK already registered"
+                  code: DUPLICATE_NIK
+                  message: NIK already registered
                   details:
-                    nik: "3171012345678901"
-                    message: "This NIK is already associated with another verified account"
-                timestamp: "2024-03-15T10:30:00Z"
-                requestId: "req_123e4567-e89b-12d3-a456-426614174003"
+                    nik: 3171012345678901
+                    message: This NIK is already associated with another verified account
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174003
 
     InsufficientPermissions:
       description: User lacks required permissions
@@ -1686,8 +1743,8 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: "INSUFFICIENT_PERMISSIONS"
-            message: "Insufficient privileges"
+            error: INSUFFICIENT_PERMISSIONS
+            message: Insufficient privileges
 
     NotFound:
       description: Resource not found
@@ -1696,8 +1753,8 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: "NOT_FOUND"
-            message: "Resource not found"
+            error: NOT_FOUND
+            message: Resource not found
 
     BusinessNameExists:
       description: Business name already registered
@@ -1711,13 +1768,13 @@ components:
               value:
                 success: false
                 error:
-                  code: "BUSINESS_NAME_EXISTS"
-                  message: "Business name already registered"
+                  code: BUSINESS_NAME_EXISTS
+                  message: Business name already registered
                   details:
-                    businessName: "PT Teknologi Nusantara"
-                    message: "A business with this name is already registered in our system"
-                timestamp: "2024-03-15T10:30:00Z"
-                requestId: "req_123e4567-e89b-12d3-a456-426614174004"
+                    businessName: PT Teknologi Nusantara
+                    message: A business with this name is already registered in our system
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174004
 
     UserNotFound:
       description: User not found
@@ -1731,13 +1788,13 @@ components:
               value:
                 success: false
                 error:
-                  code: "USER_NOT_FOUND"
-                  message: "User with email not found"
+                  code: USER_NOT_FOUND
+                  message: User with email not found
                   details:
-                    email: "nonexistent@example.com"
-                    message: "No user found with this email address"
-                timestamp: "2024-03-15T10:30:00Z"
-                requestId: "req_123e4567-e89b-12d3-a456-426614174005"
+                    email: nonexistent@example.com
+                    message: No user found with this email address
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174005
 
     UserAlreadyMember:
       description: User is already institution member
@@ -1751,14 +1808,14 @@ components:
               value:
                 success: false
                 error:
-                  code: "USER_ALREADY_MEMBER"
-                  message: "User is already institution member"
+                  code: USER_ALREADY_MEMBER
+                  message: User is already institution member
                   details:
-                    userEmail: "john.doe@example.com"
-                    currentInstitution: "PT Existing Company"
-                    message: "User is already a member of another institution"
-                timestamp: "2024-03-15T10:30:00Z"
-                requestId: "req_123e4567-e89b-12d3-a456-426614174006"
+                    userEmail: john.doe@example.com
+                    currentInstitution: PT Existing Company
+                    message: User is already a member of another institution
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174006
 
     InvitationExpired:
       description: Invitation has expired
@@ -1772,14 +1829,14 @@ components:
               value:
                 success: false
                 error:
-                  code: "INVITATION_EXPIRED"
-                  message: "Invitation has expired"
+                  code: INVITATION_EXPIRED
+                  message: Invitation has expired
                   details:
                     invitationId: 123
-                    expiredDate: "2024-03-14T16:30:00Z"
-                    message: "This invitation expired and can no longer be accepted"
-                timestamp: "2024-03-15T10:30:00Z"
-                requestId: "req_123e4567-e89b-12d3-a456-426614174007"
+                    expiredDate: 2024-03-14T16:30:00Z
+                    message: This invitation expired and can no longer be accepted
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174007
 
     InvalidOAuthCallback:
       description: OAuth callback error
@@ -1788,8 +1845,8 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: "OAUTH_CALLBACK_ERROR"
-            message: "OAuth authentication failed"
+            error: OAUTH_CALLBACK_ERROR
+            message: OAuth authentication failed
 
 tags:
   - name: User Profile

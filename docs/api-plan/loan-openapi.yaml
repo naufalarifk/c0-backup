@@ -168,6 +168,46 @@ paths:
           schema:
             type: string
             description: Filter by principal token ID
+        - name: lenderUserType
+          in: query
+          schema:
+            type: string
+            enum: [All, Individual, Institution]
+            description: Filter by lender user type
+        - name: minAvailablePrincipalAmount
+          in: query
+          schema:
+            type: string
+            format: decimal
+            description: Min available supply
+        - name: maxAvailablePrincipalAmount
+          in: query
+          schema:
+            type: string
+            format: decimal
+            description: Max available supply
+        - name: minInterestRate
+          in: query
+          schema:
+            type: number
+            format: float
+            description: Min interest rate percentage
+        - name: maxInterestRate
+          in: query
+          schema:
+            type: number
+            format: float
+            description: Max interest rate percentage
+        - name: termMonths
+          in: query
+          schema:
+            type: integer
+            description: Filter by available term in months
+        - name: keyword
+          in: query
+          schema:
+            type: string
+            description: Keyword search in lender name
       responses:
         '200':
           description: List of loan offers
@@ -739,7 +779,7 @@ paths:
                       loanBreakdown:
                         principalAmount: "5000.000000000000000000"
                         interestAmount: "312.500000000000000000"
-                        provisionFeeAmount: "150.000000000000000000"
+                        originationFeeAmount: "150.000000000000000000"
                         totalRepaymentAmount: "5462.500000000000000000"
                 repaid_btc_loan_details:
                   summary: Repaid BTC-collateralized loan details
@@ -791,7 +831,7 @@ paths:
                       loanBreakdown:
                         principalAmount: "15000.000000000000000000"
                         interestAmount: "1500.000000000000000000"
-                        provisionFeeAmount: "450.000000000000000000"
+                        originationFeeAmount: "450.000000000000000000"
                         totalRepaymentAmount: "16950.000000000000000000"
         '404':
           $ref: '#/components/responses/NotFound'
@@ -930,7 +970,7 @@ paths:
                         outstandingLoan:
                           principalAmount: "5000.000000000000000000"
                           interestAmount: "312.500000000000000000"
-                          provisionFeeAmount: "150.000000000000000000"
+                          originationFeeAmount: "150.000000000000000000"
                           totalLoanRepayment: "5462.500000000000000000"
                         liquidationFees:
                           earlyLiquidationFee: "54.625000000000000000"
@@ -988,7 +1028,7 @@ paths:
                         outstandingLoan:
                           principalAmount: "15000.000000000000000000"
                           interestAmount: "1500.000000000000000000"
-                          provisionFeeAmount: "450.000000000000000000"
+                          originationFeeAmount: "450.000000000000000000"
                           totalLoanRepayment: "16950.000000000000000000"
                         liquidationFees:
                           earlyLiquidationFee: "169.500000000000000000"
@@ -1082,7 +1122,7 @@ paths:
                         outstandingLoan:
                           principalAmount: "5000.000000000000000000"
                           interestAmount: "312.500000000000000000"
-                          provisionFeeAmount: "150.000000000000000000"
+                          originationFeeAmount: "150.000000000000000000"
                           totalLoanRepayment: "5462.500000000000000000"
                         liquidationFees:
                           earlyLiquidationFee: "54.625000000000000000"
@@ -1115,7 +1155,7 @@ paths:
                         outstandingLoan:
                           principalAmount: "15000.000000000000000000"
                           interestAmount: "1500.000000000000000000"
-                          provisionFeeAmount: "450.000000000000000000"
+                          originationFeeAmount: "450.000000000000000000"
                           totalLoanRepayment: "16950.000000000000000000"
                         liquidationFees:
                           earlyLiquidationFee: "169.500000000000000000"
@@ -1219,7 +1259,7 @@ paths:
                         loanDetails:
                           principalAmount: "5000.000000000000000000"
                           interestAmount: "312.500000000000000000"
-                          provisionFeeAmount: "150.000000000000000000"
+                          originationFeeAmount: "150.000000000000000000"
                           totalRepaymentAmount: "5462.500000000000000000"
                         paymentTerms:
                           earlyPaymentFee: "0.000000000000000000"
@@ -1273,7 +1313,7 @@ paths:
                         loanDetails:
                           principalAmount: "15000.000000000000000000"
                           interestAmount: "1500.000000000000000000"
-                          provisionFeeAmount: "450.000000000000000000"
+                          originationFeeAmount: "450.000000000000000000"
                           totalRepaymentAmount: "16950.000000000000000000"
                         paymentTerms:
                           earlyPaymentFee: "0.000000000000000000"
@@ -1445,6 +1485,7 @@ components:
           type: string
         availableAmount:
           type: string
+          description: Availabale Supply
         disbursedAmount:
           type: string
         interestRate:
@@ -1542,11 +1583,12 @@ components:
               description: Maximum LTV ratio for this collateral type
               minimum: 0
               maximum: 1
-            safetyBuffer:
-              type: number
-              description: Safety buffer percentage (typically 20%)
-              minimum: 0
-              maximum: 1
+            # TODO
+            # safetyBuffer:
+            #   type: number
+            #   description: Safety buffer percentage (typically 20%)
+            #   minimum: 0
+            #   maximum: 1
             calculationDetails:
               type: object
               properties:
@@ -1765,7 +1807,7 @@ components:
               type: string
               description: Total interest amount
               pattern: '^\d+\.\d{18}$'
-            provisionFeeAmount:
+            originationFeeAmount:
               type: string
               description: Origination fee (3% of principal)
               pattern: '^\d+\.\d{18}$'
@@ -1843,6 +1885,11 @@ components:
           type: string
           description: Business type (only for Institution lenders)
           example: "PT"
+          nullable: true
+        businessDescription:
+          type: string
+          description: Business description (only for Institution lenders)
+          example: PT. Bank Negara Indonesia (BNI) is one of the largest banks in Indonesia. It has branches in several countries and provides a wide range of financial services to individuals and corporations.
           nullable: true
       required:
         - id
@@ -2177,7 +2224,7 @@ components:
               description: Full interest amount (no reduction for early payment)
               example: "600.000000000000000000"
               pattern: '^\\d+\\.\\d{18}$'
-            provisionFeeAmount:
+            originationFeeAmount:
               type: string
               description: Origination fee (3% of principal)
               example: "300.000000000000000000"
@@ -2253,7 +2300,7 @@ components:
               description: Total interest amount (full term)
               example: "600.000000000000000000"
               pattern: '^\d+\.\d{18}$'
-            provisionFeeAmount:
+            originationFeeAmount:
               type: string
               description: Origination fee (3% of principal)
               example: "300.000000000000000000"
