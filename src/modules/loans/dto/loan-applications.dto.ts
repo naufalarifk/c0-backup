@@ -1,0 +1,318 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+import { Type } from 'class-transformer';
+import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+
+import {
+  CurrencyDto,
+  InvoiceDto,
+  IsDecimalAmount,
+  LiquidationMode,
+  LoanApplicationStatus,
+  PaginationMetaDto,
+} from './common.dto';
+
+export class LoanCalculationRequestDto {
+  @ApiProperty({
+    description: 'Blockchain key for collateral',
+    example: 'eip155:1',
+    maxLength: 64,
+  })
+  @IsString()
+  collateralBlockchainKey: string;
+
+  @ApiProperty({
+    description: 'Token ID for collateral',
+    example: 'slip44:60',
+    maxLength: 64,
+  })
+  @IsString()
+  collateralTokenId: string;
+
+  @ApiProperty({
+    description: 'Blockchain key for principal currency',
+    example: 'eip155:1',
+    maxLength: 64,
+  })
+  @IsString()
+  principalBlockchainKey: string;
+
+  @ApiProperty({
+    description: 'Token ID for principal currency',
+    example: 'erc20:0xdac17f958d2ee523a2206206994597c13d831ec7',
+    maxLength: 64,
+  })
+  @IsString()
+  principalTokenId: string;
+
+  @ApiProperty({
+    description: 'Principal amount requested',
+    example: '5000.000000000000000000',
+    pattern: '^\\d+\\.\\d{18}$',
+  })
+  @IsString()
+  @IsDecimalAmount()
+  principalAmount: string;
+
+  @ApiPropertyOptional({
+    description: 'Term in months for the loan',
+    example: 6,
+    minimum: 1,
+    maximum: 60,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(60)
+  termInMonths?: number;
+}
+
+export class LoanCalculationDetailsDto {
+  @ApiProperty({
+    description: 'Base loan amount requested',
+    example: '5000.000000000000000000',
+    pattern: '^\\d+\\.\\d{18}$',
+  })
+  @IsString()
+  @IsDecimalAmount()
+  baseLoanAmount: string;
+
+  @ApiProperty({
+    description: 'Base collateral value without safety buffer',
+    example: '7142.857142857142857142',
+    pattern: '^\\d+\\.\\d{18}$',
+  })
+  @IsString()
+  @IsDecimalAmount()
+  baseCollateralValue: string;
+
+  @ApiProperty({
+    description: 'Collateral value including safety buffer',
+    example: '8571.428571428571428571',
+    pattern: '^\\d+\\.\\d{18}$',
+  })
+  @IsString()
+  @IsDecimalAmount()
+  withSafetyBuffer: string;
+
+  @ApiProperty({
+    description: 'Exchange rate at calculation time',
+    example: '2100.000000000000000000',
+    pattern: '^\\d+\\.\\d{18}$',
+  })
+  @IsString()
+  @IsDecimalAmount()
+  currentExchangeRate: string;
+
+  @ApiProperty({
+    description: 'Source of exchange rate data',
+    example: 'coinbase',
+  })
+  @IsString()
+  rateSource: string;
+
+  @ApiProperty({
+    description: 'When the exchange rate was last updated',
+    example: '2025-09-11T10:29:45Z',
+  })
+  @IsDateString()
+  rateTimestamp: string;
+}
+
+export class LoanCalculationResponseDto {
+  @ApiProperty({
+    description: 'Request success status',
+    example: true,
+  })
+  success: boolean;
+
+  @ApiProperty({
+    description: 'Calculation results',
+  })
+  data: {
+    requiredCollateralAmount: string;
+    exchangeRate: string;
+    collateralCurrency: CurrencyDto;
+    principalCurrency: CurrencyDto;
+    maxLtvRatio: number;
+    safetyBuffer: number;
+    calculationDetails: LoanCalculationDetailsDto;
+  };
+}
+
+export class CreateLoanApplicationDto {
+  @ApiProperty({
+    description: 'Blockchain key for collateral',
+    example: 'eip155:1',
+    maxLength: 64,
+  })
+  @IsString()
+  collateralBlockchainKey: string;
+
+  @ApiProperty({
+    description: 'Token ID for collateral',
+    example: 'slip44:60',
+    maxLength: 64,
+  })
+  @IsString()
+  collateralTokenId: string;
+
+  @ApiProperty({
+    description: 'Principal amount requested',
+    example: '5000.000000000000000000',
+    pattern: '^\\d+\\.\\d{18}$',
+  })
+  @IsString()
+  @IsDecimalAmount()
+  principalAmount: string;
+
+  @ApiProperty({
+    description: 'Blockchain key for principal currency',
+    example: 'eip155:56',
+    maxLength: 64,
+  })
+  @IsString()
+  principalBlockchainKey: string;
+
+  @ApiProperty({
+    description: 'Token ID for principal currency',
+    example: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+    maxLength: 64,
+  })
+  @IsString()
+  principalTokenId: string;
+
+  @ApiProperty({
+    description: 'Maximum acceptable interest rate',
+    example: 15.0,
+    minimum: 0,
+    maximum: 100,
+  })
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  maxInterestRate: number;
+
+  @ApiProperty({
+    description: 'Loan term in months',
+    example: 6,
+    enum: [1, 3, 6, 12],
+  })
+  @IsNumber()
+  termMonths: number;
+
+  @ApiProperty({
+    description: 'Liquidation mode preference',
+    enum: LiquidationMode,
+    example: LiquidationMode.FULL,
+  })
+  @IsEnum(LiquidationMode)
+  liquidationMode: LiquidationMode;
+
+  @ApiPropertyOptional({
+    description: 'Minimum acceptable LTV ratio',
+    example: 0.5,
+    minimum: 0,
+    maximum: 100,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  minLtvRatio?: number;
+}
+
+export class UpdateLoanApplicationDto {
+  @ApiProperty({
+    description: 'Action to perform on loan application',
+    enum: ['Cancel'],
+    example: 'Cancel',
+  })
+  @IsString()
+  action: string;
+}
+
+export class LoanApplicationResponseDto {
+  @ApiProperty({
+    description: 'Loan application identifier',
+    example: 'app_78901',
+  })
+  @IsString()
+  id: string;
+
+  @ApiProperty({
+    description: 'Borrower user identifier',
+    example: 'user_12345',
+  })
+  @IsString()
+  borrowerId: string;
+
+  @ApiProperty({
+    description: 'Collateral currency identifier',
+    example: 'ETH',
+  })
+  @IsString()
+  collateralCurrency: string;
+
+  @ApiProperty({
+    description: 'Principal amount requested',
+    example: '5000.000000000000000000',
+  })
+  @IsString()
+  @IsDecimalAmount()
+  principalAmount: string;
+
+  @ApiProperty({
+    description: 'Current application status (derived from time-based fields and business logic)',
+    enum: LoanApplicationStatus,
+    example: LoanApplicationStatus.PUBLISHED,
+  })
+  @IsEnum(LoanApplicationStatus)
+  status: LoanApplicationStatus;
+
+  @ApiProperty({
+    description: 'Creation date',
+    example: '2025-09-11T10:30:00Z',
+  })
+  @IsDateString()
+  createdDate: string;
+
+  @ApiPropertyOptional({
+    description: 'Publication date',
+    example: '2025-09-11T10:45:00Z',
+  })
+  @IsOptional()
+  @IsDateString()
+  publishedDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Expiry date',
+    example: '2025-09-18T10:45:00Z',
+  })
+  @IsOptional()
+  @IsDateString()
+  expiryDate?: string;
+
+  @ApiProperty({
+    description: 'Collateral deposit invoice details',
+    type: InvoiceDto,
+  })
+  @Type(() => InvoiceDto)
+  collateralInvoice: InvoiceDto;
+}
+
+export class LoanApplicationListResponseDto {
+  @ApiProperty({
+    description: 'Request success status',
+    example: true,
+  })
+  success: boolean;
+
+  @ApiProperty({
+    description: 'Response data',
+  })
+  data: {
+    applications: LoanApplicationResponseDto[];
+    pagination: PaginationMetaDto;
+  };
+}

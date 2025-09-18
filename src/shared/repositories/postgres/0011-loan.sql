@@ -138,6 +138,8 @@ CREATE TABLE IF NOT EXISTS loans (
   FOREIGN KEY (principal_currency_blockchain_key, principal_currency_token_id) REFERENCES currencies (blockchain_key, token_id)
 );
 
+-- VALUASI MENGGUNAKAN MATA UANG PRINCIPAL POKOK PINJAMAN
+
 CREATE TABLE IF NOT EXISTS loan_valuations (
   loan_id BIGINT NOT NULL REFERENCES loans (id),
   exchange_rate_id BIGINT NOT NULL REFERENCES exchange_rates (id),
@@ -173,6 +175,7 @@ CREATE TABLE IF NOT EXISTS loan_liquidations (
   fulfilled_amount DECIMAL(78, 0),
   failure_date TIMESTAMP,
   failure_reason TEXT,
+  -- BUFFER HARGA DIATAS EXPECTED HARGA LIKUIDASI
   returned_premi_amount DECIMAL(78, 0) -- calculated from MAX(loans.premi_amount, liquidation_target_amount - fulfilled_amount)
 );
 

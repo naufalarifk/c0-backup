@@ -262,7 +262,8 @@ export abstract class LoanUserRepository extends LoanBorrowerRepository {
       assertPropStringOrNumber(row, 'collateral_decimals');
       assertPropString(row, 'collateral_symbol');
       assertPropString(row, 'collateral_name');
-
+      // TODO TAMBAH INTEREST RATE
+      // TODO TAMBAH TERM LOAN
       return {
         id: String(row.id),
         loanOfferId: String(row.loan_offer_id),

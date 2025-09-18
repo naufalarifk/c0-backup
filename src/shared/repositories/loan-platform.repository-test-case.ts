@@ -666,7 +666,7 @@ export async function runLoanPlatformRepositoryTestSuite(
 
           const principalAmount = '500000000'; // 500 USDT
           const interestAmount = '38750000'; // 15.5% * 500 USDT * (6/12) = 38.75 USDT
-          const provisionAmount = '12500000'; // 2.5% * 500 USDT = 12.5 USDT
+          const _provisionAmount = '12500000'; // 2.5% * 500 USDT = 12.5 USDT
           const repaymentAmount = '551250000'; // principal + interest + provision
           const redeliveryFeeAmount = '387500'; // 1% * interestAmount
           const redeliveryAmount = '538362500'; // principal + interest - redelivery fee

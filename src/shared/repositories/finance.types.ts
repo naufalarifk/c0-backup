@@ -235,47 +235,6 @@ export interface UserViewsWithdrawalBeneficiariesResult {
   beneficiaries: WithdrawalBeneficiary[];
 }
 
-// Exchange Rate Management Types
-export interface PlatformRetrievesExchangeRatesParams {
-  blockchainKey?: string;
-  baseCurrencyTokenId?: string;
-  quoteCurrencyTokenId?: string;
-}
-
-export interface ExchangeRate {
-  id: string;
-  priceFeedId: string;
-  bidPrice: string;
-  askPrice: string;
-  retrievalDate: Date;
-  sourceDate: Date;
-  blockchain: string;
-  baseCurrency: string;
-  quoteCurrency: string;
-  source: string;
-}
-
-export interface PlatformRetrievesExchangeRatesResult {
-  exchangeRates: ExchangeRate[];
-}
-
-export interface PlatformFeedsExchangeRateParams {
-  priceFeedId: string;
-  bidPrice: string;
-  askPrice: string;
-  retrievalDate: Date;
-  sourceDate: Date;
-}
-
-export interface PlatformFeedsExchangeRateResult {
-  id: string;
-  priceFeedId: string;
-  bidPrice: string;
-  askPrice: string;
-  retrievalDate: Date;
-  sourceDate: Date;
-}
-
 // Account Creation Types
 export interface PlatformCreatesUserAccountParams {
   userId: string;
@@ -371,4 +330,8 @@ export interface PlatformSetActiveButExpiredInvoiceAsExpiredResult {
   id: string;
   status: string;
   expiredDate: Date;
+}
+export interface PlatformRetrievesProvisionRateResult {
+  loanProvisionRate: string; // The provision rate as decimal string (e.g., "3.0" for 3.0%)
+  effectiveDate: Date;
 }
