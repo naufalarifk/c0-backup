@@ -259,7 +259,7 @@ export interface PlatformRetrievesExchangeRatesResult {
   exchangeRates: ExchangeRate[];
 }
 
-export interface PlatformUpdatesExchangeRateParams {
+export interface PlatformFeedsExchangeRateParams {
   priceFeedId: string;
   bidPrice: string;
   askPrice: string;
@@ -267,7 +267,7 @@ export interface PlatformUpdatesExchangeRateParams {
   sourceDate: Date;
 }
 
-export interface PlatformUpdatesExchangeRateResult {
+export interface PlatformFeedsExchangeRateResult {
   id: string;
   priceFeedId: string;
   bidPrice: string;
@@ -332,4 +332,43 @@ export interface Currency {
 
 export interface UserViewsCurrenciesResult {
   currencies: Currency[];
+}
+
+// Platform Invoice Expiry Management Types
+export interface PlatformViewsActiveButExpiredInvoicesParams {
+  asOfDate?: Date;
+  limit?: number;
+  offset?: number;
+}
+
+export interface ActiveButExpiredInvoice {
+  id: string;
+  userId: string;
+  currencyBlockchainKey: string;
+  currencyTokenId: string;
+  invoicedAmount: string;
+  paidAmount: string;
+  walletAddress: string;
+  invoiceType: string;
+  status: string;
+  invoiceDate: Date;
+  dueDate: Date | null;
+  expiredDate: Date | null;
+}
+
+export interface PlatformViewsActiveButExpiredInvoicesResult {
+  invoices: ActiveButExpiredInvoice[];
+  totalCount: number;
+  hasMore: boolean;
+}
+
+export interface PlatformSetActiveButExpiredInvoiceAsExpiredParams {
+  invoiceId: string;
+  expiredDate: Date;
+}
+
+export interface PlatformSetActiveButExpiredInvoiceAsExpiredResult {
+  id: string;
+  status: string;
+  expiredDate: Date;
 }

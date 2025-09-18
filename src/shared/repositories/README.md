@@ -5,8 +5,8 @@ This module focus on managing data access and storage through a structured repos
 ## Structure
 
 - Repositories are structured as linear dependencies, beginning from BaseRepository and ending with CryptogadaiRepository. The full chains is: CryptogadaiRepository <- LoanPlatformRepository <- LoanUserRepository <- LoanBorrowerRepository <- LoanLenderRepository <- LoanTestRepository <- FinanceRepository <- UserRepository <- DatabaseRepository
-- Repository's method names are each consists of 3 parts: {Subject/Actor}{Predicate/Action}{Object/Target}. Each method represents a use-case.
-- Repository names are made of 2 parts: {Scope}{Actor}.
+- Repository names are made of 2 parts: {Scope}{Subject/Actor}.
+- Repository's method names are each consists of 2-3 parts: {Subject/Actor}{Predicate/Action}{Object/Target}. Each method represents a use-case.
 - The main PostgreSQL schemas are defined in `src/shared/repositories/postgres/*.sql`.
 - The database implementations are `InMemoryCryptogadaiRepository` and `PgRedisCryptogadaiRepository`. Both implement the `CryptogadaiRepository` abstract class.
 
