@@ -414,7 +414,7 @@ paths:
                     canResubmit: true
 
   # Institution Management
-  /institutions/apply:
+  /institutions:
     post:
       tags: [Institution Management]
       summary: Apply for institution account

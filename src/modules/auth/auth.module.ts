@@ -150,7 +150,7 @@ export class AuthModule implements NestModule, OnModuleInit {
     if (!this.options.disableTrustedOriginsCors && isNotFunctionBased) {
       this.adapter.httpAdapter.enableCors({
         origin: trustedOrigins,
-        methods: ['GET', 'POST', 'PUT', 'DELETE'],
+        methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
         credentials: true,
       });
     } else if (trustedOrigins && !this.options.disableTrustedOriginsCors && !isNotFunctionBased)
