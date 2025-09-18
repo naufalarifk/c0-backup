@@ -89,7 +89,7 @@ export class AppConfigService {
   }
 
   get nodeEnv() {
-    return this.getString('NODE_ENV');
+    return this.getString('NODE_ENV', 'production');
   }
 
   get emailConfig() {
@@ -125,29 +125,29 @@ export class AppConfigService {
   }
 
   get databaseUrl() {
-    return this.getString('DATABASE_URL');
+    return this.getString('DATABASE_URL', ':inmemory:');
   }
 
   get databaseLogger() {
-    return this.getBoolean('DATABASE_LOGGER');
+    return this.getBoolean('DATABASE_LOGGER', false);
   }
 
   get throttlerConfigs(): ThrottlerOptions {
     return {
-      ttl: this.getDuration('THROTTLER_TTL'),
-      limit: this.getNumber('THROTTLER_LIMIT'),
+      ttl: this.getDuration('THROTTLER_TTL', '1m'),
+      limit: this.getNumber('THROTTLER_LIMIT', 10),
     };
   }
 
   get rateLimitConfigs(): ThrottlerOptions {
     return {
-      ttl: this.getDuration('THROTTLER_TTL', 's'),
-      limit: this.getNumber('THROTTLER_LIMIT'),
+      ttl: this.getDuration('THROTTLER_TTL', '1m'),
+      limit: this.getNumber('THROTTLER_LIMIT', 10),
     };
   }
 
   get documentationEnabled(): boolean {
-    return this.getBoolean('ENABLE_DOCUMENTATION');
+    return this.getBoolean('ENABLE_DOCUMENTATION', false);
   }
 
   get socialProviderConfigs(): SocialProviders {
@@ -163,7 +163,7 @@ export class AppConfigService {
 
   get twilioConfig() {
     // In test environment, provide valid format test credentials
-    if (this.nodeEnv === 'test') {
+    if (!this.isProduction) {
       return {
         accountSid: this.getString('TWILIO_ACCOUNT_SID', 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'),
         authToken: this.getString('TWILIO_AUTH_TOKEN', 'test_auth_token'),
@@ -219,9 +219,9 @@ export class AppConfigService {
     return {
       secret: this.getString('BETTER_AUTH_SECRET', 'your-secret'),
       url: betterAuthUrl === 'local' ? betterAuthDefaultUrl : betterAuthUrl,
-      expirationTime: this.getNumber('BETTER_AUTH_EXPIRATION_TIME'),
-      cookiePrefix: this.getString('BETTER_AUTH_COOKIE_PREFIX'),
-      maximumSessions: this.getNumber('BETTER_AUTH_MAXIMUM_SESSIONS'),
+      expirationTime: this.getNumber('BETTER_AUTH_EXPIRATION_TIME', 3600),
+      cookiePrefix: this.getString('BETTER_AUTH_COOKIE_PREFIX', 'cg'),
+      maximumSessions: this.getNumber('BETTER_AUTH_MAXIMUM_SESSIONS', 3),
       sessionMaxAge: this.getNumber('SESSION_MAX_AGE', 604_800), // 7 days
       sessionUpdateAge: this.getNumber('SESSION_UPDATE_AGE', 86_400), // 1 day
       sessionCookieCacheAge: this.getNumber('SESSION_COOKIE_CACHE_AGE', 300), // 5 minutes
