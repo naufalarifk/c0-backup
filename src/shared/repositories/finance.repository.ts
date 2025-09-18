@@ -1,13 +1,10 @@
 import {
-  assertArrayOf,
   assertDefined,
   assertPropDate,
-  assertPropDefined,
   assertPropNullableDate,
   assertPropNullableString,
   assertPropString,
   assertPropStringOrNumber,
-  setAssertPropValue,
 } from '../utils/assertions';
 import {
   AdminApprovesWithdrawalRefundParams,
@@ -24,14 +21,18 @@ import {
   PlatformCreatesUserAccountResult,
   PlatformFailsWithdrawalParams,
   PlatformFailsWithdrawalResult,
+  PlatformFeedsExchangeRateParams,
+  PlatformFeedsExchangeRateResult,
   PlatformRetrievesExchangeRatesParams,
   PlatformRetrievesExchangeRatesResult,
   PlatformSendsWithdrawalParams,
   PlatformSendsWithdrawalResult,
-  PlatformUpdatesExchangeRateParams,
-  PlatformUpdatesExchangeRateResult,
+  PlatformSetActiveButExpiredInvoiceAsExpiredParams,
+  PlatformSetActiveButExpiredInvoiceAsExpiredResult,
   PlatformUpdatesInvoiceStatusParams,
   PlatformUpdatesInvoiceStatusResult,
+  PlatformViewsActiveButExpiredInvoicesParams,
+  PlatformViewsActiveButExpiredInvoicesResult,
   UserRegistersWithdrawalBeneficiaryParams,
   UserRegistersWithdrawalBeneficiaryResult,
   UserRequestsWithdrawalParams,
@@ -369,8 +370,8 @@ export abstract class FinanceRepository extends UserRepository {
       assertDefined(invoice, 'Invoice not found or update failed');
       assertPropStringOrNumber(invoice, 'id');
       assertPropString(invoice, 'status');
-      assertPropDate(invoice, 'expired_date');
-      assertPropDate(invoice, 'notified_date');
+      assertPropNullableDate(invoice, 'expired_date');
+      assertPropNullableDate(invoice, 'notified_date');
 
       await tx.commitTransaction();
 
@@ -445,6 +446,125 @@ export abstract class FinanceRepository extends UserRepository {
       expiredDate: invoice.expired_date,
       paidDate: invoice.paid_date,
     };
+  }
+
+  async platformViewsActiveButExpiredInvoices(
+    params: PlatformViewsActiveButExpiredInvoicesParams,
+  ): Promise<PlatformViewsActiveButExpiredInvoicesResult> {
+    const { asOfDate = new Date(), limit = 50, offset = 0 } = params;
+
+    // Get total count first
+    const countResult = await this.sql`
+      SELECT COUNT(*) as total
+      FROM invoices
+      WHERE status IN ('Pending', 'PartiallyPaid', 'Overdue')
+        AND due_date IS NOT NULL
+        AND due_date < ${asOfDate.toISOString()}
+    `;
+
+    const countRow = Array.isArray(countResult) ? countResult[0] : countResult;
+    assertDefined(countRow, 'Count query failed');
+    assertPropStringOrNumber(countRow, 'total');
+    const totalCount = Number(countRow.total);
+
+    const rows = await this.sql`
+      SELECT
+        id,
+        user_id,
+        currency_blockchain_key,
+        currency_token_id,
+        invoiced_amount,
+        paid_amount,
+        wallet_address,
+        invoice_type,
+        status,
+        invoice_date,
+        due_date,
+        expired_date
+      FROM invoices
+      WHERE status IN ('Pending', 'PartiallyPaid', 'Overdue')
+        AND due_date IS NOT NULL
+        AND due_date < ${asOfDate.toISOString()}
+      ORDER BY due_date ASC
+      LIMIT ${limit}
+      OFFSET ${offset}
+    `;
+
+    const invoices = rows;
+    const hasMore = offset + invoices.length < totalCount;
+
+    return {
+      invoices: invoices.map(function (invoice: unknown) {
+        assertDefined(invoice, 'Invoice is undefined');
+        assertPropStringOrNumber(invoice, 'id');
+        assertPropStringOrNumber(invoice, 'user_id');
+        assertPropString(invoice, 'currency_blockchain_key');
+        assertPropString(invoice, 'currency_token_id');
+        assertPropStringOrNumber(invoice, 'invoiced_amount');
+        assertPropStringOrNumber(invoice, 'paid_amount');
+        assertPropString(invoice, 'wallet_address');
+        assertPropString(invoice, 'invoice_type');
+        assertPropString(invoice, 'status');
+        assertPropDate(invoice, 'invoice_date');
+        assertPropNullableDate(invoice, 'due_date');
+        assertPropNullableDate(invoice, 'expired_date');
+        return {
+          id: String(invoice.id),
+          userId: String(invoice.user_id),
+          currencyBlockchainKey: invoice.currency_blockchain_key,
+          currencyTokenId: invoice.currency_token_id,
+          invoicedAmount: String(invoice.invoiced_amount),
+          paidAmount: String(invoice.paid_amount),
+          walletAddress: invoice.wallet_address,
+          invoiceType: invoice.invoice_type,
+          status: invoice.status,
+          invoiceDate: invoice.invoice_date,
+          dueDate: invoice.due_date,
+          expiredDate: invoice.expired_date,
+        };
+      }),
+      totalCount,
+      hasMore,
+    };
+  }
+
+  async platformSetActiveButExpiredInvoiceAsExpired(
+    params: PlatformSetActiveButExpiredInvoiceAsExpiredParams,
+  ): Promise<PlatformSetActiveButExpiredInvoiceAsExpiredResult> {
+    const { invoiceId, expiredDate } = params;
+
+    const tx = await this.beginTransaction();
+    try {
+      const rows = await this.sql`
+        UPDATE invoices
+        SET status = 'Expired',
+            expired_date = ${expiredDate.toISOString()}
+        WHERE id = ${invoiceId}
+          AND status IN ('Pending', 'PartiallyPaid', 'Overdue')
+        RETURNING id, status, expired_date
+      `;
+
+      if (rows.length === 0) {
+        throw new Error('Invoice not found or cannot be expired');
+      }
+
+      const invoice = rows[0];
+      assertDefined(invoice, 'Invoice not found or update failed');
+      assertPropStringOrNumber(invoice, 'id');
+      assertPropString(invoice, 'status');
+      assertPropDate(invoice, 'expired_date');
+
+      await tx.commitTransaction();
+
+      return {
+        id: String(invoice.id),
+        status: invoice.status,
+        expiredDate: invoice.expired_date,
+      };
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
+    }
   }
 
   // Withdrawal Management Methods
@@ -838,9 +958,9 @@ export abstract class FinanceRepository extends UserRepository {
     };
   }
 
-  async platformUpdatesExchangeRate(
-    params: PlatformUpdatesExchangeRateParams,
-  ): Promise<PlatformUpdatesExchangeRateResult> {
+  async platformFeedsExchangeRate(
+    params: PlatformFeedsExchangeRateParams,
+  ): Promise<PlatformFeedsExchangeRateResult> {
     const { priceFeedId, bidPrice, askPrice, retrievalDate, sourceDate } = params;
 
     const tx = await this.beginTransaction();

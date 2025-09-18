@@ -468,6 +468,308 @@ export async function runFinanceRepositoryTestSuite(
         }
         ok(errorThrown, 'Expected error for non-existent invoice');
       });
+
+      it('should view active but expired invoices', async function () {
+        // Create test users who will have invoices
+        const userCreationResult = await repo.systemCreatesTestUsers({
+          users: [
+            { email: 'expireduser1@test.com', name: 'Expired User 1' },
+            { email: 'expireduser2@test.com', name: 'Expired User 2' },
+            { email: 'activeuser@test.com', name: 'Active User' },
+          ],
+        });
+
+        const expiredUser1Id = userCreationResult.users[0].id;
+        const expiredUser2Id = userCreationResult.users[1].id;
+        const activeUserId = userCreationResult.users[2].id;
+
+        const baseDate = new Date('2024-01-01T10:00:00Z');
+        const invoiceDate1 = new Date('2024-01-01T06:00:00Z'); // Created earlier
+        const invoiceDate2 = new Date('2024-01-01T07:00:00Z'); // Created earlier
+        const dueDatePast = new Date('2024-01-01T08:00:00Z'); // Due date before base date
+        const dueDateFuture = new Date('2024-01-01T12:00:00Z'); // 2 hours from now
+
+        // Create expired invoice with 'Pending' status (should be found)
+        const expiredInvoice1 = await repo.testCreatesInvoice({
+          userId: expiredUser1Id,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          invoicedAmount: '1000000',
+          walletDerivationPath: "m/44'/60'/0'/0/20",
+          walletAddress: '0x1234567890123456789012345678901234567890',
+          invoiceType: 'LoanCollateral',
+          invoiceDate: invoiceDate1,
+          dueDate: dueDatePast,
+        });
+
+        // Create expired invoice with 'PartiallyPaid' status (should be found)
+        const expiredInvoice2 = await repo.testCreatesInvoice({
+          userId: expiredUser2Id,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          invoicedAmount: '2000000',
+          walletDerivationPath: "m/44'/60'/0'/0/21",
+          walletAddress: '0x2234567890123456789012345678901234567890',
+          invoiceType: 'LoanRepayment',
+          invoiceDate: invoiceDate2,
+          dueDate: dueDatePast,
+        });
+
+        // Update second invoice to PartiallyPaid status
+        await repo.testUpdatesInvoiceStatus({
+          invoiceId: expiredInvoice2.id,
+          status: 'PartiallyPaid',
+        });
+
+        // Create active invoice with future due date (should NOT be found)
+        await repo.testCreatesInvoice({
+          userId: activeUserId,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          invoicedAmount: '3000000',
+          walletDerivationPath: "m/44'/60'/0'/0/22",
+          walletAddress: '0x3234567890123456789012345678901234567890',
+          invoiceType: 'LoanPrincipal',
+          invoiceDate: baseDate,
+          dueDate: dueDateFuture,
+        });
+
+        // Create invoice without due date (should NOT be found)
+        await repo.testCreatesInvoice({
+          userId: activeUserId,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          invoicedAmount: '4000000',
+          walletDerivationPath: "m/44'/60'/0'/0/23",
+          walletAddress: '0x4234567890123456789012345678901234567890',
+          invoiceType: 'LoanCollateral',
+          invoiceDate: baseDate,
+        });
+
+        // Query for expired invoices as of the base date
+        const result = await repo.platformViewsActiveButExpiredInvoices({
+          asOfDate: baseDate,
+          limit: 10,
+          offset: 0,
+        });
+
+        equal(result.invoices.length, 2);
+        equal(result.totalCount, 2);
+        equal(result.hasMore, false);
+
+        // Check that returned invoices are the correct ones
+        const returnedIds = result.invoices.map(i => i.id);
+        ok(returnedIds.includes(expiredInvoice1.id), 'Should include expired invoice 1');
+        ok(returnedIds.includes(expiredInvoice2.id), 'Should include expired invoice 2');
+
+        // Check ordering (should be by due_date ASC)
+        ok(
+          (result.invoices[0].dueDate?.getTime() ?? 0) <=
+            (result.invoices[1].dueDate?.getTime() ?? 0),
+          'Should be ordered by due date ASC',
+        );
+
+        // Verify returned data structure
+        for (const invoice of result.invoices) {
+          equal(typeof invoice.id, 'string');
+          equal(typeof invoice.userId, 'string');
+          equal(typeof invoice.currencyBlockchainKey, 'string');
+          equal(typeof invoice.currencyTokenId, 'string');
+          equal(typeof invoice.invoicedAmount, 'string');
+          equal(typeof invoice.paidAmount, 'string');
+          equal(typeof invoice.walletAddress, 'string');
+          equal(typeof invoice.invoiceType, 'string');
+          equal(typeof invoice.status, 'string');
+          ok(invoice.invoiceDate instanceof Date);
+          ok(invoice.dueDate instanceof Date || invoice.dueDate === null);
+          ok(invoice.expiredDate instanceof Date || invoice.expiredDate === null);
+        }
+      });
+
+      it('should set active but expired invoice as expired', async function () {
+        // Create test user who has an expired invoice
+        const userCreationResult = await repo.systemCreatesTestUsers({
+          users: [{ email: 'toexpireuser@test.com', name: 'To Expire User' }],
+        });
+
+        const userId = userCreationResult.users[0].id;
+        const baseDate = new Date('2024-01-01T10:00:00Z');
+        const invoiceDate = new Date('2024-01-01T06:00:00Z'); // Created earlier
+        const dueDatePast = new Date('2024-01-01T08:00:00Z');
+
+        // Create invoice that should be expired
+        const invoiceResult = await repo.testCreatesInvoice({
+          userId,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          invoicedAmount: '1000000',
+          walletDerivationPath: "m/44'/60'/0'/0/24",
+          walletAddress: '0x5234567890123456789012345678901234567890',
+          invoiceType: 'LoanCollateral',
+          invoiceDate: invoiceDate,
+          dueDate: dueDatePast,
+        });
+
+        // Verify initial status is 'Pending'
+        equal(invoiceResult.status, 'Pending');
+
+        const expiredDate = new Date('2024-01-01T11:00:00Z');
+
+        // Set invoice as expired
+        const result = await repo.platformSetActiveButExpiredInvoiceAsExpired({
+          invoiceId: invoiceResult.id,
+          expiredDate,
+        });
+
+        equal(result.id, invoiceResult.id);
+        equal(result.status, 'Expired');
+        equal(result.expiredDate.getTime(), expiredDate.getTime());
+
+        // Verify that the invoice details reflect the change
+        const updatedInvoice = await repo.userViewsInvoiceDetails({
+          invoiceId: invoiceResult.id,
+        });
+
+        equal(updatedInvoice.status, 'Expired');
+        equal(updatedInvoice.expiredDate?.getTime(), expiredDate.getTime());
+      });
+
+      it('should throw error when setting non-active invoice as expired', async function () {
+        // Create test user who has a paid invoice
+        const userCreationResult = await repo.systemCreatesTestUsers({
+          users: [{ email: 'paidinvoiceuser@test.com', name: 'Paid Invoice User' }],
+        });
+
+        const userId = userCreationResult.users[0].id;
+
+        // Create invoice
+        const invoiceResult = await repo.testCreatesInvoice({
+          userId,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          invoicedAmount: '1000000',
+          walletDerivationPath: "m/44'/60'/0'/0/25",
+          walletAddress: '0x6234567890123456789012345678901234567890',
+          invoiceType: 'LoanCollateral',
+          invoiceDate: new Date('2024-01-01T10:00:00Z'),
+        });
+
+        // Set invoice as paid
+        await repo.testUpdatesInvoiceStatus({
+          invoiceId: invoiceResult.id,
+          status: 'Paid',
+        });
+
+        // Try to set paid invoice as expired (should fail)
+        let errorThrown = false;
+        try {
+          await repo.platformSetActiveButExpiredInvoiceAsExpired({
+            invoiceId: invoiceResult.id,
+            expiredDate: new Date('2024-01-01T12:00:00Z'),
+          });
+        } catch (error) {
+          errorThrown = true;
+          ok(error.message.includes('Invoice not found or cannot be expired'));
+        }
+        ok(errorThrown, 'Expected error when trying to expire non-active invoice');
+      });
+
+      it('should throw error when setting non-existent invoice as expired', async function () {
+        let errorThrown = false;
+        try {
+          await repo.platformSetActiveButExpiredInvoiceAsExpired({
+            invoiceId: '999999',
+            expiredDate: new Date('2024-01-01T12:00:00Z'),
+          });
+        } catch (error) {
+          errorThrown = true;
+          ok(error.message.includes('Invoice not found or cannot be expired'));
+        }
+        ok(errorThrown, 'Expected error when trying to expire non-existent invoice');
+      });
+
+      it('should handle pagination for viewing active but expired invoices', async function () {
+        // Create test users with multiple expired invoices
+        const userCreationResult = await repo.systemCreatesTestUsers({
+          users: [
+            { email: 'pagination1@test.com', name: 'Pagination User 1' },
+            { email: 'pagination2@test.com', name: 'Pagination User 2' },
+            { email: 'pagination3@test.com', name: 'Pagination User 3' },
+          ],
+        });
+
+        const baseDate = new Date('2024-01-01T10:00:00Z');
+        const invoiceDate1 = new Date('2024-01-01T04:00:00Z'); // Created earlier
+        const invoiceDate2 = new Date('2024-01-01T05:00:00Z'); // Created earlier
+        const invoiceDate3 = new Date('2024-01-01T06:00:00Z'); // Created earlier
+        const dueDatePast1 = new Date('2024-01-01T06:00:00Z');
+        const dueDatePast2 = new Date('2024-01-01T07:00:00Z');
+        const dueDatePast3 = new Date('2024-01-01T08:00:00Z');
+
+        // Create 3 expired invoices with different due dates
+        await repo.testCreatesInvoice({
+          userId: userCreationResult.users[0].id,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          invoicedAmount: '1000000',
+          walletDerivationPath: "m/44'/60'/0'/0/26",
+          walletAddress: '0x7234567890123456789012345678901234567890',
+          invoiceType: 'LoanCollateral',
+          invoiceDate: invoiceDate1,
+          dueDate: dueDatePast1,
+        });
+
+        await repo.testCreatesInvoice({
+          userId: userCreationResult.users[1].id,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          invoicedAmount: '2000000',
+          walletDerivationPath: "m/44'/60'/0'/0/27",
+          walletAddress: '0x8234567890123456789012345678901234567890',
+          invoiceType: 'LoanRepayment',
+          invoiceDate: invoiceDate2,
+          dueDate: dueDatePast2,
+        });
+
+        await repo.testCreatesInvoice({
+          userId: userCreationResult.users[2].id,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          invoicedAmount: '3000000',
+          walletDerivationPath: "m/44'/60'/0'/0/28",
+          walletAddress: '0x9234567890123456789012345678901234567890',
+          invoiceType: 'LoanPrincipal',
+          invoiceDate: invoiceDate3,
+          dueDate: dueDatePast3,
+        });
+
+        // Test first page with limit 2
+        const firstPage = await repo.platformViewsActiveButExpiredInvoices({
+          asOfDate: baseDate,
+          limit: 2,
+          offset: 0,
+        });
+
+        equal(firstPage.invoices.length, 2);
+        equal(firstPage.totalCount, 3);
+        equal(firstPage.hasMore, true);
+
+        // Test second page
+        const secondPage = await repo.platformViewsActiveButExpiredInvoices({
+          asOfDate: baseDate,
+          limit: 2,
+          offset: 2,
+        });
+
+        equal(secondPage.invoices.length, 1);
+        equal(secondPage.totalCount, 3);
+        equal(secondPage.hasMore, false);
+
+        // Verify ordering (should be by due_date ASC)
+        equal(firstPage.invoices[0].dueDate?.getTime(), dueDatePast1.getTime());
+        equal(firstPage.invoices[1].dueDate?.getTime(), dueDatePast2.getTime());
+        equal(secondPage.invoices[0].dueDate?.getTime(), dueDatePast3.getTime());
+      });
     });
 
     describe('Withdrawal Management', function () {
@@ -1155,7 +1457,7 @@ export async function runFinanceRepositoryTestSuite(
         const retrievalDate = new Date('2024-01-01T11:00:00Z');
         const sourceDate = new Date('2024-01-01T10:59:30Z');
 
-        const result = await repo.platformUpdatesExchangeRate({
+        const result = await repo.platformFeedsExchangeRate({
           priceFeedId,
           bidPrice: '3100.00',
           askPrice: '3110.00',
