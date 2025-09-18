@@ -2,7 +2,7 @@
 import type { AdapterDebugLogs } from 'better-auth/adapters';
 
 import { BetterAuthError } from 'better-auth';
-import { createAdapter } from 'better-auth/adapters';
+import { createAdapterFactory } from 'better-auth/adapters';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
@@ -18,7 +18,7 @@ interface AuthAdapterOptions {
 
 export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
   const logger = new TelemetryLogger('AuthAdapter');
-  return createAdapter({
+  return createAdapterFactory({
     config: {
       adapterId: 'repository',
       adapterName: 'Repository BetterAuth Adapter',

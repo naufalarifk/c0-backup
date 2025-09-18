@@ -205,11 +205,12 @@ export class AuthConfig {
         issuer: this.configService.appConfig.name,
       }),
       phoneNumber({
-        sendOTP: async ({ phoneNumber, code }: { phoneNumber: string; code: string }) => {
-          await this.twilioService.sendSMS({
+        sendOTP: async ({ phoneNumber, code }) => {
+          const res = await this.twilioService.sendSMS({
             to: phoneNumber,
             body: `Your verification code is: ${code}`,
           });
+          console.log('res :>> ', res);
         },
         signUpOnVerification: {
           getTempEmail: (phoneNumber: string) => `${phoneNumber.replace('+', '')}@temp.app`,
