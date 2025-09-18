@@ -163,7 +163,7 @@ export class AppConfigService {
 
   get twilioConfig() {
     // In test environment, provide valid format test credentials
-    if (this.nodeEnv === 'test') {
+    if (!this.isProduction) {
       return {
         accountSid: this.getString('TWILIO_ACCOUNT_SID', 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'),
         authToken: this.getString('TWILIO_AUTH_TOKEN', 'test_auth_token'),
