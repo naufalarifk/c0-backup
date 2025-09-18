@@ -448,6 +448,8 @@ export abstract class UserRepository extends BetterAuthRepository {
         businessAddress,
         businessCity,
         businessProvince,
+        businessDistrict,
+        businessSubdistrict,
         businessPostalCode,
         directorName,
         directorIdCardPath,
@@ -459,15 +461,15 @@ export abstract class UserRepository extends BetterAuthRepository {
           applicant_user_id, business_name, business_description, business_type,
           npwp_number, npwp_document_path, registration_number, registration_document_path,
           deed_of_establishment_path, business_address,
-          business_city, business_province, business_postal_code, director_name,
-          director_id_card_path, submitted_date
+          business_city, business_province, business_district, business_subdistrict,
+          business_postal_code, director_name, director_id_card_path, submitted_date
         )
         VALUES (
           ${applicantUserId}, ${businessName}, ${businessDescription}, ${businessType},
           ${npwpNumber}, ${npwpDocumentPath}, ${registrationNumber}, ${registrationDocumentPath},
           ${deedOfEstablishmentPath}, ${businessAddress},
-          ${businessCity}, ${businessProvince}, ${businessPostalCode}, ${directorName},
-          ${directorIdCardPath}, ${applicationDate}
+          ${businessCity}, ${businessProvince}, ${businessDistrict}, ${businessSubdistrict},
+          ${businessPostalCode}, ${directorName}, ${directorIdCardPath}, ${applicationDate}
         )
         RETURNING id, applicant_user_id, business_name;
       `;
@@ -1172,6 +1174,8 @@ export abstract class UserRepository extends BetterAuthRepository {
         businessAddress,
         businessCity,
         businessProvince,
+        businessDistrict,
+        businessSubdistrict,
         businessPostalCode,
         directorName,
         directorIdCardPath,
@@ -1182,13 +1186,13 @@ export abstract class UserRepository extends BetterAuthRepository {
         INSERT INTO institution_applications (
           applicant_user_id, business_name, npwp_number, npwp_document_path,
           registration_number, registration_document_path, deed_of_establishment_path,
-          business_address, business_city, business_province,
-          business_postal_code, director_name, director_id_card_path, submitted_date
+          business_address, business_city, business_province, business_district,
+          business_subdistrict, business_postal_code, director_name, director_id_card_path, submitted_date
         ) VALUES (
           ${applicantUserId}, ${businessName}, ${npwpNumber}, ${npwpDocumentPath},
           ${registrationNumber}, ${registrationDocumentPath}, ${deedOfEstablishmentPath},
-          ${businessAddress}, ${businessCity}, ${businessProvince},
-          ${businessPostalCode}, ${directorName}, ${directorIdCardPath}, ${submittedDate}
+          ${businessAddress}, ${businessCity}, ${businessProvince}, ${businessDistrict},
+          ${businessSubdistrict}, ${businessPostalCode}, ${directorName}, ${directorIdCardPath}, ${submittedDate}
         ) RETURNING id, applicant_user_id, business_name
       `;
 

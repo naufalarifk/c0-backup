@@ -1,13 +1,10 @@
 import {
-  assertArrayOf,
   assertDefined,
   assertPropDate,
-  assertPropDefined,
   assertPropNullableDate,
   assertPropNullableString,
   assertPropString,
   assertPropStringOrNumber,
-  setAssertPropValue,
 } from '../utils/assertions';
 import {
   AdminApprovesWithdrawalRefundParams,
@@ -24,15 +21,19 @@ import {
   PlatformCreatesUserAccountResult,
   PlatformFailsWithdrawalParams,
   PlatformFailsWithdrawalResult,
+  PlatformFeedsExchangeRateParams,
+  PlatformFeedsExchangeRateResult,
   PlatformRetrievesExchangeRatesParams,
   PlatformRetrievesExchangeRatesResult,
   PlatformRetrievesProvisionRateResult,
   PlatformSendsWithdrawalParams,
   PlatformSendsWithdrawalResult,
-  PlatformUpdatesExchangeRateParams,
-  PlatformUpdatesExchangeRateResult,
+  PlatformSetActiveButExpiredInvoiceAsExpiredParams,
+  PlatformSetActiveButExpiredInvoiceAsExpiredResult,
   PlatformUpdatesInvoiceStatusParams,
   PlatformUpdatesInvoiceStatusResult,
+  PlatformViewsActiveButExpiredInvoicesParams,
+  PlatformViewsActiveButExpiredInvoicesResult,
   UserRegistersWithdrawalBeneficiaryParams,
   UserRegistersWithdrawalBeneficiaryResult,
   UserRequestsWithdrawalParams,
@@ -172,7 +173,7 @@ export abstract class FinanceRepository extends UserRepository {
     };
   }
 
-  async platformCreatesUserAccount(
+  async testCreatesUserAccount(
     params: PlatformCreatesUserAccountParams,
   ): Promise<PlatformCreatesUserAccountResult> {
     const { userId, currencyBlockchainKey, currencyTokenId, accountType = 'User' } = params;
@@ -225,7 +226,7 @@ export abstract class FinanceRepository extends UserRepository {
   }
 
   // Invoice Management Methods
-  async platformCreatesInvoice(
+  async testCreatesInvoice(
     params: PlatformCreatesInvoiceParams,
   ): Promise<PlatformCreatesInvoiceResult> {
     const {
@@ -346,7 +347,7 @@ export abstract class FinanceRepository extends UserRepository {
     }
   }
 
-  async platformUpdatesInvoiceStatus(
+  async testUpdatesInvoiceStatus(
     params: PlatformUpdatesInvoiceStatusParams,
   ): Promise<PlatformUpdatesInvoiceStatusResult> {
     const { invoiceId, status, expiredDate, notifiedDate } = params;
@@ -370,8 +371,8 @@ export abstract class FinanceRepository extends UserRepository {
       assertDefined(invoice, 'Invoice not found or update failed');
       assertPropStringOrNumber(invoice, 'id');
       assertPropString(invoice, 'status');
-      assertPropDate(invoice, 'expired_date');
-      assertPropDate(invoice, 'notified_date');
+      assertPropNullableDate(invoice, 'expired_date');
+      assertPropNullableDate(invoice, 'notified_date');
 
       await tx.commitTransaction();
 
@@ -448,36 +449,152 @@ export abstract class FinanceRepository extends UserRepository {
     };
   }
 
+  async platformViewsActiveButExpiredInvoices(
+    params: PlatformViewsActiveButExpiredInvoicesParams,
+  ): Promise<PlatformViewsActiveButExpiredInvoicesResult> {
+    const { asOfDate = new Date(), limit = 50, offset = 0 } = params;
+
+    // Get total count first
+    const countResult = await this.sql`
+      SELECT COUNT(*) as total
+      FROM invoices
+      WHERE status IN ('Pending', 'PartiallyPaid', 'Overdue')
+        AND due_date IS NOT NULL
+        AND due_date < ${asOfDate.toISOString()}
+    `;
+
+    const countRow = Array.isArray(countResult) ? countResult[0] : countResult;
+    assertDefined(countRow, 'Count query failed');
+    assertPropStringOrNumber(countRow, 'total');
+    const totalCount = Number(countRow.total);
+
+    const rows = await this.sql`
+      SELECT
+        id,
+        user_id,
+        currency_blockchain_key,
+        currency_token_id,
+        invoiced_amount,
+        paid_amount,
+        wallet_address,
+        invoice_type,
+        status,
+        invoice_date,
+        due_date,
+        expired_date
+      FROM invoices
+      WHERE status IN ('Pending', 'PartiallyPaid', 'Overdue')
+        AND due_date IS NOT NULL
+        AND due_date < ${asOfDate.toISOString()}
+      ORDER BY due_date ASC
+      LIMIT ${limit}
+      OFFSET ${offset}
+    `;
+
+    const invoices = rows;
+    const hasMore = offset + invoices.length < totalCount;
+
+    return {
+      invoices: invoices.map(function (invoice: unknown) {
+        assertDefined(invoice, 'Invoice is undefined');
+        assertPropStringOrNumber(invoice, 'id');
+        assertPropStringOrNumber(invoice, 'user_id');
+        assertPropString(invoice, 'currency_blockchain_key');
+        assertPropString(invoice, 'currency_token_id');
+        assertPropStringOrNumber(invoice, 'invoiced_amount');
+        assertPropStringOrNumber(invoice, 'paid_amount');
+        assertPropString(invoice, 'wallet_address');
+        assertPropString(invoice, 'invoice_type');
+        assertPropString(invoice, 'status');
+        assertPropDate(invoice, 'invoice_date');
+        assertPropNullableDate(invoice, 'due_date');
+        assertPropNullableDate(invoice, 'expired_date');
+        return {
+          id: String(invoice.id),
+          userId: String(invoice.user_id),
+          currencyBlockchainKey: invoice.currency_blockchain_key,
+          currencyTokenId: invoice.currency_token_id,
+          invoicedAmount: String(invoice.invoiced_amount),
+          paidAmount: String(invoice.paid_amount),
+          walletAddress: invoice.wallet_address,
+          invoiceType: invoice.invoice_type,
+          status: invoice.status,
+          invoiceDate: invoice.invoice_date,
+          dueDate: invoice.due_date,
+          expiredDate: invoice.expired_date,
+        };
+      }),
+      totalCount,
+      hasMore,
+    };
+  }
+
+  async platformSetActiveButExpiredInvoiceAsExpired(
+    params: PlatformSetActiveButExpiredInvoiceAsExpiredParams,
+  ): Promise<PlatformSetActiveButExpiredInvoiceAsExpiredResult> {
+    const { invoiceId, expiredDate } = params;
+
+    const tx = await this.beginTransaction();
+    try {
+      const rows = await this.sql`
+        UPDATE invoices
+        SET status = 'Expired',
+            expired_date = ${expiredDate.toISOString()}
+        WHERE id = ${invoiceId}
+          AND status IN ('Pending', 'PartiallyPaid', 'Overdue')
+        RETURNING id, status, expired_date
+      `;
+
+      if (rows.length === 0) {
+        throw new Error('Invoice not found or cannot be expired');
+      }
+
+      const invoice = rows[0];
+      assertDefined(invoice, 'Invoice not found or update failed');
+      assertPropStringOrNumber(invoice, 'id');
+      assertPropString(invoice, 'status');
+      assertPropDate(invoice, 'expired_date');
+
+      await tx.commitTransaction();
+
+      return {
+        id: String(invoice.id),
+        status: invoice.status,
+        expiredDate: invoice.expired_date,
+      };
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
   // Withdrawal Management Methods
   async userRegistersWithdrawalBeneficiary(
     params: UserRegistersWithdrawalBeneficiaryParams,
   ): Promise<UserRegistersWithdrawalBeneficiaryResult> {
-    const { userId, currencyBlockchainKey, currencyTokenId, address } = params;
+    const { userId, blockchainKey, address } = params;
 
     const tx = await this.beginTransaction();
     try {
       const rows = await this.sql`
         INSERT INTO beneficiaries (
           user_id,
-          currency_blockchain_key,
-          currency_token_id,
+          blockchain_key,
           address
         )
         VALUES (
           ${userId},
-          ${currencyBlockchainKey},
-          ${currencyTokenId},
+          ${blockchainKey},
           ${address}
         )
-        RETURNING id, user_id, currency_blockchain_key, currency_token_id, address
+        RETURNING id, user_id, blockchain_key, address
       `;
 
       const beneficiary = rows[0];
       assertDefined(beneficiary, 'Beneficiary registration failed');
       assertPropStringOrNumber(beneficiary, 'id');
       assertPropStringOrNumber(beneficiary, 'user_id');
-      assertPropString(beneficiary, 'currency_blockchain_key');
-      assertPropString(beneficiary, 'currency_token_id');
+      assertPropString(beneficiary, 'blockchain_key');
       assertPropString(beneficiary, 'address');
 
       await tx.commitTransaction();
@@ -485,8 +602,7 @@ export abstract class FinanceRepository extends UserRepository {
       return {
         id: String(beneficiary.id),
         userId: String(beneficiary.user_id),
-        currencyBlockchainKey: beneficiary.currency_blockchain_key,
-        currencyTokenId: beneficiary.currency_token_id,
+        blockchainKey: beneficiary.blockchain_key,
         address: beneficiary.address,
       };
     } catch (error) {
@@ -498,13 +614,15 @@ export abstract class FinanceRepository extends UserRepository {
   async userRequestsWithdrawal(
     params: UserRequestsWithdrawalParams,
   ): Promise<UserRequestsWithdrawalResult> {
-    const { beneficiaryId, amount, requestDate } = params;
+    const { beneficiaryId, currencyBlockchainKey, currencyTokenId, amount, requestDate } = params;
 
     const tx = await this.beginTransaction();
     try {
       const rows = await this.sql`
         INSERT INTO withdrawals (
           beneficiary_id,
+          currency_blockchain_key,
+          currency_token_id,
           amount,
           request_amount,
           request_date,
@@ -512,6 +630,8 @@ export abstract class FinanceRepository extends UserRepository {
         )
         VALUES (
           ${beneficiaryId},
+          ${currencyBlockchainKey},
+          ${currencyTokenId},
           ${amount},
           ${amount},
           ${requestDate.toISOString()},
@@ -756,12 +876,11 @@ export abstract class FinanceRepository extends UserRepository {
       SELECT
         id,
         user_id,
-        currency_blockchain_key,
-        currency_token_id,
+        blockchain_key,
         address
       FROM beneficiaries
       WHERE user_id = ${userId}
-      ORDER BY currency_blockchain_key, currency_token_id, address
+      ORDER BY blockchain_key, address
     `;
 
     const beneficiaries = rows;
@@ -771,14 +890,12 @@ export abstract class FinanceRepository extends UserRepository {
         assertDefined(beneficiary, 'Beneficiary record is undefined');
         assertPropStringOrNumber(beneficiary, 'id');
         assertPropStringOrNumber(beneficiary, 'user_id');
-        assertPropString(beneficiary, 'currency_blockchain_key');
-        assertPropString(beneficiary, 'currency_token_id');
+        assertPropString(beneficiary, 'blockchain_key');
         assertPropString(beneficiary, 'address');
         return {
           id: String(beneficiary.id),
           userId: String(beneficiary.user_id),
-          currencyBlockchainKey: beneficiary.currency_blockchain_key,
-          currencyTokenId: beneficiary.currency_token_id,
+          blockchainKey: beneficiary.blockchain_key,
           address: beneficiary.address,
         };
       }),
@@ -842,9 +959,9 @@ export abstract class FinanceRepository extends UserRepository {
     };
   }
 
-  async platformUpdatesExchangeRate(
-    params: PlatformUpdatesExchangeRateParams,
-  ): Promise<PlatformUpdatesExchangeRateResult> {
+  async platformFeedsExchangeRate(
+    params: PlatformFeedsExchangeRateParams,
+  ): Promise<PlatformFeedsExchangeRateResult> {
     const { priceFeedId, bidPrice, askPrice, retrievalDate, sourceDate } = params;
 
     const tx = await this.beginTransaction();
@@ -928,12 +1045,12 @@ export abstract class FinanceRepository extends UserRepository {
           (${type}::text = 'collateral' AND c.max_ltv > 0) OR
           (${type}::text = 'loan' AND c.symbol IN ('USDC', 'USDT', 'USD') AND c.max_ltv = 0)
         )
-      ORDER BY 
-        CASE 
+      ORDER BY
+        CASE
           WHEN c.max_ltv > 0 THEN 0  -- Collateral currencies first
           ELSE 1                     -- Loan currencies second
         END,
-        c.blockchain_key, 
+        c.blockchain_key,
         c.token_id
     `;
 
@@ -1056,7 +1173,7 @@ export abstract class FinanceRepository extends UserRepository {
     }
   }
 
-  async systemCreatesTestAccountMutations(params: {
+  async testCreatesAccountMutations(params: {
     accountId: string;
     mutations: Array<{ mutationType: string; mutationDate: string; amount: string }>;
   }) {

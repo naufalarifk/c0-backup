@@ -3,9 +3,10 @@ import { Injectable } from '@nestjs/common';
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { FileValidatorService } from '../../../shared/services/file-validator.service';
 import { MinioService } from '../../../shared/services/minio.service';
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { File } from '../../../shared/types';
-import { TelemetryLogger } from '../../../telemetry.logger';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+
 @Injectable()
 export class ProfileService {
   private readonly logger = new TelemetryLogger(ProfileService.name);
@@ -92,7 +93,7 @@ export class ProfileService {
    * Upload a profile picture to Minio and return the object info (NOT URL)
    * Moved from ProfileFileService for better cohesion
    */
-  async uploadProfilePicture(
+  private async uploadProfilePicture(
     fileBuffer: Buffer,
     originalName: string,
     userId: string,

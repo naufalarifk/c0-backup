@@ -103,6 +103,8 @@ export type NotificationType =
   | 'LoanRepaymentFailed'
   | 'LoanLiquidation'
   | 'LoanLtvBreach'
+  // Beneficiary notifications
+  | 'BeneficiaryVerification'
   // Withdrawal notifications
   | 'WithdrawalRequested'
   | 'WithdrawalRefunded'

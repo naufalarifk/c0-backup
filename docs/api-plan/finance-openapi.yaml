@@ -826,20 +826,17 @@ paths:
       summary: List withdrawal beneficiaries
       description: |
         Retrieve all registered withdrawal addresses for the authenticated user or institution.
+        
+        **Important**: Beneficiaries are blockchain-specific, not currency-specific. Each beneficiary
+        can be used for withdrawals of any supported currency on that blockchain.
       operationId: listBeneficiaries
       parameters:
         - name: blockchainKey
           in: query
-          description: Filter by blockchain key
+          description: Filter by blockchain key (CAIP-2 format)
           schema:
             type: string
             example: "eip155:1"
-        - name: tokenId
-          in: query
-          description: Filter by token ID
-          schema:
-            type: string
-            example: "slip44:60"
       responses:
         '200':
           description: Beneficiaries retrieved successfully
@@ -855,44 +852,41 @@ paths:
                     data:
                       beneficiaries:
                         - id: 301
-                          currency:
-                            blockchainKey: "eip155:56"
-                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
-                            name: "Binance-Peg USD Coin"
-                            symbol: "USDC"
-                            decimals: 18
-                            logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                          blockchainKey: "eip155:56"
                           address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
                           label: "My BSC Hardware Wallet"
                           createdDate: "2025-08-01T12:00:00Z"
                           verifiedDate: "2025-08-01T12:30:00Z"
                           isActive: true
+                          blockchain:
+                            key: "eip155:56"
+                            name: "Binance Smart Chain"
+                            shortName: "BSC"
+                            image: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
                         - id: 302
-                          currency:
-                            blockchainKey: "eip155:1"
-                            tokenId: "erc20:0xa0b86a33e6ba4c2f8b3dcc56b4c3b3f7b123f456"
-                            name: "USD Coin"
-                            symbol: "USDC"
-                            decimals: 6
-                            logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                          blockchainKey: "eip155:1"
                           address: "0x8ba1f109551bd432803012645aa136ba40b34567"
                           label: "Ethereum Exchange Address"
                           createdDate: "2025-07-15T08:45:00Z"
                           verifiedDate: "2025-07-15T09:15:00Z"
                           isActive: true
+                          blockchain:
+                            key: "eip155:1"
+                            name: "Ethereum Mainnet"
+                            shortName: "ETH"
+                            image: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
                         - id: 303
-                          currency:
-                            blockchainKey: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
-                            tokenId: "spl:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-                            name: "USD Coin"
-                            symbol: "USDC"
-                            decimals: 6
-                            logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                          blockchainKey: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
                           address: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
                           label: "Solana Mobile Wallet"
                           createdDate: "2025-08-05T16:20:00Z"
                           verifiedDate: null
                           isActive: false
+                          blockchain:
+                            key: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+                            name: "Solana"
+                            shortName: "SOL"
+                            image: "https://cryptologos.cc/logos/solana-sol-logo.png"
                 filtered_beneficiaries:
                   summary: Filtered by BSC network
                   value:
@@ -900,18 +894,17 @@ paths:
                     data:
                       beneficiaries:
                         - id: 301
-                          currency:
-                            blockchainKey: "eip155:56"
-                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
-                            name: "Binance-Peg USD Coin"
-                            symbol: "USDC"
-                            decimals: 18
-                            logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                          blockchainKey: "eip155:56"
                           address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
                           label: "My BSC Hardware Wallet"
                           createdDate: "2025-08-01T12:00:00Z"
                           verifiedDate: "2025-08-01T12:30:00Z"
                           isActive: true
+                          blockchain:
+                            key: "eip155:56"
+                            name: "Binance Smart Chain"
+                            shortName: "BSC"
+                            image: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -926,8 +919,11 @@ paths:
       description: |
         Register a new withdrawal address for future withdrawals.
         
+        **Important**: Beneficiaries are blockchain-specific addresses that can be used 
+        for withdrawals of any supported currency on that blockchain.
+        
         **Registration Process:**
-        1. Validate address format
+        1. Validate address format for the specified blockchain
         2. Check address is not blacklisted
         3. Create beneficiary record
         4. Send email confirmation requirement
@@ -942,24 +938,21 @@ paths:
               $ref: '#/components/schemas/CreateBeneficiaryRequest'
             examples:
               bsc_beneficiary:
-                summary: Register BSC USDT withdrawal address
+                summary: Register BSC withdrawal address
                 value:
                   blockchainKey: "eip155:56"
-                  tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
                   address: "0x1234567890abcdef1234567890abcdef12345678"
                   label: "My BSC Exchange Address"
               ethereum_beneficiary:
-                summary: Register Ethereum USDC withdrawal address
+                summary: Register Ethereum withdrawal address
                 value:
                   blockchainKey: "eip155:1"
-                  tokenId: "erc20:0xa0b86a33e6ba4c2f8b3dcc56b4c3b3f7b123f456"
                   address: "0x8ba1f109551bd432803012645aa136ba40b34567"
                   label: "Hardware Wallet Ethereum"
               solana_beneficiary:
-                summary: Register Solana USDC withdrawal address
+                summary: Register Solana withdrawal address
                 value:
                   blockchainKey: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
-                  tokenId: "spl:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
                   address: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
                   label: "Solana Mobile Wallet"
       responses:
@@ -976,18 +969,17 @@ paths:
                     success: true
                     data:
                       id: 304
-                      currency:
-                        blockchainKey: "eip155:56"
-                        tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
-                        name: "Binance-Peg USD Coin"
-                        symbol: "USDC"
-                        decimals: 18
-                        logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                      blockchainKey: "eip155:56"
                       address: "0x1234567890abcdef1234567890abcdef12345678"
                       label: "New Exchange Address"
                       createdDate: "2025-08-11T16:00:00Z"
                       verifiedDate: null
                       isActive: false
+                      blockchain:
+                        key: "eip155:56"
+                        name: "Binance Smart Chain"
+                        shortName: "BSC"
+                        image: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1054,20 +1046,26 @@ paths:
                     data:
                       withdrawals:
                         - id: 501
+                          currency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                            logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
                           beneficiary:
                             id: 301
-                            currency:
-                              blockchainKey: "eip155:56"
-                              tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
-                              name: "Binance-Peg USD Coin"
-                              symbol: "USDC"
-                              decimals: 18
-                              logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                            blockchainKey: "eip155:56"
                             address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
                             label: "My BSC Hardware Wallet"
                             createdDate: "2025-08-01T12:00:00Z"
                             verifiedDate: "2025-08-01T12:30:00Z"
                             isActive: true
+                            blockchain:
+                              key: "eip155:56"
+                              name: "Binance Smart Chain"
+                              shortName: "BSC"
+                              image: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
                           requestAmount: "1000.000000000000000000"
                           sentAmount: "995.000000000000000000"
                           networkFee: "5.000000000000000000"
@@ -1082,20 +1080,26 @@ paths:
                           blockchainExplorerUrl: "https://bscscan.com/tx/0xdef456789abcdef123456789abcdef123456789abcdef123456789abcdef1234"
                           estimatedConfirmationTime: null
                         - id: 502
+                          currency:
+                            blockchainKey: "eip155:1"
+                            tokenId: "erc20:0xa0b86a33e6ba4c2f8b3dcc56b4c3b3f7b123f456"
+                            name: "USD Coin"
+                            symbol: "USDC"
+                            decimals: 6
+                            logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
                           beneficiary:
                             id: 302
-                            currency:
-                              blockchainKey: "eip155:1"
-                              tokenId: "erc20:0xa0b86a33e6ba4c2f8b3dcc56b4c3b3f7b123f456"
-                              name: "USD Coin"
-                              symbol: "USDC"
-                              decimals: 6
-                              logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                            blockchainKey: "eip155:1"
                             address: "0x8ba1f109551bd432803012645aa136ba40b34567"
                             label: "Ethereum Exchange Address"
                             createdDate: "2025-07-15T08:45:00Z"
                             verifiedDate: "2025-07-15T09:15:00Z"
                             isActive: true
+                            blockchain:
+                              key: "eip155:1"
+                              name: "Ethereum Mainnet"
+                              shortName: "ETH"
+                              image: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
                           requestAmount: "5000.000000000000000000"
                           sentAmount: null
                           networkFee: null
@@ -1110,20 +1114,26 @@ paths:
                           blockchainExplorerUrl: null
                           estimatedConfirmationTime: "30 minutes"
                         - id: 503
+                          currency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                            logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
                           beneficiary:
                             id: 301
-                            currency:
-                              blockchainKey: "eip155:56"
-                              tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
-                              name: "Binance-Peg USD Coin"
-                              symbol: "USDC"
-                              decimals: 18
-                              logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                            blockchainKey: "eip155:56"
                             address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
                             label: "My BSC Hardware Wallet"
                             createdDate: "2025-08-01T12:00:00Z"
                             verifiedDate: "2025-08-01T12:30:00Z"
                             isActive: true
+                            blockchain:
+                              key: "eip155:56"
+                              name: "Binance Smart Chain"
+                              shortName: "BSC"
+                              image: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
                           requestAmount: "2500.000000000000000000"
                           sentAmount: null
                           networkFee: null
@@ -1151,20 +1161,26 @@ paths:
                     data:
                       withdrawals:
                         - id: 501
+                          currency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                            logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
                           beneficiary:
                             id: 301
-                            currency:
-                              blockchainKey: "eip155:56"
-                              tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
-                              name: "Binance-Peg USD Coin"
-                              symbol: "USDC"
-                              decimals: 18
-                              logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                            blockchainKey: "eip155:56"
                             address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
                             label: "My BSC Hardware Wallet"
                             createdDate: "2025-08-01T12:00:00Z"
                             verifiedDate: "2025-08-01T12:30:00Z"
                             isActive: true
+                            blockchain:
+                              key: "eip155:56"
+                              name: "Binance Smart Chain"
+                              shortName: "BSC"
+                              image: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
                           requestAmount: "1000.000000000000000000"
                           sentAmount: "995.000000000000000000"
                           networkFee: "5.000000000000000000"
@@ -1176,7 +1192,7 @@ paths:
                           failedDate: null
                           failureReason: null
                           state: "confirmed"
-                          blockchainExplorerUrl: "https://bscscan.com/tx/0xdef456789abcdef123456789abcdef123456789abcdef123456789abcdef1234"
+                          blockchainExplorerUrl: "https://bscscan.com/tx/0xdef456789abcdef123456789abcdef123456789abcdef1234"
                           estimatedConfirmationTime: null
                       pagination:
                         page: 1
@@ -1199,14 +1215,19 @@ paths:
       description: |
         Request a new withdrawal to a registered beneficiary address.
         
+        **Important**: You must specify both the beneficiary (blockchain address) and the exact 
+        currency (blockchain + token) for the withdrawal. The currency must be supported on the 
+        beneficiary's blockchain.
+        
         **Withdrawal Process:**
         1. Validate 2FA authentication
-        2. Check sufficient account balance
-        3. Verify withdrawal limits
-        4. Calculate fees
-        5. Create withdrawal record
-        6. Debit account balance
-        7. Queue withdrawal processing
+        2. Verify beneficiary belongs to user and is on the same blockchain as currency
+        3. Check sufficient account balance for the specified currency
+        4. Verify withdrawal limits for the currency
+        5. Calculate fees
+        6. Create withdrawal record with currency information
+        7. Debit account balance
+        8. Queue withdrawal processing
       operationId: requestWithdrawal
       requestBody:
         required: true
@@ -1216,21 +1237,27 @@ paths:
               $ref: '#/components/schemas/CreateWithdrawalRequest'
             examples:
               standard_withdrawal:
-                summary: Standard USDT withdrawal with 2FA
+                summary: Standard USDC withdrawal on BSC with 2FA
                 value:
                   beneficiaryId: 301
+                  currencyBlockchainKey: "eip155:56"
+                  currencyTokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
                   amount: "1500.000000000000000000"
                   twoFactorCode: "123456"
               large_withdrawal:
-                summary: Large withdrawal requiring higher verification
+                summary: Large USDC withdrawal on Ethereum
                 value:
                   beneficiaryId: 302
+                  currencyBlockchainKey: "eip155:1"
+                  currencyTokenId: "erc20:0xa0b86a33e6ba4c2f8b3dcc56b4c3b3f7b123f456"
                   amount: "50000.000000000000000000"
                   twoFactorCode: "789012"
               minimum_withdrawal:
-                summary: Minimum withdrawal amount (100 USDT)
+                summary: Minimum withdrawal amount (100 USDC)
                 value:
                   beneficiaryId: 301
+                  currencyBlockchainKey: "eip155:56"
+                  currencyTokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
                   amount: "100.000000000000000000"
                   twoFactorCode: "345678"
       responses:
@@ -1247,20 +1274,26 @@ paths:
                     success: true
                     data:
                       id: 504
+                      currency:
+                        blockchainKey: "eip155:56"
+                        tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                        name: "Binance-Peg USD Coin"
+                        symbol: "USDC"
+                        decimals: 18
+                        logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
                       beneficiary:
                         id: 301
-                        currency:
-                          blockchainKey: "eip155:56"
-                          tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
-                          name: "Binance-Peg USD Coin"
-                          symbol: "USDC"
-                          decimals: 18
-                          logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                        blockchainKey: "eip155:56"
                         address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
                         label: "My BSC Hardware Wallet"
                         createdDate: "2025-08-01T12:00:00Z"
                         verifiedDate: "2025-08-01T12:30:00Z"
                         isActive: true
+                        blockchain:
+                          key: "eip155:56"
+                          name: "Binance Smart Chain"
+                          shortName: "BSC"
+                          image: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
                       requestAmount: "1500.000000000000000000"
                       sentAmount: null
                       networkFee: null
@@ -1314,20 +1347,26 @@ paths:
                     success: true
                     data:
                       id: 501
+                      currency:
+                        blockchainKey: "eip155:56"
+                        tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                        name: "Binance-Peg USD Coin"
+                        symbol: "USDC"
+                        decimals: 18
+                        logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
                       beneficiary:
                         id: 301
-                        currency:
-                          blockchainKey: "eip155:56"
-                          tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
-                          name: "Binance-Peg USD Coin"
-                          symbol: "USDC"
-                          decimals: 18
-                          logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                        blockchainKey: "eip155:56"
                         address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
                         label: "My BSC Hardware Wallet"
                         createdDate: "2025-08-01T12:00:00Z"
                         verifiedDate: "2025-08-01T12:30:00Z"
                         isActive: true
+                        blockchain:
+                          key: "eip155:56"
+                          name: "Binance Smart Chain"
+                          shortName: "BSC"
+                          image: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
                       requestAmount: "1000.000000000000000000"
                       sentAmount: "995.000000000000000000"
                       networkFee: "5.000000000000000000"
@@ -1347,20 +1386,26 @@ paths:
                     success: true
                     data:
                       id: 502
+                      currency:
+                        blockchainKey: "eip155:1"
+                        tokenId: "erc20:0xa0b86a33e6ba4c2f8b3dcc56b4c3b3f7b123f456"
+                        name: "USD Coin"
+                        symbol: "USDC"
+                        decimals: 6
+                        logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
                       beneficiary:
                         id: 302
-                        currency:
-                          blockchainKey: "eip155:1"
-                          tokenId: "erc20:0xa0b86a33e6ba4c2f8b3dcc56b4c3b3f7b123f456"
-                          name: "USD Coin"
-                          symbol: "USDC"
-                          decimals: 6
-                          logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                        blockchainKey: "eip155:1"
                         address: "0x8ba1f109551bd432803012645aa136ba40b34567"
                         label: "Ethereum Exchange Address"
                         createdDate: "2025-07-15T08:45:00Z"
                         verifiedDate: "2025-07-15T09:15:00Z"
                         isActive: true
+                        blockchain:
+                          key: "eip155:1"
+                          name: "Ethereum Mainnet"
+                          shortName: "ETH"
+                          image: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
                       requestAmount: "5000.000000000000000000"
                       sentAmount: null
                       networkFee: null
@@ -1380,20 +1425,26 @@ paths:
                     success: true
                     data:
                       id: 503
+                      currency:
+                        blockchainKey: "eip155:56"
+                        tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                        name: "Binance-Peg USD Coin"
+                        symbol: "USDC"
+                        decimals: 18
+                        logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
                       beneficiary:
                         id: 301
-                        currency:
-                          blockchainKey: "eip155:56"
-                          tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
-                          name: "Binance-Peg USD Coin"
-                          symbol: "USDC"
-                          decimals: 18
-                          logoUrl: "https://cryptologos.cc/logos/tether-usdt-logo.png"
+                        blockchainKey: "eip155:56"
                         address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
                         label: "My BSC Hardware Wallet"
                         createdDate: "2025-08-01T12:00:00Z"
                         verifiedDate: "2025-08-01T12:30:00Z"
                         isActive: true
+                        blockchain:
+                          key: "eip155:56"
+                          name: "Binance Smart Chain"
+                          shortName: "BSC"
+                          image: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
                       requestAmount: "2500.000000000000000000"
                       sentAmount: null
                       networkFee: null
@@ -1872,8 +1923,11 @@ components:
           type: integer
           format: int64
           example: 202
-        currency:
-          $ref: '#/components/schemas/Currency'
+        blockchainKey:
+          type: string
+          description: CAIP-2 compliant blockchain identifier
+          example: "eip155:1"
+          maxLength: 64
         address:
           type: string
           description: Withdrawal address
@@ -1895,12 +1949,39 @@ components:
           type: boolean
           description: Whether the beneficiary is active for withdrawals
           example: true
+        blockchain:
+          type: object
+          description: Blockchain information
+          properties:
+            key:
+              type: string
+              description: CAIP-2 blockchain identifier
+              example: "eip155:1"
+            name:
+              type: string
+              description: Blockchain network name
+              example: "Ethereum Mainnet"
+            shortName:
+              type: string
+              description: Blockchain short name
+              example: "ETH"
+            image:
+              type: string
+              format: uri
+              description: Blockchain logo URL
+              example: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
+          required:
+            - key
+            - name
+            - shortName
+            - image
       required:
         - id
-        - currency
+        - blockchainKey
         - address
         - createdDate
         - isActive
+        - blockchain
 
     CreateBeneficiaryRequest:
       type: object
@@ -1909,11 +1990,6 @@ components:
           type: string
           description: CAIP-2 compliant blockchain identifier
           example: "eip155:1"
-          maxLength: 64
-        tokenId:
-          type: string
-          description: Token identifier within the blockchain
-          example: "slip44:60"
           maxLength: 64
         address:
           type: string
@@ -1925,7 +2001,6 @@ components:
           example: "My Hardware Wallet"
       required:
         - blockchainKey
-        - tokenId
         - address
 
     WithdrawalsResponse:
@@ -1966,6 +2041,8 @@ components:
           type: integer
           format: int64
           example: 303
+        currency:
+          $ref: '#/components/schemas/Currency'
         beneficiary:
           $ref: '#/components/schemas/Beneficiary'
         requestAmount:
@@ -2039,6 +2116,7 @@ components:
           example: "30 minutes"
       required:
         - id
+        - currency
         - beneficiary
         - requestAmount
         - requestDate
@@ -2052,6 +2130,16 @@ components:
           format: int64
           description: ID of registered beneficiary
           example: 202
+        currencyBlockchainKey:
+          type: string
+          description: CAIP-2 compliant blockchain identifier for the currency
+          example: "eip155:56"
+          maxLength: 64
+        currencyTokenId:
+          type: string
+          description: Token identifier within the blockchain (CAIP-19 format)
+          example: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+          maxLength: 64
         amount:
           type: string
           description: Withdrawal amount (18 decimal precision)
@@ -2063,6 +2151,8 @@ components:
           example: "123456"
       required:
         - beneficiaryId
+        - currencyBlockchainKey
+        - currencyTokenId
         - amount
         - twoFactorCode
 

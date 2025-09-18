@@ -1,7 +1,7 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: test req */
 
 import type { Queue } from 'bullmq';
-import type { NotificationData, NotificationType } from './notification.types';
+import type { NotificationData } from './notification.types';
 
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';

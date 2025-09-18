@@ -1,6 +1,28 @@
 import { deepEqual, equal, notEqual, ok, rejects } from 'node:assert/strict';
 import { describe, suite } from 'node:test';
 
+import {
+  assertArrayOf,
+  assertDefined,
+  assertPropDate,
+  assertPropString,
+  assertPropStringOrNumber,
+} from '../utils';
+import { createEarlyExitNodeTestIt } from '../utils/node-test';
+import {
+  BorrowerCreatesLoanApplicationResult,
+  LenderCreatesLoanOfferResult,
+  PlatformOriginatesLoanResult,
+} from './loan.types';
+import { LoanPlatformRepository } from './loan-platform.repository';
+
+let configDateCounter = 0;
+function generateUniqueConfigDate(): Date {
+  const month = Math.max(1, 12 - configDateCounter);
+  configDateCounter++;
+  return new Date(`2023-${String(month).padStart(2, '0')}-01T00:00:00.000Z`);
+}
+
 // Helper function to simulate paying a loan offer's principal invoice
 async function simulateLoanOfferInvoicePayment(
   repo: LoanPlatformRepository,
@@ -129,28 +151,6 @@ async function simulateLoanApplicationInvoicePayment(
       ${loanApplication.collateral_deposit_amount}
     )
   `;
-}
-
-import {
-  assertArrayOf,
-  assertDefined,
-  assertPropDate,
-  assertPropString,
-  assertPropStringOrNumber,
-} from '../utils';
-import { createEarlyExitNodeTestIt } from '../utils/node-test';
-import {
-  BorrowerCreatesLoanApplicationResult,
-  LenderCreatesLoanOfferResult,
-  PlatformOriginatesLoanResult,
-} from './loan.types';
-import { LoanPlatformRepository } from './loan-platform.repository';
-
-let configDateCounter = 0;
-function generateUniqueConfigDate(): Date {
-  const month = Math.max(1, 12 - configDateCounter);
-  configDateCounter++;
-  return new Date(`2023-${String(month).padStart(2, '0')}-01T00:00:00.000Z`);
 }
 
 export async function runLoanPlatformRepositoryTestSuite(

@@ -14,7 +14,9 @@ import { PgRedisCryptogadaiRepository } from './pg-redis-cryptogadai.repository'
       provide: CryptogadaiRepository,
       async useFactory(appConfig: AppConfigService): Promise<CryptogadaiRepository> {
         if (appConfig.databaseUrl === ':inmemory:') {
-          return new InMemoryCryptogadaiRepository();
+          const repo = new InMemoryCryptogadaiRepository();
+          await repo.connect();
+          return repo;
         }
 
         const pool = new Pool({

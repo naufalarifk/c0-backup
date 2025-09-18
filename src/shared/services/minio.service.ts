@@ -3,7 +3,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { extension as getExtension, lookup as getMimeType } from 'mime-types';
 import * as Minio from 'minio';
 
-import { TelemetryLogger } from '../../telemetry.logger';
+import { TelemetryLogger } from '../telemetry.logger';
 import { AppConfigService } from './app-config.service';
 
 export interface UploadResult {
@@ -23,9 +23,24 @@ export class MinioService implements OnModuleInit {
   async onModuleInit() {
     const config = this.configService.minioConfig;
 
+    // Parse endpoint properly to handle URLs with protocol
+    let endPoint: string;
+    let port: number;
+
+    if (config.endpoint.startsWith('http://') || config.endpoint.startsWith('https://')) {
+      const url = new URL(config.endpoint);
+      endPoint = url.hostname;
+      port = url.port ? parseInt(url.port) : url.protocol === 'https:' ? 443 : 80;
+    } else {
+      // Legacy format: "hostname:port"
+      const parts = config.endpoint.split(':');
+      endPoint = parts[0];
+      port = parts[1] ? parseInt(parts[1]) : config.useSSL ? 443 : 9000;
+    }
+
     this.client = new Minio.Client({
-      endPoint: config.endpoint.split(':')[0],
-      port: parseInt(config.endpoint.split(':')[1]),
+      endPoint,
+      port,
       useSSL: config.useSSL,
       accessKey: config.accessKey,
       secretKey: config.secretKey,

@@ -218,7 +218,7 @@ export class EmailVerificationNotificationComposer extends NotificationComposer<
 
             <div class="alternative-link">
                 <p><strong>Button not working?</strong> Copy and paste this link into your browser:</p>
-                <code>${data.url}</code>
+                <code><a href="${data.url}" target="_blank" rel="noopener noreferrer">${data.url}</a></code>
             </div>
 
             <div class="security-note">

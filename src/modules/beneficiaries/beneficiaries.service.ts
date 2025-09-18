@@ -1,7 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+
+import { signJWT } from 'better-auth/crypto';
+import { jwtVerify } from 'jose';
+import {
+  JWSSignatureVerificationFailed,
+  JWTClaimValidationFailed,
+  JWTExpired,
+  JWTInvalid,
+} from 'jose/errors';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
-import { UserRegistersWithdrawalBeneficiaryResult } from '../../shared/repositories/finance.types';
+import { AppConfigService } from '../../shared/services/app-config.service';
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import {
   ensure,
   ensureExists,
@@ -9,10 +19,11 @@ import {
   ensureUnique,
   ResponseHelper,
 } from '../../shared/utils';
-import { TelemetryLogger } from '../../telemetry.logger';
+import { BeneficiaryVerificationNotificationData } from '../notifications/composers/beneficiary-verification.composer';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
 import { CreateBeneficiaryDto } from './dto/create-beneficiary.dto';
 import { GetBeneficiariesDto } from './dto/get-beneficiaries.dto';
+import { VerifyBeneficiaryDto } from './dto/verify-beneficiary.dto';
 
 /**
  * Service responsible for managing withdrawal beneficiaries (addresses)
@@ -25,14 +36,16 @@ export class BeneficiariesService {
   constructor(
     private readonly repo: CryptogadaiRepository,
     private readonly notificationQueueService: NotificationQueueService,
+    private readonly configService: AppConfigService,
   ) {}
 
   /**
-   * Creates a new withdrawal beneficiary address for a user
+   * Initiates the beneficiary creation process with email verification
+   * Does NOT store the beneficiary in database until email verification is complete
    *
    * @param userId - The ID of the user creating the beneficiary
    * @param createBeneficiaryDto - DTO containing beneficiary details
-   * @returns Created beneficiary with pending confirmation status
+   * @returns Success message indicating verification email has been sent
    * @throws Error if user doesn't meet requirements or validation fails
    */
   async create(userId: string, createBeneficiaryDto: CreateBeneficiaryDto) {
@@ -50,38 +63,33 @@ export class BeneficiariesService {
     await this.validateUniqueAddress(userId, createBeneficiaryDto);
 
     // Verify the currency is supported and withdrawals are enabled
-    await this.validateCurrencySupported(
-      createBeneficiaryDto.blockchainKey,
-      createBeneficiaryDto.tokenId,
-    );
+    await this.validateCurrencySupported(createBeneficiaryDto.blockchainKey);
 
-    // Register the beneficiary in the database
-    const beneficiary = await this.repo.userRegistersWithdrawalBeneficiary({
-      userId,
-      currencyBlockchainKey: createBeneficiaryDto.blockchainKey,
-      currencyTokenId: createBeneficiaryDto.tokenId,
-      address: createBeneficiaryDto.address,
-    });
-
-    this.logger.log(`Beneficiary created successfully`, {
-      beneficiaryId: beneficiary.id,
+    // Generate JWT verification token (6 hour expiry) with all data embedded
+    const tokenPayload = {
       userId,
       address: createBeneficiaryDto.address,
+      blockchain: createBeneficiaryDto.blockchainKey,
+      label: createBeneficiaryDto.label, // Include label in JWT
+    };
+
+    const verificationToken = await this.generateBeneficiaryToken(tokenPayload);
+
+    this.logger.log('Beneficiary verification initiated', {
+      userId,
+      address: createBeneficiaryDto.address,
+      blockchain: createBeneficiaryDto.blockchainKey,
     });
 
-    // Queue email notification for beneficiary confirmation
-    await this.sendEmailConfirmation(userId, beneficiary, createBeneficiaryDto.label);
+    // Send verification email with token
+    await this.sendVerificationEmail(userId, verificationToken, createBeneficiaryDto);
 
-    // Return the created beneficiary with pending status
-    // Note: Email confirmation and activation are handled by separate endpoints
-    return ResponseHelper.created('Beneficiary', {
-      id: beneficiary.id,
-      blockchainKey: beneficiary.currencyBlockchainKey,
-      tokenId: beneficiary.currencyTokenId,
-      address: beneficiary.address,
-      label: createBeneficiaryDto.label,
-      status: 'pending_confirmation',
-      message: 'Beneficiary created successfully. Please check your email to confirm the address.',
+    // Return success without storing in database
+    return ResponseHelper.success('Verification email sent', {
+      message:
+        'A verification email has been sent to your registered email address. Please click the link to confirm your withdrawal address.',
+      address: createBeneficiaryDto.address,
+      blockchain: createBeneficiaryDto.blockchainKey,
     });
   }
 
@@ -100,13 +108,7 @@ export class BeneficiariesService {
 
     if (query?.blockchainKey) {
       filteredBeneficiaries = filteredBeneficiaries.filter(
-        beneficiary => beneficiary.currencyBlockchainKey === query.blockchainKey,
-      );
-    }
-
-    if (query?.tokenId) {
-      filteredBeneficiaries = filteredBeneficiaries.filter(
-        beneficiary => beneficiary.currencyTokenId === query.tokenId,
+        beneficiary => beneficiary.blockchainKey === query.blockchainKey,
       );
     }
 
@@ -157,8 +159,7 @@ export class BeneficiariesService {
 
     const duplicate = existingBeneficiaries.beneficiaries.find(
       beneficiary =>
-        beneficiary.currencyBlockchainKey === createBeneficiaryDto.blockchainKey &&
-        beneficiary.currencyTokenId === createBeneficiaryDto.tokenId &&
+        beneficiary.blockchainKey === createBeneficiaryDto.blockchainKey &&
         beneficiary.address.toLowerCase() === createBeneficiaryDto.address.toLowerCase(),
     );
 
@@ -175,61 +176,195 @@ export class BeneficiariesService {
    * @param tokenId - The token identifier on the blockchain
    * @throws Error if currency is not supported or withdrawals are disabled
    */
-  private async validateCurrencySupported(blockchainKey: string, tokenId: string): Promise<void> {
+  private async validateCurrencySupported(blockchainKey: string): Promise<void> {
     const { currencies } = await this.repo.userViewsCurrencies({ type: 'all' });
 
-    const currency = currencies.find(
-      c => c.blockchainKey === blockchainKey && c.tokenId === tokenId,
-    );
+    const currency = currencies.find(c => c.blockchainKey === blockchainKey);
 
-    ensureExists(currency, `Currency ${blockchainKey}:${tokenId} is not supported`);
+    ensureExists(currency, `Currency ${blockchainKey} is not supported`);
 
     // Verify withdrawals are enabled by checking minimum withdrawal amount
-    ensure(
-      currency.minWithdrawalAmount !== null && currency.minWithdrawalAmount !== '0',
-      `Withdrawals are not currently supported for ${currency.symbol}`,
+    // Todo: Implement withdrawal checks based on actual business rules
+    // For now, we assume if minWithdrawalAmount is set and non-zero, withdrawals are enabled
+    // ensure(
+    //   currency.minWithdrawalAmount !== null && currency.minWithdrawalAmount !== '0',
+    //   `Withdrawals are not currently supported for ${currency.symbol}`,
+    // );
+  }
+
+  /**
+   * Verifies a beneficiary address using the email verification token
+   * Creates the beneficiary record in database after successful verification
+   *
+   * @param verifyDto - DTO containing the verification token and optional callbackURL
+   * @returns Created and activated beneficiary details with redirect URL
+   * @throws Error if token is invalid, expired, or verification fails
+   */
+  async verify(verifyDto: VerifyBeneficiaryDto) {
+    // Verify JWT token - all data is embedded in the token
+    // This will throw specific errors (token_expired, invalid_token) if verification fails
+    const tokenPayload = await this.verifyBeneficiaryToken(verifyDto.token);
+
+    // tokenPayload will never be null here since errors are thrown above
+    ensure(tokenPayload, 'Token verification failed');
+
+    // Re-validate that address is still unique (in case it was added elsewhere)
+    await this.validateUniqueAddress(tokenPayload.userId, {
+      blockchainKey: tokenPayload.blockchain,
+      address: tokenPayload.address,
+    } as CreateBeneficiaryDto);
+
+    // Create beneficiary in database (immediately active)
+    const beneficiary = await this.repo.userRegistersWithdrawalBeneficiary({
+      userId: tokenPayload.userId,
+      blockchainKey: tokenPayload.blockchain,
+      address: tokenPayload.address,
+    });
+
+    this.logger.log('Beneficiary verified and activated', {
+      beneficiaryId: beneficiary.id,
+      userId: tokenPayload.userId,
+      address: tokenPayload.address,
+    });
+
+    // Determine redirect URL: prioritize URL from query params, then from token, then default
+    const redirectURL = verifyDto.callbackURL || '/';
+
+    return ResponseHelper.success('Beneficiary address activated', {
+      id: beneficiary.id,
+      blockchainKey: beneficiary.blockchainKey,
+      address: beneficiary.address,
+      label: tokenPayload.label,
+      status: 'active',
+      message: 'Your withdrawal address has been successfully verified and activated.',
+      redirectURL, // Include redirect URL for frontend to handle
+    });
+  }
+
+  /**
+   * Sends verification email with token link
+   *
+   * @param userId - User ID
+   * @param token - Verification token
+   * @param beneficiaryDto - Beneficiary details
+   */
+  private async sendVerificationEmail(
+    userId: string,
+    token: string,
+    beneficiaryDto: CreateBeneficiaryDto,
+  ): Promise<void> {
+    // Get user details for email
+    const user = await this.repo.betterAuthFindOneUser([{ field: 'id', value: userId }]);
+    ensureExists(user, 'User not found');
+
+    // Queue verification email notification
+    const notificationData: BeneficiaryVerificationNotificationData = {
+      type: 'BeneficiaryVerification',
+      url: `${this.configService.authConfig.url}/api/beneficiaries/verify?token=${token}&callbackURL=${beneficiaryDto.callbackURL || '/'}`,
+      email: user.email,
+      blockchain: beneficiaryDto.blockchainKey,
+      address: beneficiaryDto.address,
+      label: beneficiaryDto.label,
+    };
+    await this.notificationQueueService.queueNotification(notificationData);
+  }
+
+  /**
+   * Generates a JWT verification token for beneficiary data
+   * @param payload - Data to encode in the JWT including optional label and callbackURL
+   * @returns Signed JWT token with 6 hour expiry
+   */
+  private async generateBeneficiaryToken(payload: {
+    userId: string;
+    address: string;
+    blockchain: string;
+    label?: string;
+    callbackURL?: string;
+  }): Promise<string> {
+    return await signJWT(
+      payload,
+      this.configService.authConfig.secret,
+      6 * 60 * 60, // 6 hours
     );
   }
 
   /**
-   * Sends an email confirmation request for the new beneficiary address
-   * Queues a notification to be processed asynchronously
-   *
-   * @param userId - The user ID who created the beneficiary
-   * @param beneficiary - The created beneficiary result
-   * @param label - User-friendly label for the address
-   *
-   * @todo Implement proper user email retrieval from repository
-   * @todo Create dedicated BeneficiaryConfirmation notification type
+   * Verifies a JWT beneficiary token and returns the payload
+   * @param token - JWT token to verify
+   * @returns Decoded payload or null if invalid/expired
+   * @throws Error with specific message for different error types
    */
-  private async sendEmailConfirmation(
-    userId: string,
-    beneficiary: UserRegistersWithdrawalBeneficiaryResult,
-    label: string,
-  ): Promise<void> {
+  private async verifyBeneficiaryToken(token: string): Promise<{
+    userId: string;
+    address: string;
+    blockchain: string;
+    label?: string;
+  } | null> {
     try {
-      // Future: Retrieve user email from user service/repository
-      // const user = await this.repo.findUserById(userId);
-      // ensureExists(user, 'User not found');
-
-      // Queue notification for asynchronous processing
-      await this.notificationQueueService.queueNotification({
-        type: 'WithdrawalRequested', // Should be 'BeneficiaryConfirmation' when implemented
-        userId,
-        beneficiaryId: beneficiary.id,
-        address: beneficiary.address,
-        label,
-        message: `Please confirm your withdrawal address: ${beneficiary.address}`,
-      });
-
-      this.logger.log(`Email confirmation queued for beneficiary ${beneficiary.id}`);
-    } catch (error) {
-      // Log error but don't fail the beneficiary creation
-      // Email can be resent through a separate endpoint if needed
-      this.logger.error(
-        `Failed to queue email confirmation for beneficiary ${beneficiary.id}`,
-        error,
+      const result = await jwtVerify(
+        token,
+        new TextEncoder().encode(this.configService.authConfig.secret),
+        { algorithms: ['HS256'] },
       );
+
+      // Extract payload from JWTVerifyResult
+      return result.payload as {
+        userId: string;
+        address: string;
+        blockchain: string;
+        label?: string;
+      };
+    } catch (error) {
+      const tokenPreview = token.slice(0, 20) + '...';
+
+      // Handle specific JWT errors comprehensively with proper HTTP status
+      if (error instanceof JWTExpired) {
+        this.logger.warn('JWT token has expired', { token: tokenPreview });
+        throw new BadRequestException({
+          message: 'Verification token has expired. Please request a new verification email.',
+        });
+      }
+
+      if (error instanceof JWSSignatureVerificationFailed) {
+        this.logger.warn('JWT signature verification failed - possible tampering', {
+          token: tokenPreview,
+        });
+        throw new BadRequestException({
+          message: 'Invalid verification token signature. Please request a new verification email.',
+        });
+      }
+
+      if (error instanceof JWTClaimValidationFailed) {
+        this.logger.warn('JWT claim validation failed', {
+          token: tokenPreview,
+          claim: error.claim,
+          reason: error.reason,
+        });
+        throw new BadRequestException({
+          message:
+            'Verification token contains invalid claims. Please request a new verification email.',
+        });
+      }
+
+      if (error instanceof JWTInvalid) {
+        this.logger.warn('JWT token is invalid', {
+          token: tokenPreview,
+          reason: error.message,
+        });
+        throw new BadRequestException({
+          message: 'Invalid verification token format. Please request a new verification email.',
+        });
+      }
+
+      // Catch-all for any other JWT-related errors
+      this.logger.error('Unknown JWT verification error', {
+        error: error.message,
+        name: error.constructor.name,
+        token: tokenPreview,
+      });
+      throw new BadRequestException({
+        message: 'Token verification failed. Please request a new verification email.',
+      });
     }
   }
 }

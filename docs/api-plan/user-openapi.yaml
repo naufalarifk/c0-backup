@@ -427,7 +427,7 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [businessName, registrationNumber, npwpNumber, businessType, province, city, district, subdistrict, address, postalCode, npwpDocument, registrationDocument, deedOfEstablishment, directorIdCard, ministryApprovalDocument, businessLicense]
+              required: [businessName, registrationNumber, npwpNumber, businessType, province, city, district, subdistrict, address, postalCode, npwpDocument, registrationDocument, deedOfEstablishment, directorIdCard, ministryApprovalDocument]
               properties:
                 businessName:
                   type: string

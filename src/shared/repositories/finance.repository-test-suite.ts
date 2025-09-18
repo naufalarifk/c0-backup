@@ -31,7 +31,7 @@ export async function runFinanceRepositoryTestSuite(
         const currencyBlockchainKey = 'eip155:56';
         const currencyTokenId = 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d';
 
-        const result = await repo.platformCreatesUserAccount({
+        const result = await repo.testCreatesUserAccount({
           userId: userCreationResult.users[0].id,
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -57,7 +57,7 @@ export async function runFinanceRepositoryTestSuite(
         const currencyTokenId = 'slip44:0';
 
         // Create account first time
-        const firstResult = await repo.platformCreatesUserAccount({
+        const firstResult = await repo.testCreatesUserAccount({
           userId,
           currencyBlockchainKey,
           currencyTokenId,
@@ -65,7 +65,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         // Create account second time with same account type (should upsert)
-        const secondResult = await repo.platformCreatesUserAccount({
+        const secondResult = await repo.testCreatesUserAccount({
           userId,
           currencyBlockchainKey,
           currencyTokenId,
@@ -86,14 +86,14 @@ export async function runFinanceRepositoryTestSuite(
         const userId = userCreationResult.users[0].id;
 
         // Create multiple accounts
-        await repo.platformCreatesUserAccount({
+        await repo.testCreatesUserAccount({
           userId,
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           accountType: 'User',
         });
 
-        await repo.platformCreatesUserAccount({
+        await repo.testCreatesUserAccount({
           userId,
           currencyBlockchainKey: 'bip122:000000000019d6689c085ae165831e93',
           currencyTokenId: 'slip44:0',
@@ -129,7 +129,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         const userId = userCreationResult.users[0].id;
-        const accountResult = await repo.platformCreatesUserAccount({
+        const accountResult = await repo.testCreatesUserAccount({
           userId,
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -137,7 +137,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         // Create some test mutations (this would normally be done by other flows)
-        await repo.systemCreatesTestAccountMutations({
+        await repo.testCreatesAccountMutations({
           accountId: accountResult.id,
           mutations: [
             {
@@ -180,7 +180,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         const userId = userCreationResult.users[0].id;
-        const accountResult = await repo.platformCreatesUserAccount({
+        const accountResult = await repo.testCreatesUserAccount({
           userId,
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -188,7 +188,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         // Create test mutations
-        await repo.systemCreatesTestAccountMutations({
+        await repo.testCreatesAccountMutations({
           accountId: accountResult.id,
           mutations: [
             {
@@ -227,7 +227,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         const userId = userCreationResult.users[0].id;
-        const accountResult = await repo.platformCreatesUserAccount({
+        const accountResult = await repo.testCreatesUserAccount({
           userId,
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -235,7 +235,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         // Create test mutations
-        await repo.systemCreatesTestAccountMutations({
+        await repo.testCreatesAccountMutations({
           accountId: accountResult.id,
           mutations: [
             {
@@ -278,7 +278,7 @@ export async function runFinanceRepositoryTestSuite(
         const invoiceDate = new Date('2024-01-01T03:00:00Z');
         const dueDate = new Date('2024-01-02T03:00:00Z');
 
-        const result = await repo.platformCreatesInvoice({
+        const result = await repo.testCreatesInvoice({
           userId,
           currencyBlockchainKey: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
           currencyTokenId: 'slip44:501',
@@ -310,7 +310,7 @@ export async function runFinanceRepositoryTestSuite(
         const userId = userCreationResult.users[0].id;
         const invoiceDate = new Date('2024-01-01T10:00:00Z');
 
-        const result = await repo.platformCreatesInvoice({
+        const result = await repo.testCreatesInvoice({
           userId,
           currencyBlockchainKey: 'bip122:000000000019d6689c085ae165831e93',
           currencyTokenId: 'slip44:0',
@@ -334,14 +334,14 @@ export async function runFinanceRepositoryTestSuite(
         const userId = userCreationResult.users[0].id;
 
         // Create user account first (needed for invoice payment triggers)
-        await repo.platformCreatesUserAccount({
+        await repo.testCreatesUserAccount({
           userId,
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           accountType: 'User',
         });
 
-        const invoiceResult = await repo.platformCreatesInvoice({
+        const invoiceResult = await repo.testCreatesInvoice({
           userId,
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -374,7 +374,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         const userId = userCreationResult.users[0].id;
-        const invoiceResult = await repo.platformCreatesInvoice({
+        const invoiceResult = await repo.testCreatesInvoice({
           userId,
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -388,7 +388,7 @@ export async function runFinanceRepositoryTestSuite(
         const expiredDate = new Date('2024-01-03T03:00:00Z');
         const notifiedDate = new Date('2024-01-02T03:00:00Z');
 
-        const result = await repo.platformUpdatesInvoiceStatus({
+        const result = await repo.testUpdatesInvoiceStatus({
           invoiceId: invoiceResult.id,
           status: 'Expired',
           expiredDate,
@@ -404,7 +404,7 @@ export async function runFinanceRepositoryTestSuite(
       it('should throw error when updating non-existent invoice', async function () {
         let errorThrown = false;
         try {
-          await repo.platformUpdatesInvoiceStatus({
+          await repo.testUpdatesInvoiceStatus({
             invoiceId: '999',
             status: 'Paid',
           });
@@ -425,7 +425,7 @@ export async function runFinanceRepositoryTestSuite(
         const invoiceDate = new Date('2024-01-01T03:00:00Z');
         const dueDate = new Date('2024-01-02T03:00:00Z');
 
-        const invoiceResult = await repo.platformCreatesInvoice({
+        const invoiceResult = await repo.testCreatesInvoice({
           userId,
           currencyBlockchainKey: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
           currencyTokenId: 'slip44:501',
@@ -468,6 +468,308 @@ export async function runFinanceRepositoryTestSuite(
         }
         ok(errorThrown, 'Expected error for non-existent invoice');
       });
+
+      it('should view active but expired invoices', async function () {
+        // Create test users who will have invoices
+        const userCreationResult = await repo.systemCreatesTestUsers({
+          users: [
+            { email: 'expireduser1@test.com', name: 'Expired User 1' },
+            { email: 'expireduser2@test.com', name: 'Expired User 2' },
+            { email: 'activeuser@test.com', name: 'Active User' },
+          ],
+        });
+
+        const expiredUser1Id = userCreationResult.users[0].id;
+        const expiredUser2Id = userCreationResult.users[1].id;
+        const activeUserId = userCreationResult.users[2].id;
+
+        const baseDate = new Date('2024-01-01T10:00:00Z');
+        const invoiceDate1 = new Date('2024-01-01T06:00:00Z'); // Created earlier
+        const invoiceDate2 = new Date('2024-01-01T07:00:00Z'); // Created earlier
+        const dueDatePast = new Date('2024-01-01T08:00:00Z'); // Due date before base date
+        const dueDateFuture = new Date('2024-01-01T12:00:00Z'); // 2 hours from now
+
+        // Create expired invoice with 'Pending' status (should be found)
+        const expiredInvoice1 = await repo.testCreatesInvoice({
+          userId: expiredUser1Id,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          invoicedAmount: '1000000',
+          walletDerivationPath: "m/44'/60'/0'/0/20",
+          walletAddress: '0x1234567890123456789012345678901234567890',
+          invoiceType: 'LoanCollateral',
+          invoiceDate: invoiceDate1,
+          dueDate: dueDatePast,
+        });
+
+        // Create expired invoice with 'PartiallyPaid' status (should be found)
+        const expiredInvoice2 = await repo.testCreatesInvoice({
+          userId: expiredUser2Id,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          invoicedAmount: '2000000',
+          walletDerivationPath: "m/44'/60'/0'/0/21",
+          walletAddress: '0x2234567890123456789012345678901234567890',
+          invoiceType: 'LoanRepayment',
+          invoiceDate: invoiceDate2,
+          dueDate: dueDatePast,
+        });
+
+        // Update second invoice to PartiallyPaid status
+        await repo.testUpdatesInvoiceStatus({
+          invoiceId: expiredInvoice2.id,
+          status: 'PartiallyPaid',
+        });
+
+        // Create active invoice with future due date (should NOT be found)
+        await repo.testCreatesInvoice({
+          userId: activeUserId,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          invoicedAmount: '3000000',
+          walletDerivationPath: "m/44'/60'/0'/0/22",
+          walletAddress: '0x3234567890123456789012345678901234567890',
+          invoiceType: 'LoanPrincipal',
+          invoiceDate: baseDate,
+          dueDate: dueDateFuture,
+        });
+
+        // Create invoice without due date (should NOT be found)
+        await repo.testCreatesInvoice({
+          userId: activeUserId,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          invoicedAmount: '4000000',
+          walletDerivationPath: "m/44'/60'/0'/0/23",
+          walletAddress: '0x4234567890123456789012345678901234567890',
+          invoiceType: 'LoanCollateral',
+          invoiceDate: baseDate,
+        });
+
+        // Query for expired invoices as of the base date
+        const result = await repo.platformViewsActiveButExpiredInvoices({
+          asOfDate: baseDate,
+          limit: 10,
+          offset: 0,
+        });
+
+        equal(result.invoices.length, 2);
+        equal(result.totalCount, 2);
+        equal(result.hasMore, false);
+
+        // Check that returned invoices are the correct ones
+        const returnedIds = result.invoices.map(i => i.id);
+        ok(returnedIds.includes(expiredInvoice1.id), 'Should include expired invoice 1');
+        ok(returnedIds.includes(expiredInvoice2.id), 'Should include expired invoice 2');
+
+        // Check ordering (should be by due_date ASC)
+        ok(
+          (result.invoices[0].dueDate?.getTime() ?? 0) <=
+            (result.invoices[1].dueDate?.getTime() ?? 0),
+          'Should be ordered by due date ASC',
+        );
+
+        // Verify returned data structure
+        for (const invoice of result.invoices) {
+          equal(typeof invoice.id, 'string');
+          equal(typeof invoice.userId, 'string');
+          equal(typeof invoice.currencyBlockchainKey, 'string');
+          equal(typeof invoice.currencyTokenId, 'string');
+          equal(typeof invoice.invoicedAmount, 'string');
+          equal(typeof invoice.paidAmount, 'string');
+          equal(typeof invoice.walletAddress, 'string');
+          equal(typeof invoice.invoiceType, 'string');
+          equal(typeof invoice.status, 'string');
+          ok(invoice.invoiceDate instanceof Date);
+          ok(invoice.dueDate instanceof Date || invoice.dueDate === null);
+          ok(invoice.expiredDate instanceof Date || invoice.expiredDate === null);
+        }
+      });
+
+      it('should set active but expired invoice as expired', async function () {
+        // Create test user who has an expired invoice
+        const userCreationResult = await repo.systemCreatesTestUsers({
+          users: [{ email: 'toexpireuser@test.com', name: 'To Expire User' }],
+        });
+
+        const userId = userCreationResult.users[0].id;
+        const baseDate = new Date('2024-01-01T10:00:00Z');
+        const invoiceDate = new Date('2024-01-01T06:00:00Z'); // Created earlier
+        const dueDatePast = new Date('2024-01-01T08:00:00Z');
+
+        // Create invoice that should be expired
+        const invoiceResult = await repo.testCreatesInvoice({
+          userId,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          invoicedAmount: '1000000',
+          walletDerivationPath: "m/44'/60'/0'/0/24",
+          walletAddress: '0x5234567890123456789012345678901234567890',
+          invoiceType: 'LoanCollateral',
+          invoiceDate: invoiceDate,
+          dueDate: dueDatePast,
+        });
+
+        // Verify initial status is 'Pending'
+        equal(invoiceResult.status, 'Pending');
+
+        const expiredDate = new Date('2024-01-01T11:00:00Z');
+
+        // Set invoice as expired
+        const result = await repo.platformSetActiveButExpiredInvoiceAsExpired({
+          invoiceId: invoiceResult.id,
+          expiredDate,
+        });
+
+        equal(result.id, invoiceResult.id);
+        equal(result.status, 'Expired');
+        equal(result.expiredDate.getTime(), expiredDate.getTime());
+
+        // Verify that the invoice details reflect the change
+        const updatedInvoice = await repo.userViewsInvoiceDetails({
+          invoiceId: invoiceResult.id,
+        });
+
+        equal(updatedInvoice.status, 'Expired');
+        equal(updatedInvoice.expiredDate?.getTime(), expiredDate.getTime());
+      });
+
+      it('should throw error when setting non-active invoice as expired', async function () {
+        // Create test user who has a paid invoice
+        const userCreationResult = await repo.systemCreatesTestUsers({
+          users: [{ email: 'paidinvoiceuser@test.com', name: 'Paid Invoice User' }],
+        });
+
+        const userId = userCreationResult.users[0].id;
+
+        // Create invoice
+        const invoiceResult = await repo.testCreatesInvoice({
+          userId,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          invoicedAmount: '1000000',
+          walletDerivationPath: "m/44'/60'/0'/0/25",
+          walletAddress: '0x6234567890123456789012345678901234567890',
+          invoiceType: 'LoanCollateral',
+          invoiceDate: new Date('2024-01-01T10:00:00Z'),
+        });
+
+        // Set invoice as paid
+        await repo.testUpdatesInvoiceStatus({
+          invoiceId: invoiceResult.id,
+          status: 'Paid',
+        });
+
+        // Try to set paid invoice as expired (should fail)
+        let errorThrown = false;
+        try {
+          await repo.platformSetActiveButExpiredInvoiceAsExpired({
+            invoiceId: invoiceResult.id,
+            expiredDate: new Date('2024-01-01T12:00:00Z'),
+          });
+        } catch (error) {
+          errorThrown = true;
+          ok(error.message.includes('Invoice not found or cannot be expired'));
+        }
+        ok(errorThrown, 'Expected error when trying to expire non-active invoice');
+      });
+
+      it('should throw error when setting non-existent invoice as expired', async function () {
+        let errorThrown = false;
+        try {
+          await repo.platformSetActiveButExpiredInvoiceAsExpired({
+            invoiceId: '999999',
+            expiredDate: new Date('2024-01-01T12:00:00Z'),
+          });
+        } catch (error) {
+          errorThrown = true;
+          ok(error.message.includes('Invoice not found or cannot be expired'));
+        }
+        ok(errorThrown, 'Expected error when trying to expire non-existent invoice');
+      });
+
+      it('should handle pagination for viewing active but expired invoices', async function () {
+        // Create test users with multiple expired invoices
+        const userCreationResult = await repo.systemCreatesTestUsers({
+          users: [
+            { email: 'pagination1@test.com', name: 'Pagination User 1' },
+            { email: 'pagination2@test.com', name: 'Pagination User 2' },
+            { email: 'pagination3@test.com', name: 'Pagination User 3' },
+          ],
+        });
+
+        const baseDate = new Date('2024-01-01T10:00:00Z');
+        const invoiceDate1 = new Date('2024-01-01T04:00:00Z'); // Created earlier
+        const invoiceDate2 = new Date('2024-01-01T05:00:00Z'); // Created earlier
+        const invoiceDate3 = new Date('2024-01-01T06:00:00Z'); // Created earlier
+        const dueDatePast1 = new Date('2024-01-01T06:00:00Z');
+        const dueDatePast2 = new Date('2024-01-01T07:00:00Z');
+        const dueDatePast3 = new Date('2024-01-01T08:00:00Z');
+
+        // Create 3 expired invoices with different due dates
+        await repo.testCreatesInvoice({
+          userId: userCreationResult.users[0].id,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          invoicedAmount: '1000000',
+          walletDerivationPath: "m/44'/60'/0'/0/26",
+          walletAddress: '0x7234567890123456789012345678901234567890',
+          invoiceType: 'LoanCollateral',
+          invoiceDate: invoiceDate1,
+          dueDate: dueDatePast1,
+        });
+
+        await repo.testCreatesInvoice({
+          userId: userCreationResult.users[1].id,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          invoicedAmount: '2000000',
+          walletDerivationPath: "m/44'/60'/0'/0/27",
+          walletAddress: '0x8234567890123456789012345678901234567890',
+          invoiceType: 'LoanRepayment',
+          invoiceDate: invoiceDate2,
+          dueDate: dueDatePast2,
+        });
+
+        await repo.testCreatesInvoice({
+          userId: userCreationResult.users[2].id,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          invoicedAmount: '3000000',
+          walletDerivationPath: "m/44'/60'/0'/0/28",
+          walletAddress: '0x9234567890123456789012345678901234567890',
+          invoiceType: 'LoanPrincipal',
+          invoiceDate: invoiceDate3,
+          dueDate: dueDatePast3,
+        });
+
+        // Test first page with limit 2
+        const firstPage = await repo.platformViewsActiveButExpiredInvoices({
+          asOfDate: baseDate,
+          limit: 2,
+          offset: 0,
+        });
+
+        equal(firstPage.invoices.length, 2);
+        equal(firstPage.totalCount, 3);
+        equal(firstPage.hasMore, true);
+
+        // Test second page
+        const secondPage = await repo.platformViewsActiveButExpiredInvoices({
+          asOfDate: baseDate,
+          limit: 2,
+          offset: 2,
+        });
+
+        equal(secondPage.invoices.length, 1);
+        equal(secondPage.totalCount, 3);
+        equal(secondPage.hasMore, false);
+
+        // Verify ordering (should be by due_date ASC)
+        equal(firstPage.invoices[0].dueDate?.getTime(), dueDatePast1.getTime());
+        equal(firstPage.invoices[1].dueDate?.getTime(), dueDatePast2.getTime());
+        equal(secondPage.invoices[0].dueDate?.getTime(), dueDatePast3.getTime());
+      });
     });
 
     describe('Withdrawal Management', function () {
@@ -482,14 +784,12 @@ export async function runFinanceRepositoryTestSuite(
 
         const result = await repo.userRegistersWithdrawalBeneficiary({
           userId,
-          currencyBlockchainKey: 'eip155:56',
-          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          blockchainKey: 'eip155:56',
           address,
         });
 
         equal(result.userId, userId);
-        equal(result.currencyBlockchainKey, 'eip155:56');
-        equal(result.currencyTokenId, 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d');
+        equal(result.blockchainKey, 'eip155:56');
         equal(result.address, address);
         equal(typeof result.id, 'string');
       });
@@ -505,15 +805,13 @@ export async function runFinanceRepositoryTestSuite(
         // Register multiple beneficiaries
         await repo.userRegistersWithdrawalBeneficiary({
           userId,
-          currencyBlockchainKey: 'eip155:56',
-          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          blockchainKey: 'eip155:56',
           address: '0x5234567890123456789012345678901234567890',
         });
 
         await repo.userRegistersWithdrawalBeneficiary({
           userId,
-          currencyBlockchainKey: 'bip122:000000000019d6689c085ae165831e93',
-          currencyTokenId: 'slip44:0',
+          blockchainKey: 'bip122:000000000019d6689c085ae165831e93',
           address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0w21',
         });
 
@@ -525,7 +823,7 @@ export async function runFinanceRepositoryTestSuite(
           equal(typeof beneficiary.id, 'string');
           ok(
             ['eip155:56', 'bip122:000000000019d6689c085ae165831e93'].includes(
-              beneficiary.currencyBlockchainKey,
+              beneficiary.blockchainKey,
             ),
           );
         });
@@ -545,7 +843,7 @@ export async function runFinanceRepositoryTestSuite(
         const userId = userCreationResult.users[0].id;
 
         // Create user account and add balance first
-        const accountResult = await repo.platformCreatesUserAccount({
+        const accountResult = await repo.testCreatesUserAccount({
           userId,
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -553,7 +851,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         // Add balance by creating a test mutation
-        await repo.systemCreatesTestAccountMutations({
+        await repo.testCreatesAccountMutations({
           accountId: accountResult.id,
           mutations: [
             {
@@ -567,14 +865,15 @@ export async function runFinanceRepositoryTestSuite(
         // Register beneficiary first
         const beneficiaryResult = await repo.userRegistersWithdrawalBeneficiary({
           userId,
-          currencyBlockchainKey: 'eip155:56',
-          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          blockchainKey: 'eip155:56',
           address: '0x6234567890123456789012345678901234567822',
         });
 
         const requestDate = new Date('2024-01-01T03:00:00Z');
         const result = await repo.userRequestsWithdrawal({
           beneficiaryId: beneficiaryResult.id,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           amount: '500000',
           requestDate,
         });
@@ -596,7 +895,7 @@ export async function runFinanceRepositoryTestSuite(
         const userId = userCreationResult.users[0].id;
 
         // Create user account and add balance first
-        const accountResult = await repo.platformCreatesUserAccount({
+        const accountResult = await repo.testCreatesUserAccount({
           userId,
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -604,7 +903,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         // Add balance by creating a test mutation
-        await repo.systemCreatesTestAccountMutations({
+        await repo.testCreatesAccountMutations({
           accountId: accountResult.id,
           mutations: [
             {
@@ -617,13 +916,14 @@ export async function runFinanceRepositoryTestSuite(
 
         const beneficiaryResult = await repo.userRegistersWithdrawalBeneficiary({
           userId,
-          currencyBlockchainKey: 'eip155:56',
-          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          blockchainKey: 'eip155:56',
           address: '0x7234567890123456789012345678901234567823',
         });
 
         const withdrawalResult = await repo.userRequestsWithdrawal({
           beneficiaryId: beneficiaryResult.id,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           amount: '1000000',
           requestDate: new Date('2024-01-01T10:00:00Z'),
         });
@@ -657,7 +957,7 @@ export async function runFinanceRepositoryTestSuite(
         const userId = userCreationResult.users[0].id;
 
         // Create user account and add balance first
-        const accountResult = await repo.platformCreatesUserAccount({
+        const accountResult = await repo.testCreatesUserAccount({
           userId,
           currencyBlockchainKey: 'bip122:000000000019d6689c085ae165831e93',
           currencyTokenId: 'slip44:0',
@@ -665,7 +965,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         // Add balance by creating a test mutation
-        await repo.systemCreatesTestAccountMutations({
+        await repo.testCreatesAccountMutations({
           accountId: accountResult.id,
           mutations: [
             {
@@ -678,13 +978,14 @@ export async function runFinanceRepositoryTestSuite(
 
         const beneficiaryResult = await repo.userRegistersWithdrawalBeneficiary({
           userId,
-          currencyBlockchainKey: 'bip122:000000000019d6689c085ae165831e93',
-          currencyTokenId: 'slip44:0',
+          blockchainKey: 'bip122:000000000019d6689c085ae165831e93',
           address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
         });
 
         const withdrawalResult = await repo.userRequestsWithdrawal({
           beneficiaryId: beneficiaryResult.id,
+          currencyBlockchainKey: 'bip122:000000000019d6689c085ae165831e93',
+          currencyTokenId: 'slip44:0',
           amount: '10000000', // 0.1 BTC in satoshis
           requestDate: new Date('2024-01-01T10:00:00Z'),
         });
@@ -717,7 +1018,7 @@ export async function runFinanceRepositoryTestSuite(
         const userId = userCreationResult.users[0].id;
 
         // Create user account and add balance first
-        const accountResult = await repo.platformCreatesUserAccount({
+        const accountResult = await repo.testCreatesUserAccount({
           userId,
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -725,7 +1026,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         // Add balance by creating a test mutation
-        await repo.systemCreatesTestAccountMutations({
+        await repo.testCreatesAccountMutations({
           accountId: accountResult.id,
           mutations: [
             {
@@ -738,13 +1039,14 @@ export async function runFinanceRepositoryTestSuite(
 
         const beneficiaryResult = await repo.userRegistersWithdrawalBeneficiary({
           userId,
-          currencyBlockchainKey: 'eip155:56',
-          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          blockchainKey: 'eip155:56',
           address: '0x8234567890123456789012345678901234567825',
         });
 
         const withdrawalResult = await repo.userRequestsWithdrawal({
           beneficiaryId: beneficiaryResult.id,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           amount: '2000000',
           requestDate: new Date('2024-01-01T10:00:00Z'),
         });
@@ -790,7 +1092,7 @@ export async function runFinanceRepositoryTestSuite(
         const reviewerUserId = userCreationResult.users[1].id;
 
         // Create user account and add balance first
-        const accountResult = await repo.platformCreatesUserAccount({
+        const accountResult = await repo.testCreatesUserAccount({
           userId,
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -798,7 +1100,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         // Add balance by creating a test mutation
-        await repo.systemCreatesTestAccountMutations({
+        await repo.testCreatesAccountMutations({
           accountId: accountResult.id,
           mutations: [
             {
@@ -811,13 +1113,14 @@ export async function runFinanceRepositoryTestSuite(
 
         const beneficiaryResult = await repo.userRegistersWithdrawalBeneficiary({
           userId,
-          currencyBlockchainKey: 'eip155:56',
-          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          blockchainKey: 'eip155:56',
           address: '0x9234567890123456789012345678901234567826',
         });
 
         const withdrawalResult = await repo.userRequestsWithdrawal({
           beneficiaryId: beneficiaryResult.id,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           amount: '1500000',
           requestDate: new Date('2024-01-01T10:00:00Z'),
         });
@@ -854,7 +1157,7 @@ export async function runFinanceRepositoryTestSuite(
         const reviewerUserId = userCreationResult.users[1].id;
 
         // Create user account and add balance first
-        const accountResult = await repo.platformCreatesUserAccount({
+        const accountResult = await repo.testCreatesUserAccount({
           userId,
           currencyBlockchainKey: 'bip122:000000000019d6689c085ae165831e93',
           currencyTokenId: 'slip44:0',
@@ -862,7 +1165,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         // Add balance by creating a test mutation
-        await repo.systemCreatesTestAccountMutations({
+        await repo.testCreatesAccountMutations({
           accountId: accountResult.id,
           mutations: [
             {
@@ -875,13 +1178,14 @@ export async function runFinanceRepositoryTestSuite(
 
         const beneficiaryResult = await repo.userRegistersWithdrawalBeneficiary({
           userId,
-          currencyBlockchainKey: 'bip122:000000000019d6689c085ae165831e93',
-          currencyTokenId: 'slip44:0',
+          blockchainKey: 'bip122:000000000019d6689c085ae165831e93',
           address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0w27',
         });
 
         const withdrawalResult = await repo.userRequestsWithdrawal({
           beneficiaryId: beneficiaryResult.id,
+          currencyBlockchainKey: 'bip122:000000000019d6689c085ae165831e93',
+          currencyTokenId: 'slip44:0',
           amount: '20000000', // 0.2 BTC in satoshis
           requestDate: new Date('2024-01-01T10:00:00Z'),
         });
@@ -920,7 +1224,7 @@ export async function runFinanceRepositoryTestSuite(
         const userId = userCreationResult.users[0].id;
 
         // Create user account and add balance first
-        const accountResult = await repo.platformCreatesUserAccount({
+        const accountResult = await repo.testCreatesUserAccount({
           userId,
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -928,7 +1232,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         // Add balance by creating a test mutation
-        await repo.systemCreatesTestAccountMutations({
+        await repo.testCreatesAccountMutations({
           accountId: accountResult.id,
           mutations: [
             {
@@ -941,13 +1245,14 @@ export async function runFinanceRepositoryTestSuite(
 
         const beneficiaryResult = await repo.userRegistersWithdrawalBeneficiary({
           userId,
-          currencyBlockchainKey: 'eip155:56',
-          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          blockchainKey: 'eip155:56',
           address: '0xa234567890123456789012345678901234567828',
         });
 
         const withdrawalResult = await repo.userRequestsWithdrawal({
           beneficiaryId: beneficiaryResult.id,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           amount: '800000',
           requestDate: new Date('2024-01-01T10:00:00Z'),
         });
@@ -1152,7 +1457,7 @@ export async function runFinanceRepositoryTestSuite(
         const retrievalDate = new Date('2024-01-01T11:00:00Z');
         const sourceDate = new Date('2024-01-01T10:59:30Z');
 
-        const result = await repo.platformUpdatesExchangeRate({
+        const result = await repo.platformFeedsExchangeRate({
           priceFeedId,
           bidPrice: '3100.00',
           askPrice: '3110.00',

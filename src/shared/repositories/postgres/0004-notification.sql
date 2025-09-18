@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS notifications (
     'LoanApplicationApproved', 'LoanApplicationRejected', 'LoanOfferClosed', 'LoanDisbursement',
     'LoanActivated', 'LoanRepaymentDue', 'LoanRepaymentCompleted', 'LoanRepaymentReceived',
     'LoanRepaymentFailed', 'LoanLiquidation', 'LoanLtvBreach',
+    -- Beneficiary notifications
+    'BeneficiaryVerification',
     -- Withdrawal notifications
     'WithdrawalRequested', 'WithdrawalRefunded', 'WithdrawalRefundApproved', 'WithdrawalRefundRejected',
     -- Admin notifications

@@ -25,7 +25,7 @@ export class EmailService {
     this.defaultFrom = `${this.configService.appConfig.name} <${from}>`;
 
     // Use SMTP in test environment
-    this.useSmtp = this.configService.nodeEnv === 'test';
+    this.useSmtp = this.configService.emailConfig.useSmtp;
 
     if (this.useSmtp) {
       this.smtpTransporter = nodemailer.createTransport({

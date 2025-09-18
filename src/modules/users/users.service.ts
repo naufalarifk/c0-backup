@@ -1,17 +1,23 @@
 import { Injectable } from '@nestjs/common';
 
+import { hashPassword } from 'better-auth/crypto';
+
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { UserDecidesUserTypeParams } from '../../shared/types';
-import { ensureExists, ensurePrecondition, ResponseHelper } from '../../shared/utils';
+import { ensureExists, ensurePrecondition, ensureUnique, ResponseHelper } from '../../shared/utils';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly repo: CryptogadaiRepository) {}
 
   async setUserType(userId: string, userType: UserDecidesUserTypeParams['userType']) {
-    const user = await this.repo.betterAuthFindOneUser([{ field: 'id', value: userId }]);
+    const user = await this.repo.userViewsProfile({ userId });
     ensureExists(user, 'User not found');
     ensurePrecondition(user.emailVerified, 'Email must be verified before setting user type');
+    ensureUnique(
+      user.userType === 'Undecided',
+      'User type has already been set with ' + user.userType,
+    );
 
     const payload: UserDecidesUserTypeParams = {
       userId,
@@ -24,5 +30,40 @@ export class UsersService {
     return ResponseHelper.action('User type set', {
       userType: payload.userType,
     });
+  }
+
+  async addCredentialProvider(userId: string, password: string) {
+    const credentialAccount = await this.repo.betterAuthFindOneAccount([
+      { field: 'userId', value: userId },
+      { field: 'providerId', value: 'credential' },
+    ]);
+    ensureUnique(!credentialAccount, 'Credential provider already exists');
+
+    const hashedPassword = await hashPassword(password);
+    await this.repo.betterAuthCreateAccount({
+      accountId: userId,
+      userId,
+      providerId: 'credential',
+      password: hashedPassword,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    return ResponseHelper.success('Credential provider added successfully', {
+      providerId: 'credential',
+    });
+  }
+
+  async getProviderAccounts(userId: string) {
+    const raw = await this.repo
+      .sql`SELECT provider_id FROM auth_providers WHERE user_id = ${userId}`;
+
+    if (raw.length === 0) {
+      return [];
+    }
+
+    const accounts = raw as { provider_id: string }[];
+
+    return accounts.map(account => account.provider_id);
   }
 }

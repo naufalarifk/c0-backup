@@ -12,13 +12,11 @@ import { CryptogadaiRepository } from './cryptogadai.repository';
  * PGlite-based + in-memory variable as redis for Cryptogadai.
  */
 export class InMemoryCryptogadaiRepository extends CryptogadaiRepository {
-  #pgLite: PGlite | undefined;
+  #pgLite = new PGlite();
 
   async connect(): Promise<void> {
-    const pgLite = new PGlite();
-
     // Configure the database to interpret timestamps consistently as UTC
-    await pgLite.exec(`SET TIME ZONE 'UTC';`);
+    await this.#pgLite.exec(`SET TIME ZONE 'UTC';`);
 
     /**
      * use __dirname to get relative path of current file
@@ -42,16 +40,13 @@ export class InMemoryCryptogadaiRepository extends CryptogadaiRepository {
 
     for (const schemaPath of schemaPaths) {
       const schemaSqlQueries = await readFile(schemaPath, { encoding: 'utf-8' });
-      await pgLite.exec(schemaSqlQueries);
+      await this.#pgLite.exec(schemaSqlQueries);
     }
-
-    this.#pgLite = pgLite;
   }
 
   async close(): Promise<void> {
-    if (this.#pgLite) {
+    if (this.#pgLite && !this.#pgLite.closed) {
       await this.#pgLite.close();
-      this.#pgLite = undefined;
     }
     // Clear any scheduled expiration timers to allow clean shutdown
     for (const timer of this.#timers.values()) {

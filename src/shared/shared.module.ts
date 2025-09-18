@@ -4,7 +4,6 @@ import { Global, Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 
 import { CryptographyModule } from './cryptography/cryptography.module';
-import { DatabaseModule } from './database/database.module';
 import { TelemetryInterceptor } from './interceptors';
 import { RepositoryModule } from './repositories/repository.module';
 import { AppConfigService } from './services/app-config.service';
@@ -46,15 +45,8 @@ const providers: Provider[] = [
 @Global()
 @Module({
   providers,
-  imports: [CqrsModule, CryptographyModule, DatabaseModule, RepositoryModule, WalletsModule],
+  imports: [CqrsModule, CryptographyModule, RepositoryModule, WalletsModule],
   controllers: [MinioMockController],
-  exports: [
-    ...providers,
-    CqrsModule,
-    CryptographyModule,
-    DatabaseModule,
-    RepositoryModule,
-    WalletsModule,
-  ],
+  exports: [...providers, CqrsModule, CryptographyModule, RepositoryModule],
 })
 export class SharedModule {}

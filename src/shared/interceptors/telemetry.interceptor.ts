@@ -7,9 +7,9 @@ import { Injectable } from '@nestjs/common';
 import { SpanKind, SpanStatusCode } from '@opentelemetry/api';
 import { tap } from 'rxjs/operators';
 
-import { TelemetryLogger } from '../../telemetry.logger';
 import { AppConfigService } from '../services/app-config.service';
 import { TelemetryService } from '../services/telemetry.service';
+import { TelemetryLogger } from '../telemetry.logger';
 
 /**
  * TelemetryInterceptor - Comprehensive HTTP request/response logging and tracing

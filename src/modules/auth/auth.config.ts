@@ -1,8 +1,7 @@
 import type { BetterAuthOptions } from 'better-auth';
-import type { DrizzleDB } from '../../shared/database/database.module';
 import type { AuthModuleOptions } from './auth.module';
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { expo } from '@better-auth/expo';
 import { sso } from '@better-auth/sso';
@@ -15,32 +14,32 @@ import {
   phoneNumber,
   twoFactor,
 } from 'better-auth/plugins';
-import { v7 as uuidv7 } from 'uuid';
 
-import { DRIZZLE_DB } from '../../shared/database/database.module';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../shared/services/app-config.service';
 import { MailerService } from '../../shared/services/mailer.service';
 import { MinioService } from '../../shared/services/minio.service';
 import { RedisService } from '../../shared/services/redis.service';
 import { TwilioService } from '../../shared/services/twilio.service';
-import { TelemetryLogger } from '../../telemetry.logger';
+import { TelemetryLogger } from '../../shared/telemetry.logger';
+import { EmailVerificationNotificationData } from '../notifications/composers/email-verification-notification.composer';
+import { EmailPasswordResetNotificationData } from '../notifications/composers/password-reset-notification.composer';
+import { UserRegisteredNotificationData } from '../notifications/composers/user-registered-notification.composer';
+import { NotificationQueueService } from '../notifications/notification-queue.service';
 import { authAdapter } from './auth.adapter';
-import { forgotPasswordEmail } from './template/forget-password';
-import { verificationEmail } from './template/verification-email';
 
 @Injectable()
 export class AuthConfig {
   private readonly logger = new TelemetryLogger(AuthConfig.name);
 
   constructor(
-    @Inject(DRIZZLE_DB) readonly _database: DrizzleDB,
     private readonly configService: AppConfigService,
     private readonly mailerService: MailerService,
     private readonly twilioService: TwilioService,
     private readonly redisService: RedisService,
     private readonly repo: CryptogadaiRepository,
     private readonly minioService: MinioService,
+    private readonly notificationQueueService: NotificationQueueService,
   ) {}
 
   /**
@@ -142,29 +141,24 @@ export class AuthConfig {
       sendOnSignUp: true,
       autoSignInAfterVerification: true,
       sendVerificationEmail: async ({ user, url }) => {
-        const html = verificationEmail({
+        const notificationData: EmailVerificationNotificationData = {
+          type: 'EmailVerification',
+          name: 'Verify your email address',
+          email: user.email,
           url,
-          userName: user.email,
-          companyName: this.configService.appConfig.name,
-        });
+        };
 
-        const emailConfirmTitle = 'Verify your email address';
+        await this.notificationQueueService.queueNotification(notificationData);
+      },
+      onEmailVerification: async ({ id, email, name }) => {
+        const notificationData: UserRegisteredNotificationData = {
+          type: 'UserRegistered',
+          userId: id,
+          email,
+          name,
+        };
 
-        await this.mailerService.sendMail({
-          to: user.email,
-          subject: emailConfirmTitle,
-          html,
-        });
-
-        //   // const res = await this.emailService.sendEmail({
-        //   //   to: user.email,
-        //   //   subject: emailConfirmTitle,
-        //   //   html,
-        //   // });
-
-        //   // if (res.error) {
-        //   //   this.logger.error('Failed to send verification email :>> ', res.error);
-        //   // }
+        await this.notificationQueueService.queueNotification(notificationData);
       },
     };
   }
@@ -172,7 +166,7 @@ export class AuthConfig {
   private emailAndPassword(): BetterAuthOptions['emailAndPassword'] {
     return {
       enabled: true,
-      requireEmailVerification: this.configService.isProduction,
+      autoSignIn: true,
       sendResetPassword: async ({ user, url, token }) => {
         const isDev = this.configService.isDevelopment;
         const parsed = new URL(url);
@@ -183,20 +177,23 @@ export class AuthConfig {
           ? `${this.configService.appConfig.expoUrl}${callbackURL}?token=${token}`
           : `${this.configService.appConfig.scheme}${callbackURL}?token=${token}`;
 
-        const html = forgotPasswordEmail({
+        const notificationData: EmailPasswordResetNotificationData = {
+          type: 'PasswordResetRequested',
+          email: user.email,
           url,
-          userName: user.email,
-          companyName: this.configService.appConfig.name,
           deepLink,
-        });
+        };
 
-        const emailConfirmTitle = 'Reset your password';
+        await this.notificationQueueService.queueNotification(notificationData);
+      },
+      onPasswordReset: async ({ user }) => {
+        console.log('user :>> ', user);
+        // const notificationData: SMSPasswordResetCompletedNotificationData = {
+        //   type: 'PasswordResetCompleted',
+        //   phoneNumber: user.phoneNumber,
+        // };
 
-        await this.mailerService.sendMail({
-          to: user.email,
-          subject: emailConfirmTitle,
-          html,
-        });
+        // await this.notificationQueueService.queueNotification(notificationData);
       },
     };
   }
@@ -207,11 +204,12 @@ export class AuthConfig {
         issuer: this.configService.appConfig.name,
       }),
       phoneNumber({
-        sendOTP: async ({ phoneNumber, code }: { phoneNumber: string; code: string }) => {
-          await this.twilioService.sendSMS({
+        sendOTP: async ({ phoneNumber, code }) => {
+          const res = await this.twilioService.sendSMS({
             to: phoneNumber,
             body: `Your verification code is: ${code}`,
           });
+          console.log('res :>> ', res);
         },
         signUpOnVerification: {
           getTempEmail: (phoneNumber: string) => `${phoneNumber.replace('+', '')}@temp.app`,
@@ -270,8 +268,8 @@ export class AuthConfig {
   private rateLimit(): BetterAuthOptions['rateLimit'] {
     return {
       enabled: true,
-      window: +this.configService.throttlerConfigs.ttl,
-      max: +this.configService.throttlerConfigs.limit,
+      window: +this.configService.rateLimitConfigs.ttl,
+      max: +this.configService.rateLimitConfigs.limit,
       customRules: {
         '/sign-in/*': {
           window: 60,
@@ -288,14 +286,15 @@ export class AuthConfig {
   private advanced(): BetterAuthOptions['advanced'] {
     return {
       cookiePrefix: this.configService.authConfig.cookiePrefix,
-      useSecureCookies: true,
+      useSecureCookies: this.configService.isProduction,
       disableCSRFCheck: false,
+      crossSubDomainCookies: {
+        enabled: !this.configService.isProduction,
+      },
       defaultCookieAttributes: {
         httpOnly: true,
         secure: true,
-      },
-      database: {
-        generateId: () => uuidv7(),
+        sameSite: this.configService.isProduction ? 'Strict' : 'None',
       },
     };
   }

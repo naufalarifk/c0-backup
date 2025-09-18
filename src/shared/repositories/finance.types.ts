@@ -127,21 +127,21 @@ export interface UserViewsInvoiceDetailsResult {
 // Withdrawal Management Types
 export interface UserRegistersWithdrawalBeneficiaryParams {
   userId: string;
-  currencyBlockchainKey: string;
-  currencyTokenId: string;
+  blockchainKey: string;
   address: string;
 }
 
 export interface UserRegistersWithdrawalBeneficiaryResult {
   id: string;
   userId: string;
-  currencyBlockchainKey: string;
-  currencyTokenId: string;
+  blockchainKey: string;
   address: string;
 }
 
 export interface UserRequestsWithdrawalParams {
   beneficiaryId: string;
+  currencyBlockchainKey: string;
+  currencyTokenId: string;
   amount: string;
   requestDate: Date;
 }
@@ -227,8 +227,7 @@ export interface UserViewsWithdrawalBeneficiariesParams {
 export interface WithdrawalBeneficiary {
   id: string;
   userId: string;
-  currencyBlockchainKey: string;
-  currencyTokenId: string;
+  blockchainKey: string;
   address: string;
 }
 
@@ -260,7 +259,7 @@ export interface PlatformRetrievesExchangeRatesResult {
   exchangeRates: ExchangeRate[];
 }
 
-export interface PlatformUpdatesExchangeRateParams {
+export interface PlatformFeedsExchangeRateParams {
   priceFeedId: string;
   bidPrice: string;
   askPrice: string;
@@ -268,7 +267,7 @@ export interface PlatformUpdatesExchangeRateParams {
   sourceDate: Date;
 }
 
-export interface PlatformUpdatesExchangeRateResult {
+export interface PlatformFeedsExchangeRateResult {
   id: string;
   priceFeedId: string;
   bidPrice: string;
@@ -333,6 +332,45 @@ export interface Currency {
 
 export interface UserViewsCurrenciesResult {
   currencies: Currency[];
+}
+
+// Platform Invoice Expiry Management Types
+export interface PlatformViewsActiveButExpiredInvoicesParams {
+  asOfDate?: Date;
+  limit?: number;
+  offset?: number;
+}
+
+export interface ActiveButExpiredInvoice {
+  id: string;
+  userId: string;
+  currencyBlockchainKey: string;
+  currencyTokenId: string;
+  invoicedAmount: string;
+  paidAmount: string;
+  walletAddress: string;
+  invoiceType: string;
+  status: string;
+  invoiceDate: Date;
+  dueDate: Date | null;
+  expiredDate: Date | null;
+}
+
+export interface PlatformViewsActiveButExpiredInvoicesResult {
+  invoices: ActiveButExpiredInvoice[];
+  totalCount: number;
+  hasMore: boolean;
+}
+
+export interface PlatformSetActiveButExpiredInvoiceAsExpiredParams {
+  invoiceId: string;
+  expiredDate: Date;
+}
+
+export interface PlatformSetActiveButExpiredInvoiceAsExpiredResult {
+  id: string;
+  status: string;
+  expiredDate: Date;
 }
 export interface PlatformRetrievesProvisionRateResult {
   loanProvisionRate: string; // The provision rate as decimal string (e.g., "3.0" for 3.0%)
