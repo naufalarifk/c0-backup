@@ -47,6 +47,6 @@ const providers: Provider[] = [
   providers,
   imports: [CqrsModule, CryptographyModule, RepositoryModule, WalletsModule],
   controllers: [MinioMockController],
-  exports: [...providers, CqrsModule, CryptographyModule, RepositoryModule],
+  exports: [...providers, CqrsModule, CryptographyModule, RepositoryModule, WalletsModule],
 })
 export class SharedModule {}
