@@ -10,6 +10,7 @@ import {
   assertPropDefined,
   assertPropNumber,
   assertPropString,
+  assertPropStringOrNumber,
 } from './assertions';
 
 export async function waitForEmail(mailpitApiUrl: string, receiver: string) {
@@ -128,34 +129,13 @@ export async function waitForPasswordResetEmail(mailpitApiUrl: string, receiver:
     assertPropArrayOf(resp, 'messages', function (msg) {
       assertDefined(msg);
       assertPropString(msg, 'ID');
-      assertPropString(msg, 'MessageID');
-      assertPropDefined(msg, 'From');
-      assertPropString(msg.From, 'Name');
-      assertPropString(msg.From, 'Address');
+      assertPropString(msg, 'Created');
       assertPropArrayOf(msg, 'To', function (to) {
         assertDefined(to);
         assertPropString(to, 'Address');
-        assertPropString(to, 'Name');
         return to;
       });
-      assertPropArray(msg, 'Cc');
-      assertPropArray(msg, 'Bcc');
-      assertPropArray(msg, 'ReplyTo');
-      assertPropString(msg, 'ReturnPath');
       assertPropString(msg, 'Subject');
-      assertPropDefined(msg, 'ListUnsubscribe');
-      assertPropString(msg.ListUnsubscribe, 'Header');
-      assertPropArray(msg.ListUnsubscribe, 'Links');
-      assertPropString(msg.ListUnsubscribe, 'Errors');
-      assertPropString(msg.ListUnsubscribe, 'HeaderPost');
-      assertPropString(msg, 'Date');
-      assertPropArray(msg, 'Tags');
-      assertPropString(msg, 'Username');
-      assertPropString(msg, 'Text');
-      assertPropString(msg, 'HTML');
-      assertPropNumber(msg, 'Size');
-      assertPropArray(msg, 'Inline');
-      assertPropArray(msg, 'Attachments');
       return msg;
     });
 
@@ -164,12 +144,13 @@ export async function waitForPasswordResetEmail(mailpitApiUrl: string, receiver:
       .filter(
         msg =>
           msg.To?.some(to => to.Address.toLowerCase() === receiver.toLowerCase()) &&
-          (msg.Subject?.includes('Reset') ||
-            msg.Subject?.includes('password') ||
-            msg.Text?.includes('password reset') ||
-            msg.Text?.includes('Reset Password')),
+          (msg.Subject?.includes('Reset') || msg.Subject?.includes('password')),
       )
-      .sort((a, b) => new Date(b.Date).getTime() - new Date(a.Date).getTime())[0];
+      .sort((a, b) => {
+        const dateA = a.Created ? new Date(a.Created).getTime() : 0;
+        const dateB = b.Created ? new Date(b.Created).getTime() : 0;
+        return dateB - dateA;
+      })[0];
 
     if (passwordResetEmail) {
       console.debug(`Password reset email found for ${receiver} on attempt ${attempt}`);
