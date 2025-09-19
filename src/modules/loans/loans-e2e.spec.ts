@@ -4,7 +4,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 
 import { TestUser, TestUserFactory } from '../../../test/utils/test-user.factory';
-import { AppModule } from '../../app.module';
+// import { AppModule } from '../../app.module';
+import { AppModule } from '../../entrypoints/user-api.module';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { AuthService } from '../auth/auth.service';
 
@@ -162,6 +163,7 @@ describe('Loans API (e2e)', () => {
       publishedDate: new Date('2025-01-02'),
     });
 
+    // TODO MOVE THIS TO REPOSITORY
     // Manually update loan application status to 'Published' since there's no test method for this
     await repository.sql`UPDATE loan_applications SET status = 'Published' WHERE id = ${loanApplicationResult.id}`;
 
