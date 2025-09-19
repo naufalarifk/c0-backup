@@ -87,7 +87,6 @@ The repository `sql` tagged template method has specific constraints and pattern
 - **SQL organization**: Raw SQL files in `repositories/postgres/`
 
 ### Testing Strategy
-- **Unit tests**: `.spec.ts` files with Jest
 - **Repository tests**: Dedicated test suites with shared patterns
 - **E2E tests**: TestContainers for PostgreSQL/Redis
 - **Test environment**: Isolated with mocked dependencies

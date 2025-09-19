@@ -2,6 +2,7 @@
 /dist
 /node_modules
 /build
+/deprecated-test
 
 # Logs
 logs

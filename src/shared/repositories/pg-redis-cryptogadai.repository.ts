@@ -66,6 +66,7 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
   #pool: Pool;
   #redis: Redis;
   #logger = new TelemetryLogger(PgRedisCryptogadaiRepository.name);
+  #isClosed = false;
 
   constructor(pool: Pool, redis: Redis) {
     super();
@@ -132,6 +133,10 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
   }
 
   async close(): Promise<void> {
+    if (this.#isClosed) {
+      return;
+    }
+    this.#isClosed = true;
     await Promise.all([this.#pool.end(), this.#redis.quit()]);
   }
 
@@ -226,8 +231,8 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
 
   async get(key: string): Promise<unknown> {
     const value = await this.#redis.get(key);
-    if (value === null) {
-      return null;
+    if (value === null || value === undefined) {
+      return undefined;
     }
     try {
       return JSON.parse(value);

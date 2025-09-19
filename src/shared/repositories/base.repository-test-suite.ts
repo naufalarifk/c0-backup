@@ -1,5 +1,4 @@
-import { doesNotReject, rejects } from 'node:assert';
-import { equal, ok, throws } from 'node:assert/strict';
+import { doesNotReject, equal, ok, rejects, throws } from 'node:assert/strict';
 import { describe, suite } from 'node:test';
 
 import { createEarlyExitNodeTestIt } from '../utils/node-test';
@@ -227,13 +226,12 @@ export async function runBaseRepositoryTestSuite(
 
         it('should protect against SQL injection in WHERE clauses', async function () {
           const maliciousInput = '1 OR 1=1';
-
-          const rows = await repo.sql`
+          await rejects(
+            repo.sql`
             SELECT * FROM test_security WHERE value = ${maliciousInput}
-          `;
-
-          // Should return no rows since maliciousInput is treated as literal value
-          equal(rows.length, 0);
+          `,
+            'Should throw syntax error due to injection attempt',
+          );
         });
       });
     });
