@@ -43,6 +43,12 @@ function alignBetterAuthUserData(user: unknown) {
   if ('phone_number_verified' in user) {
     setAssertPropValue(user, 'phoneNumberVerified', !!user.phone_number_verified);
   }
+  if ('two_factor_enabled' in user) {
+    setAssertPropValue(user, 'twoFactorEnabled', !!user.two_factor_enabled);
+  }
+  if ('user_type' in user) {
+    setAssertPropValue(user, 'userType', user.user_type);
+  }
   if ('created_date' in user) {
     setAssertPropValue(user, 'createdAt', 'created_date' in user && tryToDate(user.created_date));
   }
@@ -90,7 +96,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
       const rows = await tx.sql`
         INSERT INTO users (name, profile_picture, email, phone_number, phone_number_verified, created_date, updated_date, email_verified_date)
         VALUES (${name}, ${image}, ${emailValue}, ${phoneNumber}, ${phoneNumberVerified}, ${createdAtUtc}, ${updatedAtUtc}, ${emailVerified ? updatedAtUtc : null})
-        RETURNING id, name, profile_picture as "image", email, phone_number, phone_number_verified, created_date, updated_date, email_verified_date
+        RETURNING id, name, profile_picture as "image", email, phone_number, phone_number_verified, two_factor_enabled, role, user_type, created_date, updated_date, email_verified_date
       `;
 
       assertArrayOf(rows, function (row) {
@@ -132,22 +138,22 @@ export abstract class BetterAuthRepository extends BaseRepository {
       let rows: Array<unknown> = [];
       if (idCondition) {
         rows = await this.sql`
-          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-            created_date, updated_date
+          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+            role, user_type, created_date, updated_date
           FROM users
           WHERE id = ${idCondition.value}
         `;
       } else if (emailCondition) {
         rows = await this.sql`
-          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-            created_date, updated_date
+          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+            role, user_type, created_date, updated_date
           FROM users
           WHERE email = ${emailCondition.value}
         `;
       } else if (phoneCondition) {
         rows = await this.sql`
-          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-            created_date, updated_date
+          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+            role, user_type, created_date, updated_date
           FROM users
           WHERE phone_number = ${phoneCondition.value}
         `;
@@ -190,8 +196,8 @@ export abstract class BetterAuthRepository extends BaseRepository {
       let users: Array<unknown> = [];
       if (!where || where.length === 0) {
         users = await this.sql`
-          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-                 created_date, updated_date
+          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+                 role, user_type, created_date, updated_date
           FROM users
           ORDER BY created_date DESC
           LIMIT ${limit || 100}
@@ -205,8 +211,8 @@ export abstract class BetterAuthRepository extends BaseRepository {
         if (idCondition && idCondition.operator === 'in') {
           const ids = idCondition.value;
           users = await this.sql`
-            SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-                   created_date, updated_date
+            SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+                   role, user_type, created_date, updated_date
             FROM users
             WHERE id = ANY(${ids})
             ORDER BY created_date DESC
@@ -217,8 +223,8 @@ export abstract class BetterAuthRepository extends BaseRepository {
           if (emailCondition.operator === 'contains') {
             const searchTerm = `%${emailCondition.value}%`;
             users = await this.sql`
-              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-                     created_date, updated_date
+              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+                     role, user_type, created_date, updated_date
               FROM users
               WHERE email LIKE ${searchTerm}
               ORDER BY created_date DESC
@@ -227,8 +233,8 @@ export abstract class BetterAuthRepository extends BaseRepository {
             `;
           } else {
             users = await this.sql`
-              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-                     created_date, updated_date
+              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+                     role, user_type, created_date, updated_date
               FROM users
               WHERE email = ${emailCondition.value}
               ORDER BY created_date DESC
@@ -240,8 +246,8 @@ export abstract class BetterAuthRepository extends BaseRepository {
           if (nameCondition.operator === 'contains') {
             const searchTerm = `%${nameCondition.value}%`;
             users = await this.sql`
-              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-                     created_date, updated_date
+              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+                     role, user_type, created_date, updated_date
               FROM users
               WHERE name LIKE ${searchTerm}
               ORDER BY created_date DESC
@@ -250,8 +256,8 @@ export abstract class BetterAuthRepository extends BaseRepository {
             `;
           } else {
             users = await this.sql`
-              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-                     created_date, updated_date
+              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+                     role, user_type, created_date, updated_date
               FROM users
               WHERE name = ${nameCondition.value}
               ORDER BY created_date DESC
@@ -261,8 +267,8 @@ export abstract class BetterAuthRepository extends BaseRepository {
           }
         } else {
           users = await this.sql`
-            SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-                   created_date, updated_date
+            SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+                   role, user_type, created_date, updated_date
             FROM users
             ORDER BY created_date DESC
             LIMIT ${limit || 100}
@@ -304,6 +310,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
         emailVerified,
         phoneNumber,
         phoneNumberVerified,
+        twoFactorEnabled,
         createdAt,
         updatedAt,
         image,
@@ -319,6 +326,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
           email = COALESCE(${email}, email),
           phone_number = COALESCE(${phoneNumber}, phone_number),
           phone_number_verified = COALESCE(${phoneNumberVerified}, phone_number_verified),
+          two_factor_enabled = COALESCE(${twoFactorEnabled}, two_factor_enabled),
           email_verified_date = CASE
             WHEN email_verified_date IS NOT NULL THEN email_verified_date
             WHEN ${emailVerified ? 1 : 0} = 1 AND email_verified_date IS NULL THEN ${updatedAtUtc}
@@ -331,7 +339,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
         WHERE id = ${where.find(w => w.field === 'id')?.value}
           OR email = ${where.find(w => w.field === 'email' || w.field === 'email_address')?.value}
         RETURNING id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-          created_date, updated_date
+          two_factor_enabled, role, user_type, created_date, updated_date
       `;
 
       assertArrayOf(rows, alignBetterAuthUserData);
@@ -396,7 +404,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
         WHERE id = ${idCondition.value}
           OR email = ${where.find(w => w.field === 'email' || w.field === 'email_address')?.value}
         RETURNING id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-          created_date, updated_date
+          two_factor_enabled, role, user_type, created_date, updated_date
       `;
 
       assertArrayOf(rows, alignBetterAuthUserData);
