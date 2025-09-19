@@ -48,7 +48,7 @@ export class MinioMockService extends MinioService {
 
   async deleteFile(bucketName: string, objectName: string): Promise<void> {
     const objectFileAbsPath = join(this.localDir, bucketName, objectName);
-    const objectMetadataAbsPath = join(objectFileAbsPath, `${objectName}.metadata.json`);
+    const objectMetadataAbsPath = join(this.localDir, bucketName, `${objectName}.metadata.json`);
     await Promise.all([unlink(objectFileAbsPath), unlink(objectMetadataAbsPath)]);
   }
 }
