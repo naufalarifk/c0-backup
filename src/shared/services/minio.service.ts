@@ -176,14 +176,22 @@ export class MinioService implements OnModuleInit {
    * Create bucket if not exists
    */
   private async ensureBucketExists(bucketName: string): Promise<void> {
-    const exists = await this.client.bucketExists(bucketName);
-    if (!exists) {
-      await this.client.makeBucket(bucketName);
-      this.logger.log(`Created bucket: ${bucketName}`);
-
-      // Set bucket policy based on bucket type
-      await this.setBucketPolicy(bucketName);
+    try {
+      const exists = await this.client.bucketExists(bucketName);
+      if (!exists) {
+        await this.client.makeBucket(bucketName);
+        this.logger.log(`Created bucket: ${bucketName}`);
+      }
+    } catch (error: unknown) {
+      const errorCode = (error as { code?: string })?.code;
+      if (errorCode !== 'BucketAlreadyOwnedByYou' && errorCode !== 'BucketAlreadyExists') {
+        this.logger.error(`Failed to ensure bucket ${bucketName} exists:`, error);
+        throw error;
+      }
     }
+
+    // Set bucket policy (applies to both new and existing buckets)
+    await this.setBucketPolicy(bucketName);
   }
 
   /**
@@ -206,14 +214,12 @@ export class MinioService implements OnModuleInit {
             },
           ],
         };
-        this.logger.log(`Set PUBLIC policy for bucket: ${bucketName}`);
       } else {
         // Private buckets for sensitive documents (KYC, etc)
         policyConfig = {
           Version: '2012-10-17',
           Statement: [], // No public access
         };
-        this.logger.log(`Set PRIVATE policy for bucket: ${bucketName}`);
       }
 
       await this.client.setBucketPolicy(bucketName, JSON.stringify(policyConfig));

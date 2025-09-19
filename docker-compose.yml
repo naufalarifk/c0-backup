@@ -89,6 +89,7 @@ services:
     image: minio/minio:latest
     container_name: ${MINIO_CONTAINER_NAME}
     restart: unless-stopped
+    command: server /data --console-address ":9001"
     ports:
       - '${MINIO_PORT}:9000'        # API
       - '${MINIO_CONSOLE_PORT}:9001'  # Console UI
@@ -99,7 +100,7 @@ services:
       MINIO_SCHEME: ${MINIO_SCHEME:-http}
       MINIO_API_CORS_ALLOW_ORIGIN: ${MINIO_API_CORS_ALLOW_ORIGIN:-*}
     volumes:
-      - minio_data:/bitnami/minio/data
+      - minio_data:/data
     networks:
       - gadain-network
     healthcheck:
