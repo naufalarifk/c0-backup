@@ -23,8 +23,12 @@ export class MinioMockService extends MinioService {
     },
   ) {
     const objectFileAbsPath = join(this.localDir, options.bucketName, options.objectName);
+    const objectMetadataAbsPath = join(
+      this.localDir,
+      options.bucketName,
+      `${options.objectName}.metadata.json`,
+    );
     const objectDirAbsPath = dirname(objectFileAbsPath);
-    const objectMetadataAbsPath = join(objectFileAbsPath, `${options.objectName}.metadata.json`);
 
     await mkdir(objectDirAbsPath, { recursive: true });
     await Promise.all([
