@@ -541,7 +541,6 @@ paths:
         '409':
           $ref: '#/components/responses/InsufficientBalance'
 
-  /loan-applications:
     get:
       tags: [Loan Applications]
       summary: List loan applications
