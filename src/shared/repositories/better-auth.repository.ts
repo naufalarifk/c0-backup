@@ -1150,4 +1150,259 @@ export abstract class BetterAuthRepository extends BaseRepository {
     const verification = await this.betterAuthDeleteVerification(where);
     return verification ? [verification] : [];
   }
+
+  // TwoFactor methods for better-auth two-factor plugin
+  async betterAuthCreateTwoFactor(data: any): Promise<any> {
+    const tx = await this.beginTransaction();
+    try {
+      const { id, secret, backupCodes, userId } = data;
+
+      const twoFactorId = id || v7();
+
+      const rows = await tx.sql`
+        INSERT INTO two_factor (id, secret, backup_codes, user_id)
+        VALUES (${String(twoFactorId)}, ${secret}, ${backupCodes}, ${userId})
+        RETURNING id, secret, backup_codes as "backupCodes", user_id as "userId"
+      `;
+
+      const row = rows[0];
+      if (!row) return null;
+
+      assertDefined(row);
+      assertPropString(row, 'id');
+      assertPropString(row, 'secret');
+      assertPropString(row, 'backupCodes');
+      assertPropStringOrNumber(row, 'userId');
+
+      await tx.commitTransaction();
+
+      return {
+        id: row.id,
+        secret: row.secret,
+        backupCodes: row.backupCodes,
+        userId: String(row.userId),
+      };
+    } catch (error) {
+      console.error('BetterAuthRepository:betterAuthCreateTwoFactor', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  async betterAuthFindOneTwoFactor(where: any[]): Promise<any> {
+    try {
+      if (!Array.isArray(where) || where.length === 0) {
+        return null;
+      }
+
+      const userIdCondition = where.find(w => w.field === 'userId');
+      const idCondition = where.find(w => w.field === 'id');
+
+      let rows: Array<unknown> = [];
+      if (idCondition) {
+        rows = await this.sql`
+          SELECT id, secret, backup_codes as "backupCodes", user_id as "userId"
+          FROM two_factor
+          WHERE id = ${idCondition.value}
+        `;
+      } else if (userIdCondition) {
+        rows = await this.sql`
+          SELECT id, secret, backup_codes as "backupCodes", user_id as "userId"
+          FROM two_factor
+          WHERE user_id = ${userIdCondition.value}
+        `;
+      } else {
+        return null;
+      }
+
+      if (rows.length === 0) return null;
+
+      const row = rows[0];
+      assertDefined(row);
+      assertPropString(row, 'id');
+      assertPropString(row, 'secret');
+      assertPropString(row, 'backupCodes');
+      assertPropStringOrNumber(row, 'userId');
+
+      return {
+        id: row.id,
+        secret: row.secret,
+        backupCodes: row.backupCodes,
+        userId: String(row.userId),
+      };
+    } catch (error) {
+      console.error('BetterAuthRepository:betterAuthFindOneTwoFactor', error);
+      throw error;
+    }
+  }
+
+  async betterAuthFindManyTwoFactor(
+    where?: any[],
+    limit?: number,
+    offset?: number,
+    sortBy?: any,
+  ): Promise<any[]> {
+    try {
+      if (!where || where.length === 0) {
+        const rows = await this.sql`
+          SELECT id, secret, backup_codes as "backupCodes", user_id as "userId"
+          FROM two_factor
+          LIMIT ${limit || 100}
+          OFFSET ${offset || 0}
+        `;
+
+        return rows.map(row => {
+          assertDefined(row);
+          assertPropString(row, 'id');
+          assertPropString(row, 'secret');
+          assertPropString(row, 'backupCodes');
+          assertPropStringOrNumber(row, 'userId');
+
+          return {
+            id: row.id,
+            secret: row.secret,
+            backupCodes: row.backupCodes,
+            userId: String(row.userId),
+          };
+        });
+      }
+
+      const twoFactor = await this.betterAuthFindOneTwoFactor(where);
+      return twoFactor ? [twoFactor] : [];
+    } catch (error) {
+      console.error('BetterAuthRepository:betterAuthFindManyTwoFactor', error);
+      throw error;
+    }
+  }
+
+  async betterAuthUpdateTwoFactor(where: any[], update: any): Promise<any> {
+    const tx = await this.beginTransaction();
+    try {
+      if (!Array.isArray(where) || where.length === 0) {
+        await tx.rollbackTransaction();
+        return null;
+      }
+
+      const { secret, backupCodes } = update;
+      const userIdCondition = where.find(w => w.field === 'userId');
+      const idCondition = where.find(w => w.field === 'id');
+
+      if (!userIdCondition && !idCondition) {
+        await tx.rollbackTransaction();
+        return null;
+      }
+
+      let rows: Array<unknown> = [];
+      if (idCondition) {
+        rows = await tx.sql`
+          UPDATE two_factor
+          SET secret = COALESCE(${secret}, secret),
+              backup_codes = COALESCE(${backupCodes}, backup_codes)
+          WHERE id = ${idCondition.value}
+          RETURNING id, secret, backup_codes as "backupCodes", user_id as "userId"
+        `;
+      } else if (userIdCondition) {
+        rows = await tx.sql`
+          UPDATE two_factor
+          SET secret = COALESCE(${secret}, secret),
+              backup_codes = COALESCE(${backupCodes}, backup_codes)
+          WHERE user_id = ${userIdCondition.value}
+          RETURNING id, secret, backup_codes as "backupCodes", user_id as "userId"
+        `;
+      }
+
+      const row = rows.length > 0 ? rows[0] : null;
+      if (!row) {
+        await tx.rollbackTransaction();
+        return null;
+      }
+
+      assertDefined(row);
+      assertPropString(row, 'id');
+      assertPropString(row, 'secret');
+      assertPropString(row, 'backupCodes');
+      assertPropStringOrNumber(row, 'userId');
+
+      await tx.commitTransaction();
+
+      return {
+        id: row.id,
+        secret: row.secret,
+        backupCodes: row.backupCodes,
+        userId: String(row.userId),
+      };
+    } catch (error) {
+      console.error('BetterAuthRepository:betterAuthUpdateTwoFactor', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  async betterAuthUpdateManyTwoFactor(where: any[], update: any): Promise<any[]> {
+    const twoFactor = await this.betterAuthUpdateTwoFactor(where, update);
+    return twoFactor ? [twoFactor] : [];
+  }
+
+  async betterAuthDeleteTwoFactor(where: any[]): Promise<any> {
+    const tx = await this.beginTransaction();
+    try {
+      if (!Array.isArray(where) || where.length === 0) {
+        await tx.rollbackTransaction();
+        return null;
+      }
+
+      const userIdCondition = where.find(w => w.field === 'userId');
+      const idCondition = where.find(w => w.field === 'id');
+
+      if (!userIdCondition && !idCondition) {
+        await tx.rollbackTransaction();
+        return null;
+      }
+
+      let rows: Array<unknown> = [];
+      if (idCondition) {
+        rows = await tx.sql`
+          DELETE FROM two_factor
+          WHERE id = ${idCondition.value}
+          RETURNING id, secret, backup_codes as "backupCodes", user_id as "userId"
+        `;
+      } else if (userIdCondition) {
+        rows = await tx.sql`
+          DELETE FROM two_factor
+          WHERE user_id = ${userIdCondition.value}
+          RETURNING id, secret, backup_codes as "backupCodes", user_id as "userId"
+        `;
+      }
+
+      const row = rows.length > 0 ? rows[0] : null;
+      if (!row) {
+        await tx.rollbackTransaction();
+        return null;
+      }
+
+      assertDefined(row);
+      assertPropString(row, 'id');
+      assertPropString(row, 'secret');
+      assertPropString(row, 'backupCodes');
+      assertPropStringOrNumber(row, 'userId');
+
+      await tx.commitTransaction();
+
+      return {
+        id: row.id,
+        secret: row.secret,
+        backupCodes: row.backupCodes,
+        userId: String(row.userId),
+      };
+    } catch (error) {
+      console.error('BetterAuthRepository:betterAuthDeleteTwoFactor', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  async betterAuthDeleteManyTwoFactor(where: any[]): Promise<any[]> {
+    const twoFactor = await this.betterAuthDeleteTwoFactor(where);
+    return twoFactor ? [twoFactor] : [];
+  }
 }

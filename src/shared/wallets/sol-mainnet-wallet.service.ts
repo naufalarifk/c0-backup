@@ -4,6 +4,7 @@ import { HDKey } from '@scure/bip32';
 import { Connection } from '@solana/web3.js';
 
 import { BaseSolanaWallet } from './base-solana-wallet';
+import { WalletProvider } from './Iwallet.service';
 import { IWallet, IWalletService } from './Iwallet.types';
 
 class SolanaMainnetWallet extends BaseSolanaWallet {
@@ -16,6 +17,7 @@ class SolanaMainnetWallet extends BaseSolanaWallet {
 }
 
 @Injectable()
+@WalletProvider('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpWzVF8mS3uVRG')
 export class SolMainnetWalletService extends IWalletService {
   private readonly connection: Connection;
   get bip44CoinType(): number {

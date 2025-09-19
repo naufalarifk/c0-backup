@@ -168,6 +168,46 @@ paths:
           schema:
             type: string
             description: Filter by principal token ID
+        - name: lenderUserType
+          in: query
+          schema:
+            type: string
+            enum: [All, Individual, Institution]
+            description: Filter by lender user type
+        - name: minAvailablePrincipalAmount
+          in: query
+          schema:
+            type: string
+            format: decimal
+            description: Min available supply
+        - name: maxAvailablePrincipalAmount
+          in: query
+          schema:
+            type: string
+            format: decimal
+            description: Max available supply
+        - name: minInterestRate
+          in: query
+          schema:
+            type: number
+            format: float
+            description: Min interest rate percentage
+        - name: maxInterestRate
+          in: query
+          schema:
+            type: number
+            format: float
+            description: Max interest rate percentage
+        - name: termMonths
+          in: query
+          schema:
+            type: integer
+            description: Filter by available term in months
+        - name: keyword
+          in: query
+          schema:
+            type: string
+            description: Keyword search in lender name
       responses:
         '200':
           description: List of loan offers
@@ -1445,6 +1485,7 @@ components:
           type: string
         availableAmount:
           type: string
+          description: Availabale Supply
         disbursedAmount:
           type: string
         interestRate:
@@ -1542,11 +1583,12 @@ components:
               description: Maximum LTV ratio for this collateral type
               minimum: 0
               maximum: 1
-            safetyBuffer:
-              type: number
-              description: Safety buffer percentage (typically 20%)
-              minimum: 0
-              maximum: 1
+            # TODO
+            # safetyBuffer:
+            #   type: number
+            #   description: Safety buffer percentage (typically 20%)
+            #   minimum: 0
+            #   maximum: 1
             calculationDetails:
               type: object
               properties:
@@ -1843,6 +1885,11 @@ components:
           type: string
           description: Business type (only for Institution lenders)
           example: "PT"
+          nullable: true
+        businessDescription:
+          type: string
+          description: Business description (only for Institution lenders)
+          example: PT. Bank Negara Indonesia (BNI) is one of the largest banks in Indonesia. It has branches in several countries and provides a wide range of financial services to individuals and corporations.
           nullable: true
       required:
         - id

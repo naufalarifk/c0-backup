@@ -11,6 +11,7 @@ import { AuthConfig } from '../modules/auth/auth.config';
 import { AuthModule } from '../modules/auth/auth.module';
 import { BeneficiariesModule } from '../modules/beneficiaries/beneficiaries.module';
 import { InstitutionsModule } from '../modules/institutions/institutions.module';
+import { LoansModule } from './../modules/loans/loans.module';
 import { NotificationModule } from '../modules/notifications/notification.module';
 import { SmsModule } from '../modules/sms/sms.module';
 import { UsersModule } from '../modules/users/users.module';
@@ -57,6 +58,7 @@ import { TestController } from '../shared/test.controller';
     BeneficiariesModule,
     WithdrawalsModule,
     SmsModule,
+    LoansModule,
     AdminModule,
   ],
   providers: [

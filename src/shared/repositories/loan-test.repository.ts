@@ -1,20 +1,10 @@
-import {
-  assertArrayOf,
-  assertDefined,
-  assertPropDate,
-  assertPropNullableDate,
-  assertPropNullableString,
-  assertPropNullableStringOrNumber,
-  assertPropString,
-  assertPropStringOrNumber,
-  hasPropArray,
-} from '../utils/assertions';
-import { FinanceRepository } from './finance.repository';
+import { assertDefined, assertPropString, assertPropStringOrNumber } from '../utils/assertions';
+import { PricefeedRepository } from './pricefeed.repository';
 
 /**
- * LoanTestRepository <- FinanceRepository <- UserRepository <- DatabaseRepository
+ * LoanTestRepository <- PricefeedRepository <- FinanceRepository <- UserRepository <- DatabaseRepository
  */
-export abstract class LoanTestRepository extends FinanceRepository {
+export abstract class LoanTestRepository extends PricefeedRepository {
   async testSetupPriceFeeds(params: {
     blockchainKey: string;
     baseCurrencyTokenId: string;

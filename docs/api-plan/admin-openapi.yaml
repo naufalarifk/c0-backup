@@ -958,7 +958,7 @@ components:
             revenueTracking:
               type: object
               properties:
-                originationFees:
+                provisionFees:
                   type: string
                 interestFeesIndividual:
                   type: string
@@ -1290,7 +1290,7 @@ components:
     FeeConfigUpdate:
       type: object
       properties:
-        borrowerOriginationFeeRate:
+        borrowerprovisionFeeRate:
           type: number
           format: decimal
           minimum: 0.02

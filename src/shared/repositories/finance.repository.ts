@@ -21,10 +21,7 @@ import {
   PlatformCreatesUserAccountResult,
   PlatformFailsWithdrawalParams,
   PlatformFailsWithdrawalResult,
-  PlatformFeedsExchangeRateParams,
-  PlatformFeedsExchangeRateResult,
-  PlatformRetrievesExchangeRatesParams,
-  PlatformRetrievesExchangeRatesResult,
+  PlatformRetrievesProvisionRateResult,
   PlatformSendsWithdrawalParams,
   PlatformSendsWithdrawalResult,
   PlatformSetActiveButExpiredInvoiceAsExpiredParams,
@@ -901,113 +898,6 @@ export abstract class FinanceRepository extends UserRepository {
     };
   }
 
-  // Exchange Rate Management Methods
-  async platformRetrievesExchangeRates(
-    params: PlatformRetrievesExchangeRatesParams,
-  ): Promise<PlatformRetrievesExchangeRatesResult> {
-    const { blockchainKey, baseCurrencyTokenId, quoteCurrencyTokenId } = params;
-
-    const rows = await this.sql`
-      SELECT
-        er.id,
-        er.price_feed_id,
-        er.bid_price,
-        er.ask_price,
-        er.retrieval_date,
-        er.source_date,
-        pf.blockchain_key,
-        pf.base_currency_token_id,
-        pf.quote_currency_token_id,
-        pf.source
-      FROM exchange_rates er
-      JOIN price_feeds pf ON er.price_feed_id = pf.id
-      WHERE (${blockchainKey}::text IS NULL OR pf.blockchain_key = ${blockchainKey})
-        AND (${baseCurrencyTokenId}::text IS NULL OR pf.base_currency_token_id = ${baseCurrencyTokenId})
-        AND (${quoteCurrencyTokenId}::text IS NULL OR pf.quote_currency_token_id = ${quoteCurrencyTokenId})
-      ORDER BY er.retrieval_date DESC
-    `;
-
-    const exchangeRates = rows;
-
-    return {
-      exchangeRates: exchangeRates.map(function (rate: unknown) {
-        assertDefined(rate, 'Exchange rate record is undefined');
-        assertPropStringOrNumber(rate, 'id');
-        assertPropStringOrNumber(rate, 'price_feed_id');
-        assertPropStringOrNumber(rate, 'bid_price');
-        assertPropStringOrNumber(rate, 'ask_price');
-        assertPropDate(rate, 'retrieval_date');
-        assertPropDate(rate, 'source_date');
-        assertPropString(rate, 'blockchain_key');
-        assertPropString(rate, 'base_currency_token_id');
-        assertPropString(rate, 'quote_currency_token_id');
-        assertPropString(rate, 'source');
-        return {
-          id: String(rate.id),
-          priceFeedId: String(rate.price_feed_id),
-          bidPrice: String(rate.bid_price),
-          askPrice: String(rate.ask_price),
-          retrievalDate: rate.retrieval_date,
-          sourceDate: rate.source_date,
-          blockchain: rate.blockchain_key,
-          baseCurrency: rate.base_currency_token_id,
-          quoteCurrency: rate.quote_currency_token_id,
-          source: rate.source,
-        };
-      }),
-    };
-  }
-
-  async platformFeedsExchangeRate(
-    params: PlatformFeedsExchangeRateParams,
-  ): Promise<PlatformFeedsExchangeRateResult> {
-    const { priceFeedId, bidPrice, askPrice, retrievalDate, sourceDate } = params;
-
-    const tx = await this.beginTransaction();
-    try {
-      const rows = await this.sql`
-        INSERT INTO exchange_rates (
-          price_feed_id,
-          bid_price,
-          ask_price,
-          retrieval_date,
-          source_date
-        )
-        VALUES (
-          ${priceFeedId},
-          ${bidPrice},
-          ${askPrice},
-          ${retrievalDate.toISOString()},
-          ${sourceDate.toISOString()}
-        )
-        RETURNING id, price_feed_id, bid_price, ask_price, retrieval_date, source_date
-      `;
-
-      const exchangeRate = rows[0];
-      assertDefined(exchangeRate, 'Exchange rate update failed');
-      assertPropStringOrNumber(exchangeRate, 'id');
-      assertPropStringOrNumber(exchangeRate, 'price_feed_id');
-      assertPropStringOrNumber(exchangeRate, 'bid_price');
-      assertPropStringOrNumber(exchangeRate, 'ask_price');
-      assertPropDate(exchangeRate, 'retrieval_date');
-      assertPropDate(exchangeRate, 'source_date');
-
-      await tx.commitTransaction();
-
-      return {
-        id: String(exchangeRate.id),
-        priceFeedId: String(exchangeRate.price_feed_id),
-        bidPrice: String(exchangeRate.bid_price),
-        askPrice: String(exchangeRate.ask_price),
-        retrievalDate: exchangeRate.retrieval_date,
-        sourceDate: exchangeRate.source_date,
-      };
-    } catch (error) {
-      await tx.rollbackTransaction();
-      throw error;
-    }
-  }
-
   // Currency Management Methods
   async userViewsCurrencies(params: UserViewsCurrenciesParams): Promise<UserViewsCurrenciesResult> {
     const { type = 'all', blockchainKey, minLtv, maxLtv } = params;
@@ -1117,6 +1007,32 @@ export abstract class FinanceRepository extends UserRepository {
     };
   }
 
+  // Platform Configuration Methods
+  async platformRetrievesProvisionRate(): Promise<PlatformRetrievesProvisionRateResult> {
+    const rows = await this.sql`
+      SELECT 
+        loan_provision_rate,
+        effective_date
+      FROM platform_configs
+      ORDER BY effective_date DESC
+      LIMIT 1
+    `;
+
+    if (rows.length === 0) {
+      throw new Error('Platform configuration not found');
+    }
+
+    const config = rows[0];
+    assertDefined(config, 'Platform configuration is undefined');
+    assertPropStringOrNumber(config, 'loan_provision_rate');
+    assertPropDate(config, 'effective_date');
+
+    return {
+      loanProvisionRate: String(config.loan_provision_rate),
+      effectiveDate: config.effective_date,
+    };
+  }
+
   // Minimal test helpers for test suite only
   async systemCreatesTestUsers(params: {
     users: Array<{ email: string; name: string; role?: string }>;
@@ -1165,56 +1081,6 @@ export abstract class FinanceRepository extends UserRepository {
       throw error;
     }
   }
-
-  async systemCreatesTestPriceFeeds(params: {
-    priceFeeds: Array<{
-      blockchainKey: string;
-      baseCurrencyTokenId: string;
-      quoteCurrencyTokenId: string;
-      source: string;
-    }>;
-  }) {
-    const tx = await this.beginTransaction();
-    try {
-      for (const pf of params.priceFeeds) {
-        await this.sql`
-          INSERT INTO price_feeds (blockchain_key, base_currency_token_id, quote_currency_token_id, source)
-          VALUES (${pf.blockchainKey}, ${pf.baseCurrencyTokenId}, ${pf.quoteCurrencyTokenId}, ${pf.source})
-        `;
-      }
-      await tx.commitTransaction();
-      return { priceFeedsCreated: params.priceFeeds.length };
-    } catch (error) {
-      await tx.rollbackTransaction();
-      throw error;
-    }
-  }
-
-  async systemCreatesTestExchangeRates(params: {
-    exchangeRates: Array<{
-      priceFeedId: string;
-      bidPrice: string;
-      askPrice: string;
-      retrievalDate: string;
-      sourceDate: string;
-    }>;
-  }) {
-    const tx = await this.beginTransaction();
-    try {
-      for (const er of params.exchangeRates) {
-        await this.sql`
-          INSERT INTO exchange_rates (price_feed_id, bid_price, ask_price, retrieval_date, source_date)
-          VALUES (${er.priceFeedId}, ${er.bidPrice}, ${er.askPrice}, ${er.retrievalDate}, ${er.sourceDate})
-        `;
-      }
-      await tx.commitTransaction();
-      return { exchangeRatesCreated: params.exchangeRates.length };
-    } catch (error) {
-      await tx.rollbackTransaction();
-      throw error;
-    }
-  }
-
   async systemCreatesTestBlockchains(params: {
     blockchains: Array<{ key: string; name: string; shortName: string; image: string }>;
   }) {
@@ -1260,32 +1126,5 @@ export abstract class FinanceRepository extends UserRepository {
       await tx.rollbackTransaction();
       throw error;
     }
-  }
-
-  async systemFindsTestPriceFeedId(params: {
-    blockchainKey: string;
-    baseCurrencyTokenId: string;
-    quoteCurrencyTokenId: string;
-    source?: string;
-  }) {
-    const sourceParam = params.source ?? null;
-
-    const rows = await this.sql`
-      SELECT id FROM price_feeds
-      WHERE blockchain_key = ${params.blockchainKey}
-        AND base_currency_token_id = ${params.baseCurrencyTokenId}
-        AND quote_currency_token_id = ${params.quoteCurrencyTokenId}
-        AND (${sourceParam}::text IS NULL OR source = ${sourceParam})
-    `;
-
-    if (rows.length === 0) {
-      throw new Error('Price feed not found');
-    }
-
-    const row = rows[0];
-    assertDefined(row, 'Price feed is undefined');
-    assertPropStringOrNumber(row, 'id');
-
-    return { id: String(row.id) };
   }
 }
