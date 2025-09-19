@@ -12,6 +12,7 @@ import { AuthModule } from '../modules/auth/auth.module';
 import { BeneficiariesModule } from '../modules/beneficiaries/beneficiaries.module';
 import { InstitutionsModule } from '../modules/institutions/institutions.module';
 import { NotificationModule } from '../modules/notifications/notification.module';
+import { SmsModule } from '../modules/sms/sms.module';
 import { UsersModule } from '../modules/users/users.module';
 import { WithdrawalsModule } from '../modules/withdrawals/withdrawals.module';
 import { HealthcheckController } from '../shared/healthcheck.controller';
@@ -55,6 +56,7 @@ import { TestController } from '../shared/test.controller';
     AccountsModule,
     BeneficiariesModule,
     WithdrawalsModule,
+    SmsModule,
     AdminModule,
   ],
   providers: [

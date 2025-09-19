@@ -15,6 +15,7 @@ import { LoanRepaymentFailedNotificationComposer } from './composers/loan-repaym
 import { LoginFromNewDeviceNotificationComposer } from './composers/login-from-new-device-notification.composer';
 import { PasswordResetCompletedNotificationComposer } from './composers/password-reset-completed-notification.composer';
 import { PasswordResetNotificationComposer } from './composers/password-reset-notification.composer';
+import { PhoneNumberVerificationNotificationComposer } from './composers/phone-number-verification-notification.composer';
 import { SuspiciousLoginAttemptNotificationComposer } from './composers/suspicious-login-attempt-notification.composer';
 import { TwoFactorEnabledNotificationComposer } from './composers/two-factor-enabled-notification.composer';
 import { UserKycRejectedNotificationComposer } from './composers/user-kyc-rejected-notification.composer';
@@ -72,6 +73,7 @@ import { SMSNotificationProvider } from './providers/sms-notification.provider';
     UserKycVerifiedNotificationComposer,
     UserKycRejectedNotificationComposer,
     WithdrawalRequestedNotificationComposer,
+    PhoneNumberVerificationNotificationComposer,
   ],
   exports: [NotificationQueueService, NotificationService],
 })

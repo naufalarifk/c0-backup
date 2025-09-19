@@ -17,13 +17,12 @@ import {
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../shared/services/app-config.service';
-import { MailerService } from '../../shared/services/mailer.service';
 import { MinioService } from '../../shared/services/minio.service';
 import { RedisService } from '../../shared/services/redis.service';
-import { TwilioService } from '../../shared/services/twilio.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { EmailVerificationNotificationData } from '../notifications/composers/email-verification-notification.composer';
 import { EmailPasswordResetNotificationData } from '../notifications/composers/password-reset-notification.composer';
+import { PhoneNumberVerificationNotificationData } from '../notifications/composers/phone-number-verification-notification.composer';
 import { UserRegisteredNotificationData } from '../notifications/composers/user-registered-notification.composer';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
 import { authAdapter } from './auth.adapter';
@@ -34,8 +33,6 @@ export class AuthConfig {
 
   constructor(
     private readonly configService: AppConfigService,
-    private readonly mailerService: MailerService,
-    private readonly twilioService: TwilioService,
     private readonly redisService: RedisService,
     private readonly repo: CryptogadaiRepository,
     private readonly minioService: MinioService,
@@ -205,15 +202,14 @@ export class AuthConfig {
       }),
       phoneNumber({
         sendOTP: async ({ phoneNumber, code }) => {
-          const res = await this.twilioService.sendSMS({
-            to: phoneNumber,
-            body: `Your verification code is: ${code}`,
-          });
-          console.log('res :>> ', res);
-        },
-        signUpOnVerification: {
-          getTempEmail: (phoneNumber: string) => `${phoneNumber.replace('+', '')}@temp.app`,
-          getTempName: (phoneNumber: string) => `User-${phoneNumber.slice(-4)}`,
+          console.log('CODE: ', code);
+          const payload: PhoneNumberVerificationNotificationData = {
+            type: 'PhoneNumberVerification',
+            phoneNumber,
+            code,
+          };
+
+          this.notificationQueueService.queueNotification(payload);
         },
       }),
       sso(),

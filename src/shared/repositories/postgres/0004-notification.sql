@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   type VARCHAR(64) NOT NULL CHECK (type IN (
     -- Authentication notifications
     'UserRegistered', 'EmailVerificationSent', 'EmailVerified', 'PasswordResetRequested',
+    'PhoneNumberVerification', 'PhoneNumberVerified',
     'PasswordResetCompleted', 'TwoFactorEnabled', 'TwoFactorDisabled', 'LoginFromNewDevice', 'SuspiciousLoginAttempt',
     -- KYC notifications
     'UserKycVerified', 'UserKycRejected',

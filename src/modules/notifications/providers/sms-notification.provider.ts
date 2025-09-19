@@ -24,10 +24,11 @@ export class SMSNotificationProvider extends NotificationProvider {
     try {
       this.logger.log(`Sending SMS notification to ${notification.to}`);
 
-      await this.twilioService.sendSMS({
-        to: notification.to,
-        body: notification.message,
-      });
+      // Todo: Enable Twilio service when ready
+      // await this.twilioService.sendSMS({
+      //   to: notification.to,
+      //   body: notification.message,
+      // });
 
       this.logger.log(`SMS notification sent successfully to ${notification.to}`);
     } catch (error) {

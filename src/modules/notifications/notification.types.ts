@@ -64,6 +64,8 @@ export interface SMSNotificationPayload extends NotificationPayload {
 export type NotificationType =
   // Authentication notifications
   | 'UserRegistered'
+  | 'PhoneNumberVerification'
+  | 'PhoneNumberVerified'
   | 'EmailVerification'
   | 'EmailVerified'
   | 'PasswordResetRequested'

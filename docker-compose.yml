@@ -86,7 +86,7 @@ services:
       - ${VAULT_DATA_VOLUME}:/vault/file
 
   minio:
-    image: bitnami/minio:${MINIO_VERSION}
+    image: minio/minio:latest
     container_name: ${MINIO_CONTAINER_NAME}
     restart: unless-stopped
     ports:
