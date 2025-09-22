@@ -818,6 +818,143 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  # Portfolio Management
+  /portfolio/overview:
+    get:
+      tags:
+        - Portfolio Management
+      summary: Get portfolio overview
+      description: |
+        Retrieve comprehensive portfolio overview including total value, asset allocation,
+        and performance metrics for the authenticated user or institution.
+
+        **Portfolio Calculations:**
+        - Total value aggregated from all account balances
+        - Asset allocation based on current market values
+        - Performance metrics calculated from historical data
+        - Real-time balance updates with latest exchange rates
+      operationId: getPortfolioOverview
+      responses:
+        '200':
+          description: Portfolio overview retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioOverviewResponse'
+              examples:
+                individual_portfolio:
+                  summary: Individual user portfolio overview
+                  value:
+                    success: true
+                    data:
+                      totalValue:
+                        amount: "125750.00"
+                        currency:
+                          blockchainKey: "crosschain"
+                          tokenId: "iso4217:usd"
+                          name: "USD Token"
+                          symbol: "USD"
+                          decimals: 6
+                          logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                      assetAllocation:
+                        - currency:
+                            blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                            tokenId: "slip44:0"
+                            name: "Bitcoin"
+                            symbol: "BTC"
+                            decimals: 8
+                            logoUrl: "https://cryptologos.cc/logos/bitcoin-btc-logo.png"
+                          balance: "150000000"
+                          value:
+                            amount: "101175.00"
+                            currency: "USD"
+                          percentage: 80.45
+                        - currency:
+                            blockchainKey: "eip155:1"
+                            tokenId: "slip44:60"
+                            name: "Ethereum"
+                            symbol: "ETH"
+                            decimals: 18
+                            logoUrl: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
+                          balance: "5750000000000000000"
+                          value:
+                            amount: "24575.00"
+                            currency: "USD"
+                          percentage: 19.55
+                      performance:
+                        daily:
+                          amount: "2540.50"
+                          currency: "USD"
+                          percentage: 2.06
+                        weekly:
+                          amount: "-1875.25"
+                          currency: "USD"
+                          percentage: -1.47
+                        monthly:
+                          amount: "8920.75"
+                          currency: "USD"
+                          percentage: 7.64
+                      lastUpdated: "2025-09-22T10:30:00Z"
+                institution_portfolio:
+                  summary: Institution portfolio overview
+                  value:
+                    success: true
+                    data:
+                      totalValue:
+                        amount: "5250000.00"
+                        currency:
+                          blockchainKey: "crosschain"
+                          tokenId: "iso4217:usd"
+                          name: "USD Token"
+                          symbol: "USD"
+                          decimals: 6
+                          logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                      assetAllocation:
+                        - currency:
+                            blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                            tokenId: "slip44:0"
+                            name: "Bitcoin"
+                            symbol: "BTC"
+                            decimals: 8
+                            logoUrl: "https://cryptologos.cc/logos/bitcoin-btc-logo.png"
+                          balance: "3750000000"
+                          value:
+                            amount: "2531250.00"
+                            currency: "USD"
+                          percentage: 48.21
+                        - currency:
+                            blockchainKey: "eip155:1"
+                            tokenId: "slip44:60"
+                            name: "Ethereum"
+                            symbol: "ETH"
+                            decimals: 18
+                            logoUrl: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
+                          balance: "637500000000000000000"
+                          value:
+                            amount: "2718750.00"
+                            currency: "USD"
+                          percentage: 51.79
+                      performance:
+                        daily:
+                          amount: "125000.00"
+                          currency: "USD"
+                          percentage: 2.44
+                        weekly:
+                          amount: "-87500.00"
+                          currency: "USD"
+                          percentage: -1.64
+                        monthly:
+                          amount: "420000.00"
+                          currency: "USD"
+                          percentage: 8.68
+                      lastUpdated: "2025-09-22T10:30:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   # Withdrawal Management
   /beneficiaries:
     get:
@@ -1886,6 +2023,79 @@ components:
         - ComplianceHold
         - ComplianceRelease
 
+    # Portfolio Management Schemas
+    PortfolioOverviewResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/PortfolioOverview'
+
+    PortfolioOverview:
+      type: object
+      properties:
+        totalValue:
+          $ref: '#/components/schemas/MonetaryValue'
+        assetAllocation:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetAllocation'
+        performance:
+          $ref: '#/components/schemas/PortfolioPerformance'
+        lastUpdated:
+          type: string
+          format: date-time
+          description: Timestamp when portfolio data was last calculated
+          example: "2025-09-22T10:30:00Z"
+
+    AssetAllocation:
+      type: object
+      properties:
+        currency:
+          $ref: '#/components/schemas/Currency'
+        balance:
+          type: string
+          description: Raw balance in smallest currency unit
+          example: "150000000"
+        value:
+          $ref: '#/components/schemas/MonetaryValue'
+        percentage:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Percentage of total portfolio value
+          example: 80.45
+
+    PortfolioPerformance:
+      type: object
+      properties:
+        daily:
+          $ref: '#/components/schemas/PerformanceMetric'
+        weekly:
+          $ref: '#/components/schemas/PerformanceMetric'
+        monthly:
+          $ref: '#/components/schemas/PerformanceMetric'
+
+    PerformanceMetric:
+      type: object
+      properties:
+        amount:
+          type: string
+          description: Absolute change amount in USD
+          example: "2540.50"
+        currency:
+          type: string
+          description: Currency code for the amount
+          example: "USD"
+        percentage:
+          type: number
+          format: float
+          description: Percentage change
+          example: 2.06
+
     # Withdrawal Management Schemas
     BeneficiariesResponse:
       type: object
@@ -2558,6 +2768,8 @@ tags:
     description: Supported currency information and configuration for collateral and loans
   - name: Account Management
     description: Account balance and transaction history operations
+  - name: Portfolio Management
+    description: Portfolio overview, asset allocation, and performance metrics
   - name: Withdrawal Management
     description: Withdrawal request processing and beneficiary management
   - name: Exchange Rates

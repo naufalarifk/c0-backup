@@ -233,6 +233,256 @@ paths:
         413:
           $ref: '#/components/responses/FileTooLarge'
 
+  /users/preferences:
+    get:
+      tags: [User Profile]
+      summary: Get user preferences
+      description: |
+        Retrieve user preferences including notification settings, display preferences,
+        and privacy configurations for the authenticated user.
+
+        **Preference Categories:**
+        - Notifications: Email, push, and SMS notification preferences
+        - Display: Theme, language, and currency display settings
+        - Privacy: Profile visibility and data sharing preferences
+      responses:
+        200:
+          description: User preferences retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferencesResponse'
+              examples:
+                default_preferences:
+                  summary: Default user preferences
+                  value:
+                    success: true
+                    data:
+                      notifications:
+                        email:
+                          enabled: true
+                          types:
+                            paymentAlerts: true
+                            loanUpdates: true
+                            systemNotifications: true
+                            marketingCommunications: false
+                        push:
+                          enabled: true
+                          types:
+                            paymentAlerts: true
+                            loanUpdates: false
+                            systemNotifications: true
+                            marketingCommunications: false
+                        sms:
+                          enabled: false
+                          types:
+                            paymentAlerts: false
+                            loanUpdates: false
+                            systemNotifications: false
+                            marketingCommunications: false
+                      display:
+                        theme: "light"
+                        language: "en"
+                        currency: "USD"
+                        timezone: "UTC"
+                        dateFormat: "DD/MM/YYYY"
+                        numberFormat: "en-US"
+                      privacy:
+                        profileVisibility: "private"
+                        dataSharing:
+                          analytics: true
+                          thirdPartyIntegrations: false
+                          marketResearch: false
+                        activityTracking: true
+                custom_preferences:
+                  summary: Customized user preferences
+                  value:
+                    success: true
+                    data:
+                      notifications:
+                        email:
+                          enabled: true
+                          types:
+                            paymentAlerts: true
+                            loanUpdates: true
+                            systemNotifications: false
+                            marketingCommunications: true
+                        push:
+                          enabled: false
+                          types:
+                            paymentAlerts: false
+                            loanUpdates: false
+                            systemNotifications: false
+                            marketingCommunications: false
+                        sms:
+                          enabled: true
+                          types:
+                            paymentAlerts: true
+                            loanUpdates: false
+                            systemNotifications: false
+                            marketingCommunications: false
+                      display:
+                        theme: "dark"
+                        language: "es"
+                        currency: "EUR"
+                        timezone: "Europe/Madrid"
+                        dateFormat: "DD/MM/YYYY"
+                        numberFormat: "es-ES"
+                      privacy:
+                        profileVisibility: "public"
+                        dataSharing:
+                          analytics: true
+                          thirdPartyIntegrations: true
+                          marketResearch: true
+                        activityTracking: true
+        401:
+          $ref: '#/components/responses/Unauthorized'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags: [User Profile]
+      summary: Update user preferences
+      description: |
+        Update user preferences including notification settings, display preferences,
+        and privacy configurations for the authenticated user.
+
+        **Update Behavior:**
+        - Partial updates supported - only provided fields will be updated
+        - Nested objects are merged, not replaced entirely
+        - Invalid preference values are rejected with validation errors
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPreferencesUpdateRequest'
+            examples:
+              notification_update:
+                summary: Update notification preferences only
+                value:
+                  notifications:
+                    email:
+                      enabled: false
+                    push:
+                      enabled: true
+                      types:
+                        paymentAlerts: true
+                        systemNotifications: false
+              display_update:
+                summary: Update display preferences
+                value:
+                  display:
+                    theme: "dark"
+                    language: "fr"
+                    currency: "EUR"
+              privacy_update:
+                summary: Update privacy settings
+                value:
+                  privacy:
+                    profileVisibility: "private"
+                    dataSharing:
+                      analytics: false
+                      thirdPartyIntegrations: false
+              full_update:
+                summary: Comprehensive preferences update
+                value:
+                  notifications:
+                    email:
+                      enabled: true
+                      types:
+                        paymentAlerts: true
+                        loanUpdates: true
+                        systemNotifications: true
+                        marketingCommunications: false
+                    sms:
+                      enabled: true
+                      types:
+                        paymentAlerts: true
+                  display:
+                    theme: "dark"
+                    language: "en"
+                    currency: "USD"
+                  privacy:
+                    profileVisibility: "private"
+                    dataSharing:
+                      analytics: true
+                      thirdPartyIntegrations: false
+      responses:
+        200:
+          description: User preferences updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferencesResponse'
+              examples:
+                preferences_updated:
+                  summary: Preferences successfully updated
+                  value:
+                    success: true
+                    data:
+                      notifications:
+                        email:
+                          enabled: false
+                          types:
+                            paymentAlerts: true
+                            loanUpdates: true
+                            systemNotifications: true
+                            marketingCommunications: false
+                        push:
+                          enabled: true
+                          types:
+                            paymentAlerts: true
+                            loanUpdates: false
+                            systemNotifications: false
+                            marketingCommunications: false
+                        sms:
+                          enabled: false
+                          types:
+                            paymentAlerts: false
+                            loanUpdates: false
+                            systemNotifications: false
+                            marketingCommunications: false
+                      display:
+                        theme: "light"
+                        language: "en"
+                        currency: "USD"
+                        timezone: "UTC"
+                        dateFormat: "DD/MM/YYYY"
+                        numberFormat: "en-US"
+                      privacy:
+                        profileVisibility: "private"
+                        dataSharing:
+                          analytics: true
+                          thirdPartyIntegrations: false
+                          marketResearch: false
+                        activityTracking: true
+        400:
+          description: Validation error in preferences data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_theme:
+                  summary: Invalid theme value
+                  value:
+                    success: false
+                    error:
+                      code: "VALIDATION_ERROR"
+                      message: "Invalid theme value. Must be 'light' or 'dark'"
+                invalid_language:
+                  summary: Unsupported language
+                  value:
+                    success: false
+                    error:
+                      code: "VALIDATION_ERROR"
+                      message: "Unsupported language code. Supported languages: en, es, fr, de, it"
+        401:
+          $ref: '#/components/responses/Unauthorized'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
   # KYC Management
   /users/kyc/submit:
     post:
@@ -1478,6 +1728,132 @@ components:
         - error
         - timestamp
 
+    UserPreferencesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/UserPreferences'
+
+    UserPreferences:
+      type: object
+      properties:
+        notifications:
+          $ref: '#/components/schemas/NotificationPreferences'
+        display:
+          $ref: '#/components/schemas/DisplayPreferences'
+        privacy:
+          $ref: '#/components/schemas/PrivacyPreferences'
+
+    UserPreferencesUpdateRequest:
+      type: object
+      properties:
+        notifications:
+          $ref: '#/components/schemas/NotificationPreferences'
+        display:
+          $ref: '#/components/schemas/DisplayPreferences'
+        privacy:
+          $ref: '#/components/schemas/PrivacyPreferences'
+
+    NotificationPreferences:
+      type: object
+      properties:
+        email:
+          $ref: '#/components/schemas/NotificationChannelSettings'
+        push:
+          $ref: '#/components/schemas/NotificationChannelSettings'
+        sms:
+          $ref: '#/components/schemas/NotificationChannelSettings'
+
+    NotificationChannelSettings:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: Whether this notification channel is enabled
+          example: true
+        types:
+          type: object
+          properties:
+            paymentAlerts:
+              type: boolean
+              description: Payment due and overdue alerts
+              example: true
+            loanUpdates:
+              type: boolean
+              description: Loan status and lifecycle updates
+              example: true
+            systemNotifications:
+              type: boolean
+              description: System maintenance and security alerts
+              example: true
+            marketingCommunications:
+              type: boolean
+              description: Marketing and promotional content
+              example: false
+
+    DisplayPreferences:
+      type: object
+      properties:
+        theme:
+          type: string
+          enum: [light, dark]
+          description: UI theme preference
+          example: "light"
+        language:
+          type: string
+          enum: [en, es, fr, de, it]
+          description: Display language
+          example: "en"
+        currency:
+          type: string
+          enum: [USD, EUR, GBP, JPY, CAD, AUD]
+          description: Preferred display currency
+          example: "USD"
+        timezone:
+          type: string
+          description: User timezone (IANA format)
+          example: "UTC"
+        dateFormat:
+          type: string
+          enum: [DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD]
+          description: Date display format
+          example: "DD/MM/YYYY"
+        numberFormat:
+          type: string
+          description: Number formatting locale
+          example: "en-US"
+
+    PrivacyPreferences:
+      type: object
+      properties:
+        profileVisibility:
+          type: string
+          enum: [private, public]
+          description: Profile visibility setting
+          example: "private"
+        dataSharing:
+          type: object
+          properties:
+            analytics:
+              type: boolean
+              description: Allow anonymous analytics data collection
+              example: true
+            thirdPartyIntegrations:
+              type: boolean
+              description: Allow data sharing with approved third parties
+              example: false
+            marketResearch:
+              type: boolean
+              description: Participate in market research studies
+              example: false
+        activityTracking:
+          type: boolean
+          description: Allow platform activity tracking for personalization
+          example: true
+
   responses:
     Unauthorized:
       description: Authentication required or token invalid
@@ -1855,3 +2231,5 @@ tags:
     description: Know Your Customer verification process
   - name: Institution Management
     description: Institution registration and member management
+  - name: Notifications
+    description: User notifications and payment alerts management
