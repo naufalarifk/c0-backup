@@ -40,6 +40,59 @@ security:
   - bearerAuth: []
 
 paths:
+  # Blockchain Management
+  /blockchains:
+    get:
+      tags:
+        - Blockchain Management
+      summary: Get supported blockchains
+      description: |
+        Retrieve list of supported blockchain networks for fund transfers and operations.
+        
+        **Blockchain Networks:**
+        - Bitcoin: Main Bitcoin network
+        - Ethereum Mainnet: Primary Ethereum network
+        - Binance Smart Chain: BNB Smart Chain network
+        - Solana: Solana mainnet
+        
+        **Usage:**
+        - Network selection dropdowns in loan applications
+        - Blockchain selection for fund transfers
+        - Network validation and routing
+      operationId: getBlockchains
+      responses:
+        '200':
+          description: Blockchains retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockchainsResponse'
+              examples:
+                all_blockchains:
+                  summary: All supported blockchains
+                  value:
+                    success: true
+                    data:
+                      blockchains:
+                        - key: "bip122:000000000019d6689c085ae165831e93"
+                          name: "Bitcoin"
+                          shortName: "BTC"
+                          image: "https://cryptologos.cc/logos/bitcoin-btc-logo.png"
+                        - key: "eip155:1"
+                          name: "Ethereum Mainnet"
+                          shortName: "ETH"
+                          image: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
+                        - key: "eip155:56"
+                          name: "Binance Smart Chain"
+                          shortName: "BSC"
+                          image: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
+                        - key: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+                          name: "Solana"
+                          shortName: "SOL"
+                          image: "https://cryptologos.cc/logos/solana-sol-logo.png"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   # Currency Management
   /currencies:
     get:
@@ -543,6 +596,51 @@ components:
       description: Better Auth Bearer token authentication
 
   schemas:
+    # Blockchain Management Schemas
+    BlockchainsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            blockchains:
+              type: array
+              items:
+                $ref: '#/components/schemas/BlockchainDetail'
+      required:
+        - success
+        - data
+
+    BlockchainDetail:
+      type: object
+      properties:
+        key:
+          type: string
+          description: CAIP-2 compliant blockchain identifier
+          example: "eip155:1"
+          maxLength: 64
+        name:
+          type: string
+          description: Human-readable blockchain network name
+          example: "Ethereum Mainnet"
+        shortName:
+          type: string
+          description: Blockchain short name/symbol
+          example: "ETH"
+        image:
+          type: string
+          format: uri
+          description: URL to blockchain logo image
+          example: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
+      required:
+        - key
+        - name
+        - shortName
+        - image
+
     # Currency Management Schemas
     CurrenciesResponse:
       type: object
@@ -995,5 +1093,7 @@ components:
 tags:
   - name: Currency Management
     description: Supported currency information and configuration for collateral and loans
+  - name: Blockchain Management
+    description: Supported blockchain networks for fund transfers and operations
   - name: Exchange Rates
     description: Current exchange rates for supported currency pairs
