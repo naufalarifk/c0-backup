@@ -47,8 +47,7 @@ runBaseRepositoryTestSuite(
     await repo.connect();
     const originalClose = PgRedisCryptogadaiRepository.prototype.close;
     PgRedisCryptogadaiRepository.prototype.close = async function () {
-      await originalClose.apply(this);
-      await Promise.all([postgres.stop(), redis.stop()]);
+      await Promise.all([originalClose.apply(this), postgres.stop(), redis.stop()]);
     };
     return repo;
   },

@@ -117,9 +117,10 @@ export async function setup() {
           BETTER_AUTH_SECRET: 'P1skQoJiT7jnNDHuw06kkbTougc3jvTt',
           BETTER_AUTH_TELEMETRY_DEBUG: '1',
           BETTER_AUTH_TELEMETRY: '1',
-          BETTER_AUTH_URL: `http://localhost:${backendPort}`,
+          BETTER_AUTH_URL: `http://localhost:${backendPort}/api/auth`,
           CRYPTOGRAPHY_ENGINE: 'local',
           DATABASE_URL: ':inmemory:',
+          DATABASE_LOGGER: 'false',
           GOOGLE_CLIENT_ID:
             '442461506062-rgpbj94u778lpcfv5hg5rue6fpveddt6.apps.googleusercontent.com',
           GOOGLE_CLIENT_SECRET: 'GOCSPX - KKQN9TreMghyANcTCd9Vq4u3cILe',
@@ -135,7 +136,7 @@ export async function setup() {
       });
       cgBackendProcess.stdout?.on('data', function (data) {
         const dataStr = String(data);
-        console.debug('cg/backend', 'out', dataStr);
+        // console.debug('cg/backend', 'out', dataStr);
         if (dataStr.includes('application successfully started')) {
           if (resolvable) {
             resolvable = false;

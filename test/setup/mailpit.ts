@@ -85,7 +85,6 @@ export async function waitForEmailVerification(mailpitApiUrl: string, receiver: 
     emailText.match(/https?:\/\/[^\s]+/g)?.[0] ??
     emailText.match(/http:\/\/[^\s]+/g)?.[0] ??
     'INVALID';
-  console.info('Extracted Verification Link:', extractedVerificationLink);
 
   ok(extractedVerificationLink !== 'INVALID', 'Failed to extract verification link from email');
 

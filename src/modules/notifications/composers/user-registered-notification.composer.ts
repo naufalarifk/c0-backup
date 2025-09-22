@@ -6,7 +6,6 @@ import type {
 
 import { Injectable } from '@nestjs/common';
 
-import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../../shared/services/app-config.service';
 import {
   assertDefined,
@@ -36,32 +35,13 @@ export function assertUserRegisteredNotificationParam(
 @Injectable()
 @Composer('UserRegistered')
 export class UserRegisteredNotificationComposer extends NotificationComposer<UserRegisteredNotificationData> {
-  constructor(
-    private repo: CryptogadaiRepository,
-    private appConfig: AppConfigService,
-  ) {
+  constructor(private appConfig: AppConfigService) {
     super();
   }
 
   async composePayloads(data: unknown): Promise<AnyNotificationPayload[]> {
     assertUserRegisteredNotificationParam(data);
-
-    // Use provided data directly in tests/staging, attempt database lookup in production
-    let userName = data.name || data.email || String(data.userId);
-
-    // Only query database in non-test environments with numeric user IDs
-    if (process.env.NODE_ENV !== 'test' && /^\d+$/.test(String(data.userId))) {
-      try {
-        const user = await this.repo.userViewsProfile({
-          userId: String(data.userId),
-        });
-        userName = user.name || user.email || user.id;
-      } catch (error) {
-        // Fall back to provided data if database query fails
-        console.warn('Failed to fetch user profile, using provided data:', error);
-      }
-    }
-
+    const userName = data.name || data.email || String(data.userId);
     return await Promise.resolve([
       {
         channel: NotificationChannelEnum.Email,

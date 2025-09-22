@@ -208,9 +208,9 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
     }
   }
 
-  async setex(key: string, seconds: number, value: unknown): Promise<void> {
+  async setex(key: string, ttl: number, value: unknown): Promise<void> {
     const serializedValue = JSON.stringify(value);
-    await this.#redis.setex(key, seconds, serializedValue);
+    await this.#redis.setex(key, ttl, serializedValue);
   }
 
   async expire(key: string, seconds: number): Promise<void> {

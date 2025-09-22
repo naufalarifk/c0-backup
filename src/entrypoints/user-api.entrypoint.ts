@@ -5,6 +5,7 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import { ExpressAdapter, NestExpressApplication } from '@nestjs/platform-express';
 
 import compression from 'compression';
+import cookieParser from 'cookie-parser';
 import { Request } from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -49,6 +50,7 @@ export async function userApiEntrypoint() {
     }),
   );
   app.use(compression());
+  app.use(cookieParser());
 
   // Add request ID middleware
   app.use((req: Request, res, next) => {
