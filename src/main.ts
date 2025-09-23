@@ -1,6 +1,7 @@
 import { networkInterfaces } from 'node:os';
 import { argv, env } from 'node:process';
 
+import { invoiceExpirationEntrypoint } from './entrypoints/invoice-expiration.entrypoint';
 import { notificationEntrypoint } from './entrypoints/notification.entrypoint';
 import { userApiEntrypoint } from './entrypoints/user-api.entrypoint';
 
@@ -16,6 +17,10 @@ if (commands.includes('api')) {
 
 if (commands.includes('notification')) {
   void notificationEntrypoint();
+}
+
+if (commands.includes('invoice-expiration')) {
+  void invoiceExpirationEntrypoint();
 }
 
 function getDefaultAuthUrl(): string {
