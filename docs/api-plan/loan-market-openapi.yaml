@@ -1,0 +1,1364 @@
+openapi: 3.0.3
+info:
+  title: CryptoGadai Loan Market API
+  version: 1.0.0
+  description: |
+    Complete API specification for the CryptoGadai loan marketplace system.
+    
+    This API handles the pre-agreement phase of loan operations:
+    - Loan offer creation and management
+    - Loan application submission and tracking
+    - Loan matching and marketplace activities
+    
+servers:
+  - url: https://api.cryptogadai.com/api
+    description: Production server
+  - url: https://cg-api.fh47.com/api
+    description: Testing server
+  - url: http://cg-api.localhost/api
+    description: Local development server
+
+security:
+  - apiKeyCookie: []
+  - bearerAuth: []
+
+tags:
+  - name: Loan Offers
+    description: Lender loan offer management
+  - name: Loan Applications
+    description: Borrower loan application management
+
+paths:
+  # Loan Offers
+  /loan-offers:
+    post:
+      tags: [Loan Offers]
+      summary: Create new loan offer
+      description: |
+        Create a new loan offer with specified terms. The offer will be unpublished 
+        until the principal funding invoice is paid.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLoanOfferRequest'
+      responses:
+        '201':
+          description: Loan offer created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanOfferResponse'
+              examples:
+                individual_offer_created:
+                  summary: Individual lender loan offer created
+                  value:
+                    success: true
+                    data:
+                      id: "12345"
+                      lenderId: "user_67890"
+                      lender:
+                        id: "user_67890"
+                        type: "Individual"
+                        name: "John Doe"
+                      principalCurrency:
+                        blockchainKey: "eip155:56"
+                        tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                        name: "Binance-Peg USD Coin"
+                        symbol: "USDC"
+                        decimals: 18
+                        logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                      totalAmount: "10000.000000000000000000"
+                      availableAmount: "10000.000000000000000000"
+                      disbursedAmount: "0.000000000000000000"
+                      interestRate: 12.5
+                      termOptions: [3, 6]
+                      status: "Published"
+                      createdDate: "2025-09-11T10:30:00Z"
+                      publishedDate: "2025-09-11T10:45:00Z"
+                      fundingInvoice:
+                        id: "inv_12345"
+                        amount: "10000.000000000000000000"
+                        currency:
+                          blockchainKey: "eip155:56"
+                          tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                          name: "Binance-Peg USD Coin"
+                          symbol: "USDC"
+                          decimals: 18
+                        walletAddress: "0x742d35cc1234567890abcdef1234567890abcdef"
+                        expiryDate: "2025-09-18T10:30:00Z"
+                        paidDate: "2025-09-11T10:45:00Z"
+                        expiredDate: null
+                company_offer_created:
+                  summary: Company lender large loan offer created
+                  value:
+                    success: true
+                    data:
+                      id: "54321"
+                      lenderId: "company_13579"
+                      lender:
+                        id: "company_13579"
+                        type: "Institution"
+                        name: "PT Fintech Solutions"
+                        businessType: "PT"
+                      principalCurrency:
+                        blockchainKey: "eip155:56"
+                        tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                        name: "Binance-Peg USD Coin"
+                        symbol: "USDC"
+                        decimals: 18
+                        logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                      totalAmount: "100000.000000000000000000"
+                      availableAmount: "100000.000000000000000000"
+                      disbursedAmount: "0.000000000000000000"
+                      interestRate: 10.0
+                      termOptions: [1, 3, 6, 12]
+                      status: "Published"
+                      createdDate: "2025-09-11T09:00:00Z"
+                      publishedDate: "2025-09-11T09:15:00Z"
+                      fundingInvoice:
+                        id: "inv_54321"
+                        amount: "100000.000000000000000000"
+                        currency:
+                          blockchainKey: "eip155:56"
+                          tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                          name: "Binance-Peg USD Coin"
+                          symbol: "USDC"
+                          decimals: 18
+                        walletAddress: "0x742d35cc9876543210fedcba9876543210fedcba"
+                        expiryDate: "2025-09-18T09:00:00Z"
+                        paidDate: "2025-09-11T09:15:00Z"
+                        expiredDate: null
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/InsufficientBalance'
+
+    get:
+      tags: [Loan Offers]
+      summary: List available loan offers
+      description: Retrieve paginated list of published loan offers available for matching
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: collateralBlockchainKey
+          in: query
+          schema:
+            type: string
+            description: Filter by collateral blockchain key
+        - name: collateralTokenId
+          in: query
+          schema:
+            type: string
+            description: Filter by collateral token ID
+        - name: principalBlockchainKey
+          in: query
+          schema:
+            type: string
+            description: Filter by principal blockchain key
+        - name: principalTokenId
+          in: query
+          schema:
+            type: string
+            description: Filter by principal token ID
+        - name: lenderUserType
+          in: query
+          schema:
+            type: string
+            enum: [All, Individual, Institution]
+            description: Filter by lender user type
+        - name: minAvailablePrincipalAmount
+          in: query
+          schema:
+            type: string
+            format: decimal
+            description: Min available supply
+        - name: maxAvailablePrincipalAmount
+          in: query
+          schema:
+            type: string
+            format: decimal
+            description: Max available supply
+        - name: minInterestRate
+          in: query
+          schema:
+            type: number
+            format: float
+            description: Min interest rate percentage
+        - name: maxInterestRate
+          in: query
+          schema:
+            type: number
+            format: float
+            description: Max interest rate percentage
+        - name: termMonths
+          in: query
+          schema:
+            type: integer
+            description: Filter by available term in months
+        - name: keyword
+          in: query
+          schema:
+            type: string
+            description: Keyword search in lender name
+      responses:
+        '200':
+          description: List of loan offers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanOfferListResponse'
+              examples:
+                mixed_offers_listing:
+                  summary: Mixed loan offers from individual and company lenders
+                  value:
+                    success: true
+                    data:
+                      offers:
+                        - id: "12345"
+                          lenderId: "user_67890"
+                          lender:
+                            id: "user_67890"
+                            type: "Individual"
+                            name: "John Doe"
+                          principalCurrency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                            logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                          totalAmount: "10000.000000000000000000"
+                          availableAmount: "7500.000000000000000000"
+                          disbursedAmount: "2500.000000000000000000"
+                          interestRate: 12.5
+                          termOptions: [3, 6]
+                          status: "Published"
+                          createdDate: "2025-09-10T10:30:00Z"
+                          publishedDate: "2025-09-10T10:45:00Z"
+                        - id: "54321"
+                          lenderId: "company_13579"
+                          lender:
+                            id: "company_13579"
+                            type: "Institution"
+                            name: "PT Fintech Solutions"
+                            businessType: "PT"
+                          principalCurrency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                            logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                          totalAmount: "100000.000000000000000000"
+                          availableAmount: "85000.000000000000000000"
+                          disbursedAmount: "15000.000000000000000000"
+                          interestRate: 10.0
+                          termOptions: [1, 3, 6, 12]
+                          status: "Published"
+                          createdDate: "2025-09-09T09:00:00Z"
+                          publishedDate: "2025-09-09T09:15:00Z"
+                        - id: "67890"
+                          lenderId: "user_24680"
+                          lender:
+                            id: "user_24680"
+                            type: "Individual"
+                            name: "Sarah Chen"
+                          principalCurrency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                            logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                          totalAmount: "25000.000000000000000000"
+                          availableAmount: "25000.000000000000000000"
+                          disbursedAmount: "0.000000000000000000"
+                          interestRate: 14.0
+                          termOptions: [1, 3]
+                          status: "Published"
+                          createdDate: "2025-09-11T14:20:00Z"
+                          publishedDate: "2025-09-11T14:35:00Z"
+                      pagination:
+                        page: 1
+                        limit: 20
+                        total: 3
+                        totalPages: 1
+                        hasNext: false
+                        hasPrev: false
+
+  /loan-offers/my-offers:
+    get:
+      tags: [Loan Offers]
+      summary: Get my loan offers
+      description: Retrieve all loan offers created by the authenticated lender
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Lender's loan offers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanOfferListResponse'
+
+  /loan-offers/{id}:
+    patch:
+      tags: [Loan Offers]
+      summary: Update loan offer
+      description: Update loan offer status (close)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLoanOfferRequest'
+      responses:
+        '200':
+          description: Loan offer updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanOfferResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Loan Applications
+  /loan-applications/calculate:
+    post:
+      tags: [Loan Applications]
+      summary: Calculate loan application requirements
+      description: |
+        Calculate required collateral amount and generate preview for loan application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanCalculationRequest'
+      responses:
+        '200':
+          description: Loan calculation results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanCalculationResponse'
+              examples:
+                eth_collateral_result:
+                  summary: ETH collateral calculation result
+                  value:
+                    success: true
+                    data:
+                      requiredCollateralAmount: "8.571428571428571428"
+                      exchangeRate: "2100.000000000000000000"
+                      collateralCurrency:
+                        blockchainKey: "eip155:1"
+                        tokenId: "slip44:60"
+                        name: "Ethereum"
+                        symbol: "ETH"
+                        decimals: 18
+                        logoUrl: "https://assets.cryptogadai.com/currencies/eth.png"
+                      principalCurrency:
+                        blockchainKey: "eip155:56"
+                        tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                        name: "Binance-Peg USD Coin"
+                        symbol: "USDC"
+                        decimals: 18
+                        logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                      maxLtvRatio: 0.7
+                      safetyBuffer: 0.2
+                      calculationDetails:
+                        baseLoanAmount: "10000.000000000000000000"
+                        baseCollateralValue: "14285.714285714285714286"
+                        withSafetyBuffer: "17142.857142857142857143"
+                        currentExchangeRate: "2100.000000000000000000"
+                        rateSource: "coinbase"
+                        rateTimestamp: "2025-09-11T15:30:00Z"
+                btc_collateral_result:
+                  summary: BTC collateral calculation result
+                  value:
+                    success: true
+                    data:
+                      requiredCollateralAmount: "1.666666666666666667"
+                      exchangeRate: "60000.000000000000000000"
+                      collateralCurrency:
+                        blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                        tokenId: "slip44:0"
+                        name: "Bitcoin"
+                        symbol: "BTC"
+                        decimals: 8
+                        logoUrl: "https://assets.cryptogadai.com/currencies/btc.png"
+                      principalCurrency:
+                        blockchainKey: "eip155:56"
+                        tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                        name: "Binance-Peg USD Coin"
+                        symbol: "USDC"
+                        decimals: 18
+                        logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                      maxLtvRatio: 0.6
+                      safetyBuffer: 0.2
+                      calculationDetails:
+                        baseLoanAmount: "50000.000000000000000000"
+                        baseCollateralValue: "83333.333333333333333333"
+                        withSafetyBuffer: "100000.000000000000000000"
+                        currentExchangeRate: "60000.000000000000000000"
+                        rateSource: "coinbase"
+                        rateTimestamp: "2025-09-11T15:30:00Z"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /loan-applications:
+    post:
+      tags: [Loan Applications]
+      summary: Create loan application
+      description: |
+        Create a new loan application. Requires collateral deposit to be published.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLoanApplicationRequest'
+            examples:
+              eth_collateral_application:
+                summary: Loan application with ETH collateral
+                value:
+                  collateralBlockchainKey: "eip155:1"
+                  collateralTokenId: "slip44:60"
+                  principalAmount: "5000.000000000000000000"
+                  principalBlockchainKey: "eip155:56"
+                  principalTokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                  maxInterestRate: 15.0
+                  termMonths: 6
+                  liquidationMode: "Full"
+                  minLtvRatio: 0.5
+              btc_collateral_large_loan:
+                summary: Large loan application with BTC collateral
+                value:
+                  collateralBlockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                  collateralTokenId: "slip44:0"
+                  principalAmount: "25000.000000000000000000"
+                  principalBlockchainKey: "eip155:56"
+                  principalTokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                  maxInterestRate: 12.0
+                  termMonths: 12
+                  liquidationMode: "Partial"
+                  minLtvRatio: 0.4
+              sol_collateral_short_term:
+                summary: Short-term loan with SOL collateral
+                value:
+                  collateralBlockchainKey: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+                  collateralTokenId: "slip44:501"
+                  principalAmount: "2000.000000000000000000"
+                  principalBlockchainKey: "eip155:56"
+                  principalTokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                  maxInterestRate: 18.0
+                  termMonths: 1
+                  liquidationMode: "Full"
+                  minLtvRatio: 0.3
+      responses:
+        '201':
+          description: Loan application created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanApplicationResponse'
+              examples:
+                eth_application_created:
+                  summary: ETH collateral loan application created
+                  value:
+                    success: true
+                    data:
+                      id: "app_78901"
+                      borrowerId: "user_54321"
+                      collateralCurrency:
+                        blockchainKey: "eip155:1"
+                        tokenId: "slip44:60"
+                        name: "Ethereum"
+                        symbol: "ETH"
+                        decimals: 18
+                        logoUrl: "https://assets.cryptogadai.com/currencies/eth.png"
+                      principalAmount: "5000.000000000000000000"
+                      status: "PendingCollateral"
+                      createdDate: "2025-09-11T16:00:00Z"
+                      publishedDate: null
+                      expiryDate: "2025-09-18T16:00:00Z"
+                      collateralInvoice:
+                        id: "inv_78901"
+                        amount: "3.571428571428571429"
+                        currency:
+                          blockchainKey: "eip155:1"
+                          tokenId: "slip44:60"
+                          name: "Ethereum"
+                          symbol: "ETH"
+                          decimals: 18
+                        walletAddress: "0x1a2b3c4d5e6f7890abcdef1234567890abcdef12"
+                        expiryDate: "2025-09-18T16:00:00Z"
+                        paidDate: null
+                        expiredDate: null
+                btc_application_created:
+                  summary: BTC collateral loan application created
+                  value:
+                    success: true
+                    data:
+                      id: "app_23456"
+                      borrowerId: "user_98765"
+                      collateralCurrency:
+                        blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                        tokenId: "slip44:0"
+                        name: "Bitcoin"
+                        symbol: "BTC"
+                        decimals: 8
+                        logoUrl: "https://assets.cryptogadai.com/currencies/btc.png"
+                      principalAmount: "25000.000000000000000000"
+                      status: "PendingCollateral"
+                      createdDate: "2025-09-11T17:00:00Z"
+                      publishedDate: null
+                      expiryDate: "2025-09-18T17:00:00Z"
+                      collateralInvoice:
+                        id: "inv_23456"
+                        amount: "0.83333333"
+                        currency:
+                          blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                          tokenId: "slip44:0"
+                          name: "Bitcoin"
+                          symbol: "BTC"
+                          decimals: 8
+                        walletAddress: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"
+                        expiryDate: "2025-09-18T17:00:00Z"
+                        paidDate: null
+                        expiredDate: null
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/InsufficientBalance'
+
+    get:
+      tags: [Loan Applications]
+      summary: List loan applications
+      description: Retrieve paginated list of published loan applications available for matching
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: collateralBlockchainKey
+          in: query
+          schema:
+            type: string
+            description: Filter by collateral blockchain key
+        - name: collateralTokenId
+          in: query
+          schema:
+            type: string
+            description: Filter by collateral token ID
+        - name: principalBlockchainKey
+          in: query
+          schema:
+            type: string
+            description: Filter by principal blockchain key
+        - name: principalTokenId
+          in: query
+          schema:
+            type: string
+            description: Filter by principal token ID
+        - name: minPrincipalAmount
+          in: query
+          schema:
+            type: string
+            format: decimal
+            description: Min principal amount
+        - name: maxPrincipalAmount
+          in: query
+          schema:
+            type: string
+            format: decimal
+            description: Max principal amount
+        - name: minInterestRate
+          in: query
+          schema:
+            type: number
+            format: float
+            description: Min interest rate percentage
+        - name: maxInterestRate
+          in: query
+          schema:
+            type: number
+            format: float
+            description: Max interest rate percentage
+        - name: termMonths
+          in: query
+          schema:
+            type: integer
+            description: Filter by term in months
+        - name: liquidationMode
+          in: query
+          schema:
+            type: string
+            enum: [Partial, Full]
+            description: Filter by liquidation mode
+        - name: keyword
+          in: query
+          schema:
+            type: string
+            description: Keyword search in borrower name
+      responses:
+        '200':
+          description: List of loan applications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanApplicationListResponse'
+              examples:
+                mixed_applications_listing:
+                  summary: Mixed loan applications from different borrowers
+                  value:
+                    success: true
+                    data:
+                      applications:
+                        - id: "app_78901"
+                          borrowerId: "user_54321"
+                          borrower:
+                            id: "user_54321"
+                            type: "Individual"
+                            name: "Alice Johnson"
+                          collateralCurrency:
+                            blockchainKey: "eip155:1"
+                            tokenId: "slip44:60"
+                            name: "Ethereum"
+                            symbol: "ETH"
+                            decimals: 18
+                            logoUrl: "https://assets.cryptogadai.com/currencies/eth.png"
+                          principalCurrency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                            logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                          principalAmount: "5000.000000000000000000"
+                          maxInterestRate: 15.0
+                          termMonths: 6
+                          liquidationMode: "Full"
+                          status: "Published"
+                          createdDate: "2025-09-11T16:00:00Z"
+                          publishedDate: "2025-09-11T16:15:00Z"
+                          expiryDate: "2025-09-18T16:00:00Z"
+                        - id: "app_23456"
+                          borrowerId: "user_98765"
+                          borrower:
+                            id: "user_98765"
+                            type: "Individual"
+                            name: "Bob Smith"
+                          collateralCurrency:
+                            blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                            tokenId: "slip44:0"
+                            name: "Bitcoin"
+                            symbol: "BTC"
+                            decimals: 8
+                            logoUrl: "https://assets.cryptogadai.com/currencies/btc.png"
+                          principalCurrency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                            logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                          principalAmount: "25000.000000000000000000"
+                          maxInterestRate: 12.0
+                          termMonths: 12
+                          liquidationMode: "Partial"
+                          status: "Published"
+                          createdDate: "2025-09-11T17:00:00Z"
+                          publishedDate: "2025-09-11T17:15:00Z"
+                          expiryDate: "2025-09-18T17:00:00Z"
+                        - id: "app_34567"
+                          borrowerId: "user_11111"
+                          borrower:
+                            id: "user_11111"
+                            type: "Individual"
+                            name: "Carol Davis"
+                          collateralCurrency:
+                            blockchainKey: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+                            tokenId: "slip44:501"
+                            name: "Solana"
+                            symbol: "SOL"
+                            decimals: 9
+                            logoUrl: "https://assets.cryptogadai.com/currencies/sol.png"
+                          principalCurrency:
+                            blockchainKey: "eip155:56"
+                            tokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+                            name: "Binance-Peg USD Coin"
+                            symbol: "USDC"
+                            decimals: 18
+                            logoUrl: "https://assets.cryptogadai.com/currencies/usdc.png"
+                          principalAmount: "2000.000000000000000000"
+                          maxInterestRate: 18.0
+                          termMonths: 1
+                          liquidationMode: "Full"
+                          status: "Published"
+                          createdDate: "2025-09-11T18:00:00Z"
+                          publishedDate: "2025-09-11T18:10:00Z"
+                          expiryDate: "2025-09-18T18:00:00Z"
+                      pagination:
+                        page: 1
+                        limit: 20
+                        total: 3
+                        totalPages: 1
+                        hasNext: false
+                        hasPrev: false
+
+  /loan-applications/my-applications:
+    get:
+      tags: [Loan Applications]
+      summary: Get my loan applications
+      description: Retrieve all loan applications created by the authenticated borrower
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Borrower's loan applications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanApplicationListResponse'
+
+  /loan-applications/{id}:
+    patch:
+      tags: [Loan Applications]
+      summary: Update loan application
+      description: Update loan application (cancel, extend, modify terms)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLoanApplicationRequest'
+      responses:
+        '200':
+          description: Loan application updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanApplicationResponse'
+
+components:
+  securitySchemes:
+    apiKeyCookie:
+      type: apiKey
+      in: cookie
+      name: apiKeyCookie
+      description: Better Auth API Key authentication via cookie
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Better Auth Bearer token authentication
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+    # Loan Offer Schemas
+    CreateLoanOfferRequest:
+      type: object
+      required:
+        - principalBlockchainKey
+        - principalTokenId
+        - totalAmount
+        - interestRate
+        - termOptions
+        - minLoanAmount
+        - maxLoanAmount
+        - liquidationMode
+        - expirationDate
+      properties:
+        principalBlockchainKey:
+          type: string
+          description: Blockchain key for principal currency
+          example: "eip155:1"
+          maxLength: 64
+        principalTokenId:
+          type: string
+          description: Token ID for principal currency
+          example: "erc20:0xdac17f958d2ee523a2206206994597c13d831ec7"
+          maxLength: 64
+        totalAmount:
+          type: string
+          description: Total loan offer amount (18 decimal precision)
+          pattern: '^\d+\.\d{18}$'
+        interestRate:
+          type: number
+          description: Annual interest rate (percentage)
+          minimum: 0
+          maximum: 100
+        termOptions:
+          type: array
+          items:
+            type: integer
+            enum: [1, 3, 6, 12]
+        minLoanAmount:
+          type: string
+          description: Minimum loan amount (decimal places depending on principal currency)
+          pattern: '^\d+\.\d{18}$'
+        maxLoanAmount:
+          type: string
+          description: Maximum loan amount (decimal places depending on principal currency)
+          pattern: '^\d+\.\d{18}$'
+        liquidationMode:
+          type: string
+          enum: [Partial, Full]
+        expirationDate:
+          type: string
+          format: date-time
+          description: Optional expiration date for the offer
+
+    UpdateLoanOfferRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [Close]
+        closureReason:
+          type: string
+
+    LoanOfferResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        lenderId:
+          type: string
+        lender:
+          $ref: '#/components/schemas/LenderInfo'
+        principalCurrency:
+          $ref: '#/components/schemas/Currency'
+        totalAmount:
+          type: string
+        availableAmount:
+          type: string
+          description: Availabale Supply
+        disbursedAmount:
+          type: string
+        interestRate:
+          type: number
+        termOptions:
+          type: array
+          items:
+            type: integer
+        status:
+          type: string
+          description: Current offer status (derived from time-based fields and business logic)
+          enum: [Draft, Published, Closed]
+          readOnly: true
+          writeOnly: false
+        createdDate:
+          type: string
+          format: date-time
+        publishedDate:
+          type: string
+          format: date-time
+        fundingInvoice:
+          $ref: '#/components/schemas/Invoice'
+
+    LoanOfferListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            offers:
+              type: array
+              items:
+                $ref: '#/components/schemas/LoanOfferResponse'
+            pagination:
+              $ref: '#/components/schemas/PaginationMeta'
+
+    # Loan Application Schemas
+    LoanCalculationRequest:
+      type: object
+      required:
+        - collateralBlockchainKey
+        - collateralTokenId
+        - principalBlockchainKey
+        - principalTokenId
+        - principalAmount
+      properties:
+        collateralBlockchainKey:
+          type: string
+          description: Blockchain key for collateral
+          example: "eip155:1"
+          maxLength: 64
+        collateralTokenId:
+          type: string
+          description: Token ID for collateral
+          example: "slip44:60"
+          maxLength: 64
+        principalBlockchainKey:
+          type: string
+          description: Blockchain key for principal currency
+          example: "eip155:1"
+          maxLength: 64
+        principalTokenId:
+          type: string
+          description: Token ID for principal currency
+          example: "erc20:0xdac17f958d2ee523a2206206994597c13d831ec7"
+          maxLength: 64
+        principalAmount:
+          type: string
+          pattern: '^\d+\.\d{18}$'
+
+    LoanCalculationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            requiredCollateralAmount:
+              type: string
+              description: Amount of collateral required (with safety buffer)
+              pattern: '^\d+\.\d{18}$'
+            exchangeRate:
+              type: string
+              description: Current exchange rate used for calculation
+              pattern: '^\d+\.\d{18}$'
+            collateralCurrency:
+              $ref: '#/components/schemas/Currency'
+            principalCurrency:
+              $ref: '#/components/schemas/Currency'
+            maxLtvRatio:
+              type: number
+              description: Maximum LTV ratio for this collateral type
+              minimum: 0
+              maximum: 1
+            # TODO
+            # safetyBuffer:
+            #   type: number
+            #   description: Safety buffer percentage (typically 20%)
+            #   minimum: 0
+            #   maximum: 1
+            calculationDetails:
+              type: object
+              properties:
+                baseLoanAmount:
+                  type: string
+                  description: Base loan amount requested
+                  pattern: '^\d+\.\d{18}$'
+                baseCollateralValue:
+                  type: string
+                  description: Base collateral value without safety buffer
+                  pattern: '^\d+\.\d{18}$'
+                withSafetyBuffer:
+                  type: string
+                  description: Collateral value including safety buffer
+                  pattern: '^\d+\.\d{18}$'
+                currentExchangeRate:
+                  type: string
+                  description: Exchange rate at calculation time
+                  pattern: '^\d+\.\d{18}$'
+                rateSource:
+                  type: string
+                  description: Source of exchange rate data
+                  example: "coinbase"
+                rateTimestamp:
+                  type: string
+                  format: date-time
+                  description: When the exchange rate was last updated
+
+    CreateLoanApplicationRequest:
+      type: object
+      required:
+        - collateralBlockchainKey
+        - collateralTokenId
+        - principalAmount
+        - principalBlockchainKey
+        - principalTokenId
+        - maxInterestRate
+        - termMonths
+        - liquidationMode
+      properties:
+        collateralBlockchainKey:
+          type: string
+          description: Blockchain key for collateral
+          example: "eip155:1"
+          maxLength: 64
+        collateralTokenId:
+          type: string
+          description: Token ID for collateral
+          example: "slip44:60"
+          maxLength: 64
+        principalAmount:
+          type: string
+          pattern: '^\d+\.\d{18}$'
+        principalBlockchainKey:
+          type: string
+          description: Blockchain key for principal currency
+          example: "eip155:1"
+          maxLength: 64
+        principalTokenId:
+          type: string
+          description: Token ID for principal currency
+          example: "erc20:0xdac17f958d2ee523a2206206994597c13d831ec7"
+          maxLength: 64
+        maxInterestRate:
+          type: number
+          minimum: 0
+          maximum: 100
+        termMonths:
+          type: integer
+          enum: [1, 3, 6, 12]
+        liquidationMode:
+          type: string
+          enum: [Partial, Full]
+        minLtvRatio:
+          type: number
+          minimum: 0
+          maximum: 100
+
+    UpdateLoanApplicationRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [Cancel]
+
+    LoanApplicationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        borrowerId:
+          type: string
+        borrower:
+          $ref: '#/components/schemas/BorrowerInfo'
+        collateralCurrency:
+          $ref: '#/components/schemas/Currency'
+        principalCurrency:
+          $ref: '#/components/schemas/Currency'
+        principalAmount:
+          type: string
+          pattern: '^\\d+\\.\\d{18}$'
+        maxInterestRate:
+          type: number
+          minimum: 0
+          maximum: 100
+        termMonths:
+          type: integer
+          enum: [1, 3, 6, 12]
+        liquidationMode:
+          type: string
+          enum: [Partial, Full]
+        minLtvRatio:
+          type: number
+          minimum: 0
+          maximum: 1
+        status:
+          type: string
+          description: Current application status (derived from time-based fields and business logic)
+          enum: [Draft, PendingCollateral, Published, Matched, Expired, Cancelled]
+          readOnly: true
+          writeOnly: false
+        createdDate:
+          type: string
+          format: date-time
+        publishedDate:
+          type: string
+          format: date-time
+          nullable: true
+        expiryDate:
+          type: string
+          format: date-time
+        collateralInvoice:
+          $ref: '#/components/schemas/Invoice'
+
+    LoanApplicationListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            applications:
+              type: array
+              items:
+                $ref: '#/components/schemas/LoanApplicationResponse'
+            pagination:
+              $ref: '#/components/schemas/PaginationMeta'
+
+    # Common Schemas
+    BorrowerInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Borrower user identifier
+          example: "user_54321"
+        type:
+          type: string
+          enum: [Individual, Institution]
+          description: Type of borrower
+          example: "Individual"
+        name:
+          type: string
+          description: Borrower display name (user.name for Individual, business_name for Institution)
+          example: "Alice Johnson"
+        businessType:
+          type: string
+          description: Business type (only for Institution borrowers)
+          example: "PT"
+          nullable: true
+        businessDescription:
+          type: string
+          description: Business description (only for Institution borrowers)
+          example: "PT. Financial Services Indonesia is a leading fintech company providing innovative lending solutions."
+          nullable: true
+      required:
+        - id
+        - type
+        - name
+
+    LenderInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Lender user identifier
+          example: "user_67890"
+        type:
+          type: string
+          enum: [Individual, Institution]
+          description: Type of lender
+          example: "Individual"
+        name:
+          type: string
+          description: Lender display name (user.name for Individual, business_name for Institution)
+          example: "John Doe"
+        businessType:
+          type: string
+          description: Business type (only for Institution lenders)
+          example: "PT"
+          nullable: true
+        businessDescription:
+          type: string
+          description: Business description (only for Institution lenders)
+          example: PT. Bank Negara Indonesia (BNI) is one of the largest banks in Indonesia. It has branches in several countries and provides a wide range of financial services to individuals and corporations.
+          nullable: true
+        profilePictureUrl:
+          type: string
+          format: uri
+          description: URL to lender's profile picture
+          example: "https://assets.cryptogadai.com/profiles/user_67890.jpg"
+          nullable: true
+      required:
+        - id
+        - type
+        - name
+        - verified
+
+    Currency:
+      type: object
+      properties:
+        blockchainKey:
+          type: string
+          description: CAIP-2 compliant blockchain identifier
+          example: "eip155:1"
+          maxLength: 64
+        tokenId:
+          type: string
+          description: Token identifier within the blockchain
+          example: "slip44:60"
+          maxLength: 64
+        name:
+          type: string
+          description: Human-readable currency name
+          example: "Ethereum"
+        symbol:
+          type: string
+          description: Currency symbol/ticker
+          example: "ETH"
+        decimals:
+          type: integer
+          description: Number of decimal places for precision
+          example: 18
+          minimum: 0
+          maximum: 18
+        logoUrl:
+          type: string
+          format: uri
+          description: URL to currency logo image
+          example: "https://assets.cryptogadai.com/currencies/eth.png"
+      required:
+        - blockchainKey
+        - tokenId
+        - name
+        - symbol
+        - decimals
+
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: string
+        amount:
+          type: string
+          description: Invoice amount with decimal precision
+          pattern: '^\d+\.\d{18}$'
+        currency:
+          $ref: '#/components/schemas/Currency'
+        walletAddress:
+          type: string
+          description: Payment wallet address
+        expiryDate:
+          type: string
+          format: date-time
+        # Status is derived from time-based fields
+        paidDate:
+          type: string
+          format: date-time
+          nullable: true
+        expiredDate:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - amount
+        - currency
+        - walletAddress
+        - expiryDate
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number (1-based)
+          example: 1
+          minimum: 1
+        limit:
+          type: integer
+          description: Number of items per page
+          example: 20
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          description: Total number of items across all pages
+          example: 150
+          minimum: 0
+        totalPages:
+          type: integer
+          description: Total number of pages
+          example: 8
+          minimum: 0
+        hasNext:
+          type: boolean
+          description: Whether there are more pages after current
+          example: true
+        hasPrev:
+          type: boolean
+          description: Whether there are pages before current
+          example: false
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+        - hasNext
+        - hasPrev
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+              example: "VALIDATION_ERROR"
+            message:
+              type: string
+              description: Human-readable error message
+              example: "Request validation failed"
+            details:
+              type: object
+              description: Additional error details
+              additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-08-13T15:30:00Z"
+        requestId:
+          type: string
+          format: uuid
+          description: Request ID for tracking
+      required:
+        - success
+        - error
+        - timestamp
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: VALIDATION_ERROR
+            requestId: req_abc123
+
+    InsufficientBalance:
+      description: Insufficient balance
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: INSUFFICIENT_BALANCE
+            requestId: req_abc123
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: NOT_FOUND
+            requestId: req_abc123

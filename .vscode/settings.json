@@ -1,9 +1,5 @@
 {
   "editor.defaultFormatter": "biomejs.biome",
-   "editor.codeActionsOnSave": {
-    "source.fixAll": "explicit", // Runs fixAll on explicit save
-    "source.organizeImports": "always" // Always organizes imports on save
-  },
   "javascript.preferences.importModuleSpecifier": "relative",
   "javascript.preferences.importModuleSpecifierEnding": "minimal",
   "typescript.preferences.importModuleSpecifier": "relative",
@@ -37,8 +33,6 @@
     "**/coverage": true,
     "**/.git": true
   },
-  // Auto-save settings
-  "files.autoSave": "onWindowChange",
   // Terminal settings
   "terminal.integrated.defaultProfile.osx": "zsh",
   // Git settings

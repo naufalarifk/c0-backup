@@ -43,6 +43,12 @@ function alignBetterAuthUserData(user: unknown) {
   if ('phone_number_verified' in user) {
     setAssertPropValue(user, 'phoneNumberVerified', !!user.phone_number_verified);
   }
+  if ('two_factor_enabled' in user) {
+    setAssertPropValue(user, 'twoFactorEnabled', !!user.two_factor_enabled);
+  }
+  if ('user_type' in user) {
+    setAssertPropValue(user, 'userType', user.user_type);
+  }
   if ('created_date' in user) {
     setAssertPropValue(user, 'createdAt', 'created_date' in user && tryToDate(user.created_date));
   }
@@ -90,7 +96,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
       const rows = await tx.sql`
         INSERT INTO users (name, profile_picture, email, phone_number, phone_number_verified, created_date, updated_date, email_verified_date)
         VALUES (${name}, ${image}, ${emailValue}, ${phoneNumber}, ${phoneNumberVerified}, ${createdAtUtc}, ${updatedAtUtc}, ${emailVerified ? updatedAtUtc : null})
-        RETURNING id, name, profile_picture as "image", email, phone_number, phone_number_verified, created_date, updated_date, email_verified_date
+        RETURNING id, name, profile_picture as "image", email, phone_number, phone_number_verified, two_factor_enabled, role, user_type, created_date, updated_date, email_verified_date
       `;
 
       assertArrayOf(rows, function (row) {
@@ -132,22 +138,22 @@ export abstract class BetterAuthRepository extends BaseRepository {
       let rows: Array<unknown> = [];
       if (idCondition) {
         rows = await this.sql`
-          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-            created_date, updated_date
+          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+            role, user_type, created_date, updated_date
           FROM users
           WHERE id = ${idCondition.value}
         `;
       } else if (emailCondition) {
         rows = await this.sql`
-          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-            created_date, updated_date
+          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+            role, user_type, created_date, updated_date
           FROM users
           WHERE email = ${emailCondition.value}
         `;
       } else if (phoneCondition) {
         rows = await this.sql`
-          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-            created_date, updated_date
+          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+            role, user_type, created_date, updated_date
           FROM users
           WHERE phone_number = ${phoneCondition.value}
         `;
@@ -190,8 +196,8 @@ export abstract class BetterAuthRepository extends BaseRepository {
       let users: Array<unknown> = [];
       if (!where || where.length === 0) {
         users = await this.sql`
-          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-                 created_date, updated_date
+          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+                 role, user_type, created_date, updated_date
           FROM users
           ORDER BY created_date DESC
           LIMIT ${limit || 100}
@@ -205,8 +211,8 @@ export abstract class BetterAuthRepository extends BaseRepository {
         if (idCondition && idCondition.operator === 'in') {
           const ids = idCondition.value;
           users = await this.sql`
-            SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-                   created_date, updated_date
+            SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+                   role, user_type, created_date, updated_date
             FROM users
             WHERE id = ANY(${ids})
             ORDER BY created_date DESC
@@ -217,8 +223,8 @@ export abstract class BetterAuthRepository extends BaseRepository {
           if (emailCondition.operator === 'contains') {
             const searchTerm = `%${emailCondition.value}%`;
             users = await this.sql`
-              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-                     created_date, updated_date
+              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+                     role, user_type, created_date, updated_date
               FROM users
               WHERE email LIKE ${searchTerm}
               ORDER BY created_date DESC
@@ -227,8 +233,8 @@ export abstract class BetterAuthRepository extends BaseRepository {
             `;
           } else {
             users = await this.sql`
-              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-                     created_date, updated_date
+              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+                     role, user_type, created_date, updated_date
               FROM users
               WHERE email = ${emailCondition.value}
               ORDER BY created_date DESC
@@ -240,8 +246,8 @@ export abstract class BetterAuthRepository extends BaseRepository {
           if (nameCondition.operator === 'contains') {
             const searchTerm = `%${nameCondition.value}%`;
             users = await this.sql`
-              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-                     created_date, updated_date
+              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+                     role, user_type, created_date, updated_date
               FROM users
               WHERE name LIKE ${searchTerm}
               ORDER BY created_date DESC
@@ -250,8 +256,8 @@ export abstract class BetterAuthRepository extends BaseRepository {
             `;
           } else {
             users = await this.sql`
-              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-                     created_date, updated_date
+              SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+                     role, user_type, created_date, updated_date
               FROM users
               WHERE name = ${nameCondition.value}
               ORDER BY created_date DESC
@@ -261,8 +267,8 @@ export abstract class BetterAuthRepository extends BaseRepository {
           }
         } else {
           users = await this.sql`
-            SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-                   created_date, updated_date
+            SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+                   role, user_type, created_date, updated_date
             FROM users
             ORDER BY created_date DESC
             LIMIT ${limit || 100}
@@ -304,6 +310,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
         emailVerified,
         phoneNumber,
         phoneNumberVerified,
+        twoFactorEnabled,
         createdAt,
         updatedAt,
         image,
@@ -319,6 +326,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
           email = COALESCE(${email}, email),
           phone_number = COALESCE(${phoneNumber}, phone_number),
           phone_number_verified = COALESCE(${phoneNumberVerified}, phone_number_verified),
+          two_factor_enabled = COALESCE(${twoFactorEnabled}, two_factor_enabled),
           email_verified_date = CASE
             WHEN email_verified_date IS NOT NULL THEN email_verified_date
             WHEN ${emailVerified ? 1 : 0} = 1 AND email_verified_date IS NULL THEN ${updatedAtUtc}
@@ -331,7 +339,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
         WHERE id = ${where.find(w => w.field === 'id')?.value}
           OR email = ${where.find(w => w.field === 'email' || w.field === 'email_address')?.value}
         RETURNING id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-          created_date, updated_date
+          two_factor_enabled, role, user_type, created_date, updated_date
       `;
 
       assertArrayOf(rows, alignBetterAuthUserData);
@@ -396,7 +404,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
         WHERE id = ${idCondition.value}
           OR email = ${where.find(w => w.field === 'email' || w.field === 'email_address')?.value}
         RETURNING id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
-          created_date, updated_date
+          two_factor_enabled, role, user_type, created_date, updated_date
       `;
 
       assertArrayOf(rows, alignBetterAuthUserData);
@@ -496,10 +504,28 @@ export abstract class BetterAuthRepository extends BaseRepository {
         updatedAt,
       };
 
-      // Store session in Redis with TTL based on expiration
-      const ttl = expiresAt
-        ? Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)
-        : undefined;
+      const user = await this.betterAuthFindOneUser([
+        { field: 'id', value: userId, operator: 'eq' },
+      ]);
+
+      let ttl: number | undefined = undefined;
+      if (expiresAt) {
+        const expiresAtMs = new Date(expiresAt).getTime();
+        const nowMs = Date.now();
+        const diffSeconds = Math.floor((expiresAtMs - nowMs) / 1000);
+        ttl = Math.max(1, Math.floor(diffSeconds)); // Ensure TTL is an integer
+      }
+
+      // Store session using Better Auth's expected key pattern
+      // Better Auth's internal adapter expects sessions to be stored directly by token
+      // with both session and user data together
+      const sessionWithUser = {
+        session: session,
+        user: user,
+      };
+      await this.set(token, JSON.stringify(sessionWithUser), ttl);
+
+      // Also store our internal mappings for cleanup/management
       await this.set(`session:token:${token}`, sessionId, ttl);
       await this.set(`session:userId:${userId}`, sessionId, ttl);
       await this.set(`session:${sessionId}`, session, ttl);
@@ -513,32 +539,76 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
   async betterAuthFindOneSession(where: any[]): Promise<any> {
     try {
+      console.log(
+        'BetterAuthRepository:betterAuthFindOneSession called with where:',
+        JSON.stringify(where, null, 2),
+      );
+
       if (!Array.isArray(where) || where.length === 0) {
+        console.log('BetterAuthRepository:betterAuthFindOneSession - empty where clause');
         return null;
       }
 
       // Handle different search criteria
       for (const condition of where) {
+        console.log(
+          'BetterAuthRepository:betterAuthFindOneSession - checking condition:',
+          condition,
+        );
+
         if (condition.field === 'token') {
           // Find session by token
+          console.log(
+            'BetterAuthRepository:betterAuthFindOneSession - looking up session by token:',
+            condition.value?.slice(0, 10) + '...',
+          );
           const sessionId = await this.get(`session:token:${condition.value}`);
+          console.log(
+            'BetterAuthRepository:betterAuthFindOneSession - sessionId from token lookup:',
+            sessionId,
+          );
+
           if (sessionId) {
             const session = await this.get(`session:${sessionId}`);
+            console.log(
+              'BetterAuthRepository:betterAuthFindOneSession - session from sessionId lookup:',
+              session ? 'Found' : 'Not found',
+            );
             if (session) {
               return session;
             }
           }
         } else if (condition.field === 'id') {
           // Find session by ID
+          console.log(
+            'BetterAuthRepository:betterAuthFindOneSession - looking up session by id:',
+            condition.value,
+          );
           const session = await this.get(`session:${condition.value}`);
+          console.log(
+            'BetterAuthRepository:betterAuthFindOneSession - session from id lookup:',
+            session ? 'Found' : 'Not found',
+          );
           if (session) {
             return session;
           }
         } else if (condition.field === 'userId') {
           // Find session by userId
+          console.log(
+            'BetterAuthRepository:betterAuthFindOneSession - looking up session by userId:',
+            condition.value,
+          );
           const sessionId = await this.get(`session:userId:${condition.value}`);
+          console.log(
+            'BetterAuthRepository:betterAuthFindOneSession - sessionId from userId lookup:',
+            sessionId,
+          );
           if (sessionId) {
             const session = await this.get(`session:${sessionId}`);
+            console.log(
+              'BetterAuthRepository:betterAuthFindOneSession - session from sessionId lookup:',
+              session ? 'Found' : 'Not found',
+            );
             if (session) {
               return session;
             }
@@ -546,9 +616,12 @@ export abstract class BetterAuthRepository extends BaseRepository {
         }
       }
 
+      console.log(
+        'BetterAuthRepository:betterAuthFindOneSession - no session found for any condition',
+      );
       return null;
     } catch (error) {
-      console.error('BetterAuthRepository', error);
+      console.error('BetterAuthRepository:betterAuthFindOneSession error:', error);
       throw error;
     }
   }
@@ -568,9 +641,13 @@ export abstract class BetterAuthRepository extends BaseRepository {
     const updatedSession = { ...session, ...update, updatedAt: new Date() };
 
     // Calculate new TTL if expiresAt changed
-    const ttl = updatedSession.expiresAt
-      ? Math.floor((new Date(updatedSession.expiresAt).getTime() - Date.now()) / 1000)
-      : undefined;
+    let ttl: number | undefined = undefined;
+    if (updatedSession.expiresAt) {
+      const expiresAtMs = new Date(updatedSession.expiresAt).getTime();
+      const nowMs = Date.now();
+      const diffSeconds = Math.floor((expiresAtMs - nowMs) / 1000);
+      ttl = Math.max(1, Math.floor(diffSeconds)); // Ensure TTL is an integer
+    }
 
     // Update in Redis
     await this.set(`session:${session.id}`, updatedSession, ttl);
@@ -911,9 +988,13 @@ export abstract class BetterAuthRepository extends BaseRepository {
       };
 
       // Store verification in Redis with TTL based on expiration
-      const ttl = expiresAt
-        ? Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)
-        : 3600; // Default 1 hour if no expiration
+      let ttl = 3600; // Default 1 hour if no expiration
+      if (expiresAt) {
+        const expiresAtMs = new Date(expiresAt).getTime();
+        const nowMs = Date.now();
+        const diffSeconds = Math.floor((expiresAtMs - nowMs) / 1000);
+        ttl = Math.max(1, Math.floor(diffSeconds)); // Ensure TTL is an integer
+      }
 
       await this.set(`verification:${verificationId}`, verification, ttl);
 
@@ -1057,9 +1138,13 @@ export abstract class BetterAuthRepository extends BaseRepository {
       const updatedVerification = { ...verification, ...update, updatedAt: new Date() };
 
       // Calculate new TTL if expiresAt changed
-      const ttl = updatedVerification.expiresAt
-        ? Math.floor((new Date(updatedVerification.expiresAt).getTime() - Date.now()) / 1000)
-        : 3600;
+      let ttl = 3600;
+      if (updatedVerification.expiresAt) {
+        const expiresAtMs = new Date(updatedVerification.expiresAt).getTime();
+        const nowMs = Date.now();
+        const diffSeconds = Math.floor((expiresAtMs - nowMs) / 1000);
+        ttl = Math.max(1, Math.floor(diffSeconds)); // Ensure TTL is an integer
+      }
 
       // Update in Redis
       await this.set(`verification:${verification.id}`, updatedVerification, ttl);
@@ -1149,5 +1234,260 @@ export abstract class BetterAuthRepository extends BaseRepository {
     // For other cases, try to delete single verification
     const verification = await this.betterAuthDeleteVerification(where);
     return verification ? [verification] : [];
+  }
+
+  // TwoFactor methods for better-auth two-factor plugin
+  async betterAuthCreateTwoFactor(data: any): Promise<any> {
+    const tx = await this.beginTransaction();
+    try {
+      const { id, secret, backupCodes, userId } = data;
+
+      const twoFactorId = id || v7();
+
+      const rows = await tx.sql`
+        INSERT INTO two_factor (id, secret, backup_codes, user_id)
+        VALUES (${String(twoFactorId)}, ${secret}, ${backupCodes}, ${userId})
+        RETURNING id, secret, backup_codes as "backupCodes", user_id as "userId"
+      `;
+
+      const row = rows[0];
+      if (!row) return null;
+
+      assertDefined(row);
+      assertPropString(row, 'id');
+      assertPropString(row, 'secret');
+      assertPropString(row, 'backupCodes');
+      assertPropStringOrNumber(row, 'userId');
+
+      await tx.commitTransaction();
+
+      return {
+        id: row.id,
+        secret: row.secret,
+        backupCodes: row.backupCodes,
+        userId: String(row.userId),
+      };
+    } catch (error) {
+      console.error('BetterAuthRepository:betterAuthCreateTwoFactor', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  async betterAuthFindOneTwoFactor(where: any[]): Promise<any> {
+    try {
+      if (!Array.isArray(where) || where.length === 0) {
+        return null;
+      }
+
+      const userIdCondition = where.find(w => w.field === 'userId');
+      const idCondition = where.find(w => w.field === 'id');
+
+      let rows: Array<unknown> = [];
+      if (idCondition) {
+        rows = await this.sql`
+          SELECT id, secret, backup_codes as "backupCodes", user_id as "userId"
+          FROM two_factor
+          WHERE id = ${idCondition.value}
+        `;
+      } else if (userIdCondition) {
+        rows = await this.sql`
+          SELECT id, secret, backup_codes as "backupCodes", user_id as "userId"
+          FROM two_factor
+          WHERE user_id = ${userIdCondition.value}
+        `;
+      } else {
+        return null;
+      }
+
+      if (rows.length === 0) return null;
+
+      const row = rows[0];
+      assertDefined(row);
+      assertPropString(row, 'id');
+      assertPropString(row, 'secret');
+      assertPropString(row, 'backupCodes');
+      assertPropStringOrNumber(row, 'userId');
+
+      return {
+        id: row.id,
+        secret: row.secret,
+        backupCodes: row.backupCodes,
+        userId: String(row.userId),
+      };
+    } catch (error) {
+      console.error('BetterAuthRepository:betterAuthFindOneTwoFactor', error);
+      throw error;
+    }
+  }
+
+  async betterAuthFindManyTwoFactor(
+    where?: any[],
+    limit?: number,
+    offset?: number,
+    sortBy?: any,
+  ): Promise<any[]> {
+    try {
+      if (!where || where.length === 0) {
+        const rows = await this.sql`
+          SELECT id, secret, backup_codes as "backupCodes", user_id as "userId"
+          FROM two_factor
+          LIMIT ${limit || 100}
+          OFFSET ${offset || 0}
+        `;
+
+        return rows.map(row => {
+          assertDefined(row);
+          assertPropString(row, 'id');
+          assertPropString(row, 'secret');
+          assertPropString(row, 'backupCodes');
+          assertPropStringOrNumber(row, 'userId');
+
+          return {
+            id: row.id,
+            secret: row.secret,
+            backupCodes: row.backupCodes,
+            userId: String(row.userId),
+          };
+        });
+      }
+
+      const twoFactor = await this.betterAuthFindOneTwoFactor(where);
+      return twoFactor ? [twoFactor] : [];
+    } catch (error) {
+      console.error('BetterAuthRepository:betterAuthFindManyTwoFactor', error);
+      throw error;
+    }
+  }
+
+  async betterAuthUpdateTwoFactor(where: any[], update: any): Promise<any> {
+    const tx = await this.beginTransaction();
+    try {
+      if (!Array.isArray(where) || where.length === 0) {
+        await tx.rollbackTransaction();
+        return null;
+      }
+
+      const { secret, backupCodes } = update;
+      const userIdCondition = where.find(w => w.field === 'userId');
+      const idCondition = where.find(w => w.field === 'id');
+
+      if (!userIdCondition && !idCondition) {
+        await tx.rollbackTransaction();
+        return null;
+      }
+
+      let rows: Array<unknown> = [];
+      if (idCondition) {
+        rows = await tx.sql`
+          UPDATE two_factor
+          SET secret = COALESCE(${secret}, secret),
+              backup_codes = COALESCE(${backupCodes}, backup_codes)
+          WHERE id = ${idCondition.value}
+          RETURNING id, secret, backup_codes as "backupCodes", user_id as "userId"
+        `;
+      } else if (userIdCondition) {
+        rows = await tx.sql`
+          UPDATE two_factor
+          SET secret = COALESCE(${secret}, secret),
+              backup_codes = COALESCE(${backupCodes}, backup_codes)
+          WHERE user_id = ${userIdCondition.value}
+          RETURNING id, secret, backup_codes as "backupCodes", user_id as "userId"
+        `;
+      }
+
+      const row = rows.length > 0 ? rows[0] : null;
+      if (!row) {
+        await tx.rollbackTransaction();
+        return null;
+      }
+
+      assertDefined(row);
+      assertPropString(row, 'id');
+      assertPropString(row, 'secret');
+      assertPropString(row, 'backupCodes');
+      assertPropStringOrNumber(row, 'userId');
+
+      await tx.commitTransaction();
+
+      return {
+        id: row.id,
+        secret: row.secret,
+        backupCodes: row.backupCodes,
+        userId: String(row.userId),
+      };
+    } catch (error) {
+      console.error('BetterAuthRepository:betterAuthUpdateTwoFactor', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  async betterAuthUpdateManyTwoFactor(where: any[], update: any): Promise<any[]> {
+    const twoFactor = await this.betterAuthUpdateTwoFactor(where, update);
+    return twoFactor ? [twoFactor] : [];
+  }
+
+  async betterAuthDeleteTwoFactor(where: any[]): Promise<any> {
+    const tx = await this.beginTransaction();
+    try {
+      if (!Array.isArray(where) || where.length === 0) {
+        await tx.rollbackTransaction();
+        return null;
+      }
+
+      const userIdCondition = where.find(w => w.field === 'userId');
+      const idCondition = where.find(w => w.field === 'id');
+
+      if (!userIdCondition && !idCondition) {
+        await tx.rollbackTransaction();
+        return null;
+      }
+
+      let rows: Array<unknown> = [];
+      if (idCondition) {
+        rows = await tx.sql`
+          DELETE FROM two_factor
+          WHERE id = ${idCondition.value}
+          RETURNING id, secret, backup_codes as "backupCodes", user_id as "userId"
+        `;
+      } else if (userIdCondition) {
+        rows = await tx.sql`
+          DELETE FROM two_factor
+          WHERE user_id = ${userIdCondition.value}
+          RETURNING id, secret, backup_codes as "backupCodes", user_id as "userId"
+        `;
+      }
+
+      const row = rows.length > 0 ? rows[0] : null;
+      if (!row) {
+        await tx.rollbackTransaction();
+        return null;
+      }
+
+      assertDefined(row);
+      assertPropString(row, 'id');
+      assertPropString(row, 'secret');
+      assertPropString(row, 'backupCodes');
+      assertPropStringOrNumber(row, 'userId');
+
+      await tx.commitTransaction();
+
+      return {
+        id: row.id,
+        secret: row.secret,
+        backupCodes: row.backupCodes,
+        userId: String(row.userId),
+      };
+    } catch (error) {
+      console.error('BetterAuthRepository:betterAuthDeleteTwoFactor', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  async betterAuthDeleteManyTwoFactor(where: any[]): Promise<any[]> {
+    const twoFactor = await this.betterAuthDeleteTwoFactor(where);
+    return twoFactor ? [twoFactor] : [];
   }
 }

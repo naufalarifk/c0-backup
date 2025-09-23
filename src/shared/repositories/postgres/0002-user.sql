@@ -14,9 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   google_id TEXT UNIQUE,
 
   -- Two-factor authentication fields (for 2FA plugin)
-  two_factor_enabled_date TIMESTAMP DEFAULT NULL,
-  two_factor_secret TEXT,
-  two_factor_backup_codes TEXT[],
+  two_factor_enabled BOOLEAN DEFAULT FALSE,
 
   -- Phone number authentication fields (for phone number plugin)
   phone_number TEXT, -- added to support phone number verification
@@ -40,8 +38,7 @@ CREATE TABLE IF NOT EXISTS users (
   business_type VARCHAR(100),
 
   CHECK (
-    email IS NOT NULL AND
-    (two_factor_enabled_date IS NULL OR (two_factor_secret IS NOT NULL AND two_factor_backup_codes IS NOT NULL))
+    email IS NOT NULL
   )
 );
 
@@ -89,7 +86,16 @@ CREATE TABLE IF NOT EXISTS auth_verifications (
   updated_date TIMESTAMP DEFAULT NOW()
 );
 
+-- Two-factor authentication table for better-auth plugin
+CREATE TABLE IF NOT EXISTS two_factor (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+  secret TEXT NOT NULL,
+  backup_codes TEXT NOT NULL,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE(user_id)
+);
+
 -- this assume the users id will be 1. This is important because we use id 1 to indicate the system user
-INSERT INTO users (email, two_factor_enabled_date, two_factor_secret, two_factor_backup_codes, role, name, profile_picture)
-VALUES ('system@platform', NOW(), 'invalid_secret_is_imposible_to_verify', ARRAY['invalid_code_is_imposible_to_verify'], 'System', 'System Platform', '')
+INSERT INTO users (email, role, name, profile_picture)
+VALUES ('system@platform', 'System', 'System Platform', '')
 ON CONFLICT (email) DO NOTHING;

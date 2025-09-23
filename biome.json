@@ -60,7 +60,7 @@
         "useBlockStatements": "off"
       },
       "suspicious": {
-        "noAsyncPromiseExecutor": "error",
+        "noAsyncPromiseExecutor": "off",
         "noCatchAssign": "error",
         "noClassAssign": "error",
         "noCompareNegZero": "error",

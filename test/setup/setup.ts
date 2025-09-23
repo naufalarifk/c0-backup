@@ -1,0 +1,179 @@
+import { spawn } from 'node:child_process';
+import { join } from 'node:path';
+
+export async function setup() {
+  const redisPort = String(20000 + Math.floor(Math.random() * 5000));
+  const mailpitSmtpPort = String(25000 + Math.floor(Math.random() * 5000));
+  const mailpitApiPort = String(30000 + Math.floor(Math.random() * 5000));
+  const mailpitApiAddr = `localhost:${mailpitApiPort}`;
+
+  const [redis, mailpit] = await Promise.all([
+    new Promise<{
+      teardown: () => Promise<void>;
+    }>(function (resolve, reject) {
+      let resolvable = true;
+      const redis = spawn('redis-server', [
+        '--port',
+        redisPort,
+        '--save',
+        '',
+        '--appendonly',
+        'no',
+      ]);
+      redis.stdout?.on('data', function (data) {
+        const dataStr = String(data);
+        // console.debug('Redis output:', resolvable, dataStr);
+        if (dataStr.includes('Ready to accept connections')) {
+          if (resolvable) {
+            resolvable = false;
+            resolve({
+              async teardown() {
+                redis.kill('SIGTERM');
+              },
+            });
+          }
+        }
+      });
+      redis.stderr?.on('data', function (data) {
+        // console.error('Redis error:', data.toString());
+      });
+      redis.on('error', function (error) {
+        if (resolvable) {
+          resolvable = false;
+          reject(new Error(`Failed to start Redis: ${error.message}`));
+        }
+      });
+      redis.on('exit', function (code) {
+        if (resolvable) {
+          resolvable = false;
+          reject(new Error(`Redis process exited with code ${code}`));
+        }
+      });
+    }),
+    new Promise<{
+      teardown: () => Promise<void>;
+    }>(function (resolve, reject) {
+      let resolvable = true;
+      const mailpit = spawn('mailpit', [
+        '--listen',
+        `[::]:${mailpitApiPort}`,
+        '--smtp',
+        `[::]:${mailpitSmtpPort}`,
+      ]);
+      mailpit.stdout?.on('data', function (data) {
+        const dataStr = String(data);
+        // console.debug('Mailpit output:', resolvable, dataStr);
+        if (dataStr.includes('accessible via http')) {
+          if (resolvable) {
+            resolvable = false;
+            resolve({
+              async teardown() {
+                mailpit.kill('SIGTERM');
+              },
+            });
+          }
+        }
+      });
+      mailpit.stderr?.on('data', function (data) {
+        // console.error('Mailpit error:', data.toString());
+      });
+      mailpit.on('error', function (error) {
+        if (resolvable) {
+          resolvable = false;
+          reject(new Error(`Failed to start Mailpit: ${error.message}`));
+        }
+      });
+      mailpit.on('exit', function (code) {
+        if (resolvable) {
+          resolvable = false;
+          reject(new Error(`Mailpit process exited with code ${code}`));
+        }
+      });
+    }),
+  ]);
+
+  console.info('Redis and Mailpit containers started');
+
+  const backendPort = String(20000 + Math.floor(Math.random() * 10000));
+  const backendAddr = `localhost:${backendPort}`;
+
+  const [backend] = await Promise.all([
+    new Promise<{
+      teardown: () => Promise<void>;
+    }>(async function (resolve, reject) {
+      const cgBackendPath = join(__dirname, '../..');
+      let resolvable = true;
+      const cgBackendProcess = spawn('node', ['dist/main.js', 'api', 'notification'], {
+        cwd: cgBackendPath,
+        env: {
+          ...process.env,
+          NODE_ENV: 'development',
+          ALLOWED_ORIGINS: `http://localhost,crypto-gadai://*`,
+          APP_EXPO_URL: `exp://localhost/--`,
+          APP_SCHEME: 'crypto-gadai://',
+          BETTER_AUTH_COOKIE_PREFIX: 'cg',
+          BETTER_AUTH_EXPIRATION_TIME: '3600',
+          BETTER_AUTH_MAXIMUM_SESSIONS: '3',
+          BETTER_AUTH_SECRET: 'P1skQoJiT7jnNDHuw06kkbTougc3jvTt',
+          BETTER_AUTH_TELEMETRY_DEBUG: '1',
+          BETTER_AUTH_TELEMETRY: '1',
+          BETTER_AUTH_URL: `http://localhost:${backendPort}/api/auth`,
+          CRYPTOGRAPHY_ENGINE: 'local',
+          DATABASE_URL: ':inmemory:',
+          DATABASE_LOGGER: 'false',
+          GOOGLE_CLIENT_ID:
+            '442461506062-rgpbj94u778lpcfv5hg5rue6fpveddt6.apps.googleusercontent.com',
+          GOOGLE_CLIENT_SECRET: 'GOCSPX - KKQN9TreMghyANcTCd9Vq4u3cILe',
+          MAIL_HOST: 'localhost',
+          MAIL_SMTP_PORT: mailpitSmtpPort,
+          MINIO_ENDPOINT: 'local',
+          PORT: backendPort,
+          REDIS_HOST: `localhost`,
+          REDIS_PORT: redisPort,
+          THROTTLER_LIMIT: '10',
+          THROTTLER_TTL: '1m',
+        },
+      });
+      cgBackendProcess.stdout?.on('data', function (data) {
+        const dataStr = String(data);
+        // console.debug('cg/backend', 'out', dataStr);
+        if (dataStr.includes('application successfully started')) {
+          if (resolvable) {
+            resolvable = false;
+            resolve({
+              async teardown() {
+                cgBackendProcess.kill('SIGTERM');
+              },
+            });
+          }
+        }
+      });
+      cgBackendProcess.stderr?.on('data', function (data) {
+        console.error('cg/backend', 'err', data.toString());
+      });
+      cgBackendProcess.on('error', function (error) {
+        if (resolvable) {
+          resolvable = false;
+          reject(new Error(`Failed to start CG Backend: ${error.message}`));
+        }
+      });
+      cgBackendProcess.on('exit', function (code) {
+        if (resolvable) {
+          resolvable = false;
+          reject(new Error(`CG Backend process exited with code ${code}`));
+        }
+      });
+    }),
+  ]);
+
+  console.info('CryptoGadai Backend container and Expo Web started');
+
+  return {
+    mailpitUrl: `http://${mailpitApiAddr}`,
+    backendUrl: `http://${backendAddr}`,
+    async teardown() {
+      await Promise.all([backend.teardown()]);
+      await Promise.all([redis.teardown(), mailpit.teardown()]);
+    },
+  };
+}

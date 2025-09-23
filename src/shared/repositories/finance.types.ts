@@ -224,7 +224,7 @@ export interface UserViewsWithdrawalBeneficiariesParams {
   userId: string;
 }
 
-export interface WithdrawalBeneficiary {
+export interface WithdrawalBeneficiaryListItem {
   id: string;
   userId: string;
   blockchainKey: string;
@@ -232,7 +232,7 @@ export interface WithdrawalBeneficiary {
 }
 
 export interface UserViewsWithdrawalBeneficiariesResult {
-  beneficiaries: WithdrawalBeneficiary[];
+  beneficiaries: WithdrawalBeneficiaryListItem[];
 }
 
 // Account Creation Types
@@ -334,4 +334,113 @@ export interface PlatformSetActiveButExpiredInvoiceAsExpiredResult {
 export interface PlatformRetrievesProvisionRateResult {
   loanProvisionRate: string; // The provision rate as decimal string (e.g., "3.0" for 3.0%)
   effectiveDate: Date;
+}
+
+// Withdrawal Retrieval Types
+export interface UserViewsWithdrawalsParams {
+  userId: string;
+  page?: number;
+  limit?: number;
+  state?: 'requested' | 'sent' | 'confirmed' | 'failed';
+}
+
+export interface WithdrawalCurrency {
+  blockchainKey: string;
+  tokenId: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  logoUrl?: string;
+}
+
+export interface WithdrawalBlockchain {
+  key: string;
+  name: string;
+  shortName: string;
+  image?: string;
+}
+
+export interface WithdrawalBeneficiary {
+  id: string;
+  blockchainKey: string;
+  address: string;
+  label?: string;
+  createdDate: Date;
+  verifiedDate?: Date;
+  isActive: boolean;
+  blockchain: WithdrawalBlockchain;
+}
+
+export interface WithdrawalRecord {
+  id: string;
+  currency: WithdrawalCurrency;
+  beneficiary: WithdrawalBeneficiary;
+  requestAmount: string;
+  sentAmount?: string;
+  networkFee?: string;
+  platformFee?: string;
+  requestDate: Date;
+  sentDate?: Date;
+  sentHash?: string;
+  confirmedDate?: Date;
+  failedDate?: Date;
+  failureReason?: string;
+  state: string;
+  blockchainExplorerUrl?: string;
+  estimatedConfirmationTime?: string;
+}
+
+export interface WithdrawalPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export interface UserViewsWithdrawalsResult {
+  withdrawals: WithdrawalRecord[];
+  pagination: WithdrawalPagination;
+}
+
+export interface UserViewsWithdrawalDetailsParams {
+  userId: string;
+  withdrawalId: string;
+}
+
+export interface UserViewsWithdrawalDetailsResult {
+  withdrawal: WithdrawalRecord | null;
+}
+
+// Withdrawal Status and Limit Management Types
+export interface GetRemainingDailyWithdrawalLimitParams {
+  userId: string;
+  currencyBlockchainKey: string;
+  currencyTokenId: string;
+}
+
+export interface GetRemainingDailyWithdrawalLimitResult {
+  remainingLimit: string;
+  dailyLimit: string;
+  usedToday: string;
+}
+
+export interface GetWithdrawalStatusParams {
+  withdrawalId: string;
+}
+
+export interface GetWithdrawalStatusResult {
+  status: string;
+}
+
+export interface UpdateWithdrawalStatusParams {
+  withdrawalId: string;
+  status: string;
+  refundRequestedDate?: Date;
+}
+
+export interface UpdateWithdrawalStatusResult {
+  id: string;
+  status: string;
 }

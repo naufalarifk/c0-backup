@@ -17,13 +17,11 @@ import {
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../shared/services/app-config.service';
-import { MailerService } from '../../shared/services/mailer.service';
 import { MinioService } from '../../shared/services/minio.service';
-import { RedisService } from '../../shared/services/redis.service';
-import { TwilioService } from '../../shared/services/twilio.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { EmailVerificationNotificationData } from '../notifications/composers/email-verification-notification.composer';
 import { EmailPasswordResetNotificationData } from '../notifications/composers/password-reset-notification.composer';
+import { PhoneNumberVerificationNotificationData } from '../notifications/composers/phone-number-verification-notification.composer';
 import { UserRegisteredNotificationData } from '../notifications/composers/user-registered-notification.composer';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
 import { authAdapter } from './auth.adapter';
@@ -34,9 +32,6 @@ export class AuthConfig {
 
   constructor(
     private readonly configService: AppConfigService,
-    readonly _mailerService: MailerService,
-    private readonly twilioService: TwilioService,
-    private readonly redisService: RedisService,
     private readonly repo: CryptogadaiRepository,
     private readonly minioService: MinioService,
     private readonly notificationQueueService: NotificationQueueService,
@@ -50,12 +45,38 @@ export class AuthConfig {
     const options: BetterAuthOptions = {
       database: this.database(),
       session: this.session(),
-      secondaryStorage: this.secondaryStorage(),
+      secondaryStorage: undefined, // session storage already handled by database adapter
       emailVerification: this.emailVerification(),
       emailAndPassword: this.emailAndPassword(),
       socialProviders: this.configService.socialProviderConfigs,
       plugins: this.plugins(),
       user: {
+        additionalFields: {
+          userType: {
+            type: 'string',
+            defaultValue: 'Undecided',
+          },
+          kycStatus: {
+            type: 'string',
+            defaultValue: 'none',
+          },
+          institutionUserId: {
+            type: 'string',
+            defaultValue: null,
+          },
+          institutionRole: {
+            type: 'string',
+            defaultValue: null,
+          },
+          businessName: {
+            type: 'string',
+            defaultValue: null,
+          },
+          businessType: {
+            type: 'string',
+            defaultValue: null,
+          },
+        },
         changeEmail: {
           enabled: true,
         },
@@ -101,38 +122,6 @@ export class AuthConfig {
       },
       storeSessionInDatabase: true,
       preserveSessionInDatabase: true,
-    };
-  }
-
-  private secondaryStorage(): BetterAuthOptions['secondaryStorage'] {
-    return {
-      get: async (key: string) => {
-        try {
-          const value = await this.redisService.get(key);
-          return value ? value : null;
-        } catch (error) {
-          this.logger.error(`Error getting secondary storage key ${key}:`, error);
-          return null;
-        }
-      },
-      set: async (key: string, value: string, ttl?: number) => {
-        try {
-          if (ttl) {
-            await this.redisService.set(key, value, ttl);
-          } else {
-            await this.redisService.set(key, value);
-          }
-        } catch (error) {
-          this.logger.error(`Error setting secondary storage key ${key}:`, error);
-        }
-      },
-      delete: async (key: string) => {
-        try {
-          await this.redisService.del(key);
-        } catch (error) {
-          this.logger.error(`Error deleting secondary storage key ${key}:`, error);
-        }
-      },
     };
   }
 
@@ -205,46 +194,30 @@ export class AuthConfig {
       }),
       phoneNumber({
         sendOTP: async ({ phoneNumber, code }) => {
-          const res = await this.twilioService.sendSMS({
-            to: phoneNumber,
-            body: `Your verification code is: ${code}`,
-          });
-          console.log('res :>> ', res);
-        },
-        signUpOnVerification: {
-          getTempEmail: (phoneNumber: string) => `${phoneNumber.replace('+', '')}@temp.app`,
-          getTempName: (phoneNumber: string) => `User-${phoneNumber.slice(-4)}`,
+          console.log('CODE: ', code);
+          const payload: PhoneNumberVerificationNotificationData = {
+            type: 'PhoneNumberVerification',
+            phoneNumber,
+            code,
+          };
+
+          this.notificationQueueService.queueNotification(payload);
         },
       }),
       sso(),
       multiSession({ maximumSessions: this.configService.authConfig.maximumSessions }),
       customSession(async ({ session, user }) => {
-        const rows = await this.repo
-          .sql`SELECT profile_picture, email_verified_date, two_factor_enabled_date, user_type FROM users WHERE id = ${user.id} LIMIT 1`;
+        // Process image URL if it's a MinIO path
+        let image = user.image;
 
-        // biome-ignore lint/suspicious/noExplicitAny: Enable explicit any for database result
-        const data = rows.length ? (rows[0] as any) : null;
-
-        let profilePictureUrl = data?.profile_picture;
-
-        // If profile_picture exists and doesn't start with http/https, get from MinIO
-        if (profilePictureUrl && !/^https?:\/\//.test(profilePictureUrl)) {
-          try {
-            // Parse bucket:objectPath format
-            const [bucket, objectPath] = profilePictureUrl.split(':');
-            if (bucket && objectPath) {
-              // SECURITY: Basic validation - ensure path is not manipulated
-              if (objectPath.includes('../') || objectPath.includes('..\\')) {
-                this.logger.warn(`Path traversal attempt detected: ${objectPath}`);
-                profilePictureUrl = null;
-              } else {
-                // Generate presigned URL with short expiry
-                profilePictureUrl = await this.minioService.getFileUrl(bucket, objectPath, 900);
-              }
-            }
-          } catch (error) {
-            this.logger.error('Failed to get profile picture from MinIO:', error);
-            profilePictureUrl = null;
+        if (image && !/^https?:\/\//.test(image)) {
+          const [bucket, objectPath] = image.split(':');
+          if (bucket && objectPath && !objectPath.includes('../')) {
+            // If getFileUrl errors, user.image still uses the original value.
+            image = await this.minioService.getFileUrl(bucket, objectPath, 900).catch(err => {
+              this.logger.error('Failed to get profile picture from MinIO:', err);
+              return image; // return original value
+            });
           }
         }
 
@@ -252,10 +225,7 @@ export class AuthConfig {
           session,
           user: {
             ...user,
-            role: data.role || 'User',
-            userType: data.user_type || 'Undecided',
-            twoFactorEnabled: !!data.two_factor_enabled_date,
-            image: profilePictureUrl,
+            image,
           },
         };
       }),

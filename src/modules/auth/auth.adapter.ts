@@ -39,6 +39,8 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
           return userRepo.betterAuthCreateAccount(data);
         } else if (model === 'verification') {
           return userRepo.betterAuthCreateVerification(data);
+        } else if (model === 'twoFactor') {
+          return userRepo.betterAuthCreateTwoFactor(data);
         } else {
           throw new BetterAuthError(
             `Unsupported creating data with model: ${model} ${unknownErrorToPlain(data)}`,
@@ -55,6 +57,8 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
           return userRepo.betterAuthUpdateAccount(where, update);
         } else if (model === 'verification') {
           return userRepo.betterAuthUpdateVerification(where, update);
+        } else if (model === 'twoFactor') {
+          return userRepo.betterAuthUpdateTwoFactor(where, update);
         } else {
           throw new BetterAuthError(`Unsupported updating data with model: ${model}`);
         }
@@ -74,6 +78,9 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
         } else if (model === 'verification') {
           const result = await userRepo.betterAuthUpdateVerification(where, update);
           return result ? 1 : 0;
+        } else if (model === 'twoFactor') {
+          const results = await userRepo.betterAuthUpdateManyTwoFactor(where, update);
+          return Array.isArray(results) ? results.length : 0;
         } else {
           throw new BetterAuthError(`Unsupported updateMany for model: ${model}`);
         }
@@ -91,6 +98,8 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
             return userRepo.betterAuthDeleteSession(where);
           } else if (model === 'verification') {
             return userRepo.betterAuthDeleteVerification(where);
+          } else if (model === 'twoFactor') {
+            return userRepo.betterAuthDeleteTwoFactor(where);
           } else {
             throw new BetterAuthError(`Unsupported deleting data with model: ${model}`);
           }
@@ -111,6 +120,8 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
             return userRepo.betterAuthDeleteManySession(where) as any;
           } else if (model === 'verification') {
             return userRepo.betterAuthDeleteManyVerifications(where) as any;
+          } else if (model === 'twoFactor') {
+            return userRepo.betterAuthDeleteManyTwoFactor(where) as any;
           } else {
             throw new BetterAuthError(`Unsupported deleteMany for model: ${model}`);
           }
@@ -145,6 +156,8 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
           return userRepo.betterAuthFindOneAccount(where) as any;
         } else if (model === 'verification') {
           return userRepo.betterAuthFindOneVerification(where) as any;
+        } else if (model === 'twoFactor') {
+          return userRepo.betterAuthFindOneTwoFactor(where) as any;
         } else {
           throw new BetterAuthError(`Unsupported findOne for model: ${model}`);
         }
@@ -160,6 +173,8 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
           return userRepo.betterAuthFindManyAccounts(where, limit, offset, sortBy);
         } else if (model === 'verification') {
           return userRepo.betterAuthFindManyVerifications(where, limit, offset, sortBy);
+        } else if (model === 'twoFactor') {
+          return userRepo.betterAuthFindManyTwoFactor(where, limit, offset, sortBy);
         } else {
           throw new BetterAuthError(`Unsupported findMany for model: ${model}`);
         }
@@ -177,6 +192,9 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
           return results.length;
         } else if (model === 'verification') {
           const results = await userRepo.betterAuthFindManyVerifications(where);
+          return results.length;
+        } else if (model === 'twoFactor') {
+          const results = await userRepo.betterAuthFindManyTwoFactor(where);
           return results.length;
         } else {
           throw new BetterAuthError(`Unsupported count for model: ${model}`);

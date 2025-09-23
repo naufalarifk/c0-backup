@@ -2,6 +2,7 @@
 /dist
 /node_modules
 /build
+/deprecated-test
 
 # Logs
 logs
@@ -59,3 +60,6 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+
+src/modules/auth/pg-adapter.ts

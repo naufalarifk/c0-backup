@@ -231,7 +231,7 @@ export class AppConfigService {
   get appConfig() {
     return {
       port: this.getString('PORT', '3000'),
-      name: this.getString('APP_NAME', 'Gadain'),
+      name: this.getString('APP_NAME', 'Cryptogadai'),
       scheme: this.getString('APP_SCHEME', 'crypto-gadai://'),
       expoUrl: this.getString('APP_EXPO_URL', 'exp://192.168.0.111:8081/--'),
       allowedOrigins: this.getString('ALLOWED_ORIGINS')

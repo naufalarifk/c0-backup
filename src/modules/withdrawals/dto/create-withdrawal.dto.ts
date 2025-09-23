@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsNumberString, IsString, Matches } from 'class-validator';
+import { IsNotEmpty, IsNumberString, IsOptional, IsString, Matches } from 'class-validator';
 
 export class CreateWithdrawalDto {
   @ApiProperty({
@@ -28,14 +28,32 @@ export class CreateWithdrawalDto {
   @Transform(({ value }) => String(value))
   beneficiaryId: string;
 
-  @ApiProperty({ example: '1500.50', description: 'Amount to withdraw' })
+  @ApiProperty({
+    example: '1500.50',
+    description: 'Amount to withdraw (must be positive and within limits)',
+  })
   @IsNotEmpty({ message: 'Amount is required' })
   @IsNumberString({}, { message: 'Amount must be a valid number' })
   @Transform(({ value }) => String(value))
   amount: string;
 
-  @ApiProperty({ example: '123456', description: 'Two-factor authentication code' })
+  @ApiProperty({
+    example: '123456',
+    description: 'Two-factor authentication code (6 digits)',
+    minLength: 6,
+    maxLength: 6,
+  })
+  @IsNotEmpty({ message: 'Two-factor authentication code is required' })
   @Matches(/^\d{6}$/, { message: 'Two-factor code must be exactly 6 digits' })
   @Transform(({ value }) => String(value))
   twoFactorCode: string;
+
+  @ApiProperty({
+    example: true,
+    description: 'Confirmation that user accepts withdrawal fees',
+    required: false,
+  })
+  @IsOptional()
+  @Transform(({ value }) => Boolean(value))
+  acceptFees?: boolean;
 }

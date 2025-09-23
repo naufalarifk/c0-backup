@@ -133,7 +133,6 @@ To complete the implementation:
 - NestJS framework for dependency injection and decorators
 - Class-validator for DTO validation
 - Swagger/OpenAPI for API documentation
-- Jest for testing
 - Better Auth for authentication
 - Repository pattern for data access
 

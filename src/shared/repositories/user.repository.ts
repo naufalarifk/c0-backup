@@ -119,7 +119,7 @@ export abstract class UserRepository extends BetterAuthRepository {
 
     const rows = await this.sql`
       SELECT id, name, email, email_verified_date, profile_picture, role,
-             two_factor_enabled_date,
+             two_factor_enabled,
              created_date, updated_date,
              user_type, user_type_selected_date,
              institution_user_id, institution_role,
@@ -155,7 +155,7 @@ export abstract class UserRepository extends BetterAuthRepository {
         'role' in user && typeof user.role === 'string'
           ? (user.role as 'System' | 'Admin' | 'User')
           : 'User',
-      twoFactorEnabled: 'two_factor_enabled_date' in user ? !!user.two_factor_enabled_date : false,
+      twoFactorEnabled: 'two_factor_enabled' in user ? !!user.two_factor_enabled : false,
       createdAt:
         'created_date' in user && user.created_date instanceof Date ? user.created_date : undefined,
       updatedAt:

@@ -13,7 +13,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - gadain-network
+      - cg-network
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
       interval: ${HEALTHCHECK_INTERVAL}
@@ -30,7 +30,7 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - gadain-network
+      - cg-network
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: ${HEALTHCHECK_INTERVAL}
@@ -55,7 +55,7 @@ services:
     volumes:
       - mailpit_data:/data
     networks:
-      - gadain-network
+      - cg-network
     healthcheck:
       test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8025/api/v1/info']
       interval: ${HEALTHCHECK_INTERVAL}
@@ -86,9 +86,10 @@ services:
       - ${VAULT_DATA_VOLUME}:/vault/file
 
   minio:
-    image: bitnami/minio:${MINIO_VERSION}
+    image: minio/minio:latest
     container_name: ${MINIO_CONTAINER_NAME}
     restart: unless-stopped
+    command: server /data --console-address ":9001"
     ports:
       - '${MINIO_PORT}:9000'        # API
       - '${MINIO_CONSOLE_PORT}:9001'  # Console UI
@@ -99,9 +100,9 @@ services:
       MINIO_SCHEME: ${MINIO_SCHEME:-http}
       MINIO_API_CORS_ALLOW_ORIGIN: ${MINIO_API_CORS_ALLOW_ORIGIN:-*}
     volumes:
-      - minio_data:/bitnami/minio/data
+      - minio_data:/data
     networks:
-      - gadain-network
+      - cg-network
     healthcheck:
       test: ['CMD-SHELL', 'curl -f http://localhost:9000/minio/health/live || exit 1']
       interval: ${HEALTHCHECK_INTERVAL}
@@ -123,5 +124,5 @@ volumes:
     driver: local
 
 networks:
-  gadain-network:
+  cg-network:
     driver: bridge
