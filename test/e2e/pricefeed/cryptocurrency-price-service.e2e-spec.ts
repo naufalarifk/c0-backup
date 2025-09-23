@@ -1,58 +1,69 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { PriceFeedService } from '../../../src/modules/pricefeed/pricefeed.service';
+import type {
+  AnyPriceFeedWorkerData,
+  ExchangeRateFetcherData,
+} from '../../../src/modules/pricefeed/pricefeed.types';
+
+import assert from 'node:assert';
+import { afterEach, beforeEach, describe, it, mock } from 'node:test';
 
 import { CryptocurrencyPriceService } from '../../../src/modules/pricefeed/cryptocurrency-price.service';
-import { PriceFeedService } from '../../../src/modules/pricefeed/pricefeed.service';
 
 // Create a mock for PriceFeedService with all required methods
 const mockPriceFeedService = {
-  queueExchangeRateFetch: jest.fn().mockResolvedValue(undefined),
-  getQueueStatus: jest.fn().mockResolvedValue({
+  queueExchangeRateFetch: mock.fn(async () => undefined),
+  getQueueStatus: mock.fn(async () => ({
     waiting: 2,
     active: 0,
     completed: 5,
     failed: 0,
-  }),
+  })),
   // Mock processWork to simulate error for invalid cryptocurrency
-  processWork: jest.fn().mockImplementation(params => {
-    if (params.blockchainKey === 'invalid-blockchain' || params.baseCurrencyTokenId === 'INVALID') {
-      throw new Error('Could not find CoinMarketCap ID for INVALID');
+  processWork: mock.fn(async (params: AnyPriceFeedWorkerData) => {
+    if (params.type === 'exchange-rate-fetcher') {
+      const fetcherParams = params as ExchangeRateFetcherData;
+      if (
+        fetcherParams.blockchainKey === 'invalid-blockchain' ||
+        fetcherParams.baseCurrencyTokenId === 'INVALID'
+      ) {
+        throw new Error('Could not find CoinMarketCap ID for INVALID');
+      }
     }
-    return Promise.resolve(undefined);
+    return undefined;
   }),
-  isProviderAvailable: jest.fn().mockResolvedValue(true),
+  isProviderAvailable: mock.fn(async () => true),
 };
 
 describe('CryptocurrencyPriceService E2E Tests', () => {
-  let module: TestingModule;
   let cryptoPriceService: CryptocurrencyPriceService;
 
-  beforeAll(async () => {
-    module = await Test.createTestingModule({
-      providers: [
-        CryptocurrencyPriceService,
-        {
-          provide: PriceFeedService,
-          useValue: mockPriceFeedService,
-        },
-      ],
-    }).compile();
+  beforeEach(() => {
+    // Reset mock call counts
+    mockPriceFeedService.queueExchangeRateFetch.mock.resetCalls();
+    mockPriceFeedService.getQueueStatus.mock.resetCalls();
+    mockPriceFeedService.processWork.mock.resetCalls();
+    mockPriceFeedService.isProviderAvailable.mock.resetCalls();
 
-    cryptoPriceService = module.get<CryptocurrencyPriceService>(CryptocurrencyPriceService);
+    // Direct instantiation without NestJS DI
+    cryptoPriceService = new CryptocurrencyPriceService(
+      mockPriceFeedService as unknown as PriceFeedService,
+    );
   });
 
-  afterAll(async () => {
-    if (module) {
-      await module.close();
-    }
+  afterEach(() => {
+    cryptoPriceService = undefined!;
   });
 
   describe('Production Service Tests', () => {
     it('should be properly injected and available', () => {
-      expect(cryptoPriceService).toBeDefined();
-      expect(cryptoPriceService).toBeInstanceOf(CryptocurrencyPriceService);
+      assert.ok(cryptoPriceService, 'CryptocurrencyPriceService should be defined');
+      assert.ok(
+        cryptoPriceService instanceof CryptocurrencyPriceService,
+        'Should be instance of CryptocurrencyPriceService',
+      );
     });
 
-    it('should fetch Bitcoin price immediately', async () => {
+    it('should fetch Bitcoin price immediately', { timeout: 30000 }, async () => {
       console.log('Testing immediate Bitcoin price fetch...');
 
       try {
@@ -62,9 +73,9 @@ describe('CryptocurrencyPriceService E2E Tests', () => {
         console.error('❌ Bitcoin price fetch failed:', error);
         throw error;
       }
-    }, 30000);
+    });
 
-    it('should fetch custom cryptocurrency pair', async () => {
+    it('should fetch custom cryptocurrency pair', { timeout: 30000 }, async () => {
       console.log('Testing custom cryptocurrency pair fetch...');
 
       try {
@@ -74,9 +85,9 @@ describe('CryptocurrencyPriceService E2E Tests', () => {
         console.error('❌ ETH/USD price fetch failed:', error);
         throw error;
       }
-    }, 30000);
+    });
 
-    it('should fetch bulk cryptocurrency prices', async () => {
+    it('should fetch bulk cryptocurrency prices', { timeout: 30000 }, async () => {
       console.log('Testing bulk cryptocurrency price fetch...');
 
       try {
@@ -86,7 +97,7 @@ describe('CryptocurrencyPriceService E2E Tests', () => {
         console.error('❌ Bulk cryptocurrency price fetch failed:', error);
         throw error;
       }
-    }, 30000);
+    });
 
     it('should get service status', async () => {
       console.log('Testing service status...');
@@ -101,12 +112,20 @@ describe('CryptocurrencyPriceService E2E Tests', () => {
           failed: status.queueStatus.failed,
         });
 
-        expect(status).toBeDefined();
-        expect(status.queueStatus).toBeDefined();
-        expect(typeof status.queueStatus.waiting).toBe('number');
-        expect(typeof status.queueStatus.active).toBe('number');
-        expect(typeof status.queueStatus.completed).toBe('number');
-        expect(typeof status.queueStatus.failed).toBe('number');
+        assert.ok(status, 'Status should be defined');
+        assert.ok(status.queueStatus, 'Queue status should be defined');
+        assert.strictEqual(
+          typeof status.queueStatus.waiting,
+          'number',
+          'Waiting should be a number',
+        );
+        assert.strictEqual(typeof status.queueStatus.active, 'number', 'Active should be a number');
+        assert.strictEqual(
+          typeof status.queueStatus.completed,
+          'number',
+          'Completed should be a number',
+        );
+        assert.strictEqual(typeof status.queueStatus.failed, 'number', 'Failed should be a number');
 
         console.log('✅ Service status retrieved successfully');
       } catch (error) {
@@ -118,36 +137,45 @@ describe('CryptocurrencyPriceService E2E Tests', () => {
     it('should handle invalid cryptocurrency gracefully', async () => {
       console.log('Testing error handling with invalid cryptocurrency...');
 
-      await expect(
+      await assert.rejects(
         cryptoPriceService.fetchCryptocurrencyPair('invalid-blockchain', 'INVALID', 'USD'),
-      ).rejects.toThrow('Could not find CoinMarketCap ID');
+        /Could not find CoinMarketCap ID/,
+        'Should throw error for invalid cryptocurrency',
+      );
 
       console.log('✅ Expected error occurred for invalid cryptocurrency');
     });
   });
 
   describe('Integration with Queue System', () => {
-    it('should queue major cryptocurrency prices (simulated cron job)', async () => {
-      console.log('Testing scheduled price fetch (simulated)...');
+    it(
+      'should queue major cryptocurrency prices (simulated cron job)',
+      { timeout: 30000 },
+      async () => {
+        console.log('Testing scheduled price fetch (simulated)...');
 
-      try {
-        // This simulates what the cron job would do
-        await cryptoPriceService.fetchMajorCryptoPrices();
-        console.log('✅ Major cryptocurrency prices queued successfully');
+        try {
+          // This simulates what the cron job would do
+          await cryptoPriceService.fetchMajorCryptoPrices();
+          console.log('✅ Major cryptocurrency prices queued successfully');
 
-        // Check queue status after queuing
-        const status = await cryptoPriceService.getServiceStatus();
-        console.log('Queue status after scheduling:', {
-          waiting: status.queueStatus.waiting,
-          active: status.queueStatus.active,
-        });
+          // Check queue status after queuing
+          const status = await cryptoPriceService.getServiceStatus();
+          console.log('Queue status after scheduling:', {
+            waiting: status.queueStatus.waiting,
+            active: status.queueStatus.active,
+          });
 
-        // Should have queued jobs
-        expect(status.queueStatus.waiting + status.queueStatus.active).toBeGreaterThanOrEqual(0);
-      } catch (error) {
-        console.error('❌ Scheduled price fetch failed:', error);
-        throw error;
-      }
-    }, 30000);
+          // Should have queued jobs
+          assert.ok(
+            status.queueStatus.waiting + status.queueStatus.active >= 0,
+            'Should have non-negative queue count',
+          );
+        } catch (error) {
+          console.error('❌ Scheduled price fetch failed:', error);
+          throw error;
+        }
+      },
+    );
   });
 });

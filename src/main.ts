@@ -2,6 +2,7 @@ import { networkInterfaces } from 'node:os';
 import { argv, env } from 'node:process';
 
 import { notificationEntrypoint } from './entrypoints/notification.entrypoint';
+import { pricefeedEntrypoint } from './entrypoints/pricefeed.entrypoint';
 import { userApiEntrypoint } from './entrypoints/user-api.entrypoint';
 
 const [, , ...commands] = argv;
@@ -16,6 +17,10 @@ if (commands.includes('api')) {
 
 if (commands.includes('notification')) {
   void notificationEntrypoint();
+}
+
+if (commands.includes('pricefeed')) {
+  void pricefeedEntrypoint();
 }
 
 function getDefaultAuthUrl(): string {
