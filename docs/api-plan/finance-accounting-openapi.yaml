@@ -1,0 +1,973 @@
+openapi: 3.0.3
+info:
+  title: CryptoGadai Finance API
+  description: |
+    CryptoGadai finance, invoice, and withdrawal management system API.
+    
+    This API handles all financial operations including:
+    - Account and balance management
+    - Invoice creation and payment processing
+    - Withdrawal request processing
+    - Transaction history and auditing
+    
+    **Security Requirements:**
+    - All endpoints require authentication
+    - Financial operations require 2FA verification
+    - Large amounts may require additional admin approval
+    
+    **Time-based State Management:**
+    - No status columns are used; instead time-based columns indicate record states
+    - All timestamps are provided by the application layer
+    - Operations are idempotent and support retry mechanisms
+  version: 1.0.0
+  contact:
+    name: CryptoGadai API Support
+    email: api-support@cryptogadai.com
+  license:
+    name: Proprietary
+    url: https://cryptogadai.com/license
+
+servers:
+  - url: https://api.cryptogadai.com/api
+    description: Production server
+  - url: https://cg-api.fh47.com/api
+    description: Testing server
+  - url: http://cg-api.localhost/api
+    description: Local development server
+
+security:
+  - apiKeyCookie: []
+  - bearerAuth: []
+
+paths:
+  # Account & Balance Management
+  /accounts/balances:
+    get:
+      tags:
+        - Account Management
+      summary: Get account balances
+      description: |
+        Retrieve all account balances for the authenticated user or institution.
+        
+        **Balance Calculation:**
+        - Current balance = sum of all account mutations
+        - Pending operations are calculated separately
+        - Exchange rates applied for portfolio valuation
+      operationId: getAccountBalances
+      responses:
+        '200':
+          description: Account balances retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountBalancesResponse'
+              examples:
+                individual_user_balances:
+                  summary: Individual user with multiple crypto holdings
+                  value:
+                    success: true
+                    data:
+                      accounts:
+                        - id: 1001
+                          currency:
+                            blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                            tokenId: "slip44:0"
+                            name: "Bitcoin"
+                            symbol: "BTC"
+                            decimals: 8
+                            logoUrl: "https://cryptologos.cc/logos/bitcoin-btc-logo.png"
+                          balance: "150000000"
+                          lastUpdated: "2025-08-11T10:30:00Z"
+                          valuation:
+                            amount: "101175.00"
+                            currency:
+                              blockchainKey: "crosschain"
+                              tokenId: "iso4217:usd"
+                              name: "USD Token"
+                              symbol: "USD"
+                              decimals: 6
+                              logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                            exchangeRate: "67450.000000000000000000"
+                            rateSource: "coinbase"
+                            rateDate: "2025-08-11T10:29:45Z"
+                        - id: 1002
+                          currency:
+                            blockchainKey: "eip155:1"
+                            tokenId: "slip44:60"
+                            name: "Ethereum"
+                            symbol: "ETH"
+                            decimals: 18
+                            logoUrl: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
+                          balance: "2500000000000000000"
+                          lastUpdated: "2025-08-11T10:30:00Z"
+                          valuation:
+                            amount: "8115.00"
+                            currency:
+                              blockchainKey: "crosschain"
+                              tokenId: "iso4217:usd"
+                              name: "USD Token"
+                              symbol: "USD"
+                              decimals: 6
+                              logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                            exchangeRate: "3246.000000000000000000"
+                            rateSource: "coinbase"
+                            rateDate: "2025-08-11T10:29:45Z"
+                        - id: 1003
+                          currency:
+                            blockchainKey: "crosschain"
+                            tokenId: "iso4217:usd"
+                            name: "USD Token"
+                            symbol: "USD"
+                            decimals: 6
+                            logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                          balance: "500000000"
+                          lastUpdated: "2025-08-11T10:30:00Z"
+                          valuation:
+                            amount: "500.00"
+                            currency:
+                              blockchainKey: "crosschain"
+                              tokenId: "iso4217:usd"
+                              name: "USD Token"
+                              symbol: "USD"
+                              decimals: 6
+                              logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                            exchangeRate: "1.000000000000000000"
+                            rateSource: "fixed"
+                            rateDate: "2025-08-11T10:29:45Z"
+                      totalPortfolioValue:
+                        amount: "109790.00"
+                        currency: "USD"
+                        lastUpdated: "2025-08-11T10:30:00Z"
+                company_user_balances:
+                  summary: Company user with large holdings
+                  value:
+                    success: true
+                    data:
+                      accounts:
+                        - id: 2001
+                          currency:
+                            blockchainKey: "crosschain"
+                            tokenId: "iso4217:usd"
+                            name: "USD Token"
+                            symbol: "USD"
+                            decimals: 6
+                            logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                          balance: "5000000000000"
+                          lastUpdated: "2025-08-11T10:30:00Z"
+                          valuation:
+                            amount: "5000000.00"
+                            currency:
+                              blockchainKey: "crosschain"
+                              tokenId: "iso4217:usd"
+                              name: "USD Token"
+                              symbol: "USD"
+                              decimals: 6
+                              logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                            exchangeRate: "1.000000000000000000"
+                            rateSource: "fixed"
+                            rateDate: "2025-08-11T10:29:45Z"
+                      totalPortfolioValue:
+                        amount: "5000000.00"
+                        currency: "USD"
+                        lastUpdated: "2025-08-11T10:30:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accounts/{accountId}/mutations:
+    get:
+      tags:
+        - Account Management
+      summary: Get account transaction history
+      description: |
+        Retrieve transaction history (account mutations) for a specific account.
+        
+        **Mutation Types:**
+        - Invoice operations (invoiceReceived)
+        - Loan operations (borrower and lender perspective)
+        - Withdrawal operations
+        - Platform fee operations
+      operationId: getAccountMutations
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: page
+          in: query
+          description: Page number (1-based)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of mutations per page (max 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: mutationType
+          in: query
+          description: Filter by mutation type
+          schema:
+            $ref: '#/components/schemas/AccountMutationType'
+        - name: fromDate
+          in: query
+          description: Filter mutations from this date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: toDate
+          in: query
+          description: Filter mutations until this date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Account mutations retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountMutationsResponse'
+              examples:
+                borrower_transaction_history:
+                  summary: Borrower's account mutations showing loan lifecycle
+                  value:
+                    success: true
+                    data:
+                      mutations:
+                        - id: 10001
+                          mutationType: "LoanCollateralDeposit"
+                          mutationDate: "2025-08-10T14:00:00Z"
+                          amount: "-500000000"
+                          description: "Collateral deposit for loan application #789"
+                          referenceId: 789
+                          referenceType: "loan_application"
+                          balanceAfter: "1500000000"
+                        - id: 10002
+                          mutationType: "LoanDisbursementReceived"
+                          mutationDate: "2025-08-10T15:30:00Z"
+                          amount: "10000000000"
+                          description: "Loan principal disbursement for loan #789"
+                          referenceId: 789
+                          referenceType: "loan"
+                          balanceAfter: "11500000000"
+                        - id: 10003
+                          mutationType: "LoanRepayment"
+                          mutationDate: "2025-08-17T09:15:00Z"
+                          amount: "-10600000000"
+                          description: "Loan repayment for loan #789 (principal + interest + origination fee)"
+                          referenceId: 789
+                          referenceType: "loan"
+                          balanceAfter: "900000000"
+                        - id: 10004
+                          mutationType: "LoanCollateralReturned"
+                          mutationDate: "2025-08-17T09:20:00Z"
+                          amount: "500000000"
+                          description: "Collateral returned for completed loan #789"
+                          referenceId: 789
+                          referenceType: "loan"
+                          balanceAfter: "1400000000"
+                      pagination:
+                        page: 1
+                        limit: 20
+                        total: 4
+                        totalPages: 1
+                        hasNext: false
+                        hasPrev: false
+                lender_transaction_history:
+                  summary: Lender's account mutations showing investment returns
+                  value:
+                    success: true
+                    data:
+                      mutations:
+                        - id: 20001
+                          mutationType: "LoanOfferPrincipalEscrowed"
+                          mutationDate: "2025-08-10T14:00:00Z"
+                          amount: "-10000000000"
+                          description: "Principal escrowed for loan offer #456"
+                          referenceId: 456
+                          referenceType: "loan_offer"
+                          balanceAfter: "40000000000"
+                        - id: 20002
+                          mutationType: "LoanRepaymentReceived"
+                          mutationDate: "2025-08-17T09:15:00Z"
+                          amount: "10000000000"
+                          description: "Principal repayment received for loan #789"
+                          referenceId: 789
+                          referenceType: "loan"
+                          balanceAfter: "50000000000"
+                        - id: 20003
+                          mutationType: "LoanInterestReceived"
+                          mutationDate: "2025-08-17T09:15:00Z"
+                          amount: "255000000"
+                          description: "Interest received for loan #789 (300 USDT - 15% platform fee)"
+                          referenceId: 789
+                          referenceType: "loan"
+                          balanceAfter: "50255000000"
+                      pagination:
+                        page: 1
+                        limit: 20
+                        total: 3
+                        totalPages: 1
+                        hasNext: false
+                        hasPrev: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Portfolio Management
+  /portfolio/overview:
+    get:
+      tags:
+        - Portfolio Management
+      summary: Get portfolio overview
+      description: |
+        Retrieve comprehensive portfolio overview including total value, asset allocation,
+        and performance metrics for the authenticated user or institution.
+
+        **Portfolio Calculations:**
+        - Total value aggregated from all account balances
+        - Asset allocation based on current market values
+        - Performance metrics calculated from historical data
+        - Real-time balance updates with latest exchange rates
+      operationId: getPortfolioOverview
+      responses:
+        '200':
+          description: Portfolio overview retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioOverviewResponse'
+              examples:
+                individual_portfolio:
+                  summary: Individual user portfolio overview
+                  value:
+                    success: true
+                    data:
+                      totalValue:
+                        amount: "125750.00"
+                        currency:
+                          blockchainKey: "crosschain"
+                          tokenId: "iso4217:usd"
+                          name: "USD Token"
+                          symbol: "USD"
+                          decimals: 6
+                          logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                      assetAllocation:
+                        - currency:
+                            blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                            tokenId: "slip44:0"
+                            name: "Bitcoin"
+                            symbol: "BTC"
+                            decimals: 8
+                            logoUrl: "https://cryptologos.cc/logos/bitcoin-btc-logo.png"
+                          balance: "150000000"
+                          value:
+                            amount: "101175.00"
+                            currency: "USD"
+                          percentage: 80.45
+                        - currency:
+                            blockchainKey: "eip155:1"
+                            tokenId: "slip44:60"
+                            name: "Ethereum"
+                            symbol: "ETH"
+                            decimals: 18
+                            logoUrl: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
+                          balance: "5750000000000000000"
+                          value:
+                            amount: "24575.00"
+                            currency: "USD"
+                          percentage: 19.55
+                      performance:
+                        daily:
+                          amount: "2540.50"
+                          currency: "USD"
+                          percentage: 2.06
+                        weekly:
+                          amount: "-1875.25"
+                          currency: "USD"
+                          percentage: -1.47
+                        monthly:
+                          amount: "8920.75"
+                          currency: "USD"
+                          percentage: 7.64
+                      lastUpdated: "2025-09-22T10:30:00Z"
+                institution_portfolio:
+                  summary: Institution portfolio overview
+                  value:
+                    success: true
+                    data:
+                      totalValue:
+                        amount: "5250000.00"
+                        currency:
+                          blockchainKey: "crosschain"
+                          tokenId: "iso4217:usd"
+                          name: "USD Token"
+                          symbol: "USD"
+                          decimals: 6
+                          logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                      assetAllocation:
+                        - currency:
+                            blockchainKey: "bip122:000000000019d6689c085ae165831e93"
+                            tokenId: "slip44:0"
+                            name: "Bitcoin"
+                            symbol: "BTC"
+                            decimals: 8
+                            logoUrl: "https://cryptologos.cc/logos/bitcoin-btc-logo.png"
+                          balance: "3750000000"
+                          value:
+                            amount: "2531250.00"
+                            currency: "USD"
+                          percentage: 48.21
+                        - currency:
+                            blockchainKey: "eip155:1"
+                            tokenId: "slip44:60"
+                            name: "Ethereum"
+                            symbol: "ETH"
+                            decimals: 18
+                            logoUrl: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
+                          balance: "637500000000000000000"
+                          value:
+                            amount: "2718750.00"
+                            currency: "USD"
+                          percentage: 51.79
+                      performance:
+                        daily:
+                          amount: "125000.00"
+                          currency: "USD"
+                          percentage: 2.44
+                        weekly:
+                          amount: "-87500.00"
+                          currency: "USD"
+                          percentage: -1.64
+                        monthly:
+                          amount: "420000.00"
+                          currency: "USD"
+                          percentage: 8.68
+                      lastUpdated: "2025-09-22T10:30:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+
+components:
+  securitySchemes:
+    apiKeyCookie:
+      type: apiKey
+      in: cookie
+      name: apiKeyCookie
+      description: Better Auth API Key authentication via cookie
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Better Auth Bearer token authentication
+
+  schemas:
+    # Account Management Schemas
+    AccountBalancesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            accounts:
+              type: array
+              items:
+                $ref: '#/components/schemas/AccountBalance'
+            totalPortfolioValue:
+              type: object
+              properties:
+                amount:
+                  type: string
+                  description: Total portfolio value in USD
+                  example: "125000.50"
+                currency:
+                  type: string
+                  example: "USD"
+                lastUpdated:
+                  type: string
+                  format: date-time
+      required:
+        - success
+        - data
+
+    AccountBalance:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 123
+        currency:
+          $ref: '#/components/schemas/Currency'
+        balance:
+          type: string
+          description: Available balance (decimal string)
+          example: "1250.750000000000000000"
+        lastUpdated:
+          type: string
+          format: date-time
+          example: "2025-08-11T10:30:00Z"
+        valuation:
+          type: object
+          properties:
+            amount:
+              type: string
+              description: Balance value in USD
+              example: "2451.25"
+            currency:
+              $ref: '#/components/schemas/Currency'
+            exchangeRate:
+              type: string
+              description: Exchange rate used for valuation
+              example: "1.960000000000000000"
+            rateSource:
+              type: string
+              description: Source of the exchange rate
+              example: "coinbase"
+            rateDate:
+              type: string
+              format: date-time
+              description: Timestamp of the exchange rate
+              example: "2025-08-11T10:29:45Z"
+      required:
+        - id
+        - currency
+        - balance
+        - lastUpdated
+
+    AccountMutationsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            mutations:
+              type: array
+              items:
+                $ref: '#/components/schemas/AccountMutation'
+            pagination:
+              $ref: '#/components/schemas/PaginationMeta'
+      required:
+        - success
+        - data
+
+    AccountMutation:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 456
+        mutationType:
+          $ref: '#/components/schemas/AccountMutationType'
+        mutationDate:
+          type: string
+          format: date-time
+          example: "2025-08-11T09:15:00Z"
+        amount:
+          type: string
+          description: Mutation amount (positive = credit, negative = debit)
+          example: "1000.000000000000000000"
+        description:
+          type: string
+          description: Human-readable description of the mutation
+          example: "Loan principal disbursement for loan #789"
+        referenceId:
+          type: integer
+          format: int64
+          description: ID of related entity (invoice, loan, withdrawal, etc.)
+          example: 789
+        referenceType:
+          type: string
+          description: Type of related entity
+          example: "loan"
+        balanceAfter:
+          type: string
+          description: Account balance after this mutation
+          example: "2250.750000000000000000"
+      required:
+        - id
+        - mutationType
+        - mutationDate
+        - amount
+        - description
+
+    AccountMutationType:
+      type: string
+      enum:
+        # Invoice operations
+        - InvoicePrepaid
+        - InvoiceReceived
+        # Loan operations - borrower perspective
+        - LoanCollateralDeposit
+        - LoanApplicationCollateralEscrowed
+        - LoanPrincipalDisbursement
+        - LoanDisbursementReceived
+        - LoanPrincipalDisbursementFee
+        - LoanRepayment
+        - LoanCollateralRelease
+        - LoanCollateralReturned
+        - LoanCollateralReleased
+        - LoanLiquidationRelease
+        - LoanLiquidationSurplus
+        - LoanLiquidationReleaseFee
+        # Loan operations - lender perspective
+        - LoanPrincipalFunded
+        - LoanOfferPrincipalEscrowed
+        - LoanPrincipalReturned
+        - LoanPrincipalReturnedFee
+        - LoanInterestReceived
+        - LoanRepaymentReceived
+        - LoanLiquidationRepayment
+        # Loan operations - platform perspective
+        - LoanDisbursementPrincipal
+        - LoanDisbursementFee
+        - LoanReturnFee
+        - LoanLiquidationFee
+        - LoanLiquidationCollateralUsed
+        # Withdrawal operations
+        - WithdrawalRequested
+        - WithdrawalRefunded
+        # Platform fee operations
+        - PlatformFeeCharged
+        - PlatformFeeRefunded
+        # Admin and emergency operations
+        - AdminManualAdjustment
+        - LiquidationDeficitCover
+        - PlatformLoss
+        - EmergencyFreeze
+        - EmergencyUnfreeze
+        - ComplianceHold
+        - ComplianceRelease
+
+    # Portfolio Management Schemas
+    PortfolioOverviewResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/PortfolioOverview'
+
+    PortfolioOverview:
+      type: object
+      properties:
+        totalValue:
+          $ref: '#/components/schemas/MonetaryValue'
+        assetAllocation:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetAllocation'
+        performance:
+          $ref: '#/components/schemas/PortfolioPerformance'
+        lastUpdated:
+          type: string
+          format: date-time
+          description: Timestamp when portfolio data was last calculated
+          example: "2025-09-22T10:30:00Z"
+
+    AssetAllocation:
+      type: object
+      properties:
+        currency:
+          $ref: '#/components/schemas/Currency'
+        balance:
+          type: string
+          description: Raw balance in smallest currency unit
+          example: "150000000"
+        value:
+          $ref: '#/components/schemas/MonetaryValue'
+        percentage:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Percentage of total portfolio value
+          example: 80.45
+
+    PortfolioPerformance:
+      type: object
+      properties:
+        daily:
+          $ref: '#/components/schemas/PerformanceMetric'
+        weekly:
+          $ref: '#/components/schemas/PerformanceMetric'
+        monthly:
+          $ref: '#/components/schemas/PerformanceMetric'
+
+    PerformanceMetric:
+      type: object
+      properties:
+        amount:
+          type: string
+          description: Absolute change amount in USD
+          example: "2540.50"
+        currency:
+          type: string
+          description: Currency code for the amount
+          example: "USD"
+        percentage:
+          type: number
+          format: float
+          description: Percentage change
+          example: 2.06
+
+    # Common Schemas
+    Currency:
+      type: object
+      properties:
+        blockchainKey:
+          type: string
+          description: CAIP-2 compliant blockchain identifier
+          example: "eip155:1"
+          maxLength: 64
+        tokenId:
+          type: string
+          description: Token identifier within the blockchain
+          example: "slip44:60"
+          maxLength: 64
+        name:
+          type: string
+          description: Human-readable currency name
+          example: "Ethereum"
+        symbol:
+          type: string
+          description: Currency symbol/ticker
+          example: "ETH"
+        decimals:
+          type: integer
+          description: Number of decimal places for precision
+          example: 18
+          minimum: 0
+          maximum: 18
+        logoUrl:
+          type: string
+          format: uri
+          description: URL to currency logo image
+          example: "https://assets.cryptogadai.com/currencies/eth.png"
+      required:
+        - blockchainKey
+        - tokenId
+        - name
+        - symbol
+        - decimals
+
+    MonetaryValue:
+      type: object
+      properties:
+        amount:
+          type: string
+          description: Monetary amount
+          example: "125750.00"
+        currency:
+          $ref: '#/components/schemas/Currency'
+      required:
+        - amount
+        - currency
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number (1-based)
+          example: 1
+          minimum: 1
+        limit:
+          type: integer
+          description: Number of items per page
+          example: 20
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          description: Total number of items across all pages
+          example: 150
+          minimum: 0
+        totalPages:
+          type: integer
+          description: Total number of pages
+          example: 8
+          minimum: 0
+        hasNext:
+          type: boolean
+          description: Whether there are more pages after current
+          example: true
+        hasPrev:
+          type: boolean
+          description: Whether there are pages before current
+          example: false
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+        - hasNext
+        - hasPrev
+
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Operation completed successfully"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-08-11T15:30:00Z"
+      required:
+        - success
+        - message
+        - timestamp
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+              example: "INSUFFICIENT_BALANCE"
+            message:
+              type: string
+              description: Human-readable error message
+              example: "Insufficient account balance for withdrawal"
+            details:
+              type: object
+              description: Additional error details
+              additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-08-11T15:30:00Z"
+      required:
+        - success
+        - error
+        - timestamp
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "VALIDATION_ERROR"
+            message:
+              type: string
+              example: "Request validation failed"
+            validation_errors:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                    description: Field name that failed validation
+                    example: "amount"
+                  message:
+                    type: string
+                    description: Validation error message
+                    example: "Amount must be greater than 0"
+                  code:
+                    type: string
+                    description: Validation error code
+                    example: "MIN_VALUE"
+                required:
+                  - field
+                  - message
+                  - code
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-08-11T15:30:00Z"
+      required:
+        - success
+        - error
+        - timestamp
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Unauthorized - authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ValidationError:
+      description: Validation error - invalid request data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Account Management
+    description: Account balance and transaction history operations
+  - name: Portfolio Management
+    description: Portfolio overview, asset allocation, and performance metrics

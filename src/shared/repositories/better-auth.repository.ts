@@ -507,10 +507,28 @@ export abstract class BetterAuthRepository extends BaseRepository {
         updatedAt,
       };
 
-      // Store session in Redis with TTL based on expiration
-      const ttl = expiresAt
-        ? Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)
-        : undefined;
+      const user = await this.betterAuthFindOneUser([
+        { field: 'id', value: userId, operator: 'eq' },
+      ]);
+
+      let ttl: number | undefined = undefined;
+      if (expiresAt) {
+        const expiresAtMs = new Date(expiresAt).getTime();
+        const nowMs = Date.now();
+        const diffSeconds = Math.floor((expiresAtMs - nowMs) / 1000);
+        ttl = Math.max(1, Math.floor(diffSeconds)); // Ensure TTL is an integer
+      }
+
+      // Store session using Better Auth's expected key pattern
+      // Better Auth's internal adapter expects sessions to be stored directly by token
+      // with both session and user data together
+      const sessionWithUser = {
+        session: session,
+        user: user,
+      };
+      await this.set(token, JSON.stringify(sessionWithUser), ttl);
+
+      // Also store our internal mappings for cleanup/management
       await this.set(`session:token:${token}`, sessionId, ttl);
       await this.set(`session:userId:${userId}`, sessionId, ttl);
       await this.set(`session:${sessionId}`, session, ttl);
@@ -524,32 +542,76 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
   async betterAuthFindOneSession(where: any[]): Promise<any> {
     try {
+      console.log(
+        'BetterAuthRepository:betterAuthFindOneSession called with where:',
+        JSON.stringify(where, null, 2),
+      );
+
       if (!Array.isArray(where) || where.length === 0) {
+        console.log('BetterAuthRepository:betterAuthFindOneSession - empty where clause');
         return null;
       }
 
       // Handle different search criteria
       for (const condition of where) {
+        console.log(
+          'BetterAuthRepository:betterAuthFindOneSession - checking condition:',
+          condition,
+        );
+
         if (condition.field === 'token') {
           // Find session by token
+          console.log(
+            'BetterAuthRepository:betterAuthFindOneSession - looking up session by token:',
+            condition.value?.slice(0, 10) + '...',
+          );
           const sessionId = await this.get(`session:token:${condition.value}`);
+          console.log(
+            'BetterAuthRepository:betterAuthFindOneSession - sessionId from token lookup:',
+            sessionId,
+          );
+
           if (sessionId) {
             const session = await this.get(`session:${sessionId}`);
+            console.log(
+              'BetterAuthRepository:betterAuthFindOneSession - session from sessionId lookup:',
+              session ? 'Found' : 'Not found',
+            );
             if (session) {
               return session;
             }
           }
         } else if (condition.field === 'id') {
           // Find session by ID
+          console.log(
+            'BetterAuthRepository:betterAuthFindOneSession - looking up session by id:',
+            condition.value,
+          );
           const session = await this.get(`session:${condition.value}`);
+          console.log(
+            'BetterAuthRepository:betterAuthFindOneSession - session from id lookup:',
+            session ? 'Found' : 'Not found',
+          );
           if (session) {
             return session;
           }
         } else if (condition.field === 'userId') {
           // Find session by userId
+          console.log(
+            'BetterAuthRepository:betterAuthFindOneSession - looking up session by userId:',
+            condition.value,
+          );
           const sessionId = await this.get(`session:userId:${condition.value}`);
+          console.log(
+            'BetterAuthRepository:betterAuthFindOneSession - sessionId from userId lookup:',
+            sessionId,
+          );
           if (sessionId) {
             const session = await this.get(`session:${sessionId}`);
+            console.log(
+              'BetterAuthRepository:betterAuthFindOneSession - session from sessionId lookup:',
+              session ? 'Found' : 'Not found',
+            );
             if (session) {
               return session;
             }
@@ -557,9 +619,12 @@ export abstract class BetterAuthRepository extends BaseRepository {
         }
       }
 
+      console.log(
+        'BetterAuthRepository:betterAuthFindOneSession - no session found for any condition',
+      );
       return null;
     } catch (error) {
-      console.error('BetterAuthRepository', error);
+      console.error('BetterAuthRepository:betterAuthFindOneSession error:', error);
       throw error;
     }
   }
@@ -579,9 +644,13 @@ export abstract class BetterAuthRepository extends BaseRepository {
     const updatedSession = { ...session, ...update, updatedAt: new Date() };
 
     // Calculate new TTL if expiresAt changed
-    const ttl = updatedSession.expiresAt
-      ? Math.floor((new Date(updatedSession.expiresAt).getTime() - Date.now()) / 1000)
-      : undefined;
+    let ttl: number | undefined = undefined;
+    if (updatedSession.expiresAt) {
+      const expiresAtMs = new Date(updatedSession.expiresAt).getTime();
+      const nowMs = Date.now();
+      const diffSeconds = Math.floor((expiresAtMs - nowMs) / 1000);
+      ttl = Math.max(1, Math.floor(diffSeconds)); // Ensure TTL is an integer
+    }
 
     // Update in Redis
     await this.set(`session:${session.id}`, updatedSession, ttl);
@@ -922,9 +991,13 @@ export abstract class BetterAuthRepository extends BaseRepository {
       };
 
       // Store verification in Redis with TTL based on expiration
-      const ttl = expiresAt
-        ? Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)
-        : 3600; // Default 1 hour if no expiration
+      let ttl = 3600; // Default 1 hour if no expiration
+      if (expiresAt) {
+        const expiresAtMs = new Date(expiresAt).getTime();
+        const nowMs = Date.now();
+        const diffSeconds = Math.floor((expiresAtMs - nowMs) / 1000);
+        ttl = Math.max(1, Math.floor(diffSeconds)); // Ensure TTL is an integer
+      }
 
       await this.set(`verification:${verificationId}`, verification, ttl);
 
@@ -1068,9 +1141,13 @@ export abstract class BetterAuthRepository extends BaseRepository {
       const updatedVerification = { ...verification, ...update, updatedAt: new Date() };
 
       // Calculate new TTL if expiresAt changed
-      const ttl = updatedVerification.expiresAt
-        ? Math.floor((new Date(updatedVerification.expiresAt).getTime() - Date.now()) / 1000)
-        : 3600;
+      let ttl = 3600;
+      if (updatedVerification.expiresAt) {
+        const expiresAtMs = new Date(updatedVerification.expiresAt).getTime();
+        const nowMs = Date.now();
+        const diffSeconds = Math.floor((expiresAtMs - nowMs) / 1000);
+        ttl = Math.max(1, Math.floor(diffSeconds)); // Ensure TTL is an integer
+      }
 
       // Update in Redis
       await this.set(`verification:${verification.id}`, updatedVerification, ttl);

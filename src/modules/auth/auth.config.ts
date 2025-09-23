@@ -19,7 +19,6 @@ import {
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../shared/services/app-config.service';
 import { MinioService } from '../../shared/services/minio.service';
-import { RedisService } from '../../shared/services/redis.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { EmailVerificationNotificationData } from '../notifications/composers/email-verification-notification.composer';
 import { EmailPasswordResetNotificationData } from '../notifications/composers/password-reset-notification.composer';
@@ -34,7 +33,6 @@ export class AuthConfig {
 
   constructor(
     private readonly configService: AppConfigService,
-    private readonly redisService: RedisService,
     private readonly repo: CryptogadaiRepository,
     private readonly minioService: MinioService,
     private readonly notificationQueueService: NotificationQueueService,
@@ -48,7 +46,7 @@ export class AuthConfig {
     const options: BetterAuthOptions = {
       database: this.database(),
       session: this.session(),
-      secondaryStorage: this.secondaryStorage(),
+      secondaryStorage: undefined, // session storage already handled by database adapter
       emailVerification: this.emailVerification(),
       emailAndPassword: this.emailAndPassword(),
       socialProviders: this.configService.socialProviderConfigs,
@@ -125,38 +123,6 @@ export class AuthConfig {
       },
       storeSessionInDatabase: true,
       preserveSessionInDatabase: true,
-    };
-  }
-
-  private secondaryStorage(): BetterAuthOptions['secondaryStorage'] {
-    return {
-      get: async key => {
-        try {
-          const value = await this.redisService.get(key);
-          return value ? value : null;
-        } catch (error) {
-          this.logger.error(`Error getting secondary storage key ${key}:`, error);
-          return null;
-        }
-      },
-      set: async (key, value, ttl) => {
-        try {
-          if (ttl) {
-            await this.redisService.set(key, value, ttl);
-          } else {
-            await this.redisService.set(key, value);
-          }
-        } catch (error) {
-          this.logger.error(`Error setting secondary storage key ${key}:`, error);
-        }
-      },
-      delete: async key => {
-        try {
-          await this.redisService.del(key);
-        } catch (error) {
-          this.logger.error(`Error deleting secondary storage key ${key}:`, error);
-        }
-      },
     };
   }
 

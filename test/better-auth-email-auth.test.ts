@@ -9,20 +9,10 @@ import {
   throws,
 } from 'node:assert/strict';
 
-import { createAuthClient } from 'better-auth/client';
-import { twoFactorClient } from 'better-auth/client/plugins';
-import * as OTPAuth from 'otpauth';
-
+import { setupBetterAuthClient } from './setup/better-auth';
 import { waitForEmailVerification, waitForPasswordResetEmail } from './setup/mailpit';
 import { setup } from './setup/setup';
 import { after, before, describe, it, suite } from './setup/test';
-
-export function setupBetterAuthClient(backendUrl: string) {
-  return createAuthClient({
-    baseURL: backendUrl,
-    plugins: [twoFactorClient()],
-  });
-}
 
 suite('Better Auth', function () {
   let testId: string;
