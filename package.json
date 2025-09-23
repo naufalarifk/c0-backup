@@ -7,21 +7,24 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "start": "nest start -- api notification pricefeed",
+    "start": "nest start -- api notification pricefeed indexer",
     "start:api": "nest start -- api",
     "start:notification": "nest start -- notification",
     "start:pricefeed": "nest start -- pricefeed",
-    "start:dev": "nest start --watch -- --builder swc api notification pricefeed",
+    "start:indexer": "nest start -- indexer",
+    "start:dev": "nest start --watch -- --builder swc api notification pricefeed indexer",
     "start:dev:api": "nest start --watch -- --builder swc api",
     "start:dev:notification": "nest start --watch -- --builder swc notification",
     "start:dev:pricefeed": "nest start --watch -- --builder swc pricefeed",
-    "start:debug": "nest start --debug --watch api notification pricefeed",
+    "start:dev:indexer": "nest start --watch -- --builder swc indexer",
+    "start:debug": "nest start --debug --watch api notification pricefeed indexer",
     "format": "biome format --write",
     "hooks:install": "lefthook install",
     "hooks:uninstall": "lefthook uninstall",
     "postinstall": "lefthook install",
     "test": "node --import tsx --test",
-    "test:repo": "node --import tsx --test ./src/shared/repositories/**/*.test.ts"
+    "test:repo": "node --import tsx --test ./src/shared/repositories/**/*.test.ts",
+    "test:indexer": "node --import tsx --test ./src/modules/indexer/**/*.test.ts"
   },
   "dependencies": {
     "@better-auth/expo": "^1.3.13",
