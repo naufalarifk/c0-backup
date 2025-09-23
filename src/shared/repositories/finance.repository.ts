@@ -962,7 +962,7 @@ export abstract class FinanceRepository extends UserRepository {
       assertPropString(row, 'transaction_hash');
       assertPropString(row, 'network_fee');
       assertPropString(row, 'reviewer_id');
-      assertPropString(row, 'review_date');
+      assertPropDate(row, 'review_date');
       assertPropString(row, 'review_decision');
       assertPropString(row, 'review_reason');
 
@@ -977,16 +977,31 @@ export abstract class FinanceRepository extends UserRepository {
         currencyBlockchainKey: row.currency_blockchain_key,
         currencyTokenId: row.currency_token_id,
         beneficiaryAddress: row.beneficiary_address,
-        requestDate: row.request_date,
-        failedDate: row.failed_date,
+        requestDate:
+          row.request_date instanceof Date
+            ? row.request_date.toISOString()
+            : String(row.request_date),
+        failedDate: row.failed_date
+          ? row.failed_date instanceof Date
+            ? row.failed_date.toISOString()
+            : String(row.failed_date)
+          : undefined,
         failureReason: row.failure_reason,
         status: row.status,
         transactionHash: row.transaction_hash || undefined,
         networkFee: row.network_fee || undefined,
         attempts: 1,
-        lastAttemptDate: row.failed_date,
+        lastAttemptDate: row.failed_date
+          ? row.failed_date instanceof Date
+            ? row.failed_date.toISOString()
+            : String(row.failed_date)
+          : undefined,
         reviewerId: row.reviewer_id || undefined,
-        reviewDate: row.review_date || undefined,
+        reviewDate: row.review_date
+          ? row.review_date instanceof Date
+            ? row.review_date.toISOString()
+            : String(row.review_date)
+          : undefined,
         reviewDecision: row.review_decision || undefined,
         reviewReason: row.review_reason || undefined,
         adminNotes: undefined,
@@ -994,7 +1009,8 @@ export abstract class FinanceRepository extends UserRepository {
     });
 
     return {
-      withdrawals,
+      // biome-ignore lint/suspicious/noExplicitAny: Allow any
+      withdrawals: withdrawals as any,
       total,
       page: validatedPage,
       limit: validatedLimit,
@@ -1100,7 +1116,8 @@ export abstract class FinanceRepository extends UserRepository {
     else if (failureReason.includes('rejected')) failureType = 'BLOCKCHAIN_REJECTION';
 
     return {
-      withdrawal,
+      // biome-ignore lint/suspicious/noExplicitAny: Allow any
+      withdrawal: withdrawal as any,
       systemContext: {
         failureType,
         networkStatus: 'operational',

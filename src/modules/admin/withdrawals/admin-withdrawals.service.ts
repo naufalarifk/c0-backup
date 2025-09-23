@@ -57,15 +57,14 @@ export class AdminWithdrawalsService {
         currencyBlockchainKey: withdrawal.currencyBlockchainKey,
         currencyTokenId: withdrawal.currencyTokenId,
         beneficiaryAddress: withdrawal.beneficiaryAddress,
-        requestDate: withdrawal.requestDate.toISOString(),
-        failedDate: withdrawal.failedDate.toISOString(),
+        requestDate: withdrawal.requestDate,
+        failedDate: withdrawal.failedDate,
         failureReason: withdrawal.failureReason,
         state: withdrawal.status,
       },
       beneficiary: {
         id: withdrawal.id, // Using withdrawal ID as proxy
         address: withdrawal.beneficiaryAddress,
-        label: withdrawal.beneficiaryLabel,
         isVerified: true, // Default assumption
       },
       transactionDetails: withdrawal.transactionHash
@@ -73,13 +72,13 @@ export class AdminWithdrawalsService {
             transactionHash: withdrawal.transactionHash,
             networkFee: withdrawal.networkFee,
             attempts: withdrawal.attempts,
-            lastAttemptDate: withdrawal.lastAttemptDate?.toISOString(),
+            lastAttemptDate: withdrawal.lastAttemptDate,
           }
         : undefined,
       adminReview: withdrawal.reviewerId
         ? {
             reviewerId: withdrawal.reviewerId,
-            reviewDate: withdrawal.reviewDate?.toISOString(),
+            reviewDate: withdrawal.reviewDate,
             decision: withdrawal.reviewDecision as RefundDecision,
             reason: withdrawal.reviewReason,
             adminNotes: withdrawal.adminNotes,
@@ -123,15 +122,14 @@ export class AdminWithdrawalsService {
         currencyBlockchainKey: withdrawal.currencyBlockchainKey,
         currencyTokenId: withdrawal.currencyTokenId,
         beneficiaryAddress: withdrawal.beneficiaryAddress,
-        requestDate: withdrawal.requestDate.toISOString(),
-        failedDate: withdrawal.failedDate.toISOString(),
+        requestDate: withdrawal.requestDate,
+        failedDate: withdrawal.failedDate,
         failureReason: withdrawal.failureReason,
         state: withdrawal.status,
       },
       beneficiary: {
         id: withdrawal.id,
         address: withdrawal.beneficiaryAddress,
-        label: withdrawal.beneficiaryLabel,
         isVerified: true,
       },
       transactionDetails: withdrawal.transactionHash
@@ -139,13 +137,13 @@ export class AdminWithdrawalsService {
             transactionHash: withdrawal.transactionHash,
             networkFee: withdrawal.networkFee,
             attempts: withdrawal.attempts,
-            lastAttemptDate: withdrawal.lastAttemptDate?.toISOString(),
+            lastAttemptDate: withdrawal.lastAttemptDate,
           }
         : undefined,
       adminReview: withdrawal.reviewerId
         ? {
             reviewerId: withdrawal.reviewerId,
-            reviewDate: withdrawal.reviewDate?.toISOString(),
+            reviewDate: withdrawal.reviewDate,
             decision: withdrawal.reviewDecision as RefundDecision,
             reason: withdrawal.reviewReason,
             adminNotes: withdrawal.adminNotes,
@@ -247,7 +245,7 @@ export class AdminWithdrawalsService {
       priority: this.getFailurePriority(failureType),
       requiresAction: true,
       reviewLink: `/admin/withdrawals/failed/${withdrawalId}`,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(),
     };
 
     // Queue admin notification
