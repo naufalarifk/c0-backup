@@ -949,6 +949,7 @@ export abstract class FinanceRepository extends UserRepository {
       assertPropStringOrNumber(row, 'user_id');
       assertPropString(row, 'user_email');
       assertPropString(row, 'user_name');
+      assertPropString(row, 'user_phone_number');
       assertPropString(row, 'user_kyc_status');
       assertPropString(row, 'amount');
       assertPropString(row, 'currency_blockchain_key');
@@ -958,6 +959,12 @@ export abstract class FinanceRepository extends UserRepository {
       assertPropDate(row, 'failed_date');
       assertPropString(row, 'failure_reason');
       assertPropString(row, 'status');
+      assertPropString(row, 'transaction_hash');
+      assertPropString(row, 'network_fee');
+      assertPropString(row, 'reviewer_id');
+      assertPropString(row, 'review_date');
+      assertPropString(row, 'review_decision');
+      assertPropString(row, 'review_reason');
 
       return {
         id: String(row.id),
@@ -970,7 +977,6 @@ export abstract class FinanceRepository extends UserRepository {
         currencyBlockchainKey: row.currency_blockchain_key,
         currencyTokenId: row.currency_token_id,
         beneficiaryAddress: row.beneficiary_address,
-        beneficiaryLabel: row.beneficiary_label || undefined,
         requestDate: row.request_date,
         failedDate: row.failed_date,
         failureReason: row.failure_reason,
@@ -1013,8 +1019,6 @@ export abstract class FinanceRepository extends UserRepository {
         w.currency_blockchain_key,
         w.currency_token_id,
         wb.address as beneficiary_address,
-        wb.label as beneficiary_label,
-        wb.is_verified as beneficiary_verified,
         w.request_date,
         w.failed_date,
         w.failure_reason,
@@ -1043,6 +1047,7 @@ export abstract class FinanceRepository extends UserRepository {
     assertPropStringOrNumber(row, 'user_id');
     assertPropString(row, 'user_email');
     assertPropString(row, 'user_name');
+    assertPropString(row, 'user_phone_number');
     assertPropString(row, 'user_kyc_status');
     assertPropString(row, 'amount');
     assertPropString(row, 'currency_blockchain_key');
@@ -1051,7 +1056,13 @@ export abstract class FinanceRepository extends UserRepository {
     assertPropDate(row, 'request_date');
     assertPropDate(row, 'failed_date');
     assertPropString(row, 'failure_reason');
+    assertPropString(row, 'network_fee');
     assertPropString(row, 'status');
+    assertPropString(row, 'transaction_hash');
+    assertPropString(row, 'reviewer_id');
+    assertPropString(row, 'review_date');
+    assertPropString(row, 'review_decision');
+    assertPropString(row, 'review_reason');
 
     const withdrawal = {
       id: String(row.id),
@@ -1064,7 +1075,6 @@ export abstract class FinanceRepository extends UserRepository {
       currencyBlockchainKey: row.currency_blockchain_key,
       currencyTokenId: row.currency_token_id,
       beneficiaryAddress: row.beneficiary_address,
-      beneficiaryLabel: row.beneficiary_label || undefined,
       requestDate: row.request_date,
       failedDate: row.failed_date,
       failureReason: row.failure_reason,
