@@ -20,6 +20,8 @@ export abstract class IWalletFactory {
 export abstract class IWalletService {
   abstract get bip44CoinType(): number;
 
+  abstract getHotWallet(masterKey: HDKey): Promise<IWallet>;
+
   abstract derivedPathToWallet({
     masterKey,
     derivationPath,
@@ -39,6 +41,7 @@ export abstract class IWalletService {
 export abstract class IWallet {
   abstract getAddress(): Promise<string>;
   abstract signTransaction<T>(message: T): Promise<T>;
+  abstract sendTransaction<T>(signedMessage: T): Promise<T>;
 }
 
 export class WalletError extends Error {

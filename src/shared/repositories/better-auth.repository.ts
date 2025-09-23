@@ -49,6 +49,9 @@ function alignBetterAuthUserData(user: unknown) {
   if ('user_type' in user) {
     setAssertPropValue(user, 'userType', user.user_type);
   }
+  if ('kyc_status' in user) {
+    setAssertPropValue(user, 'kycStatus', user.kyc_status);
+  }
   if ('created_date' in user) {
     setAssertPropValue(user, 'createdAt', 'created_date' in user && tryToDate(user.created_date));
   }

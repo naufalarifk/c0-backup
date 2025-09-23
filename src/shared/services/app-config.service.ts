@@ -268,6 +268,15 @@ export class AppConfigService {
     return 'http://localhost:3000';
   }
 
+  get walletConfig() {
+    return {
+      platformMasterMnemonic: this.getString('PLATFORM_MASTER_MNEMONIC', ''),
+      platformSeedEncrypted: this.getString('PLATFORM_MASTER_SEED_ENCRYPTED', ''),
+      platformSeedEncryptionKey: this.getString('PLATFORM_SEED_ENCRYPTION_KEY', ''),
+      enableTestMode: this.getBoolean('WALLET_TEST_MODE', !this.isProduction),
+    };
+  }
+
   private getLocalNetworkIP(): string | null {
     const interfaces = networkInterfaces();
     for (const name of Object.keys(interfaces)) {

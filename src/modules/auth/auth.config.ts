@@ -1,5 +1,6 @@
 import type { BetterAuthOptions } from 'better-auth';
 import type { AuthModuleOptions } from './auth.module';
+import type { UserSession } from './types';
 
 import { Injectable } from '@nestjs/common';
 
@@ -129,7 +130,7 @@ export class AuthConfig {
 
   private secondaryStorage(): BetterAuthOptions['secondaryStorage'] {
     return {
-      get: async (key: string) => {
+      get: async key => {
         try {
           const value = await this.redisService.get(key);
           return value ? value : null;
@@ -138,7 +139,7 @@ export class AuthConfig {
           return null;
         }
       },
-      set: async (key: string, value: string, ttl?: number) => {
+      set: async (key, value, ttl) => {
         try {
           if (ttl) {
             await this.redisService.set(key, value, ttl);
@@ -149,7 +150,7 @@ export class AuthConfig {
           this.logger.error(`Error setting secondary storage key ${key}:`, error);
         }
       },
-      delete: async (key: string) => {
+      delete: async key => {
         try {
           await this.redisService.del(key);
         } catch (error) {
@@ -240,7 +241,7 @@ export class AuthConfig {
       }),
       sso(),
       multiSession({ maximumSessions: this.configService.authConfig.maximumSessions }),
-      customSession(async ({ session, user }) => {
+      customSession(async ({ session, user }: UserSession) => {
         // Process image URL if it's a MinIO path
         let image = user.image;
 

@@ -19,13 +19,22 @@ class SolanaMainnetWallet extends BaseSolanaWallet {
 @Injectable()
 @WalletProvider('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpWzVF8mS3uVRG')
 export class SolMainnetWalletService extends IWalletService {
-  private readonly connection: Connection;
-  get bip44CoinType(): number {
-    return 501;
-  }
+  readonly connection: Connection;
+
   constructor() {
     super();
     this.connection = new Connection('https://api.mainnet-beta.solana.com');
+  }
+
+  get bip44CoinType(): number {
+    return 501;
+  }
+
+  async getHotWallet(masterKey: HDKey): Promise<IWallet> {
+    // Use the default BIP44 path for Solana: m/44'/501'/0'/0'
+    const derivationPath = `m/44'/${this.bip44CoinType}'/0'/0'`;
+    const wallet = await this.derivedPathToWallet({ masterKey, derivationPath });
+    return wallet;
   }
 
   derivedPathToWallet({

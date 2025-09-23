@@ -1,8 +1,13 @@
 import * as bitcoin from 'bitcoinjs-lib';
 import * as ecPair from 'ecpair';
+import invariant from 'tiny-invariant';
 import * as ecc from 'tiny-secp256k1';
 
 import { IWallet } from './Iwallet.types';
+
+export interface BitcoinRpcClient {
+  sendRawTransaction(hexString: string): Promise<string>;
+}
 
 export interface BitcoinTransactionInput {
   txid: string;
@@ -28,6 +33,7 @@ export interface BitcoinTransactionData {
 
 export abstract class BaseBitcoinWallet implements IWallet {
   protected abstract network: bitcoin.Network;
+  protected abstract rpcClient: BitcoinRpcClient;
 
   constructor(protected readonly privateKey: Uint8Array<ArrayBufferLike>) {}
 
@@ -144,5 +150,40 @@ export abstract class BaseBitcoinWallet implements IWallet {
         return typeof outputObj.address === 'string' && typeof outputObj.value === 'number';
       })
     );
+  }
+
+  async sendTransaction<T>(signedMessage: T): Promise<T> {
+    try {
+      // Extract the signed transaction from the message
+      invariant(
+        signedMessage && typeof signedMessage === 'object',
+        'Invalid signed message format',
+      );
+
+      const messageObj = signedMessage as Record<string, unknown>;
+      const signedTransactionHex = messageObj.signedTransaction;
+
+      invariant(
+        typeof signedTransactionHex === 'string',
+        'Signed transaction not found in message',
+      );
+
+      // Send the transaction using Bitcoin RPC client (consistent with EVM/Solana pattern)
+      const txId = await this.rpcClient.sendRawTransaction(signedTransactionHex);
+
+      // Return the result with transaction hash
+      return {
+        ...signedMessage,
+        transactionHash: txId,
+        success: true,
+      } as T;
+    } catch (error) {
+      return {
+        ...signedMessage,
+        transactionHash: '',
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      } as T;
+    }
   }
 }

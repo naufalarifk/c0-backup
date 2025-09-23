@@ -6,6 +6,7 @@ import {
   SystemProgram,
   Transaction,
 } from '@solana/web3.js';
+import invariant from 'tiny-invariant';
 
 import { IWallet, SolanaTransactionParams } from './Iwallet.types';
 
@@ -81,5 +82,51 @@ export abstract class BaseSolanaWallet implements IWallet {
     const params = obj.params as Record<string, unknown>;
 
     return typeof params.to === 'string' && typeof params.amount === 'number';
+  }
+
+  async sendTransaction<T>(signedMessage: T): Promise<T> {
+    try {
+      // Extract the signed transaction from the message
+      invariant(
+        signedMessage && typeof signedMessage === 'object',
+        'Invalid signed message format',
+      );
+
+      const messageObj = signedMessage as Record<string, unknown>;
+      const signedTransactionBase64 = messageObj.signedTransaction;
+
+      invariant(
+        typeof signedTransactionBase64 === 'string',
+        'Signed transaction not found in message',
+      );
+
+      // Deserialize and send the transaction
+      const serializedTransaction = Buffer.from(signedTransactionBase64, 'base64');
+
+      const signature = await this.connection.sendRawTransaction(serializedTransaction, {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      });
+
+      // Wait for confirmation
+      await this.connection.confirmTransaction({
+        signature,
+        ...(await this.connection.getLatestBlockhash()),
+      });
+
+      // Return the result with transaction hash
+      return {
+        ...signedMessage,
+        transactionHash: signature,
+        success: true,
+      } as T;
+    } catch (error) {
+      return {
+        ...signedMessage,
+        transactionHash: '',
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      } as T;
+    }
   }
 }

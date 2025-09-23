@@ -1,4 +1,5 @@
 import { ethers } from 'ethers';
+import invariant from 'tiny-invariant';
 
 import { EthereumTransactionParams, IWallet } from './Iwallet.types';
 
@@ -74,5 +75,45 @@ export abstract class BaseEthereumWallet implements IWallet {
     const params = obj.params as Record<string, unknown>;
 
     return typeof params.to === 'string' && typeof params.value === 'string';
+  }
+
+  async sendTransaction<T>(signedMessage: T): Promise<T> {
+    try {
+      // Extract the signed transaction from the message
+      invariant(
+        signedMessage && typeof signedMessage === 'object',
+        'Invalid signed message format',
+      );
+
+      const messageObj = signedMessage as Record<string, unknown>;
+      const signedTransactionHex = messageObj.signedTransaction;
+
+      invariant(
+        typeof signedTransactionHex === 'string',
+        'Signed transaction not found in message',
+      );
+
+      // Send the transaction to the network
+      const txResponse = await this.provider.broadcastTransaction(signedTransactionHex);
+
+      // Wait for confirmation
+      const receipt = await txResponse.wait();
+
+      // Return the result with transaction hash
+      return {
+        ...signedMessage,
+        transactionHash: receipt?.hash || txResponse.hash,
+        success: true,
+        blockNumber: receipt?.blockNumber,
+        gasUsed: receipt?.gasUsed?.toString(),
+      } as T;
+    } catch (error) {
+      return {
+        ...signedMessage,
+        transactionHash: '',
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      } as T;
+    }
   }
 }

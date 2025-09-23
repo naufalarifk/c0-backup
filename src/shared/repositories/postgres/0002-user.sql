@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
 
   -- Phone number authentication fields (for phone number plugin)
   phone_number TEXT, -- added to support phone number verification
-  phone_number_verified BOOLEAN DEFAULT FALSE, -- added to support phone number verification
+  phone_number_verified BOOLEAN, -- added to support phone number verification
 
   last_login_date TIMESTAMP,
 
