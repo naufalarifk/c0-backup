@@ -27,7 +27,7 @@ export class NotificationProcessor extends WorkerHost {
 
     // Ensure all properties that should be strings are properly serialized
     Object.keys(notificationData).forEach(key => {
-      const value = (notificationData as any)[key];
+      const value = notificationData[key];
       if (
         value !== null &&
         value !== undefined &&
@@ -38,7 +38,7 @@ export class NotificationProcessor extends WorkerHost {
         // Convert numbers and other types to strings, except for specific known non-string fields
         const nonStringFields = ['badgeCount', 'priority', 'attempts', 'delay'];
         if (!nonStringFields.includes(key)) {
-          (notificationData as any)[key] = String(value);
+          notificationData[key] = String(value);
         }
       }
     });

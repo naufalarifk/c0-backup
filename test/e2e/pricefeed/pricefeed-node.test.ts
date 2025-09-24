@@ -1,48 +1,40 @@
 import assert from 'node:assert';
+import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
-import { INestApplication } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
+
+import { config } from 'dotenv';
 
 import {
   CoinMarketCapMetadata,
   CoinMarketCapProvider,
 } from '../../../src/modules/pricefeed/providers/coinmarketcap.provider';
 
+// Load environment variables from .env file
+config({ path: resolve(process.cwd(), '.env') });
+
+// Simple ConfigService implementation that reads from environment
+class SimpleConfigService {
+  get(key: string, defaultValue?: string): string {
+    return process.env[key] || defaultValue || '';
+  }
+}
+
 describe('CoinMarketCap Provider E2E Tests', () => {
-  let app: INestApplication;
-  let module: TestingModule;
   let coinMarketCapProvider: CoinMarketCapProvider;
-  let configService: ConfigService;
+  let configService: SimpleConfigService;
 
-  beforeEach(async () => {
-    module = await Test.createTestingModule({
-      imports: [
-        ConfigModule.forRoot({
-          envFilePath: '.env',
-          isGlobal: true,
-        }),
-      ],
-      providers: [CoinMarketCapProvider],
-    }).compile();
-
-    app = module.createNestApplication();
-    await app.init();
-
-    coinMarketCapProvider = module.get<CoinMarketCapProvider>(CoinMarketCapProvider);
-    configService = module.get<ConfigService>(ConfigService);
+  beforeEach(() => {
+    configService = new SimpleConfigService();
+    coinMarketCapProvider = new CoinMarketCapProvider(configService as unknown as ConfigService);
 
     console.log('🔄 CoinMarketCap Provider E2E test setup complete');
   });
 
-  afterEach(async () => {
-    if (app) {
-      await app.close();
-    }
-    if (module) {
-      await module.close();
-    }
+  afterEach(() => {
+    coinMarketCapProvider = undefined!;
+    configService = undefined!;
   });
 
   describe('Provider Configuration', () => {
