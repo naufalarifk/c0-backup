@@ -2,7 +2,7 @@ import type { Response } from 'express';
 import type { UserSession } from '../auth/types';
 
 import { Body, Controller, Get, Post, Query, Res } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 
 import { Auth } from '../../decorators/auth.decorator';
@@ -13,6 +13,7 @@ import { GetBeneficiariesDto } from './dto/get-beneficiaries.dto';
 
 @Controller('beneficiaries')
 @Auth()
+@ApiTags('Beneficiaries')
 export class BeneficiariesController {
   constructor(private readonly beneficiariesService: BeneficiariesService) {}
 
