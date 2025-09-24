@@ -8,102 +8,48 @@ import {
 } from '@solana/web3.js';
 import invariant from 'tiny-invariant';
 
-import { IWallet, SolanaTransactionParams } from './Iwallet.types';
+import { IWallet, WalletTransferParams } from './Iwallet.types';
 
-export interface SolanaTransactionData {
-  params: SolanaTransactionParams;
-}
-
-export abstract class BaseSolanaWallet implements IWallet {
+export abstract class BaseSolanaWallet extends IWallet {
   protected abstract connection: Connection;
 
-  constructor(protected readonly privateKey: Uint8Array<ArrayBufferLike>) {}
+  constructor(protected readonly privateKey: Uint8Array<ArrayBufferLike>) {
+    super();
+  }
 
-  getAddress(): Promise<string> {
-    return new Promise(resolve => {
+  async getAddress(): Promise<string> {
+    const privateKeyArray = Array.from(this.privateKey);
+    const keypair = Keypair.fromSecretKey(Uint8Array.from(privateKeyArray));
+    return keypair.publicKey.toBase58();
+  }
+
+  async transfer(params: WalletTransferParams): Promise<{ txHash: string }> {
+    try {
       const privateKeyArray = Array.from(this.privateKey);
       const keypair = Keypair.fromSecretKey(Uint8Array.from(privateKeyArray));
-      resolve(keypair.publicKey.toBase58());
-    });
-  }
+      const toPubkey = new PublicKey(params.to);
+      const amountLamports = Math.floor(parseFloat(params.value) * LAMPORTS_PER_SOL);
 
-  signTransaction<T>(transactionData: T): Promise<T> {
-    return new Promise((resolve, reject) => {
-      void (async () => {
-        try {
-          if (!this.isSolanaTransactionData(transactionData)) {
-            throw new Error('Invalid transaction data format');
-          }
-
-          const privateKeyArray = Array.from(this.privateKey);
-          const keypair = Keypair.fromSecretKey(Uint8Array.from(privateKeyArray));
-          const { params } = transactionData;
-          const toPubkey = new PublicKey(params.to);
-
-          const transaction = new Transaction().add(
-            SystemProgram.transfer({
-              fromPubkey: keypair.publicKey,
-              toPubkey,
-              lamports: params.amount * LAMPORTS_PER_SOL,
-            }),
-          );
-
-          transaction.feePayer = keypair.publicKey;
-          const { blockhash } = await this.connection.getLatestBlockhash();
-          transaction.recentBlockhash = blockhash;
-          transaction.sign(keypair);
-
-          const serializedTransaction = transaction.serialize();
-
-          const result = {
-            ...transactionData,
-            signedTransaction: Buffer.from(serializedTransaction).toString('base64'),
-          } as T;
-
-          resolve(result);
-        } catch (error) {
-          reject(
-            new Error(
-              `Failed to sign transaction: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            ),
-          );
-        }
-      })();
-    });
-  }
-
-  protected isSolanaTransactionData(data: unknown): data is SolanaTransactionData {
-    if (!data || typeof data !== 'object') return false;
-
-    const obj = data as Record<string, unknown>;
-
-    if (!obj.params || typeof obj.params !== 'object') return false;
-
-    const params = obj.params as Record<string, unknown>;
-
-    return typeof params.to === 'string' && typeof params.amount === 'number';
-  }
-
-  async sendTransaction<T>(signedMessage: T): Promise<T> {
-    try {
-      // Extract the signed transaction from the message
-      invariant(
-        signedMessage && typeof signedMessage === 'object',
-        'Invalid signed message format',
+      // Build transaction
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: keypair.publicKey,
+          toPubkey,
+          lamports: amountLamports,
+        }),
       );
 
-      const messageObj = signedMessage as Record<string, unknown>;
-      const signedTransactionBase64 = messageObj.signedTransaction;
+      transaction.feePayer = keypair.publicKey;
 
-      invariant(
-        typeof signedTransactionBase64 === 'string',
-        'Signed transaction not found in message',
-      );
+      // Get recent blockhash
+      const { blockhash } = await this.connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
 
-      // Deserialize and send the transaction
-      const serializedTransaction = Buffer.from(signedTransactionBase64, 'base64');
+      // Sign transaction
+      transaction.sign(keypair);
 
-      const signature = await this.connection.sendRawTransaction(serializedTransaction, {
+      // Send transaction
+      const signature = await this.connection.sendRawTransaction(transaction.serialize(), {
         skipPreflight: false,
         preflightCommitment: 'confirmed',
       });
@@ -114,19 +60,12 @@ export abstract class BaseSolanaWallet implements IWallet {
         ...(await this.connection.getLatestBlockhash()),
       });
 
-      // Return the result with transaction hash
-      return {
-        ...signedMessage,
-        transactionHash: signature,
-        success: true,
-      } as T;
+      return { txHash: signature };
     } catch (error) {
-      return {
-        ...signedMessage,
-        transactionHash: '',
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      } as T;
+      invariant(
+        false,
+        `Transfer failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 }

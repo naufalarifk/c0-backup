@@ -38,10 +38,16 @@ export abstract class IWalletService {
   }
 }
 
+export type WalletTransferParams = {
+  tokenId: string;
+  from: string;
+  to: string;
+  value: string;
+};
+
 export abstract class IWallet {
   abstract getAddress(): Promise<string>;
-  abstract signTransaction<T>(message: T): Promise<T>;
-  abstract sendTransaction<T>(signedMessage: T): Promise<T>;
+  abstract transfer(params: WalletTransferParams): Promise<{ txHash: string }>;
 }
 
 export class WalletError extends Error {

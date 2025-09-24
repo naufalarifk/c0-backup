@@ -11,7 +11,7 @@
     "start:api": "nest start -- api",
     "start:notification": "nest start -- notification",
     "start:indexer": "nest start -- indexer",
-    "start:dev": "nest start --watch -- --builder swc api notification indexer",
+    "start:dev": "nest start --watch -- --builder swc api notification",
     "start:dev:api": "nest start --watch -- --builder swc api",
     "start:dev:notification": "nest start --watch -- --builder swc notification",
     "start:dev:indexer": "nest start --watch -- --builder swc indexer",

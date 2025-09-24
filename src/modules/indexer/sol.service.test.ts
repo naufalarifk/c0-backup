@@ -5,17 +5,7 @@ import path from 'path';
 import { Test, TestingModule } from '@nestjs/testing';
 
 // Load environment variables
-import dotenv from 'dotenv';
-
 import { SolanaService } from './sol.service';
-
-// Load .env.development or .env file
-const envPath =
-  process.env.NODE_ENV === 'development'
-    ? path.resolve(process.cwd(), '.env.development')
-    : path.resolve(process.cwd(), '.env');
-
-dotenv.config({ path: envPath });
 
 // Ensure SOL_RPC_URL is available for tests
 if (!process.env.SOL_RPC_URL) {

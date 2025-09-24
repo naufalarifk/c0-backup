@@ -3,187 +3,114 @@ import * as ecPair from 'ecpair';
 import invariant from 'tiny-invariant';
 import * as ecc from 'tiny-secp256k1';
 
-import { IWallet } from './Iwallet.types';
+import { IWallet, WalletTransferParams } from './Iwallet.types';
 
 export interface BitcoinRpcClient {
   sendRawTransaction(hexString: string): Promise<string>;
+  getUnspentOutputs(address: string): Promise<
+    {
+      txid: string;
+      vout: number;
+      value: number;
+      scriptPubKey: string;
+    }[]
+  >;
 }
 
-export interface BitcoinTransactionInput {
-  txid: string;
-  vout: number;
-  value: number;
-  scriptPubKey?: string;
-  witnessUtxo?: {
-    script: Buffer;
-    value: number;
-  };
-}
-
-export interface BitcoinTransactionOutput {
-  address: string;
-  value: number;
-}
-
-export interface BitcoinTransactionData {
-  inputs: BitcoinTransactionInput[];
-  outputs: BitcoinTransactionOutput[];
-  feeRate?: number;
-}
-
-export abstract class BaseBitcoinWallet implements IWallet {
+export abstract class BaseBitcoinWallet extends IWallet {
   protected abstract network: bitcoin.Network;
   protected abstract rpcClient: BitcoinRpcClient;
 
-  constructor(protected readonly privateKey: Uint8Array<ArrayBufferLike>) {}
+  constructor(protected readonly privateKey: Uint8Array<ArrayBufferLike>) {
+    super();
+  }
 
-  getAddress(): Promise<string> {
-    return new Promise((resolve, reject) => {
-      try {
-        const ECPair = ecPair.ECPairFactory(ecc);
-        const keyPair = ECPair.fromPrivateKey(Buffer.from(this.privateKey));
-        const publicKeyBuffer = Buffer.from(keyPair.publicKey);
+  async getAddress(): Promise<string> {
+    const ECPair = ecPair.ECPairFactory(ecc);
+    const keyPair = ECPair.fromPrivateKey(Buffer.from(this.privateKey));
+    const publicKeyBuffer = Buffer.from(keyPair.publicKey);
 
-        const { address } = bitcoin.payments.p2wpkh({
-          pubkey: publicKeyBuffer,
-          network: this.network,
-        });
-
-        if (!address) {
-          throw new Error('Failed to generate address');
-        }
-
-        resolve(address);
-      } catch (error) {
-        reject(
-          new Error(
-            `Failed to get address: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          ),
-        );
-      }
+    const { address } = bitcoin.payments.p2wpkh({
+      pubkey: publicKeyBuffer,
+      network: this.network,
     });
+    invariant(address, 'Address generation failed');
+
+    return address;
   }
 
-  signTransaction<T>(transactionData: T): Promise<T> {
-    return new Promise((resolve, reject) => {
-      try {
-        if (!this.isBitcoinTransactionData(transactionData)) {
-          throw new Error('Invalid transaction data format');
-        }
-
-        const ECPair = ecPair.ECPairFactory(ecc);
-        const keyPair: bitcoin.Signer = ECPair.fromPrivateKey(this.privateKey);
-        const psbt = new bitcoin.Psbt({ network: this.network });
-
-        // Add inputs to PSBT
-        for (const input of transactionData.inputs) {
-          const inputData = {
-            hash: input.txid,
-            index: input.vout,
-            witnessUtxo: input.witnessUtxo || {
-              script: Buffer.from(input.scriptPubKey || '', 'hex'),
-              value: input.value,
-            },
-          };
-
-          psbt.addInput(inputData);
-        }
-
-        // Add outputs to PSBT
-        for (const output of transactionData.outputs) {
-          psbt.addOutput({
-            address: output.address,
-            value: output.value,
-          });
-        }
-
-        // Sign all inputs
-        psbt.signAllInputs(keyPair);
-
-        // Validate signatures
-        if (!psbt.validateSignaturesOfAllInputs(() => true)) {
-          throw new Error('Invalid signatures');
-        }
-
-        // Finalize all inputs
-        psbt.finalizeAllInputs();
-
-        // Extract signed transaction
-        const signedTx = psbt.extractTransaction().toHex();
-
-        const result = {
-          ...transactionData,
-          signedTransaction: signedTx,
-        } as T;
-
-        resolve(result);
-      } catch (error) {
-        reject(
-          new Error(
-            `Failed to sign transaction: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          ),
-        );
-      }
-    });
-  }
-
-  protected isBitcoinTransactionData(data: unknown): data is BitcoinTransactionData {
-    if (!data || typeof data !== 'object') return false;
-
-    const obj = data as Record<string, unknown>;
-
-    return (
-      Array.isArray(obj.inputs) &&
-      Array.isArray(obj.outputs) &&
-      obj.inputs.every((input: unknown) => {
-        if (!input || typeof input !== 'object') return false;
-        const inputObj = input as Record<string, unknown>;
-        return (
-          typeof inputObj.txid === 'string' &&
-          typeof inputObj.vout === 'number' &&
-          typeof inputObj.value === 'number'
-        );
-      }) &&
-      obj.outputs.every((output: unknown) => {
-        if (!output || typeof output !== 'object') return false;
-        const outputObj = output as Record<string, unknown>;
-        return typeof outputObj.address === 'string' && typeof outputObj.value === 'number';
-      })
-    );
-  }
-
-  async sendTransaction<T>(signedMessage: T): Promise<T> {
+  async transfer(params: WalletTransferParams): Promise<{ txHash: string }> {
     try {
-      // Extract the signed transaction from the message
+      const ECPair = ecPair.ECPairFactory(ecc);
+      const keyPair: bitcoin.Signer = ECPair.fromPrivateKey(this.privateKey);
+      const senderAddress = await this.getAddress();
+
+      // Get unspent outputs
+      const utxos = await this.rpcClient.getUnspentOutputs(senderAddress);
+
+      invariant(utxos.length > 0, 'No unspent outputs available');
+
+      const psbt = new bitcoin.Psbt({ network: this.network });
+      const amountSatoshis = Math.floor(parseFloat(params.value) * 100000000); // Convert to satoshis
+      const feeRate = 1; // 1 sat/byte
+
+      let totalInput = 0;
+
+      // Add inputs
+      for (const utxo of utxos) {
+        psbt.addInput({
+          hash: utxo.txid,
+          index: utxo.vout,
+          witnessUtxo: {
+            script: Buffer.from(utxo.scriptPubKey, 'hex'),
+            value: utxo.value,
+          },
+        });
+        totalInput += utxo.value;
+
+        if (totalInput >= amountSatoshis + 1000) break; // Rough fee estimation
+      }
+
+      invariant(totalInput >= amountSatoshis, 'Insufficient funds');
+
+      // Add output to recipient
+      psbt.addOutput({
+        address: params.to,
+        value: amountSatoshis,
+      });
+
+      // Add change output if needed
+      const estimatedFee = 250 * feeRate; // Rough estimation
+      const change = totalInput - amountSatoshis - estimatedFee;
+
+      if (change > 546) {
+        // Dust limit
+        psbt.addOutput({
+          address: senderAddress,
+          value: change,
+        });
+      }
+
+      // Sign all inputs
+      psbt.signAllInputs(keyPair);
+
+      // Validate and finalize
       invariant(
-        signedMessage && typeof signedMessage === 'object',
-        'Invalid signed message format',
+        psbt.validateSignaturesOfAllInputs(() => true),
+        'Invalid signatures',
       );
+      psbt.finalizeAllInputs();
 
-      const messageObj = signedMessage as Record<string, unknown>;
-      const signedTransactionHex = messageObj.signedTransaction;
+      // Extract and send transaction
+      const signedTx = psbt.extractTransaction().toHex();
+      const txHash = await this.rpcClient.sendRawTransaction(signedTx);
 
-      invariant(
-        typeof signedTransactionHex === 'string',
-        'Signed transaction not found in message',
-      );
-
-      // Send the transaction using Bitcoin RPC client (consistent with EVM/Solana pattern)
-      const txId = await this.rpcClient.sendRawTransaction(signedTransactionHex);
-
-      // Return the result with transaction hash
-      return {
-        ...signedMessage,
-        transactionHash: txId,
-        success: true,
-      } as T;
+      return { txHash };
     } catch (error) {
-      return {
-        ...signedMessage,
-        transactionHash: '',
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      } as T;
+      invariant(
+        false,
+        `Transfer failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 }

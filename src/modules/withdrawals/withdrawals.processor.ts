@@ -3,7 +3,7 @@ import type { Job, Queue } from 'bullmq';
 import type { WithdrawalProcessingData } from './withdrawals-queue.service';
 
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeed } from '@scure/bip39';
@@ -13,12 +13,8 @@ import invariant from 'tiny-invariant';
 import { CryptographyService } from '../../shared/cryptography/cryptography.service';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../shared/services/app-config.service';
-import {
-  EthereumTransactionParams,
-  IWallet,
-  SolanaTransactionParams,
-  WalletFactory,
-} from '../../shared/wallets/Iwallet.types';
+import { TelemetryLogger } from '../../shared/telemetry.logger';
+import { IWallet, WalletFactory } from '../../shared/wallets/Iwallet.types';
 import { AdminWithdrawalsService } from '../admin/withdrawals/admin-withdrawals.service';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
 import { BlockchainService } from './blockchain.service';
@@ -33,7 +29,7 @@ interface ConfirmationMonitoringData {
 @Injectable()
 @Processor('withdrawalsQueue')
 export class WithdrawalsProcessor extends WorkerHost {
-  private readonly logger = new Logger(WithdrawalsProcessor.name);
+  private readonly logger = new TelemetryLogger(WithdrawalsProcessor.name);
 
   // Network-specific confirmation requirements per WM-003
   private readonly confirmationRequirements = {
@@ -414,31 +410,29 @@ export class WithdrawalsProcessor extends WorkerHost {
         };
       }
 
-      // 3. Construct transaction based on blockchain type
-      const transactionData = await this.constructTransaction(params, platformWallet);
+      // 3. Calculate net amount to send (amount - fee)
+      const actualFee = feeValidation.actualFee || parseFloat(params.estimatedFee);
+      const sendAmount = (parseFloat(params.amount) - actualFee).toString();
 
-      // 4. Sign the transaction
-      const signedTransaction = await platformWallet.signTransaction(transactionData);
+      // 4. Get sender address from platform wallet (HD wallet derived address)
+      const senderAddress = await platformWallet.getAddress();
 
-      // 5. Submit to blockchain network
-      const result = await platformWallet.sendTransaction(signedTransaction);
+      // 5. Execute transfer using simplified wallet interface
+      const transferParams = {
+        tokenId: params.currencyTokenId,
+        from: senderAddress,
+        to: params.beneficiaryAddress,
+        value: sendAmount,
+      };
 
-      // 6. Validate transaction result
-      if (this.isSuccessfulTransaction(result)) {
-        const actualFee = feeValidation.actualFee || parseFloat(params.estimatedFee);
-        const sentAmount = (parseFloat(params.amount) - actualFee).toString();
+      const result = await platformWallet.transfer(transferParams);
 
-        return {
-          success: true,
-          transactionHash: this.extractTransactionHash(result),
-          sentAmount,
-        };
-      } else {
-        return {
-          success: false,
-          error: this.extractTransactionError(result),
-        };
-      }
+      // 6. Return successful result
+      return {
+        success: true,
+        transactionHash: result.txHash,
+        sentAmount: sendAmount,
+      };
     } catch (error) {
       this.logger.error(`[WM-003] Transaction execution failed for ${params.withdrawalId}:`, error);
       return {
@@ -611,97 +605,6 @@ export class WithdrawalsProcessor extends WorkerHost {
         reason: `Fee validation error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       };
     }
-  }
-
-  private async constructTransaction(
-    params: {
-      amount: string;
-      currencyBlockchainKey: string;
-      currencyTokenId: string;
-      beneficiaryAddress: string;
-      estimatedFee: string;
-    },
-    wallet: IWallet,
-  ): Promise<unknown> {
-    const amount = parseFloat(params.amount);
-    const fee = parseFloat(params.estimatedFee);
-    const sendAmount = amount - fee;
-
-    // Construct transaction data based on blockchain type
-    if (params.currencyBlockchainKey.startsWith('eip155:')) {
-      // Ethereum-compatible chains (Ethereum, BSC, Polygon)
-      const isNative = !params.currencyTokenId || params.currencyTokenId === 'native';
-
-      if (isNative) {
-        // Native currency transfer (ETH, BNB, etc.)
-        return {
-          params: {
-            to: params.beneficiaryAddress,
-            value: sendAmount.toString(),
-            gasLimit: 21000,
-          } as EthereumTransactionParams,
-        };
-      } else {
-        // ERC-20 token transfer
-        const tokenTransferData = this.encodeERC20Transfer(
-          params.beneficiaryAddress,
-          ethers.parseUnits(sendAmount.toString(), 18), // Assume 18 decimals
-        );
-
-        return {
-          params: {
-            to: params.currencyTokenId, // Token contract address
-            value: '0', // No ETH value for token transfer
-            gasLimit: 65000, // Higher gas limit for token transfers
-            data: tokenTransferData,
-          } as EthereumTransactionParams,
-        };
-      }
-    } else if (params.currencyBlockchainKey.startsWith('solana:')) {
-      // Solana transaction
-      return {
-        params: {
-          to: params.beneficiaryAddress,
-          amount: sendAmount,
-          memo: `Withdrawal ${params.amount}`,
-        } as SolanaTransactionParams,
-      };
-    } else if (params.currencyBlockchainKey.startsWith('bip122:')) {
-      // Bitcoin transaction
-      // TODO: Implement Bitcoin transaction construction
-      throw new Error('Bitcoin transactions not yet implemented');
-    }
-
-    throw new Error(`Unsupported blockchain: ${params.currencyBlockchainKey}`);
-  }
-
-  private encodeERC20Transfer(to: string, amount: bigint): string {
-    // ERC-20 transfer function signature: transfer(address,uint256)
-    const functionSignature = '0xa9059cbb';
-    const addressParam = ethers.AbiCoder.defaultAbiCoder().encode(['address'], [to]);
-    const amountParam = ethers.AbiCoder.defaultAbiCoder().encode(['uint256'], [amount]);
-
-    return functionSignature + addressParam.slice(2) + amountParam.slice(2);
-  }
-
-  private isSuccessfulTransaction(result: unknown): boolean {
-    if (!result || typeof result !== 'object') return false;
-    const resultObj = result as Record<string, unknown>;
-    return resultObj.success === true && typeof resultObj.transactionHash === 'string';
-  }
-
-  private extractTransactionHash(result: unknown): string {
-    if (!result || typeof result !== 'object') return '';
-    const resultObj = result as Record<string, unknown>;
-    return typeof resultObj.transactionHash === 'string' ? resultObj.transactionHash : '';
-  }
-
-  private extractTransactionError(result: unknown): string {
-    if (!result || typeof result !== 'object') return 'Unknown transaction error';
-    const resultObj = result as Record<string, unknown>;
-    return typeof resultObj.error === 'string'
-      ? resultObj.error
-      : 'Transaction failed without specific error';
   }
 
   private getEstimatedConfirmationTime(blockchain: string): string {

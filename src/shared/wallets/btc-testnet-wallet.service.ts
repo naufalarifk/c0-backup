@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { HDKey } from '@scure/bip32';
 import * as bitcoin from 'bitcoinjs-lib';
-import invariant from 'tiny-invariant';
 
 import { BaseBitcoinWallet, BitcoinRpcClient } from './base-bitcoin-wallet';
 import { BaseBitcoinRpcClient, BtcMainnetWalletService } from './btc-mainnet-wallet.service';
@@ -47,33 +45,17 @@ class BtcTestnetWallet extends BaseBitcoinWallet {
 @Injectable()
 @WalletProvider('bip122:000000000933ea01ad0ee984209779ba61f8d4362f5cb2f17e5e2c77d0d0dffc')
 export class BtcTestnetWalletService extends BtcMainnetWalletService {
-  private readonly testnetRpcClient: BitcoinRpcClient;
-
-  constructor() {
-    super();
-    this.testnetRpcClient = new BitcoinTestnetRpcClient();
-  }
+  protected network = bitcoin.networks.testnet;
 
   get bip44CoinType(): number {
-    return 1; // Override: Bitcoin testnet coin type
+    return 1; // Bitcoin testnet coin type
   }
 
-  derivedPathToWallet({
-    masterKey,
-    derivationPath,
-  }: {
-    masterKey: HDKey;
-    derivationPath: string;
-  }): Promise<IWallet> {
-    return new Promise((resolve, reject) => {
-      try {
-        const { privateKey } = masterKey.derive(derivationPath);
-        invariant(privateKey, 'Private key is undefined');
-        // Use testnet wallet with testnet RPC
-        resolve(new BtcTestnetWallet(privateKey, this.testnetRpcClient));
-      } catch (error) {
-        reject(error instanceof Error ? error : new Error('Unknown error in wallet derivation'));
-      }
-    });
+  protected createRpcClient(): BitcoinRpcClient {
+    return new BitcoinTestnetRpcClient();
+  }
+
+  protected createWallet(privateKey: Uint8Array): IWallet {
+    return new BtcTestnetWallet(privateKey, this.rpcClient);
   }
 }

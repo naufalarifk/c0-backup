@@ -19,11 +19,14 @@ class SolanaMainnetWallet extends BaseSolanaWallet {
 @Injectable()
 @WalletProvider('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpWzVF8mS3uVRG')
 export class SolMainnetWalletService extends IWalletService {
-  readonly connection: Connection;
+  rpcUrl = 'https://api.mainnet-beta.solana.com';
 
-  constructor() {
-    super();
-    this.connection = new Connection('https://api.mainnet-beta.solana.com');
+  private _connection?: Connection;
+  protected get connection(): Connection {
+    if (!this._connection) {
+      this._connection = new Connection(this.rpcUrl);
+    }
+    return this._connection;
   }
 
   get bip44CoinType(): number {
