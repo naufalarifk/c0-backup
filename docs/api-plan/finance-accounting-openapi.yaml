@@ -330,6 +330,126 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
   # Portfolio Management
+  /portfolio/analytics:
+    get:
+      tags:
+        - Portfolio Management
+      summary: Get portfolio analytics for individual user home
+      description: |
+        Retrieve comprehensive portfolio analytics specifically designed for the individual user home interface.
+
+        **Key Metrics Provided:**
+        - Total portfolio value with lock icon indicator
+        - Interest growth metrics with percentage and amount
+        - Active loan count aggregation
+        - Date-specific portfolio data (e.g., "July 2025")
+        - Loan payment due alerts and liquidation warnings
+        - Performance tracking and historical data
+
+        **UI Alignment:**
+        This endpoint addresses audit discrepancy D01 by providing portfolio analytics
+        that match UI requirements: "127,856.43 USDT", "+17.98% USDT", "125 Active Loans".
+      operationId: getPortfolioAnalytics
+      responses:
+        '200':
+          description: Portfolio analytics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioAnalyticsResponse'
+              examples:
+                individual_user_portfolio:
+                  summary: Individual user portfolio analytics for home display
+                  value:
+                    success: true
+                    data:
+                      totalPortfolioValue:
+                        amount: "127856.43"
+                        currency: "USDT"
+                        isLocked: true
+                        lastUpdated: "2025-07-15T10:30:00Z"
+                      interestGrowth:
+                        amount: "+17.98"
+                        currency: "USDT"
+                        percentage: 17.98
+                        isPositive: true
+                        periodLabel: "USDT"
+                      activeLoans:
+                        count: 125
+                        borrowerLoans: 5
+                        lenderLoans: 120
+                        totalCollateralValue: "85432.10"
+                        averageLTV: 0.67
+                      portfolioPeriod:
+                        displayMonth: "July 2025"
+                        startDate: "2025-07-01T00:00:00Z"
+                        endDate: "2025-07-31T23:59:59Z"
+                      paymentAlerts:
+                        upcomingPayments:
+                          - loanId: "loan_789"
+                            daysUntilDue: 3
+                            paymentAmount: "10000.00"
+                            currency: "USDT"
+                            collateralAtRisk: "5.0"
+                            collateralCurrency: "ETH"
+                            liquidationWarning: true
+                        overduePayments: []
+                      assetBreakdown:
+                        cryptoAssets:
+                          percentage: 70.0
+                          value: "89499.50"
+                        stablecoins:
+                          percentage: 20.0
+                          value: "25571.29"
+                        loanCollateral:
+                          percentage: 10.0
+                          value: "12785.64"
+                institution_portfolio:
+                  summary: Institution portfolio analytics
+                  value:
+                    success: true
+                    data:
+                      totalPortfolioValue:
+                        amount: "5250000.00"
+                        currency: "USDT"
+                        isLocked: false
+                        lastUpdated: "2025-07-15T10:30:00Z"
+                      interestGrowth:
+                        amount: "+125000.00"
+                        currency: "USDT"
+                        percentage: 2.44
+                        isPositive: true
+                        periodLabel: "Monthly"
+                      activeLoans:
+                        count: 850
+                        borrowerLoans: 0
+                        lenderLoans: 850
+                        totalCollateralValue: "3500000.00"
+                        averageLTV: 0.65
+                      portfolioPeriod:
+                        displayMonth: "July 2025"
+                        startDate: "2025-07-01T00:00:00Z"
+                        endDate: "2025-07-31T23:59:59Z"
+                      paymentAlerts:
+                        upcomingPayments: []
+                        overduePayments: []
+                      assetBreakdown:
+                        cryptoAssets:
+                          percentage: 48.2
+                          value: "2530500.00"
+                        stablecoins:
+                          percentage: 51.8
+                          value: "2719500.00"
+                        loanCollateral:
+                          percentage: 0.0
+                          value: "0.00"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /portfolio/overview:
     get:
       tags:
@@ -665,6 +785,171 @@ components:
         - ComplianceRelease
 
     # Portfolio Management Schemas
+    PortfolioAnalyticsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/PortfolioAnalytics'
+
+    PortfolioAnalytics:
+      type: object
+      properties:
+        totalPortfolioValue:
+          type: object
+          properties:
+            amount:
+              type: string
+              description: Total portfolio value
+              example: "127856.43"
+            currency:
+              type: string
+              example: "USDT"
+            isLocked:
+              type: boolean
+              description: Whether portfolio has locked funds
+              example: true
+            lastUpdated:
+              type: string
+              format: date-time
+        interestGrowth:
+          type: object
+          properties:
+            amount:
+              type: string
+              description: Interest growth amount with sign
+              example: "+17.98"
+            currency:
+              type: string
+              example: "USDT"
+            percentage:
+              type: number
+              format: float
+              description: Growth percentage
+              example: 17.98
+            isPositive:
+              type: boolean
+              example: true
+            periodLabel:
+              type: string
+              description: Period label for growth calculation
+              example: "USDT"
+        activeLoans:
+          type: object
+          properties:
+            count:
+              type: integer
+              description: Total active loan count
+              example: 125
+            borrowerLoans:
+              type: integer
+              description: Loans where user is borrower
+              example: 5
+            lenderLoans:
+              type: integer
+              description: Loans where user is lender
+              example: 120
+            totalCollateralValue:
+              type: string
+              description: Total collateral value across all loans
+              example: "85432.10"
+            averageLTV:
+              type: number
+              format: float
+              description: Average LTV ratio across active loans
+              example: 0.67
+        portfolioPeriod:
+          type: object
+          properties:
+            displayMonth:
+              type: string
+              description: Human readable period display
+              example: "July 2025"
+            startDate:
+              type: string
+              format: date-time
+            endDate:
+              type: string
+              format: date-time
+        paymentAlerts:
+          $ref: '#/components/schemas/PaymentAlerts'
+        assetBreakdown:
+          type: object
+          properties:
+            cryptoAssets:
+              type: object
+              properties:
+                percentage:
+                  type: number
+                  format: float
+                  example: 70.0
+                value:
+                  type: string
+                  example: "89499.50"
+            stablecoins:
+              type: object
+              properties:
+                percentage:
+                  type: number
+                  format: float
+                  example: 20.0
+                value:
+                  type: string
+                  example: "25571.29"
+            loanCollateral:
+              type: object
+              properties:
+                percentage:
+                  type: number
+                  format: float
+                  example: 10.0
+                value:
+                  type: string
+                  example: "12785.64"
+
+    PaymentAlerts:
+      type: object
+      properties:
+        upcomingPayments:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentAlert'
+        overduePayments:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentAlert'
+
+    PaymentAlert:
+      type: object
+      properties:
+        loanId:
+          type: string
+          example: "loan_789"
+        daysUntilDue:
+          type: integer
+          description: Days until payment is due (negative if overdue)
+          example: 3
+        paymentAmount:
+          type: string
+          description: Amount due for payment
+          example: "10000.00"
+        currency:
+          type: string
+          example: "USDT"
+        collateralAtRisk:
+          type: string
+          description: Amount of collateral at risk if not paid
+          example: "5.0"
+        collateralCurrency:
+          type: string
+          example: "ETH"
+        liquidationWarning:
+          type: boolean
+          description: Whether automatic liquidation warning should be shown
+          example: true
+
     PortfolioOverviewResponse:
       type: object
       properties:

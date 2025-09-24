@@ -1,230 +1,184 @@
-# Institution Management API Audit Report
+# User Home Institution UI vs API Audit Report
 
-## Executive Summary
+## Overview
+This audit report identifies discrepancies between the User Home Institution UI textual description and the API documentation. The UI textual description serves as the source of truth for required functionality.
 
-This audit report compares the institution management UI flows described in `docs/ui-descriptions/user-home-institution.md` against the current API documentation in the OpenAPI specifications. The UI description serves as the source of truth, and this report identifies gaps where the API does not support required functionality.
+**Audit Scope**: User Home Institution flow as described in `docs/ui-descriptions/user-home-institution.md`
 
-**Audit Scope**: Institution member management flows (18 UI sections)
-**Audit Date**: 2025-09-22
-**Status**: CRITICAL GAPS IDENTIFIED
+**API Files Audited**:
+- `docs/api-plan/better-auth.yaml`
+- `docs/api-plan/user-openapi.yaml`
+- `docs/api-plan/loan-market-openapi.yaml`
+- `docs/api-plan/loan-agreement-openapi.yaml`
 
-## Key Findings
+## Discrepancies Found
 
-### Supported Features
-- Basic invitation creation (`POST /institutions/invitations`)
-- Invitation acceptance (`POST /institutions/invitations/{id}/accept`)
-- Invitation rejection (`POST /institutions/invitations/{id}/reject`)
-- Notification system integration (Better Auth notifications)
+### D001: Missing Institution Dashboard Home Data Aggregation
 
-### L Critical Missing Features
-- **Member management endpoints** (view, list, remove members)
-- **Institution member listing API**
-- **Member removal functionality**
-- **Pending invitation management**
-- **Institution details API for member context**
-- **Role-based permission validation**
+**UI Requirement**: The dashboard displays aggregated loan portfolio data including:
+- Total portfolio value: "127,856.43 USDT"
+- Income amount: "127,856.43 USDT"
+- Active loans count: "126"
+- Monthly/period indicator: "July 2025"
 
-## Detailed Gap Analysis
+**API Gap**: No endpoint exists to retrieve aggregated institution loan portfolio data for dashboard display.
 
-### 1. Member Management Current (UI Section 2)
-
-**UI Requirements:**
-- Display current institution members with roles, verification status, join dates
-- Show member count (234 Active)
-- Display institution verification status
-- Remove member functionality for non-owners
-
-**API Gaps:**
-- L **MISSING**: `GET /institutions/{id}/members` - List current institution members
-- L **MISSING**: `DELETE /institutions/{id}/members/{userId}` - Remove institution member
-- L **MISSING**: Institution member schema with role, verification status, join date
-- L **MISSING**: Institution details API with member count and verification status
-
-**Impact**: HIGH - Core functionality completely unavailable
-
-### 2. Member Management Pending (UI Section 3)
-
-**UI Requirements:**
-- List pending invitations with status and timestamps
-- Resend invitation functionality
-- Cancel/revoke pending invitations
-
-**API Gaps:**
-- L **MISSING**: `GET /institutions/{id}/invitations` - List pending invitations
-- L **MISSING**: `POST /institutions/invitations/{id}/resend` - Resend invitation
-- L **MISSING**: `DELETE /institutions/invitations/{id}` - Cancel pending invitation
-- L **MISSING**: Invitation schema with timestamps, status tracking
-
-**Impact**: HIGH - Cannot manage pending invitations
-
-### 3. Institution Dashboard Integration (UI Section 1)
-
-**UI Requirements:**
-- Display user's institution role and membership status
-- Show loan portfolio data contextual to institution
-- Access member management from dashboard
-
-**API Gaps:**
-- L **MISSING**: `GET /user/institutions` - List user's institution memberships
-- L **MISSING**: Institution-specific loan portfolio aggregation
-- L **MISSING**: User role context in institution responses
-
-**Impact**: MEDIUM - Dashboard cannot show institution context
-
-### 4. Invitation Flow Enhancements (UI Sections 4-8)
-
-**UI Requirements:**
-- Role-specific invitation creation with permissions preview
-- Invitation status tracking (sent, pending, expired)
-- Success/failure handling with detailed messaging
-
-**API Gaps:**
-- L **MISSING**: Role validation in invitation creation
-- L **MISSING**: Invitation expiration handling
-- L **MISSING**: Detailed error responses for invitation failures
-- L **MISSING**: Institution role permissions definition API
-
-**Impact**: MEDIUM - Invitation flow lacks role context and proper error handling
-
-### 5. Invitation Acceptance Flow (UI Sections 13-18)
-
-**UI Requirements:**
-- Multi-tab invitation review (Institution, Role, Terms)
-- Role permission and restriction display
-- Terms and compliance acceptance
-- Acceptance confirmation with institution details
-
-**API Gaps:**
-- **SUPPORTED**: Basic acceptance mechanism exists
-- L **MISSING**: `GET /institutions/invitations/{id}/details` - Full invitation details for review
-- L **MISSING**: Role permissions and restrictions definition
-- L **MISSING**: Terms and compliance tracking
-- L **MISSING**: Post-acceptance institution details with member count
-
-**Impact**: MEDIUM - Acceptance flow exists but lacks detailed context
-
-### 6. Institution Information Context
-
-**UI Requirements:**
-- Institution verification status display
-- Member statistics and active counts
-- Institution type and registration details
-
-**API Gaps:**
-- L **MISSING**: `GET /institutions/{id}` - Institution details API
-- L **MISSING**: Institution schema with verification status, member counts, registration info
-- L **MISSING**: Institution type definitions
-
-**Impact**: HIGH - No way to display institution context throughout UI
-
-## Schema Deficiencies
-
-### Missing Schemas Required:
-
-1. **InstitutionMember**
-```yaml
-InstitutionMember:
-  type: object
-  properties:
-    id: string
-    userId: string
-    institutionId: string
-    role: string (enum: Owner, Finance)
-    verificationStatus: string
-    joinedAt: string (date-time)
-    invitedBy: string
-    user:
-      $ref: '#/components/schemas/UserProfile'
+**Missing API**:
+```
+GET /users/dashboard/institution-summary
+Response should include:
+{
+  "portfolioValue": "127856.430000000000000000",
+  "incomeAmount": "127856.430000000000000000",
+  "activeLoanCount": 126,
+  "reportingPeriod": "July 2025"
+}
 ```
 
-2. **Institution**
+**Use Case Scenario**: When John Smith (Institution Owner) opens the dashboard, the system needs to aggregate all institution loan data to display the portfolio card with current values, but no API endpoint provides this consolidated view.
+
+### D002: Missing Institution Member Management Endpoints
+
+**UI Requirement**: Institution owners can manage members through:
+- View current members with roles, verification status, join dates
+- View pending invitations with expiration dates and actions
+- Remove members (except owners)
+- Resend invitations
+- Cancel pending invitations
+
+**API Gap**: The user-openapi.yaml contains invitation endpoints but lacks comprehensive member management operations:
+- No endpoint to remove institution members
+- No endpoint to resend invitations
+- No endpoint to cancel pending invitations
+- No endpoint to list current members with full details
+
+**Missing APIs**:
+```
+DELETE /institutions/{id}/members/{userId}
+POST /institutions/invitations/{id}/resend
+DELETE /institutions/invitations/{id}
+GET /institutions/{id}/members (enhanced with join dates, verification status)
+```
+
+**Use Case Scenario**: John Smith wants to remove "Mike Chen" from his institution. He taps the red "Remove" button, but there's no API endpoint to process this deletion request.
+
+### D003: Missing Detailed Institution Information for Invitations
+
+**UI Requirement**: Invitation details page shows comprehensive institution information:
+- Registration number: "FSL-2024-001"
+- Industry type: "Financial Services"
+- Founding date: "Since Jan 2024"
+- Contact information (address, email, phone)
+- Detailed business description
+
+**API Gap**: Institution schema in user-openapi.yaml lacks detailed fields required for invitation display.
+
+**Missing Schema Fields**:
 ```yaml
 Institution:
-  type: object
   properties:
-    id: string
-    name: string
-    type: string
-    verificationStatus: string (enum: Verified, Pending, Unverified)
-    memberCount: integer
-    activeSince: string (date-time)
-    registrationDetails: object
+    registrationNumber:
+      type: string
+      example: "FSL-2024-001"
+    industry:
+      type: string
+      example: "Financial Services"
+    foundingDate:
+      type: string
+      format: date-time
+    contactAddress:
+      type: string
+    contactEmail:
+      type: string
+    contactPhone:
+      type: string
+    detailedDescription:
+      type: string
 ```
 
-3. **InstitutionInvitationDetails** (Enhancement)
+**Use Case Scenario**: Sarah Johnson receives an invitation and taps "Details" to review PT. Bank Central Indonesia information, but the API cannot provide the registration number, industry, or contact details shown in the UI.
+
+### D005: Missing Invitation Expiration and Status Management
+
+**UI Requirement**: Pending invitations show:
+- Specific expiration countdown: "Invitation expires in 5 days"
+- Sent date: "Sent: Invited: Feb 10, 2025"
+- Resend and Cancel actions with success confirmations
+
+**API Gap**: While basic invitation schema exists, it lacks:
+- Precise expiration tracking
+- Sent date tracking
+- Status update operations for resend/cancel
+
+**Missing API Enhancements**:
 ```yaml
 InstitutionInvitationDetails:
-  allOf:
-    - $ref: '#/components/schemas/InstitutionInvitation'
-    - type: object
-      properties:
-        institution:
-          $ref: '#/components/schemas/Institution'
-        rolePermissions: array
-        roleRestrictions: array
-        expiresAt: string (date-time)
+  properties:
+    sentDate:
+      type: string
+      format: date-time
+      description: "When invitation was originally sent"
+    daysUntilExpiration:
+      type: integer
+      description: "Remaining days before expiration"
+    canResend:
+      type: boolean
+      description: "Whether invitation can be resent"
+    canCancel:
+      type: boolean
+      description: "Whether invitation can be cancelled"
 ```
 
-## Required API Endpoints
+**Use Case Scenario**: Institution owner views pending invitations and sees "Alex Wilson - Invitation expires in 5 days" but the API cannot calculate or provide this countdown information.
 
-### High Priority (Core Functionality)
-1. `GET /institutions/{id}/members` - List institution members
-2. `DELETE /institutions/{id}/members/{userId}` - Remove member
-3. `GET /institutions/{id}/invitations` - List pending invitations
-4. `GET /institutions/{id}` - Institution details
-5. `GET /user/institutions` - User's institution memberships
+### D007: Missing Member Verification Status Tracking
 
-### Medium Priority (Enhanced Experience)
-6. `POST /institutions/invitations/{id}/resend` - Resend invitation
-7. `DELETE /institutions/invitations/{id}` - Cancel invitation
-8. `GET /institutions/invitations/{id}/details` - Detailed invitation info
-9. `GET /institutions/{id}/roles` - Institution role definitions
+**UI Requirement**: Member cards display verification status:
+- Blue "Verified User" badges for all members
+- Verification status affects member capabilities
 
-### Low Priority (Future Enhancement)
-10. `GET /institutions/{id}/permissions` - Role permission matrix
-11. `GET /institutions/{id}/statistics` - Institution analytics
+**API Gap**: Institution member schema doesn't include detailed verification status information.
 
-## Security Considerations
+**Missing Schema Enhancement**:
+```yaml
+InstitutionMember:
+  properties:
+    verificationStatus:
+      type: string
+      enum: [Verified, Pending, Unverified]
+      description: "Member verification status"
+    verifiedDate:
+      type: string
+      format: date-time
+      nullable: true
+      description: "When member was verified"
+```
 
-### Missing Access Controls:
-- L Role-based authorization for member management endpoints
-- L Institution ownership validation for sensitive operations
-- L Member removal authorization (only owners can remove)
-- L Invitation management authorization
+**Use Case Scenario**: When viewing current members, John Smith needs to see that all members show "Verified User" status, but the API doesn't track or return verification details.
 
-### Required Guards:
-1. `@InstitutionOwnerGuard` - Only owners can invite/remove members
-2. `@InstitutionMemberGuard` - Only members can access institution data
-3. `@InvitationOwnerGuard` - Only invitation sender can resend/cancel
+### D008: Missing Notification Modal Integration Data
 
-## Recommendations
+**UI Requirement**: Dashboard notification modal shows:
+- Institution icon and name
+- Role being offered: "Finance member"
+- Role description: "Can create loan offers and manage financials, cannot manage members"
+- Verification status warning integration
 
-### Immediate Actions (Required for MVP):
-1. **Implement core member management APIs** (endpoints 1-5 above)
-2. **Create missing schemas** (InstitutionMember, Institution, enhanced invitation)
-3. **Add role-based authorization guards**
-4. **Implement institution details API with member context**
+**API Gap**: No endpoint provides notification modal data structure that combines invitation details with verification warnings.
 
-### Phase 2 Implementation:
-1. **Add invitation management features** (resend, cancel, detailed view)
-2. **Implement role permission system**
-3. **Add comprehensive error handling and status tracking**
+**Missing API**:
+```
+GET /notifications/institution-invitations
+Response:
+{
+  "pendingInvitations": [{
+    "institutionName": "PT. Bank Central Indonesia",
+    "institutionIcon": "...",
+    "offeredRole": "Finance",
+    "roleDescription": "Can create loan offers and manage financials, cannot manage members",
+    "showVerificationWarning": true
+  }]
+}
+```
 
-### Technical Debt Considerations:
-1. **Institution data model**: Ensure it supports verification workflows
-2. **Member role system**: Design for future role expansion beyond Owner/Finance
-3. **Invitation expiration**: Implement proper cleanup and notification system
-4. **Audit logging**: Track all member management operations for compliance
-
-## Conclusion
-
-The current API implementation only supports **25%** of the required institution management functionality described in the UI flows. Critical gaps exist in:
-
-- **Member management** (view, list, remove)
-- **Institution context** (details, verification, statistics)
-- **Invitation management** (list, resend, cancel)
-- **Role-based permissions** (validation, display)
-
-**Recommendation**: Implement high-priority endpoints immediately to support basic member management functionality. The current API state would require significant UI compromises that would severely impact user experience.
-
-**Estimated Development Effort**: 3-4 sprint cycles to achieve full UI flow support.
+**Use Case Scenario**: When Sarah Johnson opens the dashboard, she sees the institution invitation modal popup, but no API endpoint structures this notification data for the modal display.

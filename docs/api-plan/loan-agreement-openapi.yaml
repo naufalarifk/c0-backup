@@ -278,6 +278,113 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  # Document Management (Audit Gap 13)
+  /loans/{id}/agreement:
+    get:
+      tags: [Loans]
+      summary: Download loan agreement document
+      description: |
+        Download the loan agreement contract document in PDF or HTML format.
+        This addresses audit gap for missing document management system.
+
+        **Audit Fix**: Gap 13 - Document Management System
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Loan ID
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [pdf, html]
+            default: pdf
+          description: Document format to download
+      responses:
+        '200':
+          description: Loan agreement document
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+                description: PDF document binary content
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      documentUrl:
+                        type: string
+                        format: uri
+                        description: Direct download URL for the document
+                        example: "https://api.cryptogadai.com/documents/agreements/loan_12345.pdf"
+                      signatureRequired:
+                        type: boolean
+                        description: Whether digital signature is required
+                        example: true
+                      signedBy:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            userId:
+                              type: integer
+                              description: User ID who signed
+                              example: 67890
+                            userType:
+                              type: string
+                              enum: [borrower, lender]
+                              description: Role of the signer
+                              example: "borrower"
+                            signedAt:
+                              type: string
+                              format: date-time
+                              description: When the document was signed
+                              example: "2025-09-23T14:22:15Z"
+                        description: List of users who have signed the agreement
+              examples:
+                signed_agreement:
+                  summary: Fully signed agreement
+                  value:
+                    success: true
+                    data:
+                      documentUrl: "https://api.cryptogadai.com/documents/agreements/loan_12345.pdf"
+                      signatureRequired: false
+                      signedBy:
+                        - userId: 12345
+                          userType: "borrower"
+                          signedAt: "2025-09-23T14:20:00Z"
+                        - userId: 67890
+                          userType: "lender"
+                          signedAt: "2025-09-23T14:22:15Z"
+                pending_signature:
+                  summary: Agreement pending borrower signature
+                  value:
+                    success: true
+                    data:
+                      documentUrl: "https://api.cryptogadai.com/documents/agreements/loan_12345.pdf"
+                      signatureRequired: true
+                      signedBy:
+                        - userId: 67890
+                          userType: "lender"
+                          signedAt: "2025-09-23T14:22:15Z"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          description: Access denied - user not party to this loan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   # Valuations
   /loans/{id}/valuations:
     get:

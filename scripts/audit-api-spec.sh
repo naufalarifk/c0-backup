@@ -34,8 +34,11 @@ Here are the API documentation files that require auditing:
 Here is the UI textual description as source of truth, your scope is limited to this file (The UI textual description shall be subset of the API documentation):
 @docs/ui-descriptions/$ui_description_filename.md
 
-Additionally, here is the Software Requirements Specification (SRS) that provides context on the intended functionality and requirements of the system:
-@docs/SRS-CG-v2.3-EN.md
+Content of the Audit Report consists of:
+- Coded list of discrepancies found between the UI textual description and the API documentation.
+- For each discrepancy, explain in detail what data is required by the UI textual description but is missing or misrepresented in the API documentation.
+- For each discrepancy, describe using data example scenario use cases.
+- Do not exagerate features that are not explicitly mentioned in the UI textual description.
 
 Write the audit report in @$spec_discrepency_report_path
 "
@@ -43,6 +46,6 @@ Write the audit report in @$spec_discrepency_report_path
 claude \
   --dangerously-skip-permissions \
   --model claude-sonnet-4-20250514 \
-  --append-system-prompt "Claude shall act as a meticulous auditor, ensuring that every detail is scrutinized and reported with precision." \
+  --append-system-prompt "Claude shall act as a project manager and backend lead developer, ensuring the API specification aligns perfectly with the UI textual descriptions." \
   --print \
   "$translation_prompt"

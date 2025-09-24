@@ -204,7 +204,6 @@ export class AuthConfig {
           this.notificationQueueService.queueNotification(payload);
         },
       }),
-      sso(),
       multiSession({ maximumSessions: this.configService.authConfig.maximumSessions }),
       customSession(async ({ session, user }) => {
         // Process image URL if it's a MinIO path
@@ -229,7 +228,6 @@ export class AuthConfig {
           },
         };
       }),
-      admin(),
       expo(),
       openAPI(),
     ];
@@ -240,16 +238,18 @@ export class AuthConfig {
       enabled: true,
       window: +this.configService.rateLimitConfigs.ttl,
       max: +this.configService.rateLimitConfigs.limit,
-      customRules: {
-        '/sign-in/*': {
-          window: 60,
-          max: 5,
-        },
-        '/forget-password': {
-          window: 3600,
-          max: 3,
-        },
-      },
+      customRules: this.configService.isProduction
+        ? {
+            '/sign-in/*': {
+              window: 60,
+              max: 5,
+            },
+            '/forget-password': {
+              window: 3600,
+              max: 3,
+            },
+          }
+        : {},
     };
   }
 
