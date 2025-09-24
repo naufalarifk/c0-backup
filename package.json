@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build && rsync ./src/shared/repositories/postgres ./dist/src/shared/repositories/postgres --recursive --include='*.sql' --exclude='*'",
+    "build": "nest build && rsync ./src/shared/repositories/postgres ./dist/shared/repositories/postgres --recursive --include='*.sql' --exclude='*'",
     "start": "nest start -- api notification pricefeed invoice-expiration indexer",
     "start:api": "nest start -- api",
     "start:notification": "nest start -- notification",
