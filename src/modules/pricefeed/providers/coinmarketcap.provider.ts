@@ -7,8 +7,6 @@ import type {
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import axios, { AxiosInstance } from 'axios';
-
 export interface CoinMarketCapQuote {
   price: number;
   volume_24h: number;
@@ -108,7 +106,6 @@ export interface CoinMarketCapMetadata {
 @Injectable()
 export class CoinMarketCapProvider implements PriceFeedProvider {
   private readonly logger = new Logger(CoinMarketCapProvider.name);
-  private readonly httpClient: AxiosInstance;
   private readonly apiKey: string;
   private readonly baseUrl = 'https://pro-api.coinmarketcap.com';
 
@@ -125,52 +122,95 @@ export class CoinMarketCapProvider implements PriceFeedProvider {
     } else {
       this.logger.log('CoinMarketCap API key configured successfully');
     }
+  }
 
-    this.httpClient = axios.create({
-      baseURL: this.baseUrl,
-      timeout: 30000,
-      headers: {
-        'X-CMC_PRO_API_KEY': this.apiKey,
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
+  /**
+   * Make HTTP requests using native fetch API
+   */
+  private async makeRequest<T = unknown>(
+    endpoint: string,
+    params?: Record<string, string>,
+  ): Promise<T> {
+    const url = new URL(endpoint, this.baseUrl);
 
-    // Add request/response interceptors for logging
-    this.httpClient.interceptors.request.use(
-      config => {
-        this.logger.debug(`Making request to: ${config.url}`);
-        return config;
-      },
-      error => {
-        this.logger.error('Request error:', error.message);
-        return Promise.reject(error);
-      },
-    );
+    // Add query parameters if provided
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        url.searchParams.append(key, value);
+      });
+    }
 
-    this.httpClient.interceptors.response.use(
-      response => {
-        const credits = response.data?.status?.credit_count || 0;
+    this.logger.debug(`Making request to: ${endpoint}`);
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'X-CMC_PRO_API_KEY': this.apiKey,
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        await this.handleHttpError(response);
+      }
+
+      const data = (await response.json()) as T;
+
+      // Log credits used if available
+      if (typeof data === 'object' && data !== null && 'status' in data) {
+        const responseWithStatus = data as { status?: { credit_count?: number } };
+        const credits = responseWithStatus.status?.credit_count || 0;
         this.logger.debug(`Request completed. Credits used: ${credits}`);
-        return response;
-      },
-      error => {
-        if (error.response?.status === 429) {
-          this.logger.warn(
-            'Rate limit exceeded. Consider upgrading your plan or reducing request frequency.',
-          );
-        } else if (error.response?.status === 401) {
-          this.logger.error('Authentication failed. Check your API key.');
-        } else if (error.response?.status === 403) {
-          this.logger.error('Forbidden. Your API plan may not support this endpoint.');
-        }
+      }
 
-        this.logger.error(
-          `API Error: ${error.response?.status} - ${error.response?.data?.status?.error_message || error.message}`,
-        );
-        return Promise.reject(error);
-      },
-    );
+      return data;
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          this.logger.error('Request timed out after 30 seconds');
+          throw new Error('Request timeout');
+        }
+        this.logger.error('Request error:', error.message);
+      } else {
+        this.logger.error('Unknown error occurred:', String(error));
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Handle HTTP error responses
+   */
+  private async handleHttpError(response: Response): Promise<never> {
+    let errorMessage = `HTTP ${response.status}`;
+
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData?.status?.error_message || response.statusText;
+    } catch {
+      errorMessage = response.statusText;
+    }
+
+    if (response.status === 429) {
+      this.logger.warn(
+        'Rate limit exceeded. Consider upgrading your plan or reducing request frequency.',
+      );
+    } else if (response.status === 401) {
+      this.logger.error('Authentication failed. Check your API key.');
+    } else if (response.status === 403) {
+      this.logger.error('Forbidden. Your API plan may not support this endpoint.');
+    }
+
+    this.logger.error(`API Error: ${response.status} - ${errorMessage}`);
+    throw new Error(`API Error: ${response.status} - ${errorMessage}`);
   }
 
   /**
@@ -199,10 +239,15 @@ export class CoinMarketCapProvider implements PriceFeedProvider {
     }
 
     try {
-      const response = await this.httpClient.get('/v1/key/info');
-      return response.data?.status?.error_code === 0;
-    } catch (error) {
-      this.logger.error('CoinMarketCap API availability check failed:', error.message);
+      const response = await this.makeRequest<{
+        status: {
+          error_code: number;
+        };
+      }>('/v1/key/info');
+      return response.status?.error_code === 0;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('CoinMarketCap API availability check failed:', errorMessage);
       return false;
     }
   }
@@ -224,22 +269,20 @@ export class CoinMarketCapProvider implements PriceFeedProvider {
       }
 
       // Fetch latest quotes
-      const response = await this.httpClient.get<CoinMarketCapResponse>(
+      const response = await this.makeRequest<CoinMarketCapResponse>(
         '/v2/cryptocurrency/quotes/latest',
         {
-          params: {
-            id: baseCmcId.toString(),
-            convert: quoteCurrencyTokenId,
-            aux: 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply',
-          },
+          id: baseCmcId.toString(),
+          convert: quoteCurrencyTokenId,
+          aux: 'num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply',
         },
       );
 
-      if (response.data.status.error_code !== 0) {
-        throw new Error(`CoinMarketCap API error: ${response.data.status.error_message}`);
+      if (response.status.error_code !== 0) {
+        throw new Error(`CoinMarketCap API error: ${response.status.error_message}`);
       }
 
-      const data = response.data.data as Record<string, CoinMarketCapCurrency>;
+      const data = response.data as Record<string, CoinMarketCapCurrency>;
       const currencyData = data[baseCmcId.toString()];
 
       if (!currencyData) {
@@ -273,20 +316,21 @@ export class CoinMarketCapProvider implements PriceFeedProvider {
           numMarketPairs: currencyData.num_market_pairs,
           circulatingSupply: currencyData.circulating_supply,
           maxSupply: currencyData.max_supply,
-          creditsUsed: response.data.status.credit_count,
+          creditsUsed: response.status.credit_count,
         },
       };
 
       this.logger.log(
         `Fetched ${baseCurrencyTokenId}/${quoteCurrencyTokenId} rate: ` +
-          `${exchangeRateData.bidPrice}-${exchangeRateData.askPrice} (Credits: ${response.data.status.credit_count})`,
+          `${exchangeRateData.bidPrice}-${exchangeRateData.askPrice} (Credits: ${response.status.credit_count})`,
       );
 
       return exchangeRateData;
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(
         `Failed to fetch exchange rate for ${baseCurrencyTokenId}/${quoteCurrencyTokenId}:`,
-        error.message,
+        errorMessage,
       );
       throw error;
     }
@@ -323,27 +367,23 @@ export class CoinMarketCapProvider implements PriceFeedProvider {
     try {
       this.logger.debug('Refreshing CoinMarketCap ID cache...');
 
-      const response = await this.httpClient.get<{
+      const response = await this.makeRequest<{
         data: CoinMarketCapMapEntry[];
         status: CoinMarketCapResponse['status'];
       }>('/v1/cryptocurrency/map', {
-        params: {
-          listing_status: 'active',
-          limit: 5000, // Get top 5000 currencies
-          sort: 'cmc_rank',
-        },
+        listing_status: 'active',
+        limit: '5000', // Get top 5000 currencies
+        sort: 'cmc_rank',
       });
 
-      if (response.data.status.error_code !== 0) {
-        throw new Error(
-          `Failed to fetch cryptocurrency map: ${response.data.status.error_message}`,
-        );
+      if (response.status.error_code !== 0) {
+        throw new Error(`Failed to fetch cryptocurrency map: ${response.status.error_message}`);
       }
 
       // Clear cache and repopulate
       this.symbolToIdCache.clear();
 
-      for (const currency of response.data.data) {
+      for (const currency of response.data) {
         // Use the highest ranked currency for duplicate symbols
         if (
           !this.symbolToIdCache.has(currency.symbol) ||
@@ -357,8 +397,9 @@ export class CoinMarketCapProvider implements PriceFeedProvider {
       this.cacheExpiry = Date.now() + this.cacheTtl;
 
       this.logger.debug(`Cached ${this.symbolToIdCache.size} cryptocurrency mappings`);
-    } catch (error) {
-      this.logger.error('Failed to refresh CMC ID cache:', error.message);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to refresh CMC ID cache:', errorMessage);
       // Don't throw error, just log it - we can still try to work with existing cache
     }
   }
@@ -382,24 +423,45 @@ export class CoinMarketCapProvider implements PriceFeedProvider {
     }
 
     try {
-      const response = await this.httpClient.get('/v1/key/info');
+      const response = await this.makeRequest<{
+        status: { error_code: number };
+        data: {
+          plan: {
+            name: string;
+            credit_limit_daily: number;
+            credit_limit_monthly: number;
+            rate_limit_request_per_minute: number;
+          };
+          usage: {
+            current_day: {
+              credits_used: number;
+              credits_left: number;
+            };
+            current_month: {
+              credits_used: number;
+              credits_left: number;
+            };
+          };
+        };
+      }>('/v1/key/info');
 
-      if (response.data.status.error_code !== 0) {
+      if (response.status.error_code !== 0) {
         return null;
       }
 
       return {
-        plan: response.data.data.plan.name,
-        creditLimitDaily: response.data.data.plan.credit_limit_daily,
-        creditLimitMonthly: response.data.data.plan.credit_limit_monthly,
-        creditLimitDailyUsed: response.data.data.usage.current_day.credits_used,
-        creditLimitMonthlyUsed: response.data.data.usage.current_month.credits_used,
-        creditLimitDailyReset: response.data.data.usage.current_day.credits_left,
-        creditLimitMonthlyReset: response.data.data.usage.current_month.credits_left,
-        rateLimit: response.data.data.plan.rate_limit_request_per_minute,
+        plan: response.data.plan.name,
+        creditLimitDaily: response.data.plan.credit_limit_daily,
+        creditLimitMonthly: response.data.plan.credit_limit_monthly,
+        creditLimitDailyUsed: response.data.usage.current_day.credits_used,
+        creditLimitMonthlyUsed: response.data.usage.current_month.credits_used,
+        creditLimitDailyReset: response.data.usage.current_day.credits_left.toString(),
+        creditLimitMonthlyReset: response.data.usage.current_month.credits_left.toString(),
+        rateLimit: response.data.plan.rate_limit_request_per_minute,
       };
-    } catch (error) {
-      this.logger.error('Failed to get API usage info:', error.message);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to get API usage info:', errorMessage);
       return null;
     }
   }
@@ -448,23 +510,21 @@ export class CoinMarketCapProvider implements PriceFeedProvider {
         }
 
         // Fetch quotes for all currencies in this group
-        const response = await this.httpClient.get<CoinMarketCapResponse>(
+        const response = await this.makeRequest<CoinMarketCapResponse>(
           '/v2/cryptocurrency/quotes/latest',
           {
-            params: {
-              id: cmcIds.join(','),
-              convert: quoteCurrency,
-              aux: 'num_market_pairs,cmc_rank',
-            },
+            id: cmcIds.join(','),
+            convert: quoteCurrency,
+            aux: 'num_market_pairs,cmc_rank',
           },
         );
 
-        if (response.data.status.error_code !== 0) {
-          this.logger.error(`Bulk fetch error: ${response.data.status.error_message}`);
+        if (response.status.error_code !== 0) {
+          this.logger.error(`Bulk fetch error: ${response.status.error_message}`);
           continue;
         }
 
-        const data = response.data.data as Record<string, CoinMarketCapCurrency>;
+        const data = response.data as Record<string, CoinMarketCapCurrency>;
 
         // Process each currency in the response
         for (const [cmcIdStr, currencyData] of Object.entries(data)) {
@@ -499,10 +559,11 @@ export class CoinMarketCapProvider implements PriceFeedProvider {
         this.logger.log(
           `Bulk fetched ${results.length} exchange rates for quote currency: ${quoteCurrency}`,
         );
-      } catch (error) {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
         this.logger.error(
           `Failed to bulk fetch rates for quote currency ${quoteCurrency}:`,
-          error.message,
+          errorMessage,
         );
       }
     }
