@@ -1,0 +1,519 @@
+openapi: 3.0.3
+info:
+  title: CryptoGadai User Notification Management API
+  description: API specification for user notification management including listing, marking as read, archiving, and deleting notifications
+  version: 2.0.0
+  contact:
+    name: CryptoGadai Development Team
+
+servers:
+  - url: https://api.cryptogadai.com/api
+    description: Production server
+  - url: https://cg-api.fh47.com/api
+    description: Testing server
+  - url: http://cg-api.localhost/api
+    description: Local development server
+
+security:
+  - apiKeyCookie: []
+  - bearerAuth: []
+
+paths:
+  # Notification Management
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List user notifications
+      description: Retrieve paginated list of notifications for authenticated user
+      parameters:
+        - name: page
+          in: query
+          description: Page number (1-based)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+        - name: limit
+          in: query
+          description: Number of notifications per page (max 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 10
+        - name: type
+          in: query
+          description: Filter by notification type
+          schema:
+            type: string
+            enum:
+              # Authentication notifications
+              - UserRegistered
+              - EmailVerificationSent
+              - EmailVerified
+              - PasswordResetRequested
+              - PasswordResetCompleted
+              - PhoneNumberVerification
+              - PhoneNumberVerified
+              - TwoFactorEnabled
+              - TwoFactorDisabled
+              - LoginFromNewDevice
+              - SuspiciousLoginAttempt
+              # KYC notifications
+              - UserKycVerified
+              - UserKycRejected
+              # Institution notifications
+              - InstitutionApplicationVerified
+              - InstitutionApplicationRejected
+              - InstitutionMemberInvited
+              - InstitutionMemberAccepted
+              - InstitutionMemberRejected
+              # Invoice notifications
+              - InvoiceCreated
+              - InvoiceDue
+              - InvoiceExpired
+              - InvoicePartiallyPaid
+              - InvoicePaid
+              # Loan notifications
+              - LoanOfferPublished
+              - LoanApplicationPublished
+              - LoanApplicationMatched
+              - LoanOfferMatched
+              - LoanApplicationApproved
+              - LoanApplicationRejected
+              - LoanOfferClosed
+              - LoanDisbursement
+              - LoanActivated
+              - LoanRepaymentDue
+              - LoanRepaymentCompleted
+              - LoanRepaymentReceived
+              - LoanRepaymentFailed
+              - LoanLiquidation
+              - LoanLtvBreach
+              # Withdrawal notifications
+              - WithdrawalRequested
+              - WithdrawalRefunded
+              - WithdrawalRefundApproved
+              - WithdrawalRefundRejected
+              # Enhanced loan notifications
+              - LiquidationWarning
+              - LiquidationCompleted
+              # System notifications
+              - PlatformMaintenanceNotice
+              - SecurityAlert
+          example: LoanRepaymentDue
+        - name: unreadOnly
+          in: query
+          description: Filter to show only unread notifications
+          schema:
+            type: boolean
+            default: false
+          example: true
+      responses:
+        '200':
+          description: Notifications retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationsResponse'
+              examples:
+                mixed_notifications:
+                  summary: Mixed notifications with pagination
+                  value:
+                    notifications:
+                      - id: 456
+                        type: LoanRepaymentDue
+                        title: Loan Repayment Due Tomorrow
+                        content: Your loan payment of 10,300 USDT is due tomorrow. Please ensure sufficient balance.
+                        isRead: false
+                        readDate: null
+                        createdDate: 2024-03-15T10:00:00Z
+                      - id: 455
+                        type: UserKycVerified
+                        title: KYC Verification Approved
+                        content: Your identity verification has been approved. You can now access all platform features.
+                        isRead: true
+                        readDate: 2024-03-14T15:30:00Z
+                        createdDate: 2024-03-14T14:20:00Z
+                      - id: 454
+                        type: InstitutionMemberInvited
+                        title: Institution Invitation Received
+                        content: You have been invited to join PT Teknologi Nusantara as Finance member.
+                        isRead: false
+                        readDate: null
+                        createdDate: 2024-03-13T16:45:00Z
+                    pagination:
+                      page: 1
+                      limit: 10
+                      total: 45
+                      totalPages: 5
+                      hasNext: true
+                      hasPrev: false
+                    unreadCount: 12
+                unread_only:
+                  summary: Unread notifications only
+                  value:
+                    notifications:
+                      - id: 456
+                        type: LoanRepaymentDue
+                        title: Loan Repayment Due Tomorrow
+                        content: Your loan payment of 10,300 USDT is due tomorrow. Please ensure sufficient balance.
+                        isRead: false
+                        readDate: null
+                        createdDate: 2024-03-15T10:00:00Z
+                      - id: 454
+                        type: LiquidationWarning
+                        title: Collateral LTV Warning
+                        content: Your collateral LTV ratio has reached 66.5%. Please add more collateral or repay part of your loan.
+                        isRead: false
+                        readDate: null
+                        createdDate: 2024-03-13T16:45:00Z
+                    pagination:
+                      page: 1
+                      limit: 10
+                      total: 12
+                      totalPages: 2
+                      hasNext: true
+                      hasPrev: false
+                    unreadCount: 12
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark notification as read
+      description: Mark a specific notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 456
+      responses:
+        '200':
+          description: Notification marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Notification marked as read
+              examples:
+                mark_read_success:
+                  summary: Notification marked as read
+                  value:
+                    message: Notification marked as read
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notifications/mark-all-read:
+    patch:
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      description: Mark all unread notifications as read for authenticated user
+      responses:
+        '200':
+          description: All notifications marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: All notifications marked as read
+                  updatedCount:
+                    type: integer
+                    description: Number of notifications that were updated
+              examples:
+                multiple_marked:
+                  summary: Multiple notifications marked as read
+                  value:
+                    message: All notifications marked as read
+                    updatedCount: 12
+                none_to_mark:
+                  summary: No unread notifications to mark
+                  value:
+                    message: All notifications marked as read
+                    updatedCount: 0
+
+  /notifications/{id}/archive:
+    patch:
+      tags: [Notifications]
+      summary: Archive notification
+      description: |
+        Archive a specific notification. Addresses audit discrepancy D05 by providing notification archiving functionality.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 456
+      responses:
+        '200':
+          description: Notification archived successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Notification archived successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notifications/{id}/delete:
+    delete:
+      tags: [Notifications]
+      summary: Delete notification
+      description: |
+        Delete a specific notification permanently. Addresses audit discrepancy D05 by providing notification deletion functionality.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 456
+      responses:
+        '200':
+          description: Notification deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Notification deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    apiKeyCookie:
+      type: apiKey
+      in: cookie
+      name: apiKeyCookie
+      description: Better Auth API Key authentication via cookie
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Better Auth Bearer token authentication
+
+  schemas:
+    NotificationsResponse:
+      type: object
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+        unreadCount:
+          type: integer
+          description: Total count of unread notifications
+          example: 5
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 123
+        type:
+          type: string
+          enum: [
+              # Authentication notifications
+              UserRegistered,
+              EmailVerificationSent,
+              EmailVerified,
+              PasswordResetRequested,
+              PasswordResetCompleted,
+              PhoneNumberVerification,
+              PhoneNumberVerified,
+              TwoFactorEnabled,
+              TwoFactorDisabled,
+              LoginFromNewDevice,
+              SuspiciousLoginAttempt,
+              # KYC notifications
+              UserKycVerified,
+              UserKycRejected,
+              # Institution notifications
+              InstitutionApplicationVerified,
+              InstitutionApplicationRejected,
+              InstitutionMemberInvited,
+              InstitutionMemberAccepted,
+              InstitutionMemberRejected,
+              # Invoice notifications
+              InvoiceCreated,
+              InvoiceDue,
+              InvoiceExpired,
+              InvoicePartiallyPaid,
+              InvoicePaid,
+              # Loan notifications
+              LoanOfferPublished,
+              LoanApplicationPublished,
+              LoanApplicationMatched,
+              LoanOfferMatched,
+              LoanApplicationApproved,
+              LoanApplicationRejected,
+              LoanOfferClosed,
+              LoanDisbursement,
+              LoanActivated,
+              LoanRepaymentDue,
+              LoanRepaymentCompleted,
+              LoanRepaymentReceived,
+              LoanRepaymentFailed,
+              LoanLiquidation,
+              LoanLtvBreach,
+              # Withdrawal notifications
+              WithdrawalRequested,
+              WithdrawalRefunded,
+              WithdrawalRefundApproved,
+              WithdrawalRefundRejected,
+              # Enhanced loan notifications
+              LiquidationWarning,
+              LiquidationCompleted,
+              # System notifications
+              PlatformMaintenanceNotice,
+              SecurityAlert
+            ]
+          description: Type of notification matching database enum
+          example: LoanRepaymentDue
+        title:
+          type: string
+          description: Notification title/subject
+          example: Loan Repayment Due Tomorrow
+        content:
+          type: string
+          description: Notification body content
+          example: Your loan payment of $500 is due tomorrow. Please ensure sufficient balance.
+        isRead:
+          type: boolean
+          description: Whether the notification has been read
+          example: false
+        readDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the notification was read
+          example: null
+        createdDate:
+          type: string
+          format: date-time
+          description: When the notification was created
+          example: 2024-03-15T10:30:00Z
+
+    # Common Schemas
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number (1-based)
+          example: 1
+          minimum: 1
+        limit:
+          type: integer
+          description: Number of items per page
+          example: 20
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          description: Total number of items across all pages
+          example: 150
+          minimum: 0
+        totalPages:
+          type: integer
+          description: Total number of pages
+          example: 8
+          minimum: 0
+        hasNext:
+          type: boolean
+          description: Whether there are more pages after current
+          example: true
+        hasPrev:
+          type: boolean
+          description: Whether there are pages before current
+          example: false
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+        - hasNext
+        - hasPrev
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              description: Human-readable error message
+              example: Request validation failed
+            details:
+              type: object
+              description: Additional error details
+              additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+          example: 2025-08-13T15:30:00Z
+        requestId:
+          type: string
+          format: uuid
+          description: Request ID for tracking
+      required:
+        - success
+        - error
+        - timestamp
+
+  responses:
+    Unauthorized:
+      description: Authentication required or token invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: INVALID_TOKEN
+            message: Token expired or invalid
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: NOT_FOUND
+            message: Resource not found
+
+tags:
+  - name: Notifications
+    description: User notifications and payment alerts management
