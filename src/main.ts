@@ -4,6 +4,7 @@ import { argv, env } from 'node:process';
 import { indexerEntrypoint } from './entrypoints/indexer.entrypoint';
 import { invoiceExpirationEntrypoint } from './entrypoints/invoice-expiration.entrypoint';
 import { notificationEntrypoint } from './entrypoints/notification.entrypoint';
+import { pricefeedEntrypoint } from './entrypoints/pricefeed.entrypoint';
 import { userApiEntrypoint } from './entrypoints/user-api.entrypoint';
 
 const [, , ...commands] = argv;
@@ -18,6 +19,10 @@ if (commands.includes('api')) {
 
 if (commands.includes('notification')) {
   void notificationEntrypoint();
+}
+
+if (commands.includes('pricefeed')) {
+  void pricefeedEntrypoint();
 }
 
 if (commands.includes('invoice-expiration')) {
