@@ -2,6 +2,7 @@ import type { CanActivate, ExecutionContext } from '@nestjs/common';
 import type { Auth } from 'better-auth';
 import type { Request } from 'express';
 import type { UserViewsProfileResult } from '../../shared/types';
+import type { UserSession } from './types';
 
 import { ForbiddenException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -34,9 +35,9 @@ export class AuthGuard implements CanActivate {
    */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
-    const session = await this.auth.api.getSession({
+    const session = (await this.auth.api.getSession({
       headers: fromNodeHeaders(request.headers),
-    });
+    })) as UserSession;
 
     request.session = session;
     request.user = session?.user ?? null; // useful for observability tools like Sentry

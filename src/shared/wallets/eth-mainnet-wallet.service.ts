@@ -19,14 +19,27 @@ class EthereumMainnetWallet extends BaseEthereumWallet {
 @Injectable()
 @WalletProvider('eip155:1')
 export class EthMainnetWalletService extends IWalletService {
-  private readonly provider: ethers.JsonRpcProvider;
+  rpcUrl = 'https://eth.llamarpc.com';
+
+  private _provider?: ethers.JsonRpcProvider;
+  protected get provider(): ethers.JsonRpcProvider {
+    if (!this._provider) {
+      this._provider = new ethers.JsonRpcProvider(this.rpcUrl);
+    }
+    return this._provider;
+  }
+
+  getHotWallet(masterKey: HDKey): Promise<IWallet> {
+    return this.derivedPathToWallet({
+      masterKey,
+      derivationPath: `m/44'/${this.bip44CoinType}'/0'/10/0`,
+    });
+  }
+
   get bip44CoinType(): number {
     return 60;
   }
-  constructor() {
-    super();
-    this.provider = new ethers.JsonRpcProvider('https://eth.llamarpc.com');
-  }
+
   derivedPathToWallet({
     masterKey,
     derivationPath,

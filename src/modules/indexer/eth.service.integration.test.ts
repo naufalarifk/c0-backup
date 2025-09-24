@@ -4,18 +4,7 @@ import path from 'path';
 
 import { Test, TestingModule } from '@nestjs/testing';
 
-// Load environment variables
-import dotenv from 'dotenv';
-
 import { EthereumService } from './eth.service';
-
-// Load .env.development or .env file
-const envPath =
-  process.env.NODE_ENV === 'development'
-    ? path.resolve(process.cwd(), '.env.development')
-    : path.resolve(process.cwd(), '.env');
-
-dotenv.config({ path: envPath });
 
 // Ensure ETH_WS_URL is available for tests
 if (!process.env.ETH_WS_URL) {

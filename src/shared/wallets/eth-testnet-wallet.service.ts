@@ -1,50 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
-import { HDKey } from '@scure/bip32';
-import { ethers } from 'ethers';
-
-import { BaseEthereumWallet } from './base-ethereum-wallet';
+import { EthMainnetWalletService } from './eth-mainnet-wallet.service';
 import { WalletProvider } from './Iwallet.service';
-import { IWallet, IWalletService } from './Iwallet.types';
-
-class EthereumTestnetWallet extends BaseEthereumWallet {
-  protected provider: ethers.JsonRpcProvider;
-
-  constructor(privateKey: Uint8Array<ArrayBufferLike>, provider: ethers.JsonRpcProvider) {
-    super(privateKey);
-    this.provider = provider;
-  }
-}
 
 @Injectable()
 @WalletProvider('eip155:11155111')
-export class EthTestnetWalletService extends IWalletService {
-  get bip44CoinType(): number {
-    return 60;
-  }
-  private readonly provider: ethers.JsonRpcProvider;
-
-  constructor() {
-    super();
-    this.provider = new ethers.JsonRpcProvider('https://sepolia.drpc.org');
-  }
-  derivedPathToWallet({
-    masterKey,
-    derivationPath,
-  }: {
-    masterKey: HDKey;
-    derivationPath: string;
-  }): Promise<EthereumTestnetWallet> {
-    return new Promise((resolve, reject) => {
-      try {
-        const { privateKey } = masterKey.derive(derivationPath);
-        if (!privateKey) {
-          throw new Error('Private key is undefined');
-        }
-        resolve(new EthereumTestnetWallet(privateKey, this.provider));
-      } catch (error) {
-        reject(error instanceof Error ? error : new Error('Unknown error in wallet derivation'));
-      }
-    });
-  }
+export class EthTestnetWalletService extends EthMainnetWalletService {
+  rpcUrl = 'https://sepolia.drpc.org';
 }

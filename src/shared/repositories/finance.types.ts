@@ -220,6 +220,61 @@ export interface AdminRejectsWithdrawalRefundResult {
   failureRefundRejectedDate: Date;
 }
 
+export interface AdminViewsFailedWithdrawalsParams {
+  page?: number;
+  limit?: number;
+  failureType?: string;
+  reviewed?: boolean;
+}
+
+export interface AdminFailedWithdrawalItem {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  userPhoneNumber?: string;
+  userKycStatus: string;
+  amount: string;
+  currencyBlockchainKey: string;
+  currencyTokenId: string;
+  beneficiaryAddress: string;
+  requestDate: string;
+  failedDate: string;
+  failureReason: string;
+  status: string;
+  transactionHash?: string;
+  networkFee?: string;
+  attempts: number;
+  lastAttemptDate?: string;
+  reviewerId?: string;
+  reviewDate?: string;
+  reviewDecision?: string;
+  reviewReason?: string;
+  adminNotes?: string;
+}
+
+export interface AdminViewsFailedWithdrawalsResult {
+  withdrawals: AdminFailedWithdrawalItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface AdminViewsWithdrawalDetailsParams {
+  withdrawalId: string;
+}
+
+export interface AdminWithdrawalDetailsResult {
+  withdrawal: AdminFailedWithdrawalItem;
+  systemContext: {
+    failureType: string;
+    networkStatus: string;
+    platformWalletBalance: string;
+    errorLogs: string[];
+  };
+}
+
 export interface UserViewsWithdrawalBeneficiariesParams {
   userId: string;
 }
@@ -229,6 +284,7 @@ export interface WithdrawalBeneficiaryListItem {
   userId: string;
   blockchainKey: string;
   address: string;
+  label?: string;
 }
 
 export interface UserViewsWithdrawalBeneficiariesResult {

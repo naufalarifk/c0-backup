@@ -2,17 +2,6 @@ import assert from 'node:assert';
 import { describe, test } from 'node:test';
 import path from 'path';
 
-// Load environment variables
-import dotenv from 'dotenv';
-
-// Load .env.development or .env file
-const envPath =
-  process.env.NODE_ENV === 'development'
-    ? path.resolve(process.cwd(), '.env.development')
-    : path.resolve(process.cwd(), '.env');
-
-dotenv.config({ path: envPath });
-
 // Ensure ETH_WS_URL is available for tests
 if (!process.env.ETH_WS_URL) {
   throw new Error('ETH_WS_URL not found in environment variables');

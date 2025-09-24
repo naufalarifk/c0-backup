@@ -1,5 +1,6 @@
 import type { BetterAuthOptions } from 'better-auth';
 import type { AuthModuleOptions } from './auth.module';
+import type { UserSession } from './types';
 
 import { Injectable } from '@nestjs/common';
 
@@ -205,7 +206,7 @@ export class AuthConfig {
         },
       }),
       multiSession({ maximumSessions: this.configService.authConfig.maximumSessions }),
-      customSession(async ({ session, user }) => {
+      customSession(async ({ session, user }: UserSession) => {
         // Process image URL if it's a MinIO path
         let image = user.image;
 

@@ -23,5 +23,6 @@ import { VaultCryptographyService } from './vault-cryptography.service';
       },
     },
   ],
+  exports: [CryptographyService],
 })
 export class CryptographyModule {}
