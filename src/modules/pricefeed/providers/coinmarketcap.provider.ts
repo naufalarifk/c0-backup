@@ -122,6 +122,8 @@ export class CoinMarketCapProvider implements PriceFeedProvider {
 
     if (!this.apiKey) {
       this.logger.warn('CoinMarketCap API key not found in environment variables');
+    } else {
+      this.logger.log('CoinMarketCap API key configured successfully');
     }
 
     this.httpClient = axios.create({
@@ -169,6 +171,23 @@ export class CoinMarketCapProvider implements PriceFeedProvider {
         return Promise.reject(error);
       },
     );
+  }
+
+  /**
+   * Check if API key is configured
+   */
+  get hasApiKey(): boolean {
+    return !!this.apiKey;
+  }
+
+  /**
+   * Get masked API key for debugging (shows first 8 and last 4 characters)
+   */
+  get maskedApiKey(): string {
+    if (!this.apiKey) return 'NOT_CONFIGURED';
+    return this.apiKey.length > 12
+      ? `${this.apiKey.substring(0, 8)}...${this.apiKey.substring(this.apiKey.length - 4)}`
+      : this.apiKey.substring(0, 4) + '***';
   }
 
   /**
