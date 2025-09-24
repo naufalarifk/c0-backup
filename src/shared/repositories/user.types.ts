@@ -254,7 +254,10 @@ export type UserViewsProfileResult = {
   name?: string;
   email?: string;
   emailVerified: boolean;
+  emailVerifiedDate?: Date;
+  lastLoginDate?: Date;
   profilePicture?: string;
+  googleId?: string;
   role: 'System' | 'Admin' | 'User';
   twoFactorEnabled: boolean;
   createdAt?: Date;
@@ -424,4 +427,109 @@ export type TestCreatesInstitutionApplicationWithValidationResult = {
   id: string;
   applicantUserId: string;
   businessName: string;
+};
+
+// User preferences types
+export type UserGetPreferencesParams = {
+  userId: string;
+};
+
+export type UserGetPreferencesResult = {
+  id?: string;
+  userId: string;
+  notifications: {
+    email: {
+      enabled: boolean;
+      types: {
+        paymentAlerts: boolean;
+        systemNotifications: boolean;
+      };
+    };
+    push: {
+      enabled: boolean;
+      types: {
+        paymentAlerts: boolean;
+        systemNotifications: boolean;
+      };
+    };
+    sms: {
+      enabled: boolean;
+      types: {
+        paymentAlerts: boolean;
+        systemNotifications: boolean;
+      };
+    };
+  };
+  display: {
+    theme: 'light' | 'dark';
+    language: 'en' | 'id';
+    currency: 'USD' | 'IDR' | 'EUR' | 'BTC' | 'ETH';
+    timezone?: string;
+    dateFormat?: string;
+    numberFormat?: string;
+  };
+  privacy: {
+    profileVisibility: 'public' | 'private';
+    dataSharing: {
+      analytics: boolean;
+      thirdPartyIntegrations: boolean;
+      marketResearch?: boolean;
+    };
+    activityTracking?: boolean;
+  };
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
+export type UserUpdatePreferencesParams = {
+  userId: string;
+  preferences: {
+    notifications?: {
+      email?: {
+        enabled?: boolean;
+        types?: {
+          paymentAlerts?: boolean;
+          systemNotifications?: boolean;
+        };
+      };
+      push?: {
+        enabled?: boolean;
+        types?: {
+          paymentAlerts?: boolean;
+          systemNotifications?: boolean;
+        };
+      };
+      sms?: {
+        enabled?: boolean;
+        types?: {
+          paymentAlerts?: boolean;
+          systemNotifications?: boolean;
+        };
+      };
+    };
+    display?: {
+      theme?: string;
+      language?: string;
+      currency?: string;
+      timezone?: string;
+      dateFormat?: string;
+      numberFormat?: string;
+    };
+    privacy?: {
+      profileVisibility?: string;
+      dataSharing?: {
+        analytics?: boolean;
+        thirdPartyIntegrations?: boolean;
+        marketResearch?: boolean;
+      };
+      activityTracking?: boolean;
+    };
+  };
+  updateDate: Date;
+};
+
+export type UserUpdatePreferencesResult = {
+  id: string;
+  userId: string;
+  updatedAt: Date;
 };

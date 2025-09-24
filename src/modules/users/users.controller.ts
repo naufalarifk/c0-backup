@@ -1,20 +1,23 @@
 import type { UserViewsProfileResult } from '../../shared/types';
 import type { UserSession } from '../auth/types';
 
-import { Body, Controller, Get, HttpStatus, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { Session } from '../auth/auth.decorator';
 import { AuthGuard } from '../auth/auth.guard';
 import { CreateCredentialProviderDto } from './dto/create-credential-provider.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { SelectUserTypeDto } from './dto/select-user-type.dto';
 import { UsersService } from './users.service';
-
-type AuthSession = UserSession & {
-  user: {
-    role: UserViewsProfileResult['role'];
-  };
-};
 
 @Controller()
 @UseGuards(AuthGuard)
@@ -22,7 +25,8 @@ type AuthSession = UserSession & {
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Patch('type-selection')
+  @Post('type-selection')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Set account type',
     description:
@@ -30,7 +34,7 @@ export class UsersController {
     operationId: 'setUserType',
   })
   @ApiBody({
-    type: UpdateUserDto,
+    type: SelectUserTypeDto,
     description: 'Account type selection data',
   })
   @ApiResponse({
@@ -49,9 +53,13 @@ export class UsersController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Authentication required',
   })
-  selectUserType(@Session() session: AuthSession, @Body() selectUserTypeDto: UpdateUserDto) {
+  async selectUserType(
+    @Session() session: UserSession,
+    @Body() selectUserTypeDto: SelectUserTypeDto,
+  ) {
     const userId = session.user.id;
-    return this.usersService.setUserType(userId, selectUserTypeDto.userType!);
+    const result = await this.usersService.setUserType(userId, selectUserTypeDto.userType);
+    return result;
   }
 
   @Post('credential-provider')
@@ -88,5 +96,25 @@ export class UsersController {
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
   getProviderAccounts(@Session() session: UserSession) {
     return this.usersService.getProviderAccounts(session.user.id);
+  }
+
+  @Get('institutions')
+  @ApiOperation({
+    summary: 'Get user institution memberships',
+    description: "Retrieves the authenticated user's institution memberships",
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Institution memberships retrieved successfully',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Authentication required',
+  })
+  async getInstitutionMemberships(@Session() session: UserSession) {
+    // For now, return empty array for individual users
+    return {
+      memberships: [],
+    };
   }
 }

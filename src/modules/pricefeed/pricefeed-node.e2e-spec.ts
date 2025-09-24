@@ -6,10 +6,7 @@ import { ConfigService } from '@nestjs/config';
 
 import { config } from 'dotenv';
 
-import {
-  CoinMarketCapMetadata,
-  CoinMarketCapProvider,
-} from '../../../src/modules/pricefeed/providers/coinmarketcap.provider';
+import { CoinMarketCapMetadata, CoinMarketCapProvider } from './providers/coinmarketcap.provider';
 
 // Load environment variables from .env file
 config({ path: resolve(process.cwd(), '.env') });
@@ -166,7 +163,11 @@ describe('CoinMarketCap Provider E2E Tests', () => {
         { name: 'binancecoin', symbol: 'BNB', fiatSymbol: 'USD' },
       ];
 
-      const results = [];
+      const results: Array<{
+        symbol: string;
+        bidPrice: string;
+        askPrice: string;
+      }> = [];
 
       for (const currency of currencies) {
         try {
@@ -210,12 +211,20 @@ describe('CoinMarketCap Provider E2E Tests', () => {
     it('should handle API rate limits gracefully', { timeout: 20000 }, async () => {
       console.log('🔄 Testing API rate limit handling...');
 
-      const promises = [];
+      const promises: Array<
+        | {
+            index: number;
+            success: boolean;
+            bidPrice?: string;
+            error?: string;
+          }
+        | { error: string }
+      > = [];
       const testCount = 3; // Conservative number to avoid hitting rate limits
 
       for (let i = 0; i < testCount; i++) {
         promises.push(
-          coinMarketCapProvider
+          await coinMarketCapProvider
             .fetchExchangeRate({
               blockchainKey: 'bitcoin',
               baseCurrencyTokenId: 'BTC',
@@ -238,7 +247,7 @@ describe('CoinMarketCap Provider E2E Tests', () => {
       console.log('Concurrent request results:', results);
 
       // At least some requests should succeed
-      const successfulRequests = results.filter(r => r.success);
+      const successfulRequests = results.filter(r => ('success' in r ? r.success : false));
       assert.ok(successfulRequests.length > 0, 'At least some concurrent requests should succeed');
 
       console.log(`✅ ${successfulRequests.length}/${testCount} concurrent requests succeeded`);

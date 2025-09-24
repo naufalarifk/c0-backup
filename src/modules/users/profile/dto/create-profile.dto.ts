@@ -10,7 +10,7 @@ export class CreateProfileDto {
   })
   @IsOptional()
   @IsString()
-  @MaxLength(255, { message: 'Name must not exceed 255 characters' })
+  @MaxLength(160, { message: 'Name must not exceed 160 characters' })
   @Matches(/^[a-zA-Z\s.''-]+$/, {
     message: 'Name can only contain letters, spaces, apostrophes, periods, and hyphens',
   })

@@ -7,6 +7,7 @@
   - `--experimental-vm-modules` to enable ES module support in Node.js.
   refer to `package.json` for default test script.
 - Each test file run independent backend server instance described by `setup` function in `test/setup/setup.ts`.
+- Backend test runs compiled version of the code located in `dist` directory so make sure to `pnpm build` before running tests.
 
 ## Writing Tests
 - Tests are located in the `test/*.test.ts` directory.

@@ -14,10 +14,11 @@ export class UsersService {
     const user = await this.repo.userViewsProfile({ userId });
     ensureExists(user, 'User not found');
     ensurePrecondition(user.emailVerified, 'Email must be verified before setting user type');
-    ensureUnique(
-      user.userType === 'Undecided',
-      'User type has already been set with ' + user.userType,
-    );
+
+    // Check if user type has already been selected
+    if (user.userType !== 'Undecided') {
+      ensureUnique(false, 'User type already selected');
+    }
 
     const payload: UserDecidesUserTypeParams = {
       userId,
@@ -25,11 +26,26 @@ export class UsersService {
       decisionDate: new Date(),
     };
 
-    await this.repo.userDecidesUserType(payload);
+    try {
+      await this.repo.userDecidesUserType(payload);
+    } catch (error) {
+      // Fallback: If the repository method fails for any reason
+      // related to constraint violation, convert to conflict error
+      const errorMessage = error?.message || '';
+      if (
+        errorMessage.includes('decision failed') ||
+        errorMessage.includes('already made') ||
+        errorMessage.includes('constraint')
+      ) {
+        ensureUnique(false, 'User type already selected');
+      }
+      throw error;
+    }
 
-    return ResponseHelper.action('User type set', {
+    return {
       userType: payload.userType,
-    });
+      message: `${payload.userType} successfully selected`,
+    };
   }
 
   async addCredentialProvider(userId: string, password: string) {

@@ -235,7 +235,7 @@ export class AuthConfig {
 
   private rateLimit(): BetterAuthOptions['rateLimit'] {
     return {
-      enabled: true,
+      enabled: this.configService.isProduction,
       window: +this.configService.rateLimitConfigs.ttl,
       max: +this.configService.rateLimitConfigs.limit,
       customRules: this.configService.isProduction

@@ -17,7 +17,7 @@ export async function waitForEmail(mailpitApiUrl: string, receiver: string) {
   const maxRetries = 10;
   const retryDelay = 1000;
   attemptLoop: for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    console.debug(`Checking for email to ${receiver}, attempt ${attempt} of ${maxRetries}`);
+    // console.debug(`Checking for email to ${receiver}, attempt ${attempt} of ${maxRetries}`);
     const response = await fetch(`${mailpitApiUrl}/api/v1/message/latest`);
     if (response.status === 404) {
       await new Promise(resolve => setTimeout(resolve, retryDelay));
@@ -62,12 +62,12 @@ export async function waitForEmail(mailpitApiUrl: string, receiver: string) {
     assertPropArray(message, 'Attachments');
     for (const to of message.To) {
       if (to.Address.toLowerCase() === receiver.toLowerCase()) {
-        console.debug(`Email found for ${receiver} on attempt ${attempt}`);
+        // console.debug(`Email found for ${receiver} on attempt ${attempt}`);
         return message;
       }
     }
     if (attempt < maxRetries) {
-      console.debug(`Email not found for ${receiver}, retrying in ${retryDelay / 1000} seconds...`);
+      // console.debug(`Email not found for ${receiver}, retrying in ${retryDelay / 1000} seconds...`);
       await new Promise(res => setTimeout(res, retryDelay));
     } else {
       console.warn(`Max retries reached. Email to ${receiver} not found.`);
@@ -96,7 +96,7 @@ export async function waitForEmailVerification(mailpitApiUrl: string, receiver: 
 
   const emailVerificationRedirectLocation =
     verificationResponse.headers.get('location') ?? 'INVALID';
-  console.info('Verification Redirect Location:', emailVerificationRedirectLocation);
+  // console.debug('Verification Redirect Location:', emailVerificationRedirectLocation);
 
   ok(
     emailVerificationRedirectLocation !== 'INVALID',

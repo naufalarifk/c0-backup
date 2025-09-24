@@ -19,12 +19,12 @@ import { after, before, describe, it, suite } from './setup/test';
 suite('Better Auth', function () {
   let testId: string;
   let testSetup: Awaited<ReturnType<typeof setup>>;
-  let authClient: ReturnType<typeof setupBetterAuthClient>;
+  let authClient: ReturnType<typeof setupBetterAuthClient>['authClient'];
 
   before(async function () {
     testId = Date.now().toString(36).toLowerCase();
     testSetup = await setup();
-    authClient = setupBetterAuthClient(testSetup.backendUrl);
+    authClient = setupBetterAuthClient(testSetup.backendUrl).authClient;
   });
 
   after(async function () {

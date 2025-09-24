@@ -8,10 +8,7 @@ import { config } from 'dotenv';
 // Load environment variables from .env file
 config();
 
-import {
-  CoinMarketCapMetadata,
-  CoinMarketCapProvider,
-} from '../../../src/modules/pricefeed/providers/coinmarketcap.provider';
+import { CoinMarketCapMetadata, CoinMarketCapProvider } from './providers/coinmarketcap.provider';
 
 // Simple ConfigService implementation that reads from environment
 class SimpleConfigService {
@@ -264,11 +261,18 @@ describe('CoinMarketCap Provider E2E Tests', () => {
 
     it('should handle rate limiting appropriately', { timeout: 30000 }, async () => {
       // Test rapid requests to check rate limiting behavior
-      const requests = [];
+      const requests: Array<
+        | {
+            bidPrice?: string;
+            askPrice?: string;
+            error?: string;
+          }
+        | { error: string }
+      > = [];
 
       for (let i = 0; i < 3; i++) {
         requests.push(
-          coinMarketCapProvider
+          await coinMarketCapProvider
             .fetchExchangeRate({
               blockchainKey: 'bitcoin',
               baseCurrencyTokenId: 'BTC',

@@ -200,7 +200,7 @@ paths:
                     canResubmit: true
 
   # Institution Management
-  /institutions:
+  /institution-applications:
     post:
       tags: [Institution Verification]
       summary: Apply for institution account
@@ -355,18 +355,11 @@ paths:
         '409':
           $ref: '#/components/responses/BusinessNameExists'
 
-  /institutions/{id}/status:
+  /institution-applications/status:
     get:
       tags: [Institution Verification]
       summary: Get application status
-      description: Retrieves current status and progress of institution application
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      description: Retrieves current status and progress of authenticated user's institution application
       responses:
         '200':
           description: Application status retrieved successfully
