@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
-import { assertDefined, assertPropNullableString } from 'test/setup/assertions.js';
-
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { FileValidatorService } from '../../../shared/services/file-validator.service';
 import { MinioService } from '../../../shared/services/minio.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { File } from '../../../shared/types';
+import { assertDefined, assertPropNullableString } from '../../../shared/utils/assertions.js';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
