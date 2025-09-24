@@ -47,7 +47,7 @@ paths:
                 value:
                   userType: Institution
       responses:
-        200:
+        '200':
           description: User type selected successfully
           content:
             application/json:
@@ -70,9 +70,9 @@ paths:
                   value:
                     userType: Institution
                     message: User type Institution successfully selected
-        400:
+        '400':
           $ref: '#/components/responses/ValidationError'
-        409:
+        '409':
           description: User type already selected
           content:
             application/json:
@@ -98,7 +98,7 @@ paths:
       summary: Get user profile
       description: Retrieves user profile information and available actions
       responses:
-        200:
+        '200':
           description: Profile retrieved successfully
           content:
             application/json:
@@ -122,6 +122,8 @@ paths:
                       userType: Individual
                       kycId: 567
                       kycStatus: verified
+                      isVerified: true
+                      phoneVerified: true
                       institutionId: null
                       institutionRole: null
                       twoFaEnabled: false
@@ -160,12 +162,32 @@ paths:
                       userType: null
                       kycId: null
                       kycStatus: none
+                      isVerified: false
+                      verificationLevel: unverified
+                      phoneVerified: false
+                      featureUnlockStatus:
+                        tradingEnabled: false
+                        withdrawalEnabled: false
+                        loanBorrowingEnabled: false
+                        loanLendingEnabled: false
+                        institutionalFeaturesEnabled: false
+                      requiredVerifications:
+                        - type: phone
+                          title: "Complete your verification to unlock features"
+                          description: "Complete phone verification to unlock all platform features"
+                          actionText: "Verify Now"
+                          priority: high
+                        - type: kyc
+                          title: "Complete your verification to unlock features"
+                          description: "Complete KYC verification to access trading and lending features"
+                          actionText: "Verify Now"
+                          priority: critical
                       institutionId: null
                       institutionRole: null
                       twoFaEnabled: false
                       createdDate: 2024-03-14T12:00:00Z
                       lastLoginDate: 2024-03-15T09:30:00Z
-        401:
+        '401':
           $ref: '#/components/responses/Unauthorized'
 
     put:
@@ -197,7 +219,7 @@ paths:
                   name: John Michael Doe
                   profilePicture: [Binary image data]
       responses:
-        200:
+        '200':
           description: Profile updated successfully
           content:
             application/json:
@@ -228,9 +250,9 @@ paths:
                       name: John Michael Doe
                       profilePictureUrl: https://storage.cryptogadai.com/profiles/12345_new.jpg
                     message: Profile updated successfully
-        400:
+        '400':
           $ref: '#/components/responses/ValidationError'
-        413:
+        '413':
           $ref: '#/components/responses/FileTooLarge'
 
   /users/preferences:
@@ -246,7 +268,7 @@ paths:
         - Display: Theme, language, and currency display settings
         - Privacy: Profile visibility and data sharing preferences
       responses:
-        200:
+        '200':
           description: User preferences retrieved successfully
           content:
             application/json:
@@ -335,10 +357,8 @@ paths:
                           thirdPartyIntegrations: true
                           marketResearch: true
                         activityTracking: true
-        401:
+        '401':
           $ref: '#/components/responses/Unauthorized'
-        500:
-          $ref: '#/components/responses/InternalServerError'
 
     put:
       tags: [User Profile]
@@ -409,7 +429,7 @@ paths:
                       analytics: true
                       thirdPartyIntegrations: false
       responses:
-        200:
+        '200':
           description: User preferences updated successfully
           content:
             application/json:
@@ -457,7 +477,7 @@ paths:
                           thirdPartyIntegrations: false
                           marketResearch: false
                         activityTracking: true
-        400:
+        '400':
           description: Validation error in preferences data
           content:
             application/json:
@@ -478,10 +498,8 @@ paths:
                     error:
                       code: "VALIDATION_ERROR"
                       message: "Unsupported language code. Supported languages: en, es, fr, de, it"
-        401:
+        '401':
           $ref: '#/components/responses/Unauthorized'
-        500:
-          $ref: '#/components/responses/InternalServerError'
 
   # KYC Management
   /users/kyc/submit:
@@ -570,7 +588,7 @@ paths:
                   idCardPhoto: [Binary image data - ID card]
                   selfieWithIdCardPhoto: [Binary image data - Selfie with ID]
       responses:
-        201:
+        '201':
           description: KYC submitted successfully
           content:
             application/json:
@@ -593,9 +611,9 @@ paths:
                       rejectedDate: null
                       rejectionReason: null
                     message: KYC documents submitted successfully and are under review
-        400:
+        '400':
           $ref: '#/components/responses/ValidationError'
-        409:
+        '409':
           $ref: '#/components/responses/DuplicateNIK'
 
   /users/kyc/status:
@@ -604,7 +622,7 @@ paths:
       summary: Get KYC status
       description: Retrieves current KYC verification status
       responses:
-        200:
+        '200':
           description: KYC status retrieved
           content:
             application/json:
@@ -793,7 +811,7 @@ paths:
                   ministryApprovalDocument: [Binary PDF - Ministry approval]
                   businessLicense: [Binary PDF - Trading license]
       responses:
-        201:
+        '201':
           description: Application submitted successfully
           content:
             application/json:
@@ -814,10 +832,286 @@ paths:
                       submittedDate: 2024-03-15T14:30:00Z
                       status: Submitted
                     message: Institution application submitted successfully and is under review
-        400:
+        '400':
           $ref: '#/components/responses/ValidationError'
-        409:
+        '409':
           $ref: '#/components/responses/BusinessNameExists'
+
+  /institutions/{id}:
+    get:
+      tags: [Institution Management]
+      summary: Get institution details
+      description: Retrieves detailed information about an institution including verification status and member count
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 98765
+      responses:
+        '200':
+          description: Institution details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  institution:
+                    $ref: '#/components/schemas/Institution'
+              examples:
+                verified_institution:
+                  summary: Verified institution with members
+                  value:
+                    institution:
+                      id: 98765
+                      name: PT Teknologi Nusantara
+                      type: PT
+                      verificationStatus: Verified
+                      memberCount: 5
+                      activeSince: 2024-01-20T10:00:00Z
+                      registrationDetails:
+                        npwpNumber: 01.234.567.8-901.000
+                        registrationNumber: 8120202123456
+                        businessType: PT
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+
+  /institutions/{id}/members:
+    get:
+      tags: [Institution Management]
+      summary: List institution members
+      description: Retrieves list of current institution members with their roles and verification status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 98765
+      responses:
+        '200':
+          description: Institution members retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  members:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InstitutionMember'
+                  memberCount:
+                    type: integer
+                    description: Total count of active members
+              examples:
+                institution_members:
+                  summary: List of institution members
+                  value:
+                    members:
+                      - id: mem_001
+                        userId: 98765
+                        institutionId: 98765
+                        role: Owner
+                        verificationStatus: Verified
+                        joinedAt: 2024-01-20T10:00:00Z
+                        invitedBy: null
+                        user:
+                          id: 98765
+                          name: Jane Smith
+                          email: ceo@techcorp.com
+                          profilePictureUrl: https://storage.cryptogadai.com/profiles/98765.jpg
+                      - id: mem_002
+                        userId: 12346
+                        institutionId: 98765
+                        role: Finance
+                        verificationStatus: Verified
+                        joinedAt: 2024-02-15T14:30:00Z
+                        invitedBy: 98765
+                        user:
+                          id: 12346
+                          name: John Doe
+                          email: finance@techcorp.com
+                          profilePictureUrl: https://storage.cryptogadai.com/profiles/12346.jpg
+                    memberCount: 2
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+
+  /institutions/{id}/members/{userId}:
+    delete:
+      tags: [Institution Management]
+      summary: Remove institution member
+      description: Removes a member from the institution (Owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 98765
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 12346
+      responses:
+        '200':
+          description: Member removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  removedMember:
+                    type: object
+                    properties:
+                      userId:
+                        type: integer
+                        format: int64
+                      userName:
+                        type: string
+                      role:
+                        type: string
+              examples:
+                member_removed:
+                  summary: Finance member removed successfully
+                  value:
+                    message: Member removed from institution successfully
+                    removedMember:
+                      userId: 12346
+                      userName: John Doe
+                      role: Finance
+        '400':
+          description: Cannot remove institution owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                cannot_remove_owner:
+                  summary: Cannot remove institution owner
+                  value:
+                    success: false
+                    error:
+                      code: CANNOT_REMOVE_OWNER
+                      message: Institution owner cannot be removed
+                    timestamp: 2024-03-15T10:30:00Z
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+
+  /institutions/{id}/invitations:
+    get:
+      tags: [Institution Management]
+      summary: List pending invitations
+      description: Retrieves list of pending invitations for the institution
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 98765
+      responses:
+        '200':
+          description: Pending invitations retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invitations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InstitutionInvitationDetails'
+              examples:
+                pending_invitations:
+                  summary: List of pending invitations
+                  value:
+                    invitations:
+                      - id: 123
+                        userEmail: finance.manager@example.com
+                        role: Finance
+                        invitedDate: 2024-03-15T16:30:00Z
+                        expiresAt: 2024-03-22T16:30:00Z
+                        status: Sent
+                        invitedBy:
+                          id: 98765
+                          name: Jane Smith
+                      - id: 124
+                        userEmail: analyst@example.com
+                        role: Finance
+                        invitedDate: 2024-03-14T10:00:00Z
+                        expiresAt: 2024-03-21T10:00:00Z
+                        status: Sent
+                        invitedBy:
+                          id: 98765
+                          name: Jane Smith
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+
+  /institutions/{id}/status:
+    get:
+      tags: [Institution Management]
+      summary: Get application status
+      description: Retrieves current status and progress of institution application
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Application status retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  application:
+                    $ref: '#/components/schemas/InstitutionApplication'
+                  progress:
+                    type: object
+                    properties:
+                      currentStep:
+                        type: integer
+                      totalSteps:
+                        type: integer
+                      completedSteps:
+                        type: array
+                        items:
+                          type: string
+                      nextAction:
+                        type: string
+                  documents:
+                    type: object
+                    properties:
+                      uploaded:
+                        type: integer
+                      required:
+                        type: integer
+                      status:
+                        type: string
+                        enum: [incomplete, complete, under_review]
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /institutions/invitations:
     post:
@@ -854,7 +1148,7 @@ paths:
                   userEmail: john.doe@example.com
                   role: Finance
       responses:
-        201:
+        '201':
           description: Invitation created
           content:
             application/json:
@@ -872,10 +1166,215 @@ paths:
                       userEmail: finance.manager@example.com
                       role: Finance
                       invitedDate: 2024-03-15T16:30:00Z
-        400:
+        '400':
           $ref: '#/components/responses/UserNotFound'
-        409:
+        '409':
           $ref: '#/components/responses/UserAlreadyMember'
+
+  /institutions/invitations/{id}/resend:
+    post:
+      tags: [Institution Management]
+      summary: Resend institution invitation
+      description: Resends an existing pending invitation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 123
+      responses:
+        '200':
+          description: Invitation resent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invitation:
+                    $ref: '#/components/schemas/InstitutionInvitation'
+                  message:
+                    type: string
+              examples:
+                invitation_resent:
+                  summary: Invitation resent successfully
+                  value:
+                    invitation:
+                      id: 123
+                      userEmail: finance.manager@example.com
+                      role: Finance
+                      invitedDate: 2024-03-15T16:30:00Z
+                    message: Invitation resent successfully
+        '400':
+          description: Cannot resend invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invitation_already_responded:
+                  summary: Invitation already responded to
+                  value:
+                    success: false
+                    error:
+                      code: INVITATION_ALREADY_RESPONDED
+                      message: Cannot resend invitation that has already been accepted or rejected
+                    timestamp: 2024-03-15T10:30:00Z
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+
+  /institutions/invitations/{id}:
+    delete:
+      tags: [Institution Management]
+      summary: Cancel pending invitation
+      description: Cancels a pending invitation (Owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 123
+      responses:
+        '200':
+          description: Invitation cancelled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              examples:
+                invitation_cancelled:
+                  summary: Invitation cancelled successfully
+                  value:
+                    message: Invitation cancelled successfully
+        '400':
+          description: Cannot cancel invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invitation_already_responded:
+                  summary: Invitation already responded to
+                  value:
+                    success: false
+                    error:
+                      code: INVITATION_ALREADY_RESPONDED
+                      message: Cannot cancel invitation that has already been accepted or rejected
+                    timestamp: 2024-03-15T10:30:00Z
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+
+    get:
+      tags: [Institution Management]
+      summary: Get invitation details
+      description: Retrieves detailed information about an invitation for review
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 123
+      responses:
+        '200':
+          description: Invitation details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invitation:
+                    $ref: '#/components/schemas/InstitutionInvitationDetails'
+              examples:
+                invitation_details:
+                  summary: Detailed invitation information
+                  value:
+                    invitation:
+                      id: 123
+                      userEmail: finance.manager@example.com
+                      role: Finance
+                      invitedDate: 2024-03-15T16:30:00Z
+                      expiresAt: 2024-03-22T16:30:00Z
+                      message: We would like to invite you to join our institution as Finance member.
+                      institution:
+                        id: 98765
+                        name: PT Teknologi Nusantara
+                        type: PT
+                        verificationStatus: Verified
+                        memberCount: 5
+                        activeSince: 2024-01-20T10:00:00Z
+                      rolePermissions:
+                        - manage_finance_accounts
+                        - view_loan_applications
+                        - process_withdrawals
+                      roleRestrictions:
+                        - cannot_invite_members
+                        - cannot_remove_members
+                        - cannot_access_admin_settings
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /user/institutions:
+    get:
+      tags: [User Profile]
+      summary: Get user's institution memberships
+      description: Retrieves user's current institution membership and role information
+      responses:
+        '200':
+          description: User institution memberships retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  memberships:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        institution:
+                          $ref: '#/components/schemas/Institution'
+                        role:
+                          type: string
+                          enum: [Owner, Finance]
+                        joinedAt:
+                          type: string
+                          format: date-time
+                        verificationStatus:
+                          type: string
+                          enum: [Verified, Pending, Unverified]
+              examples:
+                institution_owner:
+                  summary: User is institution owner
+                  value:
+                    memberships:
+                      - institution:
+                          id: 98765
+                          name: PT Teknologi Nusantara
+                          type: PT
+                          verificationStatus: Verified
+                          memberCount: 5
+                          activeSince: 2024-01-20T10:00:00Z
+                        role: Owner
+                        joinedAt: 2024-01-20T10:00:00Z
+                        verificationStatus: Verified
+                individual_user:
+                  summary: Individual user with no institution
+                  value:
+                    memberships: []
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /institutions/invitations/{id}/accept:
     post:
@@ -891,7 +1390,7 @@ paths:
             format: int64
           example: 123
       responses:
-        200:
+        '200':
           description: Invitation accepted
           content:
             application/json:
@@ -919,7 +1418,7 @@ paths:
                       businessName: PT Teknologi Nusantara
                       role: Finance
                     message: You have successfully joined PT Teknologi Nusantara as Finance member
-        400:
+        '400':
           $ref: '#/components/responses/InvitationExpired'
 
   # Notification Management
@@ -1013,7 +1512,7 @@ paths:
             default: false
           example: true
       responses:
-        200:
+        '200':
           description: Notifications retrieved successfully
           content:
             application/json:
@@ -1079,7 +1578,7 @@ paths:
                       hasNext: true
                       hasPrev: false
                     unreadCount: 12
-        401:
+        '401':
           $ref: '#/components/responses/Unauthorized'
 
   /notifications/{id}/read:
@@ -1096,7 +1595,7 @@ paths:
             format: int64
           example: 456
       responses:
-        200:
+        '200':
           description: Notification marked as read
           content:
             application/json:
@@ -1111,7 +1610,7 @@ paths:
                   summary: Notification marked as read
                   value:
                     message: Notification marked as read
-        404:
+        '404':
           $ref: '#/components/responses/NotFound'
 
   /notifications/mark-all-read:
@@ -1120,7 +1619,7 @@ paths:
       summary: Mark all notifications as read
       description: Mark all unread notifications as read for authenticated user
       responses:
-        200:
+        '200':
           description: All notifications marked as read
           content:
             application/json:
@@ -1144,6 +1643,62 @@ paths:
                   value:
                     message: All notifications marked as read
                     updatedCount: 0
+
+  /notifications/{id}/archive:
+    patch:
+      tags: [Notifications]
+      summary: Archive notification
+      description: |
+        Archive a specific notification. Addresses audit discrepancy D05 by providing notification archiving functionality.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 456
+      responses:
+        '200':
+          description: Notification archived successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Notification archived successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notifications/{id}/delete:
+    delete:
+      tags: [Notifications]
+      summary: Delete notification
+      description: |
+        Delete a specific notification permanently. Addresses audit discrepancy D05 by providing notification deletion functionality.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 456
+      responses:
+        '200':
+          description: Notification deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Notification deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /institutions/invitations/{id}/reject:
     post:
@@ -1177,7 +1732,7 @@ paths:
                 summary: Reject without reason
                 value: {}
       responses:
-        200:
+        '200':
           description: Invitation rejected
           content:
             application/json:
@@ -1245,6 +1800,42 @@ components:
           type: string
           enum: [none, pending, verified, rejected]
           description: Current KYC status
+        isVerified:
+          type: boolean
+          description: Overall verification status for display badges (computed from KYC and institution status)
+        verificationLevel:
+          type: string
+          enum: [verified, unverified, pending, rejected]
+          description: Standardized verification level for UI badges
+        phoneVerified:
+          type: boolean
+          description: Phone number verification status (addresses audit discrepancy D03)
+        requiredVerifications:
+          type: array
+          description: List of verifications still required (addresses audit discrepancy D03)
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [email, phone, kyc, institution]
+                description: Type of verification required
+              title:
+                type: string
+                description: Display title for verification requirement
+                example: "Complete your verification to unlock features"
+              description:
+                type: string
+                description: Detailed description of what needs to be verified
+                example: "Complete phone verification to unlock all platform features"
+              actionText:
+                type: string
+                description: Text for action button
+                example: "Verify Now"
+              priority:
+                type: string
+                enum: [low, medium, high, critical]
+                description: Priority level of this verification
         institutionId:
           type: integer
           format: int64
@@ -1489,11 +2080,78 @@ components:
         id:
           type: integer
           format: int64
-        businessName:
+        name:
           type: string
-        verifiedDate:
+          description: Business name of the institution
+        type:
+          type: string
+          description: Business type (e.g., PT, CV, UD)
+        verificationStatus:
+          type: string
+          enum: [Verified, Pending, Unverified]
+          description: Current verification status
+        memberCount:
+          type: integer
+          description: Number of active members
+          minimum: 0
+        activeSince:
           type: string
           format: date-time
+          description: Date when institution was approved/activated
+        registrationDetails:
+          type: object
+          properties:
+            npwpNumber:
+              type: string
+              description: NPWP tax identification number
+            registrationNumber:
+              type: string
+              description: Business registration number (NIB/TDP)
+            businessType:
+              type: string
+              description: Legal business entity type
+
+    InstitutionMember:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique member identifier
+        userId:
+          type: integer
+          format: int64
+          description: User ID of the member
+        institutionId:
+          type: integer
+          format: int64
+          description: Institution ID
+        role:
+          type: string
+          enum: [Owner, Finance]
+          description: Member role within the institution
+        verificationStatus:
+          type: string
+          enum: [Verified, Pending, Unverified]
+          description: Member verification status
+        joinedAt:
+          type: string
+          format: date-time
+          description: Date when user joined the institution
+        invitedBy:
+          type: integer
+          format: int64
+          nullable: true
+          description: User ID who invited this member (null for owners)
+        user:
+          $ref: '#/components/schemas/UserProfile'
+      required:
+        - id
+        - userId
+        - institutionId
+        - role
+        - verificationStatus
+        - joinedAt
+        - user
 
     InstitutionInvitation:
       type: object
@@ -1510,6 +2168,53 @@ components:
         invitedDate:
           type: string
           format: date-time
+
+    InstitutionInvitationDetails:
+      allOf:
+        - $ref: '#/components/schemas/InstitutionInvitation'
+        - type: object
+          properties:
+            status:
+              type: string
+              enum: [Sent, Accepted, Rejected, Expired]
+              description: Current invitation status
+            expiresAt:
+              type: string
+              format: date-time
+              description: When the invitation expires
+            message:
+              type: string
+              nullable: true
+              description: Optional invitation message
+            institution:
+              $ref: '#/components/schemas/Institution'
+            rolePermissions:
+              type: array
+              items:
+                type: string
+              description: List of permissions for the invited role
+              example:
+                - manage_finance_accounts
+                - view_loan_applications
+                - process_withdrawals
+            roleRestrictions:
+              type: array
+              items:
+                type: string
+              description: List of restrictions for the invited role
+              example:
+                - cannot_invite_members
+                - cannot_remove_members
+                - cannot_access_admin_settings
+            invitedBy:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  format: int64
+                name:
+                  type: string
+              description: User who sent the invitation
 
     NotificationsResponse:
       type: object

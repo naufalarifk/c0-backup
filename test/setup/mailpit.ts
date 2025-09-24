@@ -15,7 +15,7 @@ import {
 
 export async function waitForEmail(mailpitApiUrl: string, receiver: string) {
   const maxRetries = 10;
-  const retryDelay = 3000;
+  const retryDelay = 1000;
   attemptLoop: for (let attempt = 1; attempt <= maxRetries; attempt++) {
     console.debug(`Checking for email to ${receiver}, attempt ${attempt} of ${maxRetries}`);
     const response = await fetch(`${mailpitApiUrl}/api/v1/message/latest`);
@@ -110,7 +110,7 @@ export async function waitForEmailVerification(mailpitApiUrl: string, receiver: 
 
 export async function waitForPasswordResetEmail(mailpitApiUrl: string, receiver: string) {
   const maxRetries = 10;
-  const retryDelay = 3000;
+  const retryDelay = 1000; // we are interacting with local mailpit, it does not make sense to wait too long
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     console.debug(

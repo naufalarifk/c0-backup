@@ -337,7 +337,8 @@ paths:
       tags: [Loan Applications]
       summary: Calculate loan application requirements
       description: |
-        Calculate required collateral amount and generate preview for loan application
+        Calculate required collateral amount and generate preview for loan application.
+        Requires authenticated user with valid KYC status.
       requestBody:
         required: true
         content:
@@ -421,6 +422,7 @@ paths:
       summary: Create loan application
       description: |
         Create a new loan application. Requires collateral deposit to be published.
+        Requires authenticated user with valid KYC status and user type validation.
       requestBody:
         required: true
         content:
@@ -802,42 +804,70 @@ components:
         principalBlockchainKey:
           type: string
           description: Blockchain key for principal currency
-          example: "eip155:1"
+          example: "eip155:56"
           maxLength: 64
         principalTokenId:
           type: string
           description: Token ID for principal currency
-          example: "erc20:0xdac17f958d2ee523a2206206994597c13d831ec7"
+          example: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
           maxLength: 64
         totalAmount:
           type: string
           description: Total loan offer amount (18 decimal precision)
-          pattern: '^\d+\.\d{18}$'
+          pattern: '^[0-9]+(\.[0-9]{1,18})?$'
+          example: "10000.000000000000000000"
         interestRate:
           type: number
           description: Annual interest rate (percentage)
-          minimum: 0
-          maximum: 100
+          minimum: 0.1
+          maximum: 50.0
+          example: 12.5
         termOptions:
           type: array
           items:
             type: integer
             enum: [1, 3, 6, 12]
+          minItems: 1
+          description: Available loan term options in months
+          example: [3, 6]
         minLoanAmount:
           type: string
-          description: Minimum loan amount (decimal places depending on principal currency)
-          pattern: '^\d+\.\d{18}$'
+          description: Minimum loan amount per borrower
+          pattern: '^[0-9]+(\.[0-9]{1,18})?$'
+          example: "1000.000000000000000000"
         maxLoanAmount:
           type: string
-          description: Maximum loan amount (decimal places depending on principal currency)
-          pattern: '^\d+\.\d{18}$'
+          description: Maximum loan amount per borrower
+          pattern: '^[0-9]+(\.[0-9]{1,18})?$'
+          example: "10000.000000000000000000"
         liquidationMode:
           type: string
           enum: [Partial, Full]
+          description: Liquidation mode preference for borrowers
+          example: "Partial"
         expirationDate:
           type: string
           format: date-time
-          description: Optional expiration date for the offer
+          description: When this loan offer expires
+          example: "2025-12-31T23:59:59Z"
+        acceptedCollateral:
+          type: array
+          items:
+            type: string
+            enum: [BTC, ETH, BNB, SOL]
+          minItems: 1
+          description: Accepted collateral types (per SRS requirements)
+          example: ["BTC", "ETH"]
+        fundingDeadline:
+          type: string
+          format: date-time
+          description: Deadline for funding this loan offer
+          example: "2025-10-01T23:59:59Z"
+        termsAcceptanceTimestamp:
+          type: string
+          format: date-time
+          description: When the lender accepted legal terms (for compliance)
+          example: "2025-09-23T10:30:00Z"
 
     UpdateLoanOfferRequest:
       type: object
@@ -912,6 +942,10 @@ components:
         - principalTokenId
         - principalAmount
       properties:
+        loanTerm:
+          type: integer
+          enum: [1, 3, 6]
+          description: "Loan term in months"
         collateralBlockchainKey:
           type: string
           description: Blockchain key for collateral
@@ -932,9 +966,6 @@ components:
           description: Token ID for principal currency
           example: "erc20:0xdac17f958d2ee523a2206206994597c13d831ec7"
           maxLength: 64
-        principalAmount:
-          type: string
-          pattern: '^\d+\.\d{18}$'
 
     LoanCalculationResponse:
       type: object
@@ -944,6 +975,37 @@ components:
         data:
           type: object
           properties:
+            collateralAmount:
+              type: number
+              format: double
+              description: "Required collateral amount (auto-calculated)"
+            collateralCurrency:
+              $ref: '#/components/schemas/Currency'
+            ltvRatio:
+              type: number
+              format: double
+            loanTerm:
+              type: integer
+            interestRate:
+              type: number
+              format: double
+              description: "Annual interest rate as decimal"
+            originationFee:
+              type: number
+              format: double
+              description: "Origination fee amount (3% of loan)"
+            totalRepaymentAmount:
+              type: number
+              format: double
+              description: "Total amount to be repaid (loan + interest + fees)"
+            liquidationThreshold:
+              type: number
+              format: double
+              description: "Collateral value threshold for liquidation"
+            estimatedLiquidationPrice:
+              type: number
+              format: double
+              description: "Estimated collateral price that triggers liquidation"
             requiredCollateralAmount:
               type: string
               description: Amount of collateral required (with safety buffer)
@@ -961,12 +1023,6 @@ components:
               description: Maximum LTV ratio for this collateral type
               minimum: 0
               maximum: 1
-            # TODO
-            # safetyBuffer:
-            #   type: number
-            #   description: Safety buffer percentage (typically 20%)
-            #   minimum: 0
-            #   maximum: 1
             calculationDetails:
               type: object
               properties:
@@ -1068,6 +1124,7 @@ components:
         principalAmount:
           type: string
           pattern: '^\\d+\\.\\d{18}$'
+          description: "Principal amount in USDT, min $100, max $10,000"
         maxInterestRate:
           type: number
           minimum: 0
@@ -1309,28 +1366,73 @@ components:
           properties:
             code:
               type: string
-              description: Error code
+              description: Standardized error code for client handling
+              enum:
+                - VALIDATION_ERROR
+                - INSUFFICIENT_FUNDS
+                - RATE_LIMIT_EXCEEDED
+                - AUTHENTICATION_REQUIRED
+                - PERMISSION_DENIED
+                - RESOURCE_NOT_FOUND
+                - BUSINESS_RULE_VIOLATION
+                - EXTERNAL_SERVICE_ERROR
+                - SYSTEM_MAINTENANCE
+                - DRAFT_ALREADY_EXISTS
+                - INVALID_LOAN_STATE
+                - PAYMENT_PROCESSING_ERROR
+                - LEGAL_AGREEMENT_REQUIRED
+                - KYC_VERIFICATION_REQUIRED
+                - COLLATERAL_INSUFFICIENT
+                - INTEREST_RATE_INVALID
+                - TERM_NOT_SUPPORTED
+                - CURRENCY_NOT_SUPPORTED
+                - AMOUNT_OUT_OF_BOUNDS
+                - USER_ELIGIBILITY_FAILED
               example: "VALIDATION_ERROR"
             message:
               type: string
-              description: Human-readable error message
+              description: Human-readable error message for display
               example: "Request validation failed"
             details:
               type: object
-              description: Additional error details
+              description: Additional structured error details
               additionalProperties: true
+              example:
+                field: "interestRate"
+                value: "75.5"
+                constraint: "Maximum interest rate is 50%"
+            userAction:
+              type: string
+              description: Suggested action for the user to resolve the error
+              example: "Please enter an interest rate between 0.1% and 50%"
+            retryable:
+              type: boolean
+              description: Whether the client should retry this request
+              example: false
         timestamp:
           type: string
           format: date-time
-          example: "2025-08-13T15:30:00Z"
+          description: Timestamp when error occurred
+          example: "2025-09-23T15:30:00Z"
         requestId:
           type: string
           format: uuid
-          description: Request ID for tracking
+          description: Unique request ID for tracking and support
+          example: "req_12345_abc-def-789"
+        path:
+          type: string
+          description: API endpoint path where error occurred
+          example: "/loan-offers"
+        method:
+          type: string
+          description: HTTP method used
+          enum: [GET, POST, PUT, PATCH, DELETE]
+          example: "POST"
       required:
         - success
         - error
         - timestamp
+        - requestId
 
   responses:
     ValidationError:

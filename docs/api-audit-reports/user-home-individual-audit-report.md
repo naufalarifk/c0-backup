@@ -1,8 +1,9 @@
-# API Audit Report: Individual User Home Interface
+# User Home Individual - API Audit Report
 
-**Audit Date**: 2025-09-22
+**Audit Date**: 2025-09-23
+**Scope**: Individual user home interface UI vs API documentation alignment
 **Source of Truth**: `docs/ui-descriptions/user-home-individual.md`
-**Audited APIs**:
+**API Documentation Reviewed**:
 - `docs/api-plan/better-auth.yaml`
 - `docs/api-plan/user-openapi.yaml`
 - `docs/api-plan/finance-openapi.yaml`
@@ -11,335 +12,195 @@
 
 ## Executive Summary
 
-This audit compares the Individual User Home UI requirements against existing API documentation to identify gaps and discrepancies. The UI description serves as the source of truth for required functionality.
+This audit identifies **15 critical discrepancies** between the individual user home interface requirements and the current API documentation. The main gaps involve portfolio analytics, payment alerts, loan tracking, news management, and comprehensive notification systems.
 
-### Key Findings
-- **Critical Gaps**: 5 major API endpoint categories missing
-- **Coverage Level**: ~60% of UI requirements covered by existing APIs
-- **Priority Issues**: Portfolio aggregation, payment alerts, and system status endpoints
+## Discrepancies Found
 
-## Detailed Analysis
+### D01: Portfolio Analytics and Financial Overview Missing
 
-### 1. Authentication & Session Management  **COMPLETE**
+**Severity**: HIGH
+**Description**: The UI displays comprehensive portfolio analytics that are not supported by any API endpoint.
 
-**UI Requirement**: User authentication with session persistence and logout functionality.
+**UI Requirements**:
+- Portfolio total value: "127,856.43 USDT" with lock icon
+- Interest growth: "+17.98% USDT" in green
+- Active loans count: "125"
+- Date-specific portfolio data: "July 2025"
 
-**API Coverage**: Fully supported via Better Auth API
-- `/auth/sign-in/email` - Email authentication
-- `/auth/sign-out` - Session termination
-- `/auth/session` - Session validation
-- Social sign-in options (Google OAuth)
+**API Gap**: No portfolio analytics endpoint exists to provide:
+- Total portfolio valuation across all assets
+- Portfolio performance metrics (interest/gains)
+- Active loan count aggregation
+- Historical portfolio data by date
 
-**Status**:  No gaps identified
-
-### 2. User Profile & KYC Status  **COMPLETE**
-
-**UI Requirement**: Display user information, verification status, and KYC workflow integration.
-
-**API Coverage**: Comprehensive support via User API
-- `/users/profile` - User profile data
-- `/users/kyc/status` - KYC verification status
-- `/users/kyc/documents` - Document upload/management
-- `/users/notifications` - Notification system
-
-**Status**:  No gaps identified
-
-### 3. Portfolio Overview L **CRITICAL GAP**
-
-**UI Requirement**:
-- Total portfolio value display
-- Asset allocation breakdown
-- Performance metrics and trends
-- Real-time balance updates
-
-**API Coverage**: Partial support only
--  `/finance/accounts/balances` - Individual account balances
--  `/finance/currencies` - Supported currencies
-- L **Missing**: Portfolio aggregation endpoint
-- L **Missing**: Asset allocation calculation
-- L **Missing**: Performance metrics API
-- L **Missing**: Historical portfolio value trends
-
-**Recommended Implementation**:
-```yaml
-/finance/portfolio/overview:
-  get:
-    summary: Get portfolio overview
-    responses:
-      200:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                totalValue:
-                  type: number
-                  description: Total portfolio value in USD
-                assetAllocation:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      currency: string
-                      value: number
-                      percentage: number
-                performance:
-                  type: object
-                  properties:
-                    daily: number
-                    weekly: number
-                    monthly: number
-                lastUpdated:
-                  type: string
-                  format: date-time
+**Example Scenario**:
+```
+UI displays: "My Portfolio - July 2025: 127,856.43 USDT, +17.98% USDT, 125 Active Loans"
+API Reality: No endpoint to calculate or retrieve this aggregated portfolio data
 ```
 
-### 4. Active Loans Dashboard  **COMPLETE**
+**Required API Addition**:
+- `GET /portfolio/analytics` endpoint with portfolio breakdown, performance metrics, and loan summaries
 
-**UI Requirement**: Display active loans, LTV ratios, and loan management options.
+### D02: Payment Due Alerts System Missing
 
-**API Coverage**: Well supported
-- `/loans/active` - Active loan listings
-- `/loans/{id}/ltv` - LTV monitoring
-- `/loans/{id}/repayment-schedule` - Payment schedules
-- `/loan-offers` - Available loan offers
+**Severity**: CRITICAL
+**Description**: The UI shows urgent payment alerts that require specific loan payment tracking not available in APIs.
 
-**Status**:  No gaps identified
+**UI Requirements**:
+- "Payment due in 3 days" alert
+- Specific payment amount: "10,000 USDT"
+- Collateral at risk: "5 ETH Collateral"
+- Automatic liquidation warning
+- "Repay Now" action button
 
-### 5. Payment Alerts & Notifications L **MAJOR GAP**
+**API Gap**: Current loan APIs don't provide:
+- Payment due date calculations
+- Payment amount breakdowns
+- Liquidation risk warnings
+- Payment alert generation
 
-**UI Requirement**:
-- Payment due alerts
-- Overdue payment warnings
-- Liquidation risk notifications
-- System-wide alert banners
-
-**API Coverage**: Basic notification system only
--  `/users/notifications` - General notifications
-- L **Missing**: Payment-specific alert endpoints
-- L **Missing**: Alert severity levels
-- L **Missing**: System-wide alert management
-- L **Missing**: Alert dismissal tracking
-
-**Recommended Implementation**:
-```yaml
-/notifications/payment-alerts:
-  get:
-    summary: Get payment-related alerts
-    parameters:
-      - name: severity
-        in: query
-        schema:
-          type: string
-          enum: [info, warning, critical]
-    responses:
-      200:
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                type: object
-                properties:
-                  id: string
-                  type:
-                    type: string
-                    enum: [payment_due, overdue, liquidation_risk]
-                  severity: string
-                  message: string
-                  actionRequired: boolean
-                  dismissible: boolean
-                  createdAt: string
+**Example Scenario**:
+```
+UI Alert: "Payment due in 3 days - Pay 10,000 USDT to avoid automatic liquidation of your 5 ETH Collateral"
+API Reality: /loans/{id} doesn't include payment due dates, liquidation warnings, or payment breakdown
 ```
 
-### 6. Transaction History  **COMPLETE**
+**Required API Addition**:
+- Enhanced loan response with `paymentDueDate`, `paymentAmount`, `liquidationRisk` fields
+- `GET /loans/payment-alerts` endpoint for upcoming payment warnings
 
-**UI Requirement**: Comprehensive transaction listing with filtering and pagination.
+### D03: Verification Status Alerts Missing
 
-**API Coverage**: Fully supported
-- `/finance/transactions` - Transaction history with filtering
-- `/finance/transactions/{id}` - Detailed transaction view
-- Supports pagination, date filtering, and transaction type filtering
+**Severity**: HIGH
+**Description**: The UI displays multiple verification prompts that require verification status checking not fully supported.
 
-**Status**:  No gaps identified
+**UI Requirements**:
+- General verification status card: "Complete your verification to unlock features"
+- Phone verification card: "Complete your verification to unlock features"
+- "Verify Now" action buttons
 
-### 7. News & Content Management L **CRITICAL GAP**
+**API Gap**: User profile API lacks:
+- Granular verification status breakdown
+- Feature unlock status based on verification level
+- Phone verification status separate from KYC
 
-**UI Requirement**:
-- Platform news and announcements
-- Educational content
-- Market updates
-- Content categorization and filtering
-
-**API Coverage**: No support identified
-- L **Missing**: News/content management endpoints
-- L **Missing**: Content categorization system
-- L **Missing**: Read status tracking
-- L **Missing**: Content publishing workflow
-
-**Recommended Implementation**:
-```yaml
-/content/news:
-  get:
-    summary: Get platform news and announcements
-    parameters:
-      - name: category
-        in: query
-        schema:
-          type: string
-          enum: [platform, market, educational, announcements]
-      - name: limit
-        in: query
-        schema:
-          type: integer
-          default: 10
-    responses:
-      200:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                articles:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      id: string
-                      title: string
-                      summary: string
-                      content: string
-                      category: string
-                      publishedAt: string
-                      readStatus: boolean
+**Example Scenario**:
+```
+UI Display: Two separate verification cards - one general, one phone-specific
+API Reality: User profile only shows kycStatus, no phone verification or feature unlock mapping
 ```
 
-### 8. Error Handling & System Status L **MAJOR GAP**
+**Required API Enhancement**:
+- Add `phoneVerified`, `featureUnlockStatus`, `requiredVerifications` to user profile response
 
-**UI Requirement**:
-- System maintenance notifications
-- Service availability status
-- Error state handling
-- Graceful degradation indicators
+### D05: Comprehensive Notification System Incomplete
 
-**API Coverage**: No dedicated endpoints
-- L **Missing**: System status endpoint
-- L **Missing**: Service health indicators
-- L **Missing**: Maintenance window notifications
-- L **Missing**: Feature availability flags
+**Severity**: HIGH
+**Description**: The UI shows detailed notification categorization and management beyond current API scope.
 
-**Recommended Implementation**:
-```yaml
-/system/status:
-  get:
-    summary: Get system status and service availability
-    responses:
-      200:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                overallStatus:
-                  type: string
-                  enum: [operational, degraded, maintenance, down]
-                services:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      name: string
-                      status: string
-                      lastChecked: string
-                maintenanceWindows:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      startTime: string
-                      endTime: string
-                      affectedServices: array
-                      description: string
+**UI Requirements**:
+- Notification filtering by: All, Loans, Security, Payments
+- Detailed notification types:
+  - Loan application matching
+  - Payment confirmations
+  - Security/login alerts
+  - KYC completion
+  - Withdrawal processing
+- "Mark All Read" functionality
+- Notification archiving and deletion
+- Detailed notification views with loan terms
+
+**API Gap**: Current notification API limitations:
+- Missing notification management actions (archive, delete)
+- Limited notification detail responses
+- No bulk operations (mark all read)
+- Missing notification-specific data (loan terms, lender info)
+
+**Example Scenario**:
+```
+UI Notification: "Loan application matched - Your BTC collateral loan request has been matched with an institutional lender at 7.2% APR"
+With details: "$15,000 USDT, 0.5 BTC, 7.2% APR, 12 months, CryptoBank Institutional, 4.8  Rating"
+API Reality: Notification content is basic text without structured loan/lender data
 ```
 
-### 9. Settings & Preferences � **PARTIAL COVERAGE**
+**Required API Enhancement**:
+- Add notification management endpoints (archive, delete, mark all read)
+- Enhance notification responses with structured data for different types
 
-**UI Requirement**: User preferences, notification settings, and account configuration.
+### D08: Detailed Loan Information in Notifications Missing
 
-**API Coverage**: Basic support
--  `/users/profile` - Basic profile management
-- � **Limited**: Notification preference management
-- L **Missing**: Display preferences (theme, language, etc.)
-- L **Missing**: Privacy settings management
+**Severity**: HIGH
+**Description**: Notification details show comprehensive loan and lender information not available in current APIs.
 
-**Recommended Enhancement**:
-```yaml
-/users/preferences:
-  get:
-    summary: Get user preferences
-  put:
-    summary: Update user preferences
-    requestBody:
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              notifications:
-                type: object
-                properties:
-                  email: boolean
-                  push: boolean
-                  sms: boolean
-              display:
-                type: object
-                properties:
-                  theme: string
-                  language: string
-                  currency: string
-              privacy:
-                type: object
-                properties:
-                  profileVisibility: string
-                  dataSharing: boolean
+**UI Requirements**:
+- Loan details within notifications: amount, collateral, interest rate, terms
+- Lender information: name, verification status, rating
+- Time-sensitive offers: "24 hours to accept"
+- Action buttons: "View Full Terms"
+
+**API Gap**: Notification detail responses lack:
+- Embedded loan offer details
+- Lender profile information
+- Offer expiration handling
+- Action links for loan acceptance
+
+**Example Scenario**:
+```
+UI Notification Detail: Shows loan ($15,000 USDT, 0.5 BTC, 7.2% APR, 12 months) + lender (CryptoBank Institutional, Verified, 4.8) + "24 hours to accept"
+API Reality: Basic notification text without structured loan/lender data
 ```
 
-## Priority Recommendations
+**Required API Enhancement**:
+- Enhance notification detail responses with embedded loan and lender data
 
-### Phase 1: Critical Gaps (Immediate Implementation Required)
-1. **Portfolio Overview API** - Essential for dashboard functionality
-2. **Payment Alert System** - Critical for risk management
-3. **System Status Endpoint** - Required for operational transparency
+### D09: Error State Context Missing
 
-### Phase 2: Major Enhancements (Next Sprint)
-4. **News/Content Management API** - Important for user engagement
-5. **Enhanced User Preferences** - Improves user experience
+**Severity**: MEDIUM
+**Description**: The UI shows contextual error states that require additional API error handling.
 
-### Phase 3: Future Improvements
-6. **Advanced Portfolio Analytics** - Performance tracking and insights
-7. **Real-time Notification Streaming** - WebSocket implementation
-8. **Advanced Alert Configuration** - User-customizable alert thresholds
+**UI Requirements**:
+- Camera permission requests for KYC
+- Connection failed with retry mechanisms
+- Maintenance mode with progress updates
+- Error codes for support: "#500-SERVER"
 
-## Implementation Considerations
+**API Gap**: APIs lack:
+- Permission requirement endpoints
+- Maintenance status API
+- Detailed error codes in responses
+- Support contact integration
 
-### Technical Requirements
-- All new endpoints should follow existing OpenAPI 3.0.3 specification format
-- Implement proper authentication using existing Better Auth session system
-- Ensure consistent error response schemas across all endpoints
-- Add appropriate rate limiting and input validation
+**Example Scenario**:
+```
+UI Error: "Under Maintenance - Expected Terms: 2 hours, Started at 02:00 UTC, Latest Update: 15:30 UTC: Database optimization in progress"
+API Reality: No maintenance status or progress update endpoints
+```
 
-### Data Consistency
-- Portfolio calculations should aggregate data from existing finance endpoints
-- Alert system should integrate with existing loan agreement monitoring
-- News system should support both manual and automated content publication
+**Required API Addition**:
+- `GET /system/status` for maintenance and system status
+- Enhanced error responses with support-friendly error codes
 
-### Performance Considerations
-- Portfolio overview should implement caching for frequently accessed data
-- Real-time alerts should use efficient push notification mechanisms
-- Transaction history pagination should be optimized for large datasets
+### D11: User Profile Enhancement for UI Context
 
-## Conclusion
+**Severity**: MEDIUM
+**Description**: The UI header and context require additional user profile information.
 
-The current API coverage provides a solid foundation for the Individual User Home interface, with strong support for core functionality like authentication, user management, and financial operations. However, critical gaps exist in portfolio aggregation, alert management, and content delivery systems that must be addressed to fully support the intended UI experience.
+**UI Requirements**:
+- User profile picture display
+- Verification badge/status indicators
+- User type context for interface customization
 
-Implementing the recommended Phase 1 endpoints will provide 90%+ coverage of the UI requirements and enable a complete user experience as described in the UI specification.
+**API Gap**: User profile response may lack:
+- Profile picture URLs
+- Display-ready verification status
+- UI customization flags
+
+**Example Scenario**:
+```
+UI Header: Shows user avatar, verification badges, personalized interface
+API Reality: Basic user profile without UI-specific formatting or display preferences
+```
+
+**Required API Enhancement**:
+- Add UI-specific fields to user profile response

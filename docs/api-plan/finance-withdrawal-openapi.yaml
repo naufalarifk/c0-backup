@@ -76,7 +76,6 @@ paths:
                         - id: 301
                           blockchainKey: "eip155:56"
                           address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
-                          label: "My BSC Hardware Wallet"
                           createdDate: "2025-08-01T12:00:00Z"
                           verifiedDate: "2025-08-01T12:30:00Z"
                           isActive: true
@@ -88,7 +87,6 @@ paths:
                         - id: 302
                           blockchainKey: "eip155:1"
                           address: "0x8ba1f109551bd432803012645aa136ba40b34567"
-                          label: "Ethereum Exchange Address"
                           createdDate: "2025-07-15T08:45:00Z"
                           verifiedDate: "2025-07-15T09:15:00Z"
                           isActive: true
@@ -100,7 +98,6 @@ paths:
                         - id: 303
                           blockchainKey: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
                           address: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
-                          label: "Solana Mobile Wallet"
                           createdDate: "2025-08-05T16:20:00Z"
                           verifiedDate: null
                           isActive: false
@@ -118,7 +115,6 @@ paths:
                         - id: 301
                           blockchainKey: "eip155:56"
                           address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
-                          label: "My BSC Hardware Wallet"
                           createdDate: "2025-08-01T12:00:00Z"
                           verifiedDate: "2025-08-01T12:30:00Z"
                           isActive: true
@@ -164,19 +160,16 @@ paths:
                 value:
                   blockchainKey: "eip155:56"
                   address: "0x1234567890abcdef1234567890abcdef12345678"
-                  label: "My BSC Exchange Address"
               ethereum_beneficiary:
                 summary: Register Ethereum withdrawal address
                 value:
                   blockchainKey: "eip155:1"
                   address: "0x8ba1f109551bd432803012645aa136ba40b34567"
-                  label: "Hardware Wallet Ethereum"
               solana_beneficiary:
                 summary: Register Solana withdrawal address
                 value:
                   blockchainKey: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
                   address: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
-                  label: "Solana Mobile Wallet"
       responses:
         '201':
           description: Beneficiary created successfully
@@ -193,7 +186,6 @@ paths:
                       id: 304
                       blockchainKey: "eip155:56"
                       address: "0x1234567890abcdef1234567890abcdef12345678"
-                      label: "New Exchange Address"
                       createdDate: "2025-08-11T16:00:00Z"
                       verifiedDate: null
                       isActive: false
@@ -279,7 +271,6 @@ paths:
                             id: 301
                             blockchainKey: "eip155:56"
                             address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
-                            label: "My BSC Hardware Wallet"
                             createdDate: "2025-08-01T12:00:00Z"
                             verifiedDate: "2025-08-01T12:30:00Z"
                             isActive: true
@@ -313,7 +304,6 @@ paths:
                             id: 302
                             blockchainKey: "eip155:1"
                             address: "0x8ba1f109551bd432803012645aa136ba40b34567"
-                            label: "Ethereum Exchange Address"
                             createdDate: "2025-07-15T08:45:00Z"
                             verifiedDate: "2025-07-15T09:15:00Z"
                             isActive: true
@@ -347,7 +337,6 @@ paths:
                             id: 301
                             blockchainKey: "eip155:56"
                             address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
-                            label: "My BSC Hardware Wallet"
                             createdDate: "2025-08-01T12:00:00Z"
                             verifiedDate: "2025-08-01T12:30:00Z"
                             isActive: true
@@ -394,7 +383,6 @@ paths:
                             id: 301
                             blockchainKey: "eip155:56"
                             address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
-                            label: "My BSC Hardware Wallet"
                             createdDate: "2025-08-01T12:00:00Z"
                             verifiedDate: "2025-08-01T12:30:00Z"
                             isActive: true
@@ -507,7 +495,6 @@ paths:
                         id: 301
                         blockchainKey: "eip155:56"
                         address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
-                        label: "My BSC Hardware Wallet"
                         createdDate: "2025-08-01T12:00:00Z"
                         verifiedDate: "2025-08-01T12:30:00Z"
                         isActive: true
@@ -580,7 +567,6 @@ paths:
                         id: 301
                         blockchainKey: "eip155:56"
                         address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
-                        label: "My BSC Hardware Wallet"
                         createdDate: "2025-08-01T12:00:00Z"
                         verifiedDate: "2025-08-01T12:30:00Z"
                         isActive: true
@@ -619,7 +605,6 @@ paths:
                         id: 302
                         blockchainKey: "eip155:1"
                         address: "0x8ba1f109551bd432803012645aa136ba40b34567"
-                        label: "Ethereum Exchange Address"
                         createdDate: "2025-07-15T08:45:00Z"
                         verifiedDate: "2025-07-15T09:15:00Z"
                         isActive: true
@@ -658,7 +643,6 @@ paths:
                         id: 301
                         blockchainKey: "eip155:56"
                         address: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
-                        label: "My BSC Hardware Wallet"
                         createdDate: "2025-08-01T12:00:00Z"
                         verifiedDate: "2025-08-01T12:30:00Z"
                         isActive: true
@@ -750,7 +734,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-
 components:
   securitySchemes:
     apiKeyCookie:
@@ -810,10 +793,6 @@ components:
           type: string
           description: Withdrawal address
           example: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
-        label:
-          type: string
-          description: User-friendly label for the address
-          example: "My Hardware Wallet"
         createdDate:
           type: string
           format: date-time
@@ -873,10 +852,6 @@ components:
           type: string
           description: Withdrawal address
           example: "0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567"
-        label:
-          type: string
-          description: User-friendly label for the address
-          example: "My Hardware Wallet"
       required:
         - blockchainKey
         - address

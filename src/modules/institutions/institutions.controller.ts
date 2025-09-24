@@ -11,7 +11,7 @@ import {
   Session,
   UploadedFiles,
 } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { Auth } from '../../decorators/auth.decorator';
 import { ApiFile } from '../../decorators/swagger.schema';
@@ -23,6 +23,7 @@ import { InstitutionsService } from './institutions.service';
 
 @Controller('institutions')
 @Auth()
+@ApiTags('Institutions')
 export class InstitutionsController {
   constructor(private readonly institutionsService: InstitutionsService) {}
 

@@ -1,218 +1,113 @@
-# Institution KYC Registration API Audit Report
-
-**Date**: 2025-09-22
-**Scope**: Institution KYC Registration Flow
-**Source of Truth**: `docs/ui-descriptions/user-kyc-institution.md`
-**API Files Audited**: better-auth.yaml, user-openapi.yaml, finance-openapi.yaml, loan-market-openapi.yaml, loan-agreement-openapi.yaml
+# Institution Registration API Audit Report
 
 ## Executive Summary
 
-This audit compares the institution KYC registration UI flow (4-step process) with the current API implementation. The analysis reveals significant architectural gaps between the UI requirements and API capabilities, particularly in multi-step workflow support, draft management, and document handling.
+This audit report analyzes the discrepancies between the Institution Registration UI textual description and the API documentation. The UI describes a comprehensive 3-step institution registration process, but several critical gaps exist in the API specification that would prevent proper implementation of the described user experience.
 
-**Critical Findings**: The current API provides only a single monolithic submission endpoint while the UI requires a sophisticated 4-step progressive workflow with draft saving, individual step validation, and dynamic document management.
+## Scope
 
-## UI Flow Analysis (Source of Truth)
+- **UI Source of Truth**: `docs/ui-descriptions/user-kyc-institution.md`
+- **API Documentation Audited**:
+  - `docs/api-plan/user-openapi.yaml`
+  - `docs/api-plan/better-auth.yaml`
+  - `docs/api-plan/finance-openapi.yaml`
+  - `docs/api-plan/loan-market-openapi.yaml`
+  - `docs/api-plan/loan-agreement-openapi.yaml`
 
-The institution KYC registration process consists of 4 distinct steps:
+## Discrepancy Analysis
 
-1. **Step 1: Information Collection**
-   - Business details (name, registration number, NPWP)
-   - Address with cascading dropdowns (Province ’ City ’ District ’ Sub-district)
-   - Director information (name, phone, email)
-   - Navigation: Next button (validates step before proceeding)
+### D1: Missing Institution Registration Endpoint
 
-2. **Step 2: Document Upload (Empty State)**
-   - File upload zones for required documents
-   - Drag & drop functionality
-   - File format and size restrictions
-   - Navigation: Previous/Next buttons
+**Issue**: The UI describes a complete institution registration process, but no corresponding API endpoint exists for submitting institution applications.
 
-3. **Step 3: Document Upload (Completed State)**
-   - View uploaded documents
-   - Individual file management (download, replace, delete)
-   - Upload progress indicators
-   - Navigation: Previous/Next buttons
+**UI Requirement**: The UI flow shows a "Submit Application" button on the final review page that should submit the complete institution registration data.
 
-4. **Step 4: Review and Submission**
-   - Summary of all entered information
-   - Document verification checklist
-   - Terms and conditions acceptance
-   - Final submission with confirmation
+**API Gap**: No POST endpoint for institution registration exists. The `user-openapi.yaml` only contains:
+- `POST /institutions` - but this is described as "Apply for institution account" without clear request/response structure
+- Missing comprehensive request schema for all UI fields
 
-## API Implementation Analysis
+**Data Example**: The UI collects:
+```
+Basic Business Information:
+- Business Name: "PT. Example Company"
+- Business Description: "01234567890123455"
+- Business Type: [Dropdown selection]
+- Tax ID (NPWP): "12345678901234555"
+- Business Registration Number (NIB): "01234567890123455"
+- Establishment Number: "AHU-123949404"
 
-### Current API Structure
+Address Information:
+- Province: [Dropdown]
+- City/Regency: "Jakarta"
+- District: "Kecamatan"
+- Sub District: "Kelurahan"
+- Street Address: "Jl. Example Street No. 123"
+- Postal Code: [Field shows same as street address - likely UI error]
 
-**Primary Endpoint**: `POST /institutions` (user-openapi.yaml)
-- Single submission endpoint for complete application
-- Requires all fields in one request
-- Uses `multipart/form-data` for file uploads
-- No support for progressive workflow
+Director Information:
+- Director Name: "Ahmad Rizki Pratama"
 
-### Critical Discrepancies
-
-#### 1. Multi-Step Workflow Support   **CRITICAL**
-
-**UI Requirement**: 4-step progressive workflow with individual step validation
-**API Implementation**: Single monolithic submission endpoint
-**Impact**: Complete architectural mismatch
-
-**Issues**:
-- No API endpoints for individual step submission/validation
-- No draft saving capability for partial progress
-- No step-by-step navigation support
-- Users cannot save progress and return later
-
-#### 2. Draft Management   **HIGH**
-
-**UI Requirement**: Ability to save progress at each step
-**API Implementation**: Missing entirely
-**Impact**: Poor user experience, data loss risk
-
-**Missing APIs**:
-- `POST /institutions/draft` - Save partial application
-- `GET /institutions/draft/{id}` - Retrieve saved draft
-- `PUT /institutions/draft/{id}` - Update draft
-- `DELETE /institutions/draft/{id}` - Delete draft
-
-#### 3. Document Upload Flow   **HIGH**
-
-**UI Requirement**: Progressive document upload with individual file management
-**API Implementation**: All-or-nothing multipart upload
-**Impact**: Inflexible document handling
-
-**Issues**:
-- Cannot upload documents individually across steps
-- No file replacement or deletion endpoints
-- Missing file validation per upload
-- No upload progress tracking support
-
-#### 4. Location Data APIs   **MEDIUM**
-
-**UI Requirement**: Cascading dropdowns (Province ’ City ’ District ’ Sub-district)
-**API Implementation**: Missing location lookup endpoints
-**Impact**: Frontend must hardcode location data
-
-**Missing APIs**:
-- `GET /locations/provinces`
-- `GET /locations/cities/{provinceId}`
-- `GET /locations/districts/{cityId}`
-- `GET /locations/subdistricts/{districtId}`
-
-#### 5. Field Validation Mismatches   **MEDIUM**
-
-**UI Fields vs API Schema**:
-
-| UI Field | API Field | Status | Issue |
-|----------|-----------|---------|-------|
-| Business Name | businessName |  Match | - |
-| Registration Number | registrationNumber |  Match | - |
-| NPWP Number | npwpNumber |  Match | - |
-| Province/City/etc | address | L Mismatch | UI has structured fields, API expects single address |
-| Director Phone | - | L Missing | No director-specific fields in API |
-| Director Email | - | L Missing | No director-specific fields in API |
-
-#### 6. Terms and Conditions   **LOW**
-
-**UI Requirement**: Terms acceptance tracking with version
-**API Implementation**: Missing terms validation
-**Impact**: No audit trail for legal compliance
-
-## Recommendations
-
-### Priority 1: Multi-Step API Design
-
-Implement progressive workflow endpoints:
-
-```yaml
-# Step 1: Business Information
-POST /institutions/steps/business-info
-PUT /institutions/{id}/steps/business-info
-GET /institutions/{id}/steps/business-info
-
-# Step 2-3: Document Management
-POST /institutions/{id}/documents
-GET /institutions/{id}/documents
-DELETE /institutions/{id}/documents/{documentId}
-PUT /institutions/{id}/documents/{documentId}
-
-# Step 4: Final Submission
-POST /institutions/{id}/submit
-GET /institutions/{id}/status
+Documents:
+- NPWP Certificate (PDF/JPG/PNG, max 10MB)
+- Business Registration (NIB)
+- Deed of Establishment
+- Ministry of Law and Human Rights approval
+- Director ID Card
 ```
 
-### Priority 2: Draft Management System
+**Required Fix**: Create comprehensive `POST /institutions` endpoint with complete request schema matching all UI fields.
 
-```yaml
-# Draft Operations
-POST /institutions/draft          # Create new draft
-GET /institutions/draft/{id}      # Get draft
-PUT /institutions/draft/{id}      # Update draft
-DELETE /institutions/draft/{id}   # Delete draft
-GET /institutions/drafts          # List user's drafts
+### D4: Missing Terms and Conditions API Integration
+
+**Issue**: The UI shows 4 specific agreement checkboxes that must be accepted before submission, but no API support exists for this requirement.
+
+**UI Requirement**: 4 mandatory agreement checkboxes:
+1. "Institution Agreement"
+2. "Compliance with Indonesian Financial Regulations"
+3. "Platform Terms of Service"
+4. "Anti-Money Laundering (AML) Compliance"
+
+**API Gap**: No API fields or validation for terms acceptance in institution registration.
+
+**Data Example**: Final submission should include:
+```json
+{
+  "termsAccepted": {
+    "institutionAgreement": true,
+    "regulatoryCompliance": true,
+    "platformTerms": true,
+    "amlCompliance": true
+  },
+  "acceptanceTimestamp": "2025-09-23T15:30:00Z"
+}
 ```
 
-### Priority 3: Enhanced Document Handling
+**Required Fix**: Add terms acceptance validation to institution registration API.
 
-```yaml
-# Individual File Upload
-POST /institutions/{id}/documents/upload
-Content-Type: multipart/form-data
+### D5: Missing Application Status and Review Timeline API
 
-# File Management
-GET /institutions/{id}/documents/{docId}/download
-PUT /institutions/{id}/documents/{docId}/replace
-DELETE /institutions/{id}/documents/{docId}
+**Issue**: The UI shows processing information (3-5 business days, email updates, additional documentation requests), but no API support exists for application tracking.
+
+**UI Requirement**:
+- "Review typically takes 3-5 business days"
+- "You'll receive email updates on application status"
+- "Additional documentation may be requested"
+
+**API Gap**: While `GET /institutions/my-application-status` exists, it lacks:
+- Detailed timeline information
+- Communication preferences
+- Additional document request handling
+
+**Data Example**: User needs to track application:
+```json
+{
+  "applicationStatus": "UnderReview",
+  "estimatedCompletionDate": "2025-09-28T00:00:00Z",
+  "daysSinceSubmission": 2,
+  "remainingBusinessDays": 3,
+  "lastStatusUpdate": "2025-09-25T14:30:00Z",
+  "additionalDocumentsRequested": []
+}
 ```
 
-### Priority 4: Location Lookup APIs
-
-```yaml
-# Cascading Location Data
-GET /locations/provinces
-GET /locations/cities?province={id}
-GET /locations/districts?city={id}
-GET /locations/subdistricts?district={id}
-```
-
-### Priority 5: Enhanced Validation
-
-- Add director-specific fields to schema
-- Implement step-by-step validation rules
-- Add terms and conditions tracking
-- Structured address fields instead of single text
-
-## Implementation Impact
-
-### Frontend Changes Required
-- Implement multi-step form state management
-- Add draft save/restore functionality
-- Implement progressive document upload
-- Add location cascading dropdowns
-
-### Backend Changes Required
-- New controller endpoints for step-by-step workflow
-- Draft persistence layer
-- Document management service
-- Location data service
-- Enhanced validation pipeline
-
-### Database Schema Changes
-- Add draft storage table
-- Document metadata tracking
-- Terms acceptance audit log
-- Structured address fields
-
-## Risk Assessment
-
-**High Risk**: Current API cannot support the designed UI flow without significant refactoring.
-
-**Medium Risk**: Data integrity issues without proper draft management and step validation.
-
-**Low Risk**: User experience degradation due to missing progressive features.
-
-## Conclusion
-
-The audit reveals fundamental architectural gaps between the UI design and API implementation. The current single-endpoint approach cannot support the sophisticated 4-step workflow described in the UI specification. A complete API redesign is required to properly support the intended user experience.
-
-**Recommended Action**: Prioritize implementation of multi-step workflow APIs before frontend development proceeds, as the current API architecture is incompatible with the designed user flow.
+**Required Fix**: Enhance status endpoint with comprehensive tracking information.
