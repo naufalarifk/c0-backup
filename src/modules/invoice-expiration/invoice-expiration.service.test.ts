@@ -1,3 +1,4 @@
+import type { InvoiceExpiredNotificationData } from '../notifications/composers/invoice-expired-notification.composer';
 import type { ExpiredInvoiceData, InvoiceExpirationWorkerData } from './invoice-expiration.types';
 
 import assert from 'node:assert';
@@ -9,6 +10,7 @@ import { InvoiceExpirationService } from './invoice-expiration.service';
 interface MockFinanceRepository {
   platformViewsActiveButExpiredInvoices: ReturnType<typeof mock.fn>;
   platformSetActiveButExpiredInvoiceAsExpired: ReturnType<typeof mock.fn>;
+  userViewsProfile: ReturnType<typeof mock.fn>;
 }
 
 interface MockNotificationQueueService {
@@ -58,6 +60,18 @@ describe('Invoice Expiration Service - Native Node Test', () => {
         Promise.resolve({ invoices: [], totalCount: 0, hasMore: false }),
       ),
       platformSetActiveButExpiredInvoiceAsExpired: mock.fn(() => Promise.resolve()),
+      userViewsProfile: mock.fn(() =>
+        Promise.resolve({
+          id: 'user-1',
+          name: 'John Doe',
+          email: 'john.doe@example.com',
+          emailVerified: true,
+          role: 'User',
+          twoFactorEnabled: false,
+          userType: 'Individual',
+          kycStatus: 'verified',
+        }),
+      ),
     };
 
     // Create mock notification queue service
@@ -124,6 +138,28 @@ describe('Invoice Expiration Service - Native Node Test', () => {
         mockNotificationQueueService.queueNotification.mock.callCount(),
         2,
         'Should send 2 notifications',
+      );
+
+      // Verify user data was fetched for notifications
+      assert.strictEqual(
+        mockFinanceRepository.userViewsProfile.mock.callCount(),
+        2,
+        'Should fetch user profile data twice for notifications',
+      );
+
+      // Verify notification payload includes real user data from repository
+      const firstNotificationCall = mockNotificationQueueService.queueNotification.mock.calls[0];
+      const firstNotificationData = firstNotificationCall
+        ?.arguments[0] as InvoiceExpiredNotificationData;
+      assert.strictEqual(
+        firstNotificationData?.userEmail,
+        'john.doe@example.com',
+        'Should use real user email from repository',
+      );
+      assert.strictEqual(
+        firstNotificationData?.userFirstName,
+        'John',
+        'Should use real user name from repository',
       );
 
       console.log('✅ Test 1 passed: Successfully processes expired invoices');

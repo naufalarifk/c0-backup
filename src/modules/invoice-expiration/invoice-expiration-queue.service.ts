@@ -56,9 +56,9 @@ export class InvoiceExpirationQueueService {
   }
 
   /**
-   * Scheduled cron job that runs every 5 minutes to check for expired invoices
+   * Scheduled cron job that runs every hour to check for expired invoices
    */
-  @Cron(CronExpression.EVERY_5_MINUTES, {
+  @Cron(CronExpression.EVERY_HOUR, {
     name: 'invoice-expiration-check',
   })
   async handleScheduledInvoiceExpirationCheck(): Promise<void> {
