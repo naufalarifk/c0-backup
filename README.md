@@ -1,482 +1,75 @@
-# 🚀 CryptoGadai Backend API
-
-> NestJS backend application with Better Auth, blockchain integration, and comprehensive financial services
-
-[![NestJS](https://img.shields.io/badge/NestJS-v11-red?logo=nestjs)](https://nestjs.com)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?logo=typescript)](https://typescriptlang.org)
-[![Better Auth](https://img.shields.io/badge/Better-Auth-purple)](https://better-auth.com)
-[![BullMQ](https://img.shields.io/badge/BullMQ-Queue-orange)](https://docs.bullmq.io)
-
-## � **Table of Contents**
-
-- [📖 Overview](#-overview)
-- [🛠 Tech Stack](#-tech-stack)
-- [🚀 Quick Start](#-quick-start)
-- [🌱 Environment Setup](#-environment-setup)
-- [🐳 Docker Configuration](#-docker-configuration)
-- [🏃‍♂️ Development](#️-development)
-- [🛠 VSCode Setup](#-vscode-setup)
-- [🚀 API Documentation](#-api-documentation)
-- [📁 Project Structure](#-project-structure)
-- [🪝 Git Hooks & Code Quality](#-git-hooks--code-quality)
-- [🚨 Troubleshooting](#-troubleshooting)
-- [🤝 Contributing](#-contributing)
-- [📚 Additional Resources](#-additional-resources)
-
-## 📖 **Overview**
-
-A comprehensive NestJS backend application for cryptocurrency and financial services featuring:
-- **Authentication**: Better Auth with SSO support (Google OAuth)
-- **Database**: PostgreSQL with Drizzle ORM and advanced repository patterns
-- **Blockchain Integration**: Multi-blockchain wallet support (Bitcoin, Ethereum, Solana)
-- **Financial Services**: Loan management, KYC verification, and transaction processing
-- **Queue System**: BullMQ for background job processing
-- **Code Quality**: Automated formatting, linting, and git hooks
-- **Documentation**: Swagger UI and Scalar API Reference
-- **Development**: Docker containerization with mail testing via Mailpit
-
-## 🛠 **Tech Stack**
-
-| Category | Technology |
-|----------|------------|
-| **Framework** | NestJS v11 |
-| **Language** | TypeScript 5.7 |
-| **Database** | PostgreSQL + Drizzle ORM |
-| **Authentication** | Better Auth |
-| **Queue System** | BullMQ + Redis |
-| **Blockchain** | Bitcoin, Ethereum, Solana SDKs |
-| **Wallet Management** | HD Wallets (BIP32/BIP39) |
-| **Code Quality** | Biome (formatter + linter) |
-| **Git Hooks** | Lefthook |
-| **Package Manager** | pnpm |
-| **Containerization** | Docker + Docker Compose |
-| **Email Testing** | Mailpit |
-
-## 🚀 **Quick Start**
-
-### **Option 1: With Docker (Recommended)**
-```bash
-# Clone and setup
-git clone https://github.com/cryptogadai-projects/cg-backend.git
-cd cg-backend
-pnpm install  # Auto-installs hooks via postinstall
-
-# Setup environment
-cp .env.example .env
-# Edit .env with your configuration
-
-# Start services with Docker
-docker compose --env-file .env.docker up -d
-
-# Database setup
-pnpm db:push    # Push schema to database
-
-# Start development
-pnpm start:dev
-```
-
-### **Option 2: Local Database**
-```bash
-# Clone and setup
-git clone https://github.com/cryptogadai-projects/cg-backend.git
-cd cg-backend
-pnpm install
-
-# Setup environment (with local PostgreSQL/Redis)
-cp .env.example .env
-# Edit .env with your local database credentials
-
-# Database setup
-pnpm db:push
-
-# Start development
-pnpm start:dev
-```
-
-## 🛠 **VSCode Setup**
-
-### **Recommended Extensions**
-When you open the project in VSCode, you'll be prompted to install recommended extensions:
-
-- **Biome** (`biomejs.biome`) - Code formatting and linting
-- **TypeScript** (`ms-vscode.vscode-typescript-next`) - Enhanced TypeScript support
-- **Path Intellisense** (`christian-kohler.path-intellisense`) - File path autocomplete
-
-### **Without Biome Extension**
-If you don't have the Biome extension installed:
-
-#### **Manual Formatting**
-```bash
-# Format all code
-pnpm format
-```
-
-#### **VSCode Tasks**
-Press `Cmd+Shift+P` (macOS) or `Ctrl+Shift+P` (Windows/Linux) and run:
-- **"Tasks: Run Task"** → **"Format Code (Biome)"**
-- **"Tasks: Run Task"** → **"Lint & Fix (Biome)"**
-
-Or use the keyboard shortcuts listed below ⬇️
-
-#### **Keyboard Shortcuts**
-The workspace includes pre-configured shortcuts:
-```json
-Cmd+Alt+F → Format Code (Biome)
-Cmd+Alt+L → Lint & Fix (Biome)
-Cmd+Alt+T → Run Tests
-Cmd+Alt+D → Start Dev Server
-```
-
-Or manually add to your VSCode `keybindings.json`:
-```json
-[
-  {
-    "key": "cmd+alt+f",
-    "command": "workbench.action.tasks.runTask",
-    "args": "Format Code (Biome)"
-  }
-]
-```
-
-### **Pre-commit Hooks**
-Even without the extension, code will be auto-formatted on commit via git hooks.
-
-## 🌱 **Environment Setup**
-
-### **Environment Variables**
-
-Create a `.env` file in the root directory:
-
-```bash
-# Database
-DATABASE_URL="postgresql://username:password@localhost:5432/database_name"
-
-# Auth
-AUTH_SECRET="your-auth-secret-key"
-BETTER_AUTH_URL="http://localhost:3000"
-
-# Email (Resend)
-RESEND_API_KEY="your-resend-api-key"
-
-# SMS (Twilio)
-TWILIO_ACCOUNT_SID="your-twilio-sid"
-TWILIO_AUTH_TOKEN="your-twilio-token"
-TWILIO_PHONE_NUMBER="your-twilio-phone"
-
-# SSO (Google OAuth)
-GOOGLE_CLIENT_ID="your-google-client-id"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
-
-# Docker Configuration (for docker compose)
-POSTGRES_VERSION="16-alpine"
-POSTGRES_CONTAINER_NAME="gadain-postgres"
-POSTGRES_DB="gadain_db"
-POSTGRES_USER="gadain_user"
-POSTGRES_PASSWORD="your-postgres-password"
-POSTGRES_PORT="5432"
-
-REDIS_VERSION="7-alpine"
-REDIS_CONTAINER_NAME="gadain-redis"
-REDIS_PASSWORD="your-redis-password"
-REDIS_PORT="6379"
-
-# Health Check Settings
-HEALTHCHECK_INTERVAL="30s"
-HEALTHCHECK_TIMEOUT="10s"
-HEALTHCHECK_RETRIES="3"
-HEALTHCHECK_START_PERIOD="30s"
-
-# Development Logging (Optional)
-ENABLE_BODY_LOGGING="false"  # Set to "true" to enable request/response body logging in development
-MAX_BODY_LOG_SIZE="10000"    # Maximum characters to log for request/response bodies
-```
-
-## 🐳 **Docker Configuration**
-
-### **Docker Services & Management**
-
-```bash
-# Start all services
-docker compose up -d
-
-# Stop services
-docker compose down
-
-# View logs
-docker compose logs -f
-
-# Check service status
-docker compose ps
-
-# Reset all data (⚠️ Destructive)
-docker compose down -v
-```
-
-**Available Services:**
-- **PostgreSQL**: Database server on port 5432
-- **Redis**: Cache/session store on port 6379
-- **Networks**: Custom `gadain-network` bridge
-- **Volumes**: Persistent data storage for both services
-
-### **Health Checks**
-
-Both services include health monitoring:
-```bash
-# Check specific service health
-docker compose exec postgres pg_isready -U gadain_user -d gadain_db
-docker compose exec redis redis-cli ping
-```
-
-## 🏃‍♂️ **Development**
-
-### **Running the Application**
-
-```bash
-# Development mode (with hot reload)
-pnpm start:dev
-
-# Production mode
-pnpm build
-pnpm start
-
-# Debug mode
-pnpm start:debug
-```
-
-### **Available Scripts**
-
-#### **Core Development**
-```bash
-pnpm start:dev              # Start in watch mode
-pnpm build                  # Build for production
-pnpm format                 # Format code with Biome
-pnpm test                   # Run tests
-pnpm test:watch             # Run tests in watch mode
-pnpm test:cov               # Run with coverage
-pnpm test:e2e               # Run e2e tests
-```
-
-#### **Database Management**
-```bash
-pnpm db:generate             # Generate migrations
-pnpm db:migrate             # Run migrations
-pnpm db:push                # Push schema to DB (dev only)
-pnpm db:studio              # Open Drizzle Studio
-```
-
-#### **Git Hooks**
-```bash
-pnpm hooks:install          # Install git hooks
-pnpm hooks:uninstall        # Remove git hooks
-```
-
-### **Development Features**
-
-#### **Request/Response Body Logging**
-
-For debugging purposes, you can enable detailed request and response body logging:
-
-1. **Enable Body Logging** (Development Only):
-   ```bash
-   # Add to your .env file
-   ENABLE_BODY_LOGGING=true
-   MAX_BODY_LOG_SIZE=10000
-   ```
-
-2. **Features**:
-   - ✅ Logs all request bodies (JSON/text)
-   - ✅ Logs all response bodies
-   - ✅ Automatic sensitive data redaction
-   - ✅ Size limits to prevent log bloat
-   - ✅ Only active in development mode
-   - ✅ Structured logging to Loki
-
-3. **Security**:
-   - Automatically redacts: `password`, `token`, `authorization`, `apikey`, `secret`, `key`, `private`, `session`, `cookie`, `credit_card`, `ssn`, `social_security`
-   - Bodies truncated if exceeding `MAX_BODY_LOG_SIZE`
-   - Never enabled in production
-
-4. **Log Examples**:
-   ```json
-   {
-     "message": "Request Body",
-     "body": "{\"username\":\"john\",\"email\":\"john@example.com\"}",
-     "method": "POST",
-     "url": "/api/auth/login",
-     "requestId": "abc-123"
-   }
-   ```
-
-## 📁 **Project Structure**
-
-```
-src/
-├── modules/
-│   └── auth/                # Authentication module
-│       ├── auth.module.ts
-│       ├── auth.service.ts
-│       ├── auth-app-config.service.ts
-│       └── types/           # Auth-specific types
-├── shared/                  # Shared modules
-│   ├── repositories/       # Use-case based interface for interacting with Database
-│   └── modules/            # Shared NestJS modules
-├── lib/                    # Utility libraries
-│   ├── email/              # Email service
-│   ├── otp/                # OTP service
-│   └── sso.ts              # SSO configuration
-└── main.ts                 # Application entry point
-```
-
-## 🚀 **API Documentation**
-
-The application provides comprehensive API documentation with multiple interfaces:
-
-### **📚 Available Documentation Endpoints**
-
-#### **1. 🔵 Swagger UI - Main API**
-- **URL**: `http://localhost:3000/docs/swagger`
-- **Purpose**: Complete API documentation for the loan management platform
-- **Features**: Interactive API testing, request/response examples
-- **Title**: "Gadain Financial API"
-- **Description**: "Comprehensive loan management platform"
-
-#### **2. 🔐 Scalar API Reference - Auth System**
-- **URL**: `http://localhost:3000/docs/auth`
-- **Purpose**: Better Auth system documentation
-- **Features**: Beautiful UI with "bluePlanet" theme
-- **Content**: Auto-generated from Better Auth OpenAPI schema
-
-#### **3. 🏥 Health Check**
-- **URL**: `http://localhost:3000/health`
-- **Purpose**: Application health monitoring
-
-#### **4. 🗄️ Database Studio**
-- **Command**: `pnpm db:studio`
-- **Purpose**: Visual database management interface
-
-### **🛠 Documentation Setup**
-
-The documentation is automatically configured via `src/lib/docs.ts`:
-
-```typescript
-// Swagger for main API
-SwaggerModule.setup('docs/swagger', app, document);
-
-// Scalar for auth documentation
-app.use('/docs/auth', apiReference({
-  content: documentAuth,
-  theme: 'bluePlanet',
-}));
-```
-
-### **📖 Documentation Structure**
-
-| Documentation | Technology | Use Case |
-|---------------|------------|----------|
-| **Swagger UI** | `@nestjs/swagger` | Main API endpoints |
-| **Scalar Reference** | `@scalar/nestjs-api-reference` | Authentication system |
-| **OpenAPI Schema** | Better Auth | Auto-generated auth docs |
-
-### **🔧 Customization**
-
-To modify documentation:
-
-1. **Main API**: Update `DocumentBuilder` configuration in `docs.ts`
-2. **Auth Docs**: Better Auth auto-generates from your auth configuration
-3. **Theme**: Change Scalar theme in `apiReference()` options
-
-### **📱 Access URLs**
-
-Once `pnpm start:dev` is running, visit:
-- **Main API Docs**: http://localhost:3000/docs/swagger
-- **Auth API Docs**: http://localhost:3000/docs/auth
-- **Health Check**: http://localhost:3000/health
-
-## 🚨 **Troubleshooting**
-
-### **Common Issues & Solutions**
-
-#### **Git Hooks Issues**
-```bash
-pnpm hooks:install          # Re-install hooks
-npx lefthook version        # Check status
-```
-
-#### **Build/Format Issues**
-```bash
-pnpm format                 # Fix formatting
-pnpm build                  # Check build errors
-```
-
-#### **Database Connection Issues**
-```bash
-# Check Docker services
-docker compose ps
-docker compose logs postgres
-
-# Restart services
-docker compose restart postgres redis
-
-# Reset database (⚠️ Destructive)
-docker compose down -v
-docker compose up -d
-pnpm db:push
-```
-
-#### **Port Conflicts**
-```bash
-# Check what's using ports
-lsof -i :5432  # PostgreSQL
-lsof -i :6379  # Redis
-lsof -i :3000  # Application
-
-# Change ports in .env if needed
-POSTGRES_PORT="5433"
-REDIS_PORT="6380"
-```
-
-#### **Permission Issues (macOS/Linux)**
-```bash
-# Fix node_modules permissions
-chmod -R 755 node_modules
-
-# Fix git hooks permissions
-chmod +x .lefthook/pre-commit/*
-```
-
-## 🤝 **Contributing**
-
-1. **Fork** the repository
-2. **Create** a feature branch: `git checkout -b feat/amazing-feature`
-3. **Make** your changes following the code style guidelines
-4. **Commit** using conventional format: `git commit -m "feat: add amazing feature"`
-5. **Push** to the branch: `git push origin feat/amazing-feature`
-6. **Open** a Pull Request with detailed description
-
-### **Development Guidelines**
-
-- Follow TypeScript and NestJS best practices
-- Write tests for new features
-- Update documentation when needed
-- Use conventional commit messages
-- Ensure all hooks pass before pushing
-
-## 📚 **Additional Resources**
-
-### **Framework Documentation**
-- [NestJS Documentation](https://docs.nestjs.com/)
-- [Better Auth Documentation](https://www.better-auth.com/)
-
-### **Development Tools**
-- [Biome Formatter](https://biomejs.dev/)
-- [Lefthook Git Hooks](https://evilmartians.com/chronicles/lefthook-knock-your-teams-code-back-into-shape)
-- [Conventional Commits](https://www.conventionalcommits.org/)
-
-### **VSCode Extensions**
-- [Biome Extension](https://marketplace.visualstudio.com/items?itemName=biomejs.biome)
-- [TypeScript Hero](https://marketplace.visualstudio.com/items?itemName=rbbit.typescript-hero)
-- [Thunder Client](https://marketplace.visualstudio.com/items?itemName=rangav.vscode-thunder-client)
-
----
-
-**Made with ❤️ by the Gadain Team • Happy coding! 🎉**
+# CryptoGadai Backend
+
+Scope of `cg-backend` repository includes all backend api and workers.
+
+## Overview
+
+- `src/entrypoints/` contains the main application bootstrap and configuration
+- `src/modules/` contains feature modules (auth, users, wallets, blockchains)
+- `src/shared/repositories/` contains the repository pattern implementations with PostgreSQL and in-memory versions
+- `src/shared/repositories/postgres/` contains raw SQL files for database operations
+- `src/shared/repositories/README.md` provides detailed guidelines on working with the repository pattern
+- `test/` contains end-to-end test suites with TestContainers for isolated testing
+- `test/README.md` provides instructions for running and writing e2e tests
+
+## Development
+
+### Development Environment
+
+cg-backend has multiple ways to setup the environment
+
+#### Minimum Setup (Recommended)
+
+- Minimum setup uses script to automatically run the backend server locally with in-memory postgres database.
+- Minimum setup uses mock minio server.
+- Minimum setup script will assign random ports so you can run multiple instances of the server.
+- Minimum setup is similar to E2E test environment.
+
+Required system dependencies:
+- Git: provides `git` command
+- NodeJS v22+: provides `node` and `pnpm` commands
+- Redis Server: provides `redis-server` command
+- Mailpit: provides `mailpit` command
+
+Command to run the minimum setup: `./scripts/run-test-server.sh`
+
+#### Manual Setup
+
+- Manual setup uses default `docker-compose.yml` to setup the environment such as postgres, redis, mailpit, and minio.
+- Manual setup requires proper `.env` file to run the server.
+- Manual setup uses default script `pnpm start` or `pnpm start:dev` to run the server.
+
+#### Testing Deployment Setup
+
+Testing Deployment setup uses `docker-compose.testing.yml` to run complete services:
+- Traefik as the main reverse proxy to expose cryptogadai services
+- All dependencies such as postgres, redis, mailpit, and minio
+- All backend services such as api server and workers
+- Telemetry services such as Prometheus, Grafana, and Loki
+
+This is the closest setup to production environment.
+
+### Code Quality
+
+To maintain code quality, we use Biome for linting and formatting, and Lefthook for git hooks.
+- `pnpm format`: auto-formats the codebase using Biome.
+
+## Project
+
+### Specifications
+
+- `docs/SRS-CG-v2.3-EN.md`: Software Requirement Specification document. The main source of truth for the project requirements.
+- `docs/api-plan/*-openapi.yaml`: The OpenAPI specifications for the backend to implement.
+- `docs/ui-descriptions/*.md`: The UI design transalated to textual descriptions. Useful for understanding UI/UX in text form.
+
+### Current State
+
+To check the current state of the backend api implementation run the project and access the OpenAPI generated by the server. The OpenAPI documentation is generated by `src/docs.ts` using `@nestjs/swagger` module. The documentation is splitted into multiple tags for easier navigation:
+- `$CG_BACKEND_URL/docs/swagger/accounts`
+- `$CG_BACKEND_URL/docs/swagger/admin`
+- `$CG_BACKEND_URL/docs/swagger/beneficiaries`
+- `$CG_BACKEND_URL/docs/swagger/institutions`
+- `$CG_BACKEND_URL/docs/swagger/loans`
+- `$CG_BACKEND_URL/docs/swagger/sms`
+- `$CG_BACKEND_URL/docs/swagger/users`
+- `$CG_BACKEND_URL/docs/swagger/withdrawals`

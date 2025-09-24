@@ -93,7 +93,13 @@ wait_for_service "Mailpit" "curl -s http://$MAILPIT_API_ADDR/api/v1/messages > /
 echo "Redis and Mailpit started successfully"
 
 echo "Starting CryptoGadai Backend on port $BACKEND_PORT..."
+
+mkdir -p $WORKING_DIR/.local
+
 cd $WORKING_DIR
+
+pnpm build
+
 NODE_ENV=development \
 ALLOWED_ORIGINS="http://$EXPO_WEB_ADDR,crypto-gadai://*" \
 APP_EXPO_URL="exp://$EXPO_WEB_ADDR/--" \

@@ -179,9 +179,6 @@ importers:
       nodemailer:
         specifier: ^7.0.6
         version: 7.0.6
-      otpauth:
-        specifier: ^9.4.1
-        version: 9.4.1
       parse-duration:
         specifier: ^2.1.4
         version: 2.1.4
@@ -270,6 +267,9 @@ importers:
       lefthook:
         specifier: ^1.13.1
         version: 1.13.1
+      otpauth:
+        specifier: ^9.4.1
+        version: 9.4.1
       source-map-support:
         specifier: ^0.5.21
         version: 0.5.21

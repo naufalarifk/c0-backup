@@ -979,8 +979,6 @@ components:
               type: number
               format: double
               description: "Required collateral amount (auto-calculated)"
-            collateralCurrency:
-              $ref: '#/components/schemas/Currency'
             ltvRatio:
               type: number
               format: double
