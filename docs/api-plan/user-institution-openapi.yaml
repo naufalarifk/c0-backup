@@ -1,0 +1,846 @@
+openapi: 3.0.3
+info:
+  title: CryptoGadai Institution Management API
+  description: API specification for institution management features including member management, invitations, and institutional operations
+  version: 2.0.0
+  contact:
+    name: CryptoGadai Development Team
+
+servers:
+  - url: https://api.cryptogadai.com/api
+    description: Production server
+  - url: https://cg-api.fh47.com/api
+    description: Testing server
+  - url: http://cg-api.localhost/api
+    description: Local development server
+
+security:
+  - apiKeyCookie: []
+  - bearerAuth: []
+
+paths:
+  /institutions/{id}:
+    get:
+      tags: [Institution Management]
+      summary: Get institution details
+      description: Retrieves detailed information about an institution including verification status and member count
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 98765
+      responses:
+        '200':
+          description: Institution details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  institution:
+                    $ref: '#/components/schemas/Institution'
+              examples:
+                verified_institution:
+                  summary: Verified institution with members
+                  value:
+                    institution:
+                      id: 98765
+                      name: PT Teknologi Nusantara
+                      type: PT
+                      verificationStatus: Verified
+                      memberCount: 5
+                      activeSince: 2024-01-20T10:00:00Z
+                      registrationDetails:
+                        npwpNumber: 01.234.567.8-901.000
+                        registrationNumber: 8120202123456
+                        businessType: PT
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+
+  /institutions/{id}/members:
+    get:
+      tags: [Institution Management]
+      summary: List institution members
+      description: Retrieves list of current institution members with their roles and verification status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 98765
+      responses:
+        '200':
+          description: Institution members retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  members:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InstitutionMember'
+                  memberCount:
+                    type: integer
+                    description: Total count of active members
+              examples:
+                institution_members:
+                  summary: List of institution members
+                  value:
+                    members:
+                      - id: mem_001
+                        userId: 98765
+                        institutionId: 98765
+                        role: Owner
+                        verificationStatus: Verified
+                        joinedAt: 2024-01-20T10:00:00Z
+                        invitedBy: null
+                        user:
+                          id: 98765
+                          name: Jane Smith
+                          email: ceo@techcorp.com
+                          profilePictureUrl: https://storage.cryptogadai.com/profiles/98765.jpg
+                      - id: mem_002
+                        userId: 12346
+                        institutionId: 98765
+                        role: Finance
+                        verificationStatus: Verified
+                        joinedAt: 2024-02-15T14:30:00Z
+                        invitedBy: 98765
+                        user:
+                          id: 12346
+                          name: John Doe
+                          email: finance@techcorp.com
+                          profilePictureUrl: https://storage.cryptogadai.com/profiles/12346.jpg
+                    memberCount: 2
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+
+  /institutions/{id}/members/{userId}:
+    delete:
+      tags: [Institution Management]
+      summary: Remove institution member
+      description: Removes a member from the institution (Owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 98765
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 12346
+      responses:
+        '200':
+          description: Member removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  removedMember:
+                    type: object
+                    properties:
+                      userId:
+                        type: integer
+                        format: int64
+                      userName:
+                        type: string
+                      role:
+                        type: string
+              examples:
+                member_removed:
+                  summary: Finance member removed successfully
+                  value:
+                    message: Member removed from institution successfully
+                    removedMember:
+                      userId: 12346
+                      userName: John Doe
+                      role: Finance
+        '400':
+          description: Cannot remove institution owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                cannot_remove_owner:
+                  summary: Cannot remove institution owner
+                  value:
+                    success: false
+                    error:
+                      code: CANNOT_REMOVE_OWNER
+                      message: Institution owner cannot be removed
+                    timestamp: 2024-03-15T10:30:00Z
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+
+  /institutions/{id}/invitations:
+    get:
+      tags: [Institution Management]
+      summary: List pending invitations
+      description: Retrieves list of pending invitations for the institution
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 98765
+      responses:
+        '200':
+          description: Pending invitations retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invitations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InstitutionInvitationDetails'
+              examples:
+                pending_invitations:
+                  summary: List of pending invitations
+                  value:
+                    invitations:
+                      - id: 123
+                        userEmail: finance.manager@example.com
+                        role: Finance
+                        invitedDate: 2024-03-15T16:30:00Z
+                        expiresAt: 2024-03-22T16:30:00Z
+                        status: Sent
+                        invitedBy:
+                          id: 98765
+                          name: Jane Smith
+                      - id: 124
+                        userEmail: analyst@example.com
+                        role: Finance
+                        invitedDate: 2024-03-14T10:00:00Z
+                        expiresAt: 2024-03-21T10:00:00Z
+                        status: Sent
+                        invitedBy:
+                          id: 98765
+                          name: Jane Smith
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+
+  /institutions/invitations:
+    post:
+      tags: [Institution Management]
+      summary: Invite institution member
+      description: Invites a user to join institution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userEmail, role]
+              properties:
+                userEmail:
+                  type: string
+                  format: email
+                role:
+                  type: string
+                  enum: [Finance]
+                message:
+                  type: string
+                  description: Optional invitation message
+            examples:
+              finance_member:
+                summary: Invite finance member
+                value:
+                  userEmail: finance.manager@example.com
+                  role: Finance
+                  message: We would like to invite you to join our institution as Finance member to help manage our lending operations.
+              simple_invitation:
+                summary: Simple invitation without message
+                value:
+                  userEmail: john.doe@example.com
+                  role: Finance
+      responses:
+        '201':
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invitation:
+                    $ref: '#/components/schemas/InstitutionInvitation'
+              examples:
+                invitation_sent:
+                  summary: Invitation sent successfully
+                  value:
+                    invitation:
+                      id: 123
+                      userEmail: finance.manager@example.com
+                      role: Finance
+                      invitedDate: 2024-03-15T16:30:00Z
+        '400':
+          $ref: '#/components/responses/UserNotFound'
+        '409':
+          $ref: '#/components/responses/UserAlreadyMember'
+
+  /institutions/invitations/{id}/resend:
+    post:
+      tags: [Institution Management]
+      summary: Resend institution invitation
+      description: Resends an existing pending invitation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 123
+      responses:
+        '200':
+          description: Invitation resent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invitation:
+                    $ref: '#/components/schemas/InstitutionInvitation'
+                  message:
+                    type: string
+              examples:
+                invitation_resent:
+                  summary: Invitation resent successfully
+                  value:
+                    invitation:
+                      id: 123
+                      userEmail: finance.manager@example.com
+                      role: Finance
+                      invitedDate: 2024-03-15T16:30:00Z
+                    message: Invitation resent successfully
+        '400':
+          description: Cannot resend invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invitation_already_responded:
+                  summary: Invitation already responded to
+                  value:
+                    success: false
+                    error:
+                      code: INVITATION_ALREADY_RESPONDED
+                      message: Cannot resend invitation that has already been accepted or rejected
+                    timestamp: 2024-03-15T10:30:00Z
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+
+  /institutions/invitations/{id}:
+    delete:
+      tags: [Institution Management]
+      summary: Cancel pending invitation
+      description: Cancels a pending invitation (Owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 123
+      responses:
+        '200':
+          description: Invitation cancelled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              examples:
+                invitation_cancelled:
+                  summary: Invitation cancelled successfully
+                  value:
+                    message: Invitation cancelled successfully
+        '400':
+          description: Cannot cancel invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invitation_already_responded:
+                  summary: Invitation already responded to
+                  value:
+                    success: false
+                    error:
+                      code: INVITATION_ALREADY_RESPONDED
+                      message: Cannot cancel invitation that has already been accepted or rejected
+                    timestamp: 2024-03-15T10:30:00Z
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+
+    get:
+      tags: [Institution Management]
+      summary: Get invitation details
+      description: Retrieves detailed information about an invitation for review
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 123
+      responses:
+        '200':
+          description: Invitation details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invitation:
+                    $ref: '#/components/schemas/InstitutionInvitationDetails'
+              examples:
+                invitation_details:
+                  summary: Detailed invitation information
+                  value:
+                    invitation:
+                      id: 123
+                      userEmail: finance.manager@example.com
+                      role: Finance
+                      invitedDate: 2024-03-15T16:30:00Z
+                      expiresAt: 2024-03-22T16:30:00Z
+                      message: We would like to invite you to join our institution as Finance member.
+                      institution:
+                        id: 98765
+                        name: PT Teknologi Nusantara
+                        type: PT
+                        verificationStatus: Verified
+                        memberCount: 5
+                        activeSince: 2024-01-20T10:00:00Z
+                      rolePermissions:
+                        - manage_finance_accounts
+                        - view_loan_applications
+                        - process_withdrawals
+                      roleRestrictions:
+                        - cannot_invite_members
+                        - cannot_remove_members
+                        - cannot_access_admin_settings
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /institutions/invitations/{id}/accept:
+    post:
+      tags: [Institution Management]
+      summary: Accept institution invitation
+      description: Accepts a institution invitation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 123
+      responses:
+        '200':
+          description: Invitation accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  institution:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        format: int64
+                      businessName:
+                        type: string
+                      role:
+                        type: string
+                  message:
+                    type: string
+              examples:
+                accepted_finance:
+                  summary: Finance member invitation accepted
+                  value:
+                    institution:
+                      id: 98765
+                      businessName: PT Teknologi Nusantara
+                      role: Finance
+                    message: You have successfully joined PT Teknologi Nusantara as Finance member
+        '400':
+          $ref: '#/components/responses/InvitationExpired'
+
+  /institutions/invitations/{id}/reject:
+    post:
+      tags: [Institution Management]
+      summary: Reject institution invitation
+      description: Rejects a institution invitation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 123
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Optional rejection reason
+            examples:
+              with_reason:
+                summary: Reject with reason
+                value:
+                  reason: I am not interested in joining this institution at the moment
+              without_reason:
+                summary: Reject without reason
+                value: {}
+      responses:
+        '200':
+          description: Invitation rejected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              examples:
+                rejection_success:
+                  summary: Invitation rejected successfully
+                  value:
+                    message: Institution invitation rejected successfully
+
+components:
+  securitySchemes:
+    apiKeyCookie:
+      type: apiKey
+      in: cookie
+      name: apiKeyCookie
+      description: Better Auth API Key authentication via cookie
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Better Auth Bearer token authentication
+
+  schemas:
+    Institution:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+          description: Business name of the institution
+        type:
+          type: string
+          description: Business type (e.g., PT, CV, UD)
+        verificationStatus:
+          type: string
+          enum: [Verified, Pending, Unverified]
+          description: Current verification status
+        memberCount:
+          type: integer
+          description: Number of active members
+          minimum: 0
+        activeSince:
+          type: string
+          format: date-time
+          description: Date when institution was approved/activated
+        registrationDetails:
+          type: object
+          properties:
+            npwpNumber:
+              type: string
+              description: NPWP tax identification number
+            registrationNumber:
+              type: string
+              description: Business registration number (NIB/TDP)
+            businessType:
+              type: string
+              description: Legal business entity type
+
+    InstitutionMember:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique member identifier
+        userId:
+          type: integer
+          format: int64
+          description: User ID of the member
+        institutionId:
+          type: integer
+          format: int64
+          description: Institution ID
+        role:
+          type: string
+          enum: [Owner, Finance]
+          description: Member role within the institution
+        verificationStatus:
+          type: string
+          enum: [Verified, Pending, Unverified]
+          description: Member verification status
+        joinedAt:
+          type: string
+          format: date-time
+          description: Date when user joined the institution
+        invitedBy:
+          type: integer
+          format: int64
+          nullable: true
+          description: User ID who invited this member (null for owners)
+        user:
+          $ref: '#/components/schemas/UserProfile'
+      required:
+        - id
+        - userId
+        - institutionId
+        - role
+        - verificationStatus
+        - joinedAt
+        - user
+
+    UserProfile:
+      type: object
+      description: User Profile
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+          nullable: true
+        email:
+          type: string
+          format: email
+          nullable: true
+        profilePictureUrl:
+          type: string
+          nullable: true
+
+    InstitutionInvitation:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userEmail:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [Finance]
+        invitedDate:
+          type: string
+          format: date-time
+
+    InstitutionInvitationDetails:
+      allOf:
+        - $ref: '#/components/schemas/InstitutionInvitation'
+        - type: object
+          properties:
+            status:
+              type: string
+              enum: [Sent, Accepted, Rejected, Expired]
+              description: Current invitation status
+            expiresAt:
+              type: string
+              format: date-time
+              description: When the invitation expires
+            message:
+              type: string
+              nullable: true
+              description: Optional invitation message
+            institution:
+              $ref: '#/components/schemas/Institution'
+            rolePermissions:
+              type: array
+              items:
+                type: string
+              description: List of permissions for the invited role
+              example:
+                - manage_finance_accounts
+                - view_loan_applications
+                - process_withdrawals
+            roleRestrictions:
+              type: array
+              items:
+                type: string
+              description: List of restrictions for the invited role
+              example:
+                - cannot_invite_members
+                - cannot_remove_members
+                - cannot_access_admin_settings
+            invitedBy:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  format: int64
+                name:
+                  type: string
+              description: User who sent the invitation
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              description: Human-readable error message
+              example: Request validation failed
+            details:
+              type: object
+              description: Additional error details
+              additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+          example: 2025-08-13T15:30:00Z
+        requestId:
+          type: string
+          format: uuid
+          description: Request ID for tracking
+      required:
+        - success
+        - error
+        - timestamp
+
+  responses:
+    InsufficientPermissions:
+      description: User lacks required permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: INSUFFICIENT_PERMISSIONS
+            message: Insufficient privileges
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: NOT_FOUND
+            message: Resource not found
+
+    UserNotFound:
+      description: User not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            user_not_found:
+              summary: User with email not found
+              value:
+                success: false
+                error:
+                  code: USER_NOT_FOUND
+                  message: User with email not found
+                  details:
+                    email: nonexistent@example.com
+                    message: No user found with this email address
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174005
+
+    UserAlreadyMember:
+      description: User is already institution member
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            user_already_member:
+              summary: User is already member of an institution
+              value:
+                success: false
+                error:
+                  code: USER_ALREADY_MEMBER
+                  message: User is already institution member
+                  details:
+                    userEmail: john.doe@example.com
+                    currentInstitution: PT Existing Company
+                    message: User is already a member of another institution
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174006
+
+    InvitationExpired:
+      description: Invitation has expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invitation_expired:
+              summary: Institution invitation has expired
+              value:
+                success: false
+                error:
+                  code: INVITATION_EXPIRED
+                  message: Invitation has expired
+                  details:
+                    invitationId: 123
+                    expiredDate: 2024-03-14T16:30:00Z
+                    message: This invitation expired and can no longer be accepted
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174007
+
+tags:
+  - name: Institution Management
+    description: Institution management and member operations

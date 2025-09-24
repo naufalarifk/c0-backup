@@ -148,6 +148,42 @@ export function assertPropString<K extends PropKey, V extends NonNullable<unknow
   );
 }
 
+export function assertPropArray<K extends PropKey, V extends NonNullable<unknown>>(
+  obj: V,
+  propKey: K,
+  message?: string,
+): asserts obj is V & Record<K, unknown[]> {
+  ok(
+    typeof obj === 'object' &&
+      obj !== null &&
+      propKey in obj &&
+      Array.isArray((obj as any)[propKey]),
+    message || `Property "${String(propKey)}" is not an array`,
+  );
+}
+
+export function assertPropArrayOf<K extends PropKey, V extends NonNullable<unknown>, T>(
+  obj: V,
+  propKey: K,
+  check: (item: unknown) => T,
+  message?: string,
+): asserts obj is V & Record<K, T[]> {
+  assertPropArray(obj, propKey, message);
+  const arr = (obj as any)[propKey] as unknown[];
+  for (const item of arr) {
+    try {
+      check(item);
+    } catch (error) {
+      ok(
+        false,
+        message ||
+          `Array property "${String(propKey)}" contains invalid item: ` +
+            (error instanceof Error ? error.message : String(error)),
+      );
+    }
+  }
+}
+
 export function assertPropStringOrNumber<K extends PropKey, V extends NonNullable<unknown>>(
   obj: V,
   propKey: K,

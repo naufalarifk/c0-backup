@@ -1,11 +1,12 @@
 import { Controller, Get, Param } from '@nestjs/common';
-import { ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { Auth } from '../../decorators/auth.decorator';
 import { SmsService } from './sms.service';
 
 @Controller('sms')
 @Auth()
+@ApiTags('SMS')
 export class SmsController {
   constructor(private readonly smsService: SmsService) {}
 

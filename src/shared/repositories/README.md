@@ -53,3 +53,15 @@ This module focus on managing data access and storage through a structured repos
   });
   // from now on, the userRows variable will be automatically casted by TypeScript as: Array<{id: string; email: string|null; name: string;}>
   ```
+- Always use transactional queries when performing write operations that involve multiple queries. Example:
+  ```typescript
+  const tx = await repo.beginTransaction();
+  try {
+    await tx.sql`INSERT INTO users (id, email, name) VALUES (${id}, ${email}, ${name})`;
+    await tx.sql`INSERT INTO user_profiles (user_id, bio) VALUES (${id}, ${bio})`;
+    await tx.commitTransaction();
+  } catch (error) {
+    await tx.rollbackTransaction();
+    throw error;
+  }
+  ```

@@ -7,6 +7,7 @@ import { AppConfigService } from '../services/app-config.service';
 import { CryptogadaiRepository } from './cryptogadai.repository';
 import { InMemoryCryptogadaiRepository } from './in-memory-cryptogadai.repository';
 import { PgRedisCryptogadaiRepository } from './pg-redis-cryptogadai.repository';
+import { PricefeedRepository } from './pricefeed.repository';
 
 @Module({
   providers: [
@@ -39,7 +40,11 @@ import { PgRedisCryptogadaiRepository } from './pg-redis-cryptogadai.repository'
       },
       inject: [AppConfigService],
     },
+    {
+      provide: PricefeedRepository,
+      useExisting: CryptogadaiRepository,
+    },
   ],
-  exports: [CryptogadaiRepository],
+  exports: [CryptogadaiRepository, PricefeedRepository],
 })
 export class RepositoryModule {}

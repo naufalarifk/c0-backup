@@ -1,0 +1,663 @@
+openapi: 3.0.3
+info:
+  title: CryptoGadai User Verification API
+  description: API specification for user verification features including KYC (Know Your Customer) verification and institution verification processes
+  version: 2.0.0
+  contact:
+    name: CryptoGadai Development Team
+
+servers:
+  - url: https://api.cryptogadai.com/api
+    description: Production server
+  - url: https://cg-api.fh47.com/api
+    description: Testing server
+  - url: http://cg-api.localhost/api
+    description: Local development server
+
+security:
+  - apiKeyCookie: []
+  - bearerAuth: []
+
+paths:
+  # KYC Management
+  /users/kyc/submit:
+    post:
+      tags: [KYC Verification]
+      summary: Submit KYC verification
+      description: Submits KYC documents and information for verification
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [nik, name, birthCity, birthDate, province, city, district, subdistrict, address, postalCode, idCardPhoto, selfieWithIdCardPhoto]
+              properties:
+                nik:
+                  type: string
+                  pattern: ^[0-9]{16}$
+                  description: 16-digit NIK
+                name:
+                  type: string
+                  maxLength: 160
+                  description: Full name as it appears on ID card
+                birthCity:
+                  type: string
+                  maxLength: 100
+                birthDate:
+                  type: string
+                  format: date
+                province:
+                  type: string
+                  maxLength: 100
+                city:
+                  type: string
+                  maxLength: 100
+                  description: Kabupaten/Kota
+                district:
+                  type: string
+                  maxLength: 100
+                  description: Kecamatan
+                subdistrict:
+                  type: string
+                  maxLength: 100
+                  description: Kelurahan/Desa
+                address:
+                  type: string
+                  description: Complete residential address
+                postalCode:
+                  type: string
+                  pattern: ^[0-9]{5}$
+                idCardPhoto:
+                  type: string
+                  format: binary
+                selfieWithIdCardPhoto:
+                  type: string
+                  format: binary
+            examples:
+              jakarta_resident:
+                summary: Jakarta resident KYC submission
+                value:
+                  nik: 3171012345678901
+                  name: John Doe Prasetyo
+                  birthCity: Jakarta
+                  birthDate: 1990-05-15
+                  province: DKI Jakarta
+                  city: Jakarta Pusat
+                  district: Menteng
+                  subdistrict: Menteng
+                  address: Jl. MH Thamrin No. 123, RT 001 RW 002
+                  postalCode: 10350
+                  idCardPhoto: [Binary image data - ID card]
+                  selfieWithIdCardPhoto: [Binary image data - Selfie with ID]
+              surabaya_resident:
+                summary: Surabaya resident KYC submission
+                value:
+                  nik: 3578012345678901
+                  name: Siti Aminah
+                  birthCity: Surabaya
+                  birthDate: 1985-12-20
+                  province: Jawa Timur
+                  city: Surabaya
+                  district: Gubeng
+                  subdistrict: Gubeng
+                  address: Jl. Pemuda No. 45, RT 003 RW 001
+                  postalCode: 60281
+                  idCardPhoto: [Binary image data - ID card]
+                  selfieWithIdCardPhoto: [Binary image data - Selfie with ID]
+      responses:
+        '201':
+          description: KYC submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  kycSubmission:
+                    $ref: '#/components/schemas/KYCSubmission'
+                  message:
+                    type: string
+              examples:
+                submission_success:
+                  summary: KYC submission successful
+                  value:
+                    kycSubmission:
+                      id: 567
+                      status: pending
+                      submittedDate: 2024-03-15T10:30:00Z
+                      verifiedDate: null
+                      rejectedDate: null
+                      rejectionReason: null
+                    message: KYC documents submitted successfully and are under review
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/DuplicateNIK'
+
+  /users/kyc/status:
+    get:
+      tags: [KYC Verification]
+      summary: Get KYC status
+      description: Retrieves current KYC verification status
+      responses:
+        '200':
+          description: KYC status retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  kycStatus:
+                    type: string
+                    enum: [pending, verified, rejected]
+                    description: Current KYC status
+                  submission:
+                    $ref: '#/components/schemas/KYCSubmission'
+                  canResubmit:
+                    type: boolean
+              examples:
+                pending_review:
+                  summary: KYC pending review
+                  value:
+                    kycStatus: pending
+                    submission:
+                      id: 567
+                      status: pending
+                      submittedDate: 2024-03-15T10:30:00Z
+                      verifiedDate: null
+                      rejectedDate: null
+                      rejectionReason: null
+                    canResubmit: false
+                verified_kyc:
+                  summary: KYC verified
+                  value:
+                    kycStatus: verified
+                    submission:
+                      id: 567
+                      status: verified
+                      submittedDate: 2024-03-15T10:30:00Z
+                      verifiedDate: 2024-03-16T14:20:00Z
+                      rejectedDate: null
+                      rejectionReason: null
+                    canResubmit: false
+                rejected_kyc:
+                  summary: KYC rejected with resubmit option
+                  value:
+                    kycStatus: rejected
+                    submission:
+                      id: 567
+                      status: rejected
+                      submittedDate: 2024-03-15T10:30:00Z
+                      verifiedDate: null
+                      rejectedDate: 2024-03-16T16:45:00Z
+                      rejectionReason: ID card photo quality is too low. Please upload a clearer image.
+                    canResubmit: true
+                no_submission:
+                  summary: No KYC submission yet
+                  value:
+                    kycStatus: none
+                    submission: null
+                    canResubmit: true
+
+  # Institution Management
+  /institutions:
+    post:
+      tags: [Institution Verification]
+      summary: Apply for institution account
+      description: Submits institution registration application
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [businessName, registrationNumber, npwpNumber, businessType, province, city, district, subdistrict, address, postalCode, npwpDocument, registrationDocument, deedOfEstablishment, directorIdCard, ministryApprovalDocument]
+              properties:
+                businessName:
+                  type: string
+                  maxLength: 160
+                registrationNumber:
+                  type: string
+                  maxLength: 50
+                  description: NIB or TDP number
+                npwpNumber:
+                  type: string
+                  pattern: ^[0-9]{2}\\.[0-9]{3}\\.[0-9]{3}\\.[0-9]-[0-9]{3}\\.[0-9]{3}$
+                  maxLength: 20
+                  description: NPWP number in format XX.XXX.XXX.X-XXX.XXX
+                businessType:
+                  type: string
+                  maxLength: 100
+                businessDescription:
+                  type: string
+                  description: Optional business description
+                province:
+                  type: string
+                  maxLength: 100
+                city:
+                  type: string
+                  maxLength: 100
+                district:
+                  type: string
+                  maxLength: 100
+                subdistrict:
+                  type: string
+                  maxLength: 100
+                address:
+                  type: string
+                  description: Complete business address
+                postalCode:
+                  type: string
+                  pattern: ^[0-9]{5,10}$
+                  maxLength: 10
+                directorName:
+                  type: string
+                  maxLength: 160
+                  description: Name of company director/owner
+                directorPosition:
+                  type: string
+                  maxLength: 100
+                  default: Director
+                  description: Position of the director
+                npwpDocument:
+                  type: string
+                  format: binary
+                  description: NPWP document (PDF/Image, max 10MB)
+                registrationDocument:
+                  type: string
+                  format: binary
+                  description: Company registration document (PDF/Image, max 10MB)
+                deedOfEstablishment:
+                  type: string
+                  format: binary
+                  description: Deed of establishment document (PDF/Image, max 10MB)
+                directorIdCard:
+                  type: string
+                  format: binary
+                  description: Director's ID card (PDF/Image, max 10MB)
+                ministryApprovalDocument:
+                  type: string
+                  format: binary
+                  description: Optional ministry approval document (PDF/Image, max 10MB)
+                businessLicense:
+                  type: string
+                  format: binary
+                  description: Optional additional business license (PDF/Image, max 10MB)
+            examples:
+              tech_company:
+                summary: Technology company application
+                value:
+                  businessName: PT Teknologi Nusantara
+                  registrationNumber: 8120202123456
+                  npwpNumber: 01.234.567.8-901.000
+                  businessType: PT
+                  businessDescription: Technology consulting and software development services
+                  province: DKI Jakarta
+                  city: Jakarta Selatan
+                  district: Kebayoran Baru
+                  subdistrict: Senayan
+                  address: Jl. Asia Afrika No. 8, Komplex Gelora Bung Karno
+                  postalCode: 10270
+                  directorName: Budi Santoso
+                  directorPosition: CEO
+                  npwpDocument: [Binary PDF - NPWP document]
+                  registrationDocument: [Binary PDF - NIB certificate]
+                  deedOfEstablishment: [Binary PDF - Akta Pendirian]
+                  directorIdCard: '[Binary Image - Directors KTP]'
+                  ministryApprovalDocument: [Binary PDF - SK Kemenkumham]
+                  businessLicense: [Binary PDF - Additional license]
+              trading_company:
+                summary: Trading company application
+                value:
+                  businessName: CV Mitra Jaya Trading
+                  registrationNumber: 1234567890123
+                  npwpNumber: 02.345.678.9-012.000
+                  businessType: CV
+                  businessDescription: Import and export trading company specializing in electronics
+                  province: Jawa Timur
+                  city: Surabaya
+                  district: Wonokromo
+                  subdistrict: Wonokromo
+                  address: Jl. Raya Darmo No. 123
+                  postalCode: 60241
+                  directorName: Siti Rahayu
+                  directorPosition: Director
+                  npwpDocument: [Binary PDF - NPWP document]
+                  registrationDocument: [Binary PDF - TDP certificate]
+                  deedOfEstablishment: [Binary PDF - Akta Pendirian]
+                  directorIdCard: '[Binary Image - Directors KTP]'
+                  ministryApprovalDocument: [Binary PDF - Ministry approval]
+                  businessLicense: [Binary PDF - Trading license]
+      responses:
+        '201':
+          description: Application submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  application:
+                    $ref: '#/components/schemas/InstitutionApplication'
+                  message:
+                    type: string
+              examples:
+                application_success:
+                  summary: Institution application submitted
+                  value:
+                    application:
+                      id: 789
+                      businessName: PT Teknologi Nusantara
+                      submittedDate: 2024-03-15T14:30:00Z
+                      status: Submitted
+                    message: Institution application submitted successfully and is under review
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/BusinessNameExists'
+
+  /institutions/{id}/status:
+    get:
+      tags: [Institution Verification]
+      summary: Get application status
+      description: Retrieves current status and progress of institution application
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Application status retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  application:
+                    $ref: '#/components/schemas/InstitutionApplication'
+                  progress:
+                    type: object
+                    properties:
+                      currentStep:
+                        type: integer
+                      totalSteps:
+                        type: integer
+                      completedSteps:
+                        type: array
+                        items:
+                          type: string
+                      nextAction:
+                        type: string
+                  documents:
+                    type: object
+                    properties:
+                      uploaded:
+                        type: integer
+                      required:
+                        type: integer
+                      status:
+                        type: string
+                        enum: [incomplete, complete, under_review]
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    apiKeyCookie:
+      type: apiKey
+      in: cookie
+      name: apiKeyCookie
+      description: Better Auth API Key authentication via cookie
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Better Auth Bearer token authentication
+
+  schemas:
+    KYCSubmission:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          description: Current KYC status (derived from time-based verification fields)
+          enum: [pending, verified, rejected]
+          readOnly: true
+          writeOnly: false
+        submittedDate:
+          type: string
+          format: date-time
+        verifiedDate:
+          type: string
+          format: date-time
+          nullable: true
+        rejectedDate:
+          type: string
+          format: date-time
+          nullable: true
+        rejectionReason:
+          type: string
+          nullable: true
+
+    InstitutionApplication:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        businessName:
+          type: string
+        submittedDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          description: Current application status (derived from time-based approval fields)
+          enum: [Submitted, UnderReview, Verified, Rejected]
+          readOnly: true
+          writeOnly: false
+
+    KYCSubmissionSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        userName:
+          type: string
+        submittedDate:
+          type: string
+          format: date-time
+        timeInQueue:
+          type: string
+          description: Duration in hours
+
+    KYCSubmissionDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        nik:
+          type: string
+        name:
+          type: string
+          description: Full name as registered
+        birthCity:
+          type: string
+        birthDate:
+          type: string
+          format: date
+        province:
+          type: string
+        city:
+          type: string
+        district:
+          type: string
+        subdistrict:
+          type: string
+        address:
+          type: string
+        postalCode:
+          type: string
+          maxLength: 10
+        phoneNumber:
+          type: string
+        idCardPhotoUrl:
+          type: string
+          description: Signed URL for ID card photo
+        selfieWithIdCardPhotoUrl:
+          type: string
+          description: Signed URL for selfie with ID card photo
+        submittedDate:
+          type: string
+          format: date-time
+
+    InstitutionApplicationSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        businessName:
+          type: string
+        applicantName:
+          type: string
+        submittedDate:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              description: Human-readable error message
+              example: Request validation failed
+            details:
+              type: object
+              description: Additional error details
+              additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+          example: 2025-08-13T15:30:00Z
+        requestId:
+          type: string
+          format: uuid
+          description: Request ID for tracking
+      required:
+        - success
+        - error
+        - timestamp
+
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            validation_error:
+              summary: KYC submission validation error
+              value:
+                success: false
+                error:
+                  code: VALIDATION_ERROR
+                  message: Request validation failed
+                  details:
+                    nik: NIK must be exactly 16 digits
+                    birthDate: Birth date cannot be in the future
+                    postalCode: Postal code must be 5 digits
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174000
+            institution_validation_error:
+              summary: Institution application validation error
+              value:
+                success: false
+                error:
+                  code: VALIDATION_ERROR
+                  message: Request validation failed
+                  details:
+                    npwpNumber: NPWP format must be XX.XXX.XXX.X-XXX.XXX
+                    businessName: Business name already exists
+                    registrationDocument: Document file is required
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174002
+
+    DuplicateNIK:
+      description: NIK already in system
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            duplicate_nik:
+              summary: NIK already registered in system
+              value:
+                success: false
+                error:
+                  code: DUPLICATE_NIK
+                  message: NIK already registered
+                  details:
+                    nik: 3171012345678901
+                    message: This NIK is already associated with another verified account
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174003
+
+    BusinessNameExists:
+      description: Business name already registered
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            business_name_exists:
+              summary: Business name already exists
+              value:
+                success: false
+                error:
+                  code: BUSINESS_NAME_EXISTS
+                  message: Business name already registered
+                  details:
+                    businessName: PT Teknologi Nusantara
+                    message: A business with this name is already registered in our system
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174004
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: NOT_FOUND
+            message: Resource not found
+
+tags:
+  - name: KYC Verification
+    description: Know Your Customer verification process
+  - name: Institution Verification
+    description: Institution registration and verification process
