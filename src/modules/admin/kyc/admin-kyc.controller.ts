@@ -1,12 +1,31 @@
 import type { UserSession } from '../../auth/types';
 
-import { BadRequestException, Controller, Get, Param, Post } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  BadRequestException,
+  Body,
+  ConflictException,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Put,
+  Query,
+  ValidationPipe,
+} from '@nestjs/common';
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { Auth } from '../../../decorators/auth.decorator';
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { MinioService } from '../../../shared/services/minio.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
+import {
+  assertArrayOf,
+  assertDefined,
+  assertPropNullableDate,
+  assertPropNullableString,
+  assertPropString,
+  validationOptions,
+} from '../../../shared/utils';
 import { Session } from '../../auth/auth.decorator';
 
 @Controller('admin/kyc')
@@ -108,23 +127,427 @@ export class AdminKycController {
     }
   }
 
-  @Post('users/:userId/approve')
+  @Get('queue')
   @ApiOperation({
-    summary: 'Approve KYC application',
-    description: 'Approve a user KYC application after manual review',
+    summary: 'Get pending KYC submissions queue',
+    description: 'Retrieve pending KYC submissions for admin review with pagination and filtering',
   })
-  approveKyc(@Session() session: UserSession, @Param('userId') userId: string) {
-    // TODO: Implement KYC approval logic
-    return { message: 'KYC approved successfully', userId, approvedBy: session.user.id };
+  @ApiQuery({ name: 'page', required: false, description: 'Page number', example: 1 })
+  @ApiQuery({ name: 'limit', required: false, description: 'Items per page', example: 10 })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    description: 'Sort by field',
+    example: 'submittedDate',
+  })
+  @ApiQuery({ name: 'sortOrder', required: false, description: 'Sort order', example: 'desc' })
+  @ApiResponse({
+    status: 200,
+    description: 'KYC queue retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        submissions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              userId: { type: 'number' },
+              userName: { type: 'string' },
+              userEmail: { type: 'string' },
+              submittedDate: { type: 'string', format: 'date-time' },
+              timeInQueue: { type: 'string' },
+              priority: { type: 'string', enum: ['normal', 'high', 'urgent'] },
+            },
+          },
+        },
+        pagination: {
+          type: 'object',
+          properties: {
+            page: { type: 'number' },
+            limit: { type: 'number' },
+            total: { type: 'number' },
+          },
+        },
+      },
+    },
+  })
+  async getKycQueue(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '50',
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: string,
+  ) {
+    try {
+      const result = await this.repo.adminViewsPendingKYCs();
+
+      const submissions = result.kycs.map(kyc => {
+        const submittedDate = new Date(kyc.submittedDate);
+        const now = new Date();
+        const diffHours = Math.floor((now.getTime() - submittedDate.getTime()) / (1000 * 60 * 60));
+
+        let timeInQueue: string;
+        if (diffHours < 1) {
+          timeInQueue = 'Less than 1 hour';
+        } else if (diffHours < 24) {
+          timeInQueue = `${diffHours} hour${diffHours > 1 ? 's' : ''}`;
+        } else {
+          const diffDays = Math.floor(diffHours / 24);
+          timeInQueue = `${diffDays} day${diffDays > 1 ? 's' : ''}`;
+        }
+
+        return {
+          id: Number(kyc.id),
+          userId: Number(kyc.userId),
+          userName: kyc.name,
+          userEmail: '',
+          submittedDate: submittedDate.toISOString(),
+          timeInQueue,
+          priority: 'normal' as const,
+        };
+      });
+
+      // Simple pagination
+      const pageNum = parseInt(page, 10) || 1;
+      const limitNum = parseInt(limit, 10) || 50;
+      const total = submissions.length;
+
+      return {
+        submissions,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+        },
+      };
+    } catch (error) {
+      this.logger.error('Failed to get KYC queue', { error: error.message });
+      throw error;
+    }
   }
 
-  @Post('users/:userId/reject')
+  @Get(':id')
   @ApiOperation({
-    summary: 'Reject KYC application',
-    description: 'Reject a user KYC application with reason',
+    summary: 'Get detailed KYC submission',
+    description: 'Retrieve detailed KYC submission for admin review',
   })
-  rejectKyc(@Session() session: UserSession, @Param('userId') userId: string) {
-    // TODO: Implement KYC rejection logic
-    return { message: 'KYC rejected successfully', userId, rejectedBy: session.user.id };
+  @ApiParam({ name: 'id', description: 'KYC submission ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'KYC submission details retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'number' },
+        userId: { type: 'number' },
+        userInfo: {
+          type: 'object',
+          properties: {
+            email: { type: 'string' },
+            name: { type: 'string' },
+            createdDate: { type: 'string', format: 'date-time' },
+          },
+        },
+        submissionData: {
+          type: 'object',
+          properties: {
+            nik: { type: 'string' },
+            name: { type: 'string' },
+            birthDate: { type: 'string', format: 'date' },
+            address: { type: 'string' },
+          },
+        },
+        documents: {
+          type: 'object',
+          properties: {
+            idCardPhotoUrl: { type: 'string' },
+            selfieWithIdCardPhotoUrl: { type: 'string' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'KYC submission not found' })
+  async getKycDetails(@Param('id') kycId: string) {
+    try {
+      // Get KYC details from database
+      const rows = await this.repo.sql`
+        SELECT
+          uk.id,
+          uk.user_id,
+          uk.nik,
+          uk.name,
+          uk.birth_date,
+          uk.address,
+          uk.id_card_photo,
+          uk.selfie_with_id_card_photo,
+          uk.submitted_date,
+          u.email,
+          u.name as user_name,
+          u.created_date
+        FROM user_kycs uk
+        LEFT JOIN users u ON uk.user_id = u.id
+        WHERE uk.id = ${kycId}
+      `;
+
+      if (rows.length === 0) {
+        throw new NotFoundException('KYC submission not found');
+      }
+
+      assertArrayOf(rows, function (row) {
+        assertDefined(row);
+        assertPropString(row, 'id');
+        assertPropString(row, 'user_id');
+        assertPropNullableString(row, 'nik');
+        assertPropNullableString(row, 'name');
+        assertPropString(row, 'birth_date');
+        assertPropNullableString(row, 'address');
+        assertPropNullableString(row, 'id_card_photo');
+        assertPropNullableString(row, 'selfie_with_id_card_photo');
+        assertPropNullableString(row, 'submitted_date');
+        assertPropNullableString(row, 'email');
+        assertPropNullableString(row, 'user_name');
+        assertPropNullableString(row, 'created_date');
+        return row;
+      });
+
+      const kyc = rows[0];
+
+      // Generate signed URLs for documents
+      let idCardPhotoUrl = '';
+      let selfieWithIdCardPhotoUrl = '';
+
+      if (kyc.id_card_photo) {
+        const [bucket, objectPath] = kyc.id_card_photo.split(':');
+        if (bucket && objectPath) {
+          try {
+            idCardPhotoUrl = await this.minioService.getFileUrl(bucket, objectPath, 15 * 60);
+          } catch (error) {
+            this.logger.warn(`Failed to generate ID card photo URL: ${error.message}`, {
+              kycId,
+              bucket,
+              objectPath,
+            });
+            // Continue without URL - this is acceptable for admin review
+          }
+        }
+      }
+
+      if (kyc.selfie_with_id_card_photo) {
+        const [bucket, objectPath] = kyc.selfie_with_id_card_photo.split(':');
+        if (bucket && objectPath) {
+          try {
+            selfieWithIdCardPhotoUrl = await this.minioService.getFileUrl(
+              bucket,
+              objectPath,
+              15 * 60,
+            );
+          } catch (error) {
+            this.logger.warn(`Failed to generate selfie photo URL: ${error.message}`, {
+              kycId,
+              bucket,
+              objectPath,
+            });
+            // Continue without URL - this is acceptable for admin review
+          }
+        }
+      }
+
+      return {
+        id: Number(kyc.id),
+        userId: Number(kyc.user_id),
+        userInfo: {
+          email: kyc.email || 'No email found',
+          name: kyc.user_name || 'No name found',
+          createdDate: kyc.created_date
+            ? new Date(kyc.created_date).toISOString()
+            : new Date().toISOString(),
+        },
+        submissionData: {
+          nik: kyc.nik,
+          name: kyc.name,
+          birthDate: new Date(kyc.birth_date).toISOString().split('T')[0],
+          address: kyc.address,
+        },
+        documents: {
+          idCardPhotoUrl,
+          selfieWithIdCardPhotoUrl,
+        },
+      };
+    } catch (error) {
+      this.logger.error('Failed to get KYC details', { error: error.message, kycId });
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to retrieve KYC details');
+    }
+  }
+
+  @Put(':id/approve')
+  @ApiOperation({
+    summary: 'Approve KYC submission',
+    description: 'Approve a KYC submission after manual review',
+  })
+  @ApiParam({ name: 'id', description: 'KYC submission ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'KYC approved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        kycId: { type: 'number' },
+        processedDate: { type: 'string', format: 'date-time' },
+        processingAdmin: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({ status: 409, description: 'KYC already processed' })
+  async approveKyc(
+    @Session() session: UserSession,
+    @Param('id') kycId: string,
+    @Body(new ValidationPipe(validationOptions)) body: { notes?: string },
+  ) {
+    try {
+      // Check if KYC exists and is pending
+      const checkRows = await this.repo.sql`
+        SELECT id, verified_date, rejected_date FROM user_kycs WHERE id = ${kycId}
+      `;
+
+      if (checkRows.length === 0) {
+        throw new NotFoundException('KYC submission not found');
+      }
+
+      assertArrayOf(checkRows, function (row) {
+        assertDefined(row);
+        assertPropString(row, 'id');
+        assertPropNullableDate(row, 'verified_date');
+        assertPropNullableDate(row, 'rejected_date');
+        return row;
+      });
+
+      const currentKyc = checkRows[0];
+      if (currentKyc.verified_date !== null || currentKyc.rejected_date !== null) {
+        throw new ConflictException('KYC has already been processed');
+      }
+
+      // Approve the KYC
+      const result = await this.repo.adminApprovesKyc({
+        kycId,
+        verifierUserId: session.user.id,
+        approvalDate: new Date(),
+      });
+
+      this.logger.log('KYC approved by admin', {
+        kycId,
+        adminId: session.user.id,
+        notes: body.notes,
+      });
+
+      return {
+        success: true,
+        message: 'KYC approved successfully',
+        kycId: Number(kycId),
+        processedDate: result.verifiedDate.toISOString(),
+        processingAdmin: session.user.id,
+      };
+    } catch (error) {
+      this.logger.error('Failed to approve KYC', { error: error.message, kycId });
+      if (error instanceof NotFoundException || error instanceof ConflictException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to approve KYC');
+    }
+  }
+
+  @Put(':id/reject')
+  @ApiOperation({
+    summary: 'Reject KYC submission',
+    description: 'Reject a KYC submission with reason',
+  })
+  @ApiParam({ name: 'id', description: 'KYC submission ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'KYC rejected successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        kycId: { type: 'number' },
+        processedDate: { type: 'string', format: 'date-time' },
+        processingAdmin: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Rejection reason required or invalid' })
+  @ApiResponse({ status: 409, description: 'KYC already processed' })
+  async rejectKyc(
+    @Session() session: UserSession,
+    @Param('id') kycId: string,
+    @Body(new ValidationPipe(validationOptions)) body: { reason: string },
+  ) {
+    try {
+      // Validate rejection reason
+      if (!body.reason || body.reason.trim().length < 10) {
+        throw new BadRequestException('Rejection reason must be at least 10 characters long');
+      }
+
+      // Check if KYC exists and is pending
+      const checkRows = await this.repo.sql`
+        SELECT id, verified_date, rejected_date FROM user_kycs WHERE id = ${kycId}
+      `;
+
+      if (checkRows.length === 0) {
+        throw new NotFoundException('KYC submission not found');
+      }
+
+      assertArrayOf(checkRows, function (row) {
+        assertDefined(row);
+        assertPropString(row, 'id');
+        assertPropNullableDate(row, 'verified_date');
+        assertPropNullableDate(row, 'rejected_date');
+        return row;
+      });
+
+      const currentKyc = checkRows[0];
+      if (currentKyc.verified_date !== null || currentKyc.rejected_date !== null) {
+        throw new ConflictException('KYC has already been processed');
+      }
+
+      // Reject the KYC
+      const result = await this.repo.adminRejectsKyc({
+        kycId,
+        verifierUserId: session.user.id,
+        rejectionReason: body.reason.trim(),
+        rejectionDate: new Date(),
+      });
+
+      this.logger.log('KYC rejected by admin', {
+        kycId,
+        adminId: session.user.id,
+        reason: body.reason,
+      });
+
+      return {
+        success: true,
+        message: 'KYC rejected successfully',
+        kycId: Number(kycId),
+        processedDate: result.rejectedDate.toISOString(),
+        processingAdmin: session.user.id,
+      };
+    } catch (error) {
+      this.logger.error('Failed to reject KYC', { error: error.message, kycId });
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException ||
+        error instanceof ConflictException
+      ) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to reject KYC');
+    }
   }
 }

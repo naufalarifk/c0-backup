@@ -59,6 +59,7 @@ export class InstitutionsController {
       { name: 'registrationDocument' },
       { name: 'deedOfEstablishment' },
       { name: 'directorIdCard' },
+      { name: 'ministryApprovalDocument' },
     ],
     { isRequired: true },
   )
@@ -70,6 +71,7 @@ export class InstitutionsController {
       registrationDocument: File[];
       deedOfEstablishment: File[];
       directorIdCard: File[];
+      ministryApprovalDocument: File[];
     },
     @Body() createInstitutionDto: SubmitCreateInstitutionDto,
   ) {

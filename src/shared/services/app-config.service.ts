@@ -135,14 +135,14 @@ export class AppConfigService {
   get throttlerConfigs(): ThrottlerOptions {
     return {
       ttl: this.getDuration('THROTTLER_TTL', '1m'),
-      limit: this.getNumber('THROTTLER_LIMIT', 10),
+      limit: this.getNumber('THROTTLER_LIMIT', 100000),
     };
   }
 
   get rateLimitConfigs(): ThrottlerOptions {
     return {
       ttl: this.getDuration('THROTTLER_TTL', '1m'),
-      limit: this.getNumber('THROTTLER_LIMIT', 10),
+      limit: this.getNumber('THROTTLER_LIMIT', 100000),
     };
   }
 

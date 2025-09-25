@@ -53,6 +53,10 @@ export class AuthConfig {
       plugins: this.plugins(),
       user: {
         additionalFields: {
+          role: {
+            type: 'string',
+            defaultValue: 'User',
+          },
           userType: {
             type: 'string',
             defaultValue: 'Undecided',
@@ -205,6 +209,7 @@ export class AuthConfig {
           this.notificationQueueService.queueNotification(payload);
         },
       }),
+      admin(),
       multiSession({ maximumSessions: this.configService.authConfig.maximumSessions }),
       customSession(async ({ session, user }: UserSession) => {
         // Process image URL if it's a MinIO path
@@ -236,7 +241,7 @@ export class AuthConfig {
 
   private rateLimit(): BetterAuthOptions['rateLimit'] {
     return {
-      enabled: true,
+      enabled: this.configService.isProduction,
       window: +this.configService.rateLimitConfigs.ttl,
       max: +this.configService.rateLimitConfigs.limit,
       customRules: this.configService.isProduction

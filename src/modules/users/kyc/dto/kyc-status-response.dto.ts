@@ -1,52 +1,61 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import { Type } from 'class-transformer';
-
-export class KycStatusResponseDto {
+export class KycSubmissionDto {
   @ApiProperty({
-    description: 'KYC record ID (if exists)',
-    example: 'kyc-123',
-    required: false,
+    description: 'KYC submission ID',
+    example: 1,
   })
-  id: string;
+  id: number;
 
   @ApiProperty({
     description: 'KYC verification status',
-    enum: ['none', 'pending', 'verified', 'rejected'],
+    enum: ['pending', 'verified', 'rejected'],
     example: 'pending',
   })
-  status: 'none' | 'pending' | 'verified' | 'rejected';
+  status: 'pending' | 'verified' | 'rejected';
 
   @ApiProperty({
-    description: 'KYC submission date',
+    description: 'KYC submission date (ISO string)',
     example: '2024-01-01T10:00:00.000Z',
-    required: false,
   })
-  @Type(() => Date)
-  submittedDate?: Date;
+  submittedDate: string;
 
   @ApiProperty({
-    description: 'KYC verification date',
+    description: 'KYC verification date (ISO string)',
     example: '2024-01-02T15:30:00.000Z',
     required: false,
   })
-  @Type(() => Date)
-  verifiedDate?: Date;
+  verifiedDate?: string | null;
 
   @ApiProperty({
-    description: 'KYC rejection date',
+    description: 'KYC rejection date (ISO string)',
     example: '2024-01-02T15:30:00.000Z',
     required: false,
   })
-  @Type(() => Date)
-  rejectedDate?: Date;
+  rejectedDate?: string | null;
 
   @ApiProperty({
     description: 'Reason for rejection (if rejected)',
     example: 'Document not clear, please resubmit with better quality photos',
     required: false,
   })
-  rejectionReason?: string;
+  rejectionReason?: string | null;
+}
+
+export class KycStatusResponseDto {
+  @ApiProperty({
+    description: 'KYC verification status',
+    enum: ['none', 'pending', 'verified', 'rejected'],
+    example: 'pending',
+  })
+  kycStatus: 'none' | 'pending' | 'verified' | 'rejected';
+
+  @ApiProperty({
+    description: 'KYC submission details (null if no submission)',
+    type: KycSubmissionDto,
+    required: false,
+  })
+  submission: KycSubmissionDto | null;
 
   @ApiProperty({
     description: 'Whether user can resubmit KYC',

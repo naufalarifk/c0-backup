@@ -1,13 +1,10 @@
-import type { PriceFeedService } from '../../../src/modules/pricefeed/pricefeed.service';
-import type {
-  AnyPriceFeedWorkerData,
-  ExchangeRateFetcherData,
-} from '../../../src/modules/pricefeed/pricefeed.types';
+import type { PriceFeedService } from './pricefeed.service';
+import type { AnyPriceFeedWorkerData, ExchangeRateFetcherData } from './pricefeed.types';
 
 import assert from 'node:assert';
 import { afterEach, beforeEach, describe, it, mock } from 'node:test';
 
-import { CryptocurrencyPriceService } from '../../../src/modules/pricefeed/cryptocurrency-price.service';
+import { CryptocurrencyPriceService } from './cryptocurrency-price.service';
 
 // Create a mock for PriceFeedService with all required methods
 const mockPriceFeedService = {

@@ -59,7 +59,7 @@ export function afterEach(fn: () => Promise<void>) {
 export function it(name: string, fn: () => Promise<void>): Promise<void> {
   return test.it(name, async function (t) {
     if (earlyExit) {
-      t.skip('Early exit due to previous error');
+      t.skip('Skipping due to earlier failure');
       return;
     }
     try {
