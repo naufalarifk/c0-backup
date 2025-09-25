@@ -132,13 +132,16 @@ ALTER TABLE notifications ADD COLUMN IF NOT EXISTS institution_application_id BI
 CREATE OR REPLACE FUNCTION indonesian_institution_application_documents_validation()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Validate that user has selected Institution user type
-  IF NOT EXISTS (
-    SELECT 1 FROM users
-    WHERE id = NEW.applicant_user_id
-    AND user_type = 'Institution'
-  ) THEN
-    RAISE EXCEPTION 'Only users with Institution user type can submit institution applications';
+  -- Only validate user type during INSERT (application submission), not UPDATE (approval/rejection)
+  IF TG_OP = 'INSERT' THEN
+    -- Validate that user has selected Individual user type (to apply for becoming an Institution)
+    IF NOT EXISTS (
+      SELECT 1 FROM users
+      WHERE id = NEW.applicant_user_id
+      AND user_type = 'Individual'
+    ) THEN
+      RAISE EXCEPTION 'Only Individual users can apply for institution registration';
+    END IF;
   END IF;
 
   -- Validate NPWP format (Indonesian tax ID format: XX.XXX.XXX.X-XXX.XXX)
@@ -157,6 +160,16 @@ BEGIN
     AND rejected_date IS NULL
   ) THEN
     RAISE EXCEPTION 'NPWP number already exists in another application';
+  END IF;
+
+  -- Check for duplicate business name in pending/approved applications
+  IF EXISTS (
+    SELECT 1 FROM institution_applications
+    WHERE business_name = NEW.business_name
+    AND id != COALESCE(NEW.id, 0)
+    AND rejected_date IS NULL
+  ) THEN
+    RAISE EXCEPTION 'BUSINESS_NAME_EXISTS' USING DETAIL = 'Business name already exists in another application';
   END IF;
 
   -- Check for duplicate registration number in pending/approved applications
@@ -198,7 +211,8 @@ BEGIN
     NEW.status = 'Verified';
 
     UPDATE users
-    SET institution_user_id = NEW.applicant_user_id,
+    SET user_type = 'Institution',
+        institution_user_id = NEW.applicant_user_id,
         institution_role = 'Owner'
     WHERE id = NEW.applicant_user_id;
 

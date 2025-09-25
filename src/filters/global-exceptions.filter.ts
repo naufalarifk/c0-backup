@@ -297,10 +297,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   private getForbiddenErrorCode(message: string): string {
     // Check for specific permission-related messages
     if (
-      message.includes('not a member') ||
       message.includes('insufficient permissions') ||
       message.includes('Insufficient permissions')
     ) {
+      return 'ADMIN_REQUIRED';
+    }
+
+    if (message.includes('not a member')) {
       return 'INSUFFICIENT_PERMISSIONS';
     }
 

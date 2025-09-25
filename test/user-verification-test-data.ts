@@ -58,7 +58,7 @@ export function createValidInstitutionData(
 ): InstitutionTestData {
   return {
     businessName: 'PT Teknologi Nusantara Test',
-    registrationNumber: '8120202123456',
+    registrationNumber: generateUniqueRegistrationNumber(),
     npwpNumber: '01.234.567.8-901.000',
     businessType: 'PT',
     businessDescription: 'Technology consulting and software development services',
@@ -404,4 +404,13 @@ export function generateUniqueNPWP(): string {
 export function generateUniqueBusinessName(type = 'PT'): string {
   const testId = generateTestId();
   return `${type} Test Business ${testId}`;
+}
+
+/**
+ * Generates unique registration number for testing (13 digits)
+ */
+export function generateUniqueRegistrationNumber(): string {
+  const timestamp = Date.now().toString();
+  // Take last 13 digits to ensure it's exactly 13 digits
+  return timestamp.slice(-13);
 }

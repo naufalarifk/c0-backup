@@ -108,12 +108,12 @@ export class AdminInstitutionsController {
           ia.id,
           ia.business_name,
           ia.submitted_date,
-          ia.user_id,
+          ia.applicant_user_id,
           u.name as applicant_name,
           u.email as applicant_email,
           COALESCE(uk.status, 'none') as kyc_status
         FROM institution_applications ia
-        JOIN users u ON ia.user_id = u.id
+        JOIN users u ON ia.applicant_user_id = u.id
         LEFT JOIN user_kycs uk ON u.id = uk.user_id AND uk.status = 'Verified'
         WHERE ia.status = 'Submitted'
         ORDER BY ia.submitted_date DESC
@@ -123,12 +123,27 @@ export class AdminInstitutionsController {
         assertDefined(app);
         assertPropStringOrNumber(app, 'id');
         assertPropString(app, 'business_name');
-        assertPropString(app, 'submitted_date');
-        assertPropStringOrNumber(app, 'user_id');
+        // submitted_date should be a string or Date - let's assert it exists first
+        if (
+          !('submitted_date' in app) ||
+          app.submitted_date === null ||
+          app.submitted_date === undefined
+        ) {
+          throw new Error('submitted_date property is missing or null');
+        }
+        if (typeof app.submitted_date !== 'string' && !(app.submitted_date instanceof Date)) {
+          throw new Error(
+            `Expected submitted_date to be string or Date, got ${typeof app.submitted_date}`,
+          );
+        }
+        assertPropStringOrNumber(app, 'applicant_user_id');
         assertPropNullableString(app, 'applicant_name');
         assertPropNullableString(app, 'applicant_email');
         assertPropString(app, 'kyc_status');
-        const submittedDate = new Date(app.submitted_date);
+        const submittedDate =
+          app.submitted_date instanceof Date
+            ? app.submitted_date
+            : new Date(app.submitted_date as string);
         const now = new Date();
         const diffHours = Math.floor((now.getTime() - submittedDate.getTime()) / (1000 * 60 * 60));
 
@@ -149,7 +164,7 @@ export class AdminInstitutionsController {
           timeInQueue,
           priority: 'normal' as const,
           applicantInfo: {
-            userId: Number(app.user_id),
+            userId: Number(app.applicant_user_id),
             name: app.applicant_name || 'N/A',
             email: app.applicant_email || 'N/A',
             kycStatus: app.kyc_status === 'Verified' ? 'verified' : 'none',
@@ -237,7 +252,7 @@ export class AdminInstitutionsController {
           ia.id,
           ia.business_name,
           ia.submitted_date,
-          ia.user_id,
+          ia.applicant_user_id,
           ia.npwp_document_path,
           ia.registration_document_path,
           ia.deed_of_establishment_path,
@@ -247,7 +262,7 @@ export class AdminInstitutionsController {
           u.name as user_name,
           COALESCE(uk.status, 'none') as kyc_status
         FROM institution_applications ia
-        JOIN users u ON ia.user_id = u.id
+        JOIN users u ON ia.applicant_user_id = u.id
         LEFT JOIN user_kycs uk ON u.id = uk.user_id AND uk.status = 'Verified'
         WHERE ia.id = ${applicationId}
       `;
@@ -260,8 +275,20 @@ export class AdminInstitutionsController {
         assertDefined(row);
         assertPropStringOrNumber(row, 'id');
         assertPropString(row, 'business_name');
-        assertPropString(row, 'submitted_date');
-        assertPropStringOrNumber(row, 'user_id');
+        // submitted_date should be a string or Date - let's assert it exists first
+        if (
+          !('submitted_date' in row) ||
+          row.submitted_date === null ||
+          row.submitted_date === undefined
+        ) {
+          throw new Error('submitted_date property is missing or null');
+        }
+        if (typeof row.submitted_date !== 'string' && !(row.submitted_date instanceof Date)) {
+          throw new Error(
+            `Expected submitted_date to be string or Date, got ${typeof row.submitted_date}`,
+          );
+        }
+        assertPropStringOrNumber(row, 'applicant_user_id');
         assertPropNullableString(row, 'npwp_document_path');
         assertPropNullableString(row, 'registration_document_path');
         assertPropNullableString(row, 'deed_of_establishment_path');
@@ -308,9 +335,12 @@ export class AdminInstitutionsController {
       return {
         id: Number(app.id),
         businessName: app.business_name,
-        submittedDate: new Date(app.submitted_date).toISOString(),
+        submittedDate: (app.submitted_date instanceof Date
+          ? app.submitted_date
+          : new Date(app.submitted_date as string)
+        ).toISOString(),
         applicantUser: {
-          id: Number(app.user_id),
+          id: Number(app.applicant_user_id),
           email: app.email,
           name: app.user_name,
           kycStatus: app.kyc_status === 'Verified' ? 'verified' : 'none',
@@ -378,7 +408,7 @@ export class AdminInstitutionsController {
 
       assertArrayOf(checkRows, function (row) {
         assertDefined(row);
-        assertPropString(row, 'id');
+        assertPropStringOrNumber(row, 'id');
         assertPropString(row, 'status');
         return row;
       });
@@ -465,7 +495,7 @@ export class AdminInstitutionsController {
 
       assertArrayOf(checkRows, function (row) {
         assertDefined(row);
-        assertPropString(row, 'id');
+        assertPropStringOrNumber(row, 'id');
         assertPropString(row, 'status');
         return row;
       });

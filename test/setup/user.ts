@@ -1,5 +1,6 @@
 import { ok } from 'node:assert/strict';
 
+import { assertDefined, assertPropDefined } from './assertions';
 import { setupBetterAuthClient } from './better-auth';
 import { loggedFetch } from './fetch';
 import { waitForEmailVerification } from './mailpit';
@@ -86,6 +87,10 @@ export async function createTestUser(options: TestUserOptions): Promise<TestUser
     name,
     callbackURL: 'http://localhost/test-callback',
   });
+
+  if (signUpResult.error) {
+    throw new Error(`User sign up failed: ${JSON.stringify(signUpResult.error)}`);
+  }
 
   ok(signUpResult.data?.user.id, 'User ID should exist after sign up');
   const userId = signUpResult.data.user.id;

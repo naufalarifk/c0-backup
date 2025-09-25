@@ -37,6 +37,7 @@ import {
   createInstitutionFormData,
   createKYCFormData,
   generateUniqueNIK,
+  generateUniqueRegistrationNumber,
 } from './user-verification-test-data';
 
 suite('User Verification API E2E Tests', function () {
@@ -762,6 +763,13 @@ suite('User Verification API E2E Tests', function () {
           body: formData,
         });
 
+        if (response.status !== 201) {
+          const errorText = await response.text();
+          console.error(
+            `Institution application failed with status ${response.status}: ${errorText}`,
+          );
+        }
+
         strictEqual(response.status, 201, `Expected 201, got ${response.status}`);
 
         const responseData = await response.json();
@@ -826,6 +834,7 @@ suite('User Verification API E2E Tests', function () {
         const formData1 = createInstitutionFormData({
           businessName,
           npwpNumber: '01.111.111.1-111.111',
+          registrationNumber: generateUniqueRegistrationNumber(), // Unique registration number
         });
 
         await mainUser.fetch('/api/institution-applications', {
@@ -833,10 +842,11 @@ suite('User Verification API E2E Tests', function () {
           body: formData1,
         });
 
-        // Second application with same business name
+        // Second application with same business name but different registration number
         const formData2 = createInstitutionFormData({
           businessName,
           npwpNumber: '02.222.222.2-222.222',
+          registrationNumber: generateUniqueRegistrationNumber(), // Different registration number
         });
 
         const response = await mainUser.fetch('/api/institution-applications', {
@@ -866,11 +876,20 @@ suite('User Verification API E2E Tests', function () {
       it('should reject institution application with missing required documents', async function () {
         const formData = new FormData();
 
-        // Add only basic info without required documents
+        // Add all required text fields but omit the required documents
         formData.append('businessName', 'PT Test Without Docs');
-        formData.append('registrationNumber', '1234567890123');
+        formData.append('registrationNumber', generateUniqueRegistrationNumber());
         formData.append('npwpNumber', '01.234.567.8-901.000');
         formData.append('businessType', 'PT');
+        formData.append('businessDescription', 'Test business description');
+        formData.append('businessProvince', 'DKI Jakarta');
+        formData.append('businessCity', 'Jakarta Selatan');
+        formData.append('businessDistrict', 'Kebayoran Baru');
+        formData.append('businessSubdistrict', 'Senayan');
+        formData.append('businessAddress', 'Jl. Asia Afrika No. 8, Komplex Gelora Bung Karno');
+        formData.append('businessPostalCode', '10270');
+        formData.append('directorName', 'Budi Santoso');
+        formData.append('directorPosition', 'CEO');
 
         const response = await mainUser.fetch('/api/institution-applications', {
           method: 'POST',
@@ -914,7 +933,7 @@ suite('User Verification API E2E Tests', function () {
       it('should accept trading company application with valid data', async function () {
         const formData = createInstitutionFormData({
           businessName: 'CV Mitra Jaya Trading Test',
-          registrationNumber: '1234567890123',
+          registrationNumber: generateUniqueRegistrationNumber(),
           npwpNumber: '02.345.678.9-012.000',
           businessType: 'CV',
           businessDescription: 'Import and export trading company specializing in electronics',
@@ -1022,9 +1041,7 @@ suite('User Verification API E2E Tests', function () {
           userType: 'Individual',
         });
 
-        const response = await userWithoutInstitution.fetch(
-          `${testSetup.backendUrl}/api/institution-applications/status`,
-        );
+        const response = await userWithoutInstitution.fetch('/api/institution-applications/status');
 
         strictEqual(response.status, 404, `Expected 404, got ${response.status}`);
 
@@ -1182,20 +1199,37 @@ suite('User Verification API E2E Tests', function () {
 
     describe('PUT /admin/institutions/applications/{id}/approve', function () {
       let approveTestApplicationId: number;
+      let approveTestUser: TestUser;
 
       before(async function () {
+        // Create a separate user for approval testing
+        approveTestUser = await createKycTestUser({
+          testId,
+          testSetup,
+          email: `institution_approve_test_${testId}@test.com`,
+          name: `Institution Approve Test User ${testId}`,
+        });
+
         // Create another institution application for approval testing
         const formData = createInstitutionFormData({
           businessName: `PT Approval Test ${testId}`,
           npwpNumber: '05.678.901.2-345.000',
         });
 
-        const response = await mainUser.fetch('/api/institution-applications', {
+        const response = await approveTestUser.fetch('/api/institution-applications', {
           method: 'POST',
           body: formData,
         });
 
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`Institution application failed: ${JSON.stringify(errorData)}`);
+        }
+
         const responseData = await response.json();
+        if (!responseData.application || !responseData.application.id) {
+          throw new Error(`Invalid response structure: ${JSON.stringify(responseData)}`);
+        }
         approveTestApplicationId = responseData.application.id;
       });
 
@@ -1260,20 +1294,38 @@ suite('User Verification API E2E Tests', function () {
 
     describe('PUT /admin/institutions/applications/{id}/reject', function () {
       let rejectTestApplicationId: number;
+      let rejectTestUser: TestUser;
 
       before(async function () {
+        // Create a separate user for rejection testing
+        rejectTestUser = await createKycTestUser({
+          testId,
+          testSetup,
+          email: `institution_reject_test_${testId}@test.com`,
+          name: `Institution Reject Test User ${testId}`,
+        });
+
         // Create another institution application for rejection testing
         const formData = createInstitutionFormData({
           businessName: `PT Rejection Test ${testId}`,
           npwpNumber: '06.789.012.3-456.000',
+          registrationNumber: generateUniqueRegistrationNumber(), // Generate unique registration number
         });
 
-        const response = await mainUser.fetch('/api/institution-applications', {
+        const response = await rejectTestUser.fetch('/api/institution-applications', {
           method: 'POST',
           body: formData,
         });
 
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`Institution application failed: ${JSON.stringify(errorData)}`);
+        }
+
         const responseData = await response.json();
+        if (!responseData.application || !responseData.application.id) {
+          throw new Error(`Invalid response structure: ${JSON.stringify(responseData)}`);
+        }
         rejectTestApplicationId = responseData.application.id;
       });
 
@@ -1440,7 +1492,7 @@ suite('User Verification API E2E Tests', function () {
         name: longText,
       });
 
-      const response = await mainUser.fetch('/users/kyc/submit', {
+      const response = await mainUser.fetch('/api/users/kyc/submit', {
         method: 'POST',
         body: formData,
       });
@@ -1468,7 +1520,7 @@ suite('User Verification API E2E Tests', function () {
         postalCode: '1a2b3', // Contains letters
       });
 
-      const response = await mainUser.fetch('/users/kyc/submit', {
+      const response = await mainUser.fetch('/api/users/kyc/submit', {
         method: 'POST',
         body: formData,
       });
@@ -1495,7 +1547,7 @@ suite('User Verification API E2E Tests', function () {
         nik: '3171a12345678901', // Contains letter
       });
 
-      const response = await mainUser.fetch('/users/kyc/submit', {
+      const response = await mainUser.fetch('/api/users/kyc/submit', {
         method: 'POST',
         body: formData,
       });

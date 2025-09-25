@@ -210,4 +210,105 @@ export class TestController {
       processingAdmin: 'test-admin',
     };
   }
+
+  @Post('test-admin-kyc-approve-by-email')
+  async approveKycByEmail(@Body() body: { email: string }) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Test endpoints are not available in production');
+    }
+
+    const { email } = body;
+    if (!email || typeof email !== 'string') {
+      throw new BadRequestException('email is required');
+    }
+
+    // Find latest pending KYC for the user with this email
+    const rows = await this.repo.sql`
+      SELECT uk.id, uk.status, uk.user_id
+      FROM user_kycs uk
+      JOIN users u ON uk.user_id = u.id
+      WHERE u.email = ${email}
+        AND uk.verified_date IS NULL
+        AND uk.rejected_date IS NULL
+      ORDER BY uk.submitted_date DESC
+      LIMIT 1
+    `;
+
+    if (rows.length === 0) {
+      throw new NotFoundException(`No pending KYC found for email ${email}`);
+    }
+
+    const kyc = rows[0];
+    assertDefined(kyc);
+    assertPropStringOrNumber(kyc, 'id');
+    assertPropStringOrNumber(kyc, 'user_id');
+
+    // Approve the KYC
+    await this.repo.sql`
+      UPDATE user_kycs
+      SET verified_date = NOW(), status = 'Verified'
+      WHERE id = ${kyc.id}
+    `;
+
+    this.#logger.debug(`Approved KYC ${kyc.id} for user ${kyc.user_id}`);
+
+    return {
+      success: true,
+      message: `KYC ${kyc.id} for ${email} has been approved`,
+      kycId: Number(kyc.id),
+      processingAdmin: 'test-admin',
+    };
+  }
+
+  @Post('test-admin-kyc-reject-by-email')
+  async rejectKycByEmail(@Body() body: { email: string; reason: string }) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Test endpoints are not available in production');
+    }
+
+    const { email, reason } = body;
+    if (!email || typeof email !== 'string') {
+      throw new BadRequestException('email is required');
+    }
+    if (!reason || typeof reason !== 'string' || reason.trim().length < 10) {
+      throw new BadRequestException('Rejection reason must be at least 10 characters long');
+    }
+
+    // Find latest pending KYC for the user with this email
+    const rows = await this.repo.sql`
+      SELECT uk.id, uk.status, uk.user_id
+      FROM user_kycs uk
+      JOIN users u ON uk.user_id = u.id
+      WHERE u.email = ${email}
+        AND uk.verified_date IS NULL
+        AND uk.rejected_date IS NULL
+      ORDER BY uk.submitted_date DESC
+      LIMIT 1
+    `;
+
+    if (rows.length === 0) {
+      throw new NotFoundException(`No pending KYC found for email ${email}`);
+    }
+
+    const kyc = rows[0];
+    assertDefined(kyc);
+    assertPropStringOrNumber(kyc, 'id');
+    assertPropStringOrNumber(kyc, 'user_id');
+
+    // Reject the KYC
+    await this.repo.sql`
+      UPDATE user_kycs
+      SET rejected_date = NOW(), rejection_reason = ${reason}, status = 'Rejected'
+      WHERE id = ${kyc.id}
+    `;
+
+    this.#logger.debug(`Rejected KYC ${kyc.id} for user ${kyc.user_id} with reason: ${reason}`);
+
+    return {
+      success: true,
+      message: `KYC ${kyc.id} for ${email} has been rejected`,
+      kycId: Number(kyc.id),
+      processingAdmin: 'test-admin',
+    };
+  }
 }

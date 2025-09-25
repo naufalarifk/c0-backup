@@ -1,4 +1,9 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { FileValidatorService } from '../../shared/services/file-validator.service';
@@ -63,12 +68,28 @@ export class InstitutionsService {
       applicationDate: new Date(),
     };
 
-    const result = await this.repo.userAppliesForInstitution(payload);
+    let result;
+    try {
+      result = await this.repo.userAppliesForInstitution(payload);
+    } catch (error) {
+      // Handle database constraint violations
+      if (error instanceof Error && error.message.includes('BUSINESS_NAME_EXISTS')) {
+        throw new ConflictException({
+          code: 'BUSINESS_NAME_EXISTS',
+          message: 'Business name already exists',
+          details: {
+            businessName: institutionData.businessName,
+            message: 'This business name is already registered in another application',
+          },
+        });
+      }
+      throw error;
+    }
 
     return {
       message: 'Institution application created successfully',
       application: {
-        id: result.id,
+        id: Number(result.id),
         businessName: institutionData.businessName,
         submittedDate: payload.applicationDate,
         status: 'Submitted',
@@ -157,11 +178,30 @@ export class InstitutionsService {
     directorIdCard: File[];
     ministryApprovalDocument: File[];
   }) {
-    ensure(files?.npwpDocument?.[0], 'NPWP document is required');
-    ensure(files?.registrationDocument?.[0], 'Registration document is required');
-    ensure(files?.deedOfEstablishment?.[0], 'Deed of establishment document is required');
-    ensure(files?.directorIdCard?.[0], 'Director ID card is required');
-    ensure(files?.ministryApprovalDocument?.[0], 'Ministry approval document is required');
+    const errors: Record<string, string> = {};
+
+    if (!files?.npwpDocument?.[0]) {
+      errors.npwpDocument = 'NPWP document is required';
+    }
+    if (!files?.registrationDocument?.[0]) {
+      errors.registrationDocument = 'Registration document is required';
+    }
+    if (!files?.deedOfEstablishment?.[0]) {
+      errors.deedOfEstablishment = 'Deed of establishment document is required';
+    }
+    if (!files?.directorIdCard?.[0]) {
+      errors.directorIdCard = 'Director ID card is required';
+    }
+    if (!files?.ministryApprovalDocument?.[0]) {
+      errors.ministryApprovalDocument = 'Ministry approval document is required';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      throw new UnprocessableEntityException({
+        message: 'Request validation failed',
+        errors,
+      });
+    }
 
     return {
       npwpDocument: files.npwpDocument[0],
@@ -643,7 +683,14 @@ export class InstitutionsService {
     const application = await this.repo.userViewsInstitutionApplicationStatus({ userId });
 
     if (!application || !application.id) {
-      throw new Error('Institution application not found');
+      throw new NotFoundException({
+        code: 'NOT_FOUND',
+        message: 'Institution application not found',
+        details: {
+          userId,
+          message: 'No institution application found for this user',
+        },
+      });
     }
 
     // Calculate progress based on status
@@ -658,7 +705,7 @@ export class InstitutionsService {
 
     return {
       application: {
-        id: application.id,
+        id: Number(application.id),
         businessName: application.businessName,
         submittedDate: application.submittedDate,
         status: application.status,
@@ -713,7 +760,7 @@ export class InstitutionsService {
   }
 
   /**
-   * Upload institution document file to Minio (images only, no PDF for security)
+   * Upload institution document file to Minio (accepts both images and PDFs for institution documents)
    */
   async uploadFile(
     fileBuffer: Buffer,
@@ -722,8 +769,17 @@ export class InstitutionsService {
     documentType: string,
     mimeType?: string,
   ): Promise<{ objectPath: string; bucket: string; size: number }> {
-    // Validate file - only images allowed (no PDF for security)
-    this.fileValidatorService.validateImageFile(fileBuffer, 2, mimeType, originalName);
+    // Validate file based on type - director ID card must be image, other documents can be PDF or image
+    if (documentType === 'director-id-card') {
+      this.fileValidatorService.validateImageFile(fileBuffer, 2, mimeType, originalName);
+    } else {
+      // For other institution documents, allow both PDF and images
+      if (mimeType === 'application/pdf' || originalName?.toLowerCase().endsWith('.pdf')) {
+        this.fileValidatorService.validatePdfFile(fileBuffer, 5, mimeType, originalName);
+      } else {
+        this.fileValidatorService.validateImageFile(fileBuffer, 2, mimeType, originalName);
+      }
+    }
 
     const folder = `institutions/${userId}`;
     const sanitizedFileName = this.fileValidatorService.sanitizeFileName(originalName);
