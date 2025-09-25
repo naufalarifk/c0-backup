@@ -141,7 +141,7 @@ export class ProfileController {
       profilePicture,
     );
 
-    const updateResult = await this.auth.api.updateUser({
+    const _updateResult = await this.auth.api.updateUser({
       headers,
       body: updateData,
     });

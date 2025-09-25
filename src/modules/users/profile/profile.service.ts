@@ -105,7 +105,7 @@ export class ProfileService {
     assertPropNullableString(profile, 'userType');
 
     const isKycVerified = profile.kycStatus === 'verified';
-    const isPhoneVerified = profile.phone_number_verified || false;
+    const _isPhoneVerified = profile.phone_number_verified || false;
     const isEmailVerified = profile.emailVerified || false;
     const hasUserType = profile.userType !== 'Undecided';
     const isInstitution = profile.userType === 'Institution';

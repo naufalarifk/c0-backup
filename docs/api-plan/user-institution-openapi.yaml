@@ -7,11 +7,11 @@ info:
     name: CryptoGadai Development Team
 
 servers:
-  - url: https://api.cryptogadai.com/api
+  - url: https://api.cryptogadai.com
     description: Production server
-  - url: https://cg-api.fh47.com/api
+  - url: https://cg-api.fh47.com
     description: Testing server
-  - url: http://cg-api.localhost/api
+  - url: http://cg-api.localhost
     description: Local development server
 
 security:
@@ -19,7 +19,7 @@ security:
   - bearerAuth: []
 
 paths:
-  /institutions/{id}:
+  /api/institutions/{id}:
     get:
       tags: [Institution Management]
       summary: Get institution details
@@ -62,7 +62,7 @@ paths:
         '403':
           $ref: '#/components/responses/InsufficientPermissions'
 
-  /institutions/{id}/members:
+  /api/institutions/{id}/members:
     get:
       tags: [Institution Management]
       summary: List institution members
@@ -125,7 +125,7 @@ paths:
         '403':
           $ref: '#/components/responses/InsufficientPermissions'
 
-  /institutions/{id}/members/{userId}:
+  /api/institutions/{id}/members/{userId}:
     delete:
       tags: [Institution Management]
       summary: Remove institution member
@@ -194,7 +194,7 @@ paths:
         '403':
           $ref: '#/components/responses/InsufficientPermissions'
 
-  /institutions/{id}/invitations:
+  /api/institutions/{id}/invitations:
     get:
       tags: [Institution Management]
       summary: List pending invitations
@@ -247,7 +247,7 @@ paths:
         '403':
           $ref: '#/components/responses/InsufficientPermissions'
 
-  /institutions/invitations:
+  /api/institutions/invitations:
     post:
       tags: [Institution Management]
       summary: Invite institution member
@@ -305,7 +305,7 @@ paths:
         '409':
           $ref: '#/components/responses/UserAlreadyMember'
 
-  /institutions/invitations/{id}/resend:
+  /api/institutions/invitations/{id}/resend:
     post:
       tags: [Institution Management]
       summary: Resend institution invitation
@@ -360,7 +360,7 @@ paths:
         '403':
           $ref: '#/components/responses/InsufficientPermissions'
 
-  /institutions/invitations/{id}:
+  /api/institutions/invitations/{id}:
     delete:
       tags: [Institution Management]
       summary: Cancel pending invitation
@@ -459,7 +459,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /institutions/invitations/{id}/accept:
+  /api/institutions/invitations/{id}/accept:
     post:
       tags: [Institution Management]
       summary: Accept institution invitation
@@ -504,7 +504,7 @@ paths:
         '400':
           $ref: '#/components/responses/InvitationExpired'
 
-  /institutions/invitations/{id}/reject:
+  /api/institutions/invitations/{id}/reject:
     post:
       tags: [Institution Management]
       summary: Reject institution invitation

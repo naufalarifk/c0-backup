@@ -8,7 +8,14 @@ import type {
 
 import { sso } from '@better-auth/sso';
 import { betterAuth } from 'better-auth';
-import { customSession, multiSession, openAPI, phoneNumber, twoFactor } from 'better-auth/plugins';
+import {
+  admin,
+  customSession,
+  multiSession,
+  openAPI,
+  phoneNumber,
+  twoFactor,
+} from 'better-auth/plugins';
 
 type Session = NonNullable<Awaited<ReturnType<ReturnType<typeof getSession>>>>;
 
@@ -25,6 +32,7 @@ export type AuthInstance = ReturnType<typeof betterAuth>;
 
 export type PluginEndpoints = ReturnType<typeof twoFactor>['endpoints'] &
   ReturnType<typeof phoneNumber>['endpoints'] &
+  ReturnType<typeof admin>['endpoints'] &
   ReturnType<typeof sso>['endpoints'] &
   ReturnType<typeof multiSession>['endpoints'] &
   ReturnType<typeof customSession>['endpoints'] &

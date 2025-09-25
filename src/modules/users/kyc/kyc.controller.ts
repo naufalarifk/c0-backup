@@ -10,6 +10,7 @@ import {
   Post,
   Session,
   UploadedFiles,
+  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -22,6 +23,7 @@ import {
 import { Auth } from '../../../decorators/auth.decorator';
 import { ApiFile } from '../../../decorators/swagger.schema';
 import { RequireUserType } from '../../../decorators/user-type.decorator';
+import { validationOptions } from '../../../shared/utils';
 import { SubmitKycDto } from './dto/create-kyc.dto';
 import { KycStatusResponseDto } from './dto/kyc-status-response.dto';
 import { KycService } from './kyc.service';
@@ -33,7 +35,7 @@ import { KycService } from './kyc.service';
 export class KycController {
   constructor(private readonly kycService: KycService) {}
 
-  @Get()
+  @Get('status')
   @ApiOperation({
     summary: 'Get user KYC status',
     description: 'Retrieve the current KYC verification status for the authenticated user',
@@ -47,7 +49,7 @@ export class KycController {
     return this.kycService.getKyc(session.user.id);
   }
 
-  @Post()
+  @Post('submit')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Submit KYC verification',
@@ -71,7 +73,7 @@ export class KycController {
       idCardPhoto: File[];
       selfieWithIdCardPhoto: File[];
     },
-    @Body() kycData: SubmitKycDto,
+    @Body(new ValidationPipe(validationOptions)) kycData: SubmitKycDto,
   ) {
     return this.kycService.createKyc(session.user.id, kycData, files);
   }

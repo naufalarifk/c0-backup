@@ -205,6 +205,7 @@ export class AuthConfig {
           this.notificationQueueService.queueNotification(payload);
         },
       }),
+      admin(),
       multiSession({ maximumSessions: this.configService.authConfig.maximumSessions }),
       customSession(async ({ session, user }: UserSession) => {
         // Process image URL if it's a MinIO path

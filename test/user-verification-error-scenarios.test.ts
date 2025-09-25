@@ -48,7 +48,7 @@ suite('Error Scenarios E2E Tests', function () {
     const email = `error_test_${testId}@test.com`;
     const password = 'ValidPassword123!';
 
-    const signUpResult = await authClient.authClient.signUp.email({
+    const _signUpResult = await authClient.authClient.signUp.email({
       email,
       password,
       name: `Error Test User ${testId}`,

@@ -7,11 +7,11 @@ info:
     name: CryptoGadai Development Team
 
 servers:
-  - url: https://api.cryptogadai.com/api
+  - url: https://api.cryptogadai.com
     description: Production server
-  - url: https://cg-api.fh47.com/api
+  - url: https://cg-api.fh47.com
     description: Testing server
-  - url: http://cg-api.localhost/api
+  - url: http://cg-api.localhost
     description: Local development server
 
 security:
@@ -20,7 +20,7 @@ security:
 
 paths:
   # User Type Selection
-  /users/type-selection:
+  /api/users/type-selection:
     post:
       tags: [User Profile]
       summary: Select user type
@@ -92,7 +92,7 @@ paths:
                     message: User type already selected
 
   # User Profile Management
-  /users/profile:
+  /api/users/profile:
     get:
       tags: [User Profile]
       summary: Get user profile
@@ -255,7 +255,7 @@ paths:
         '413':
           $ref: '#/components/responses/FileTooLarge'
 
-  /users/preferences:
+  /api/users/preferences:
     get:
       tags: [User Profile]
       summary: Get user preferences
@@ -501,7 +501,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /user/institutions:
+  /api/user/institutions:
     get:
       tags: [User Profile]
       summary: Get user's institution memberships

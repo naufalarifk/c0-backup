@@ -21,12 +21,12 @@ export interface InstitutionTestData {
   npwpNumber: string;
   businessType: string;
   businessDescription?: string;
-  province: string;
-  city: string;
-  district: string;
-  subdistrict: string;
-  address: string;
-  postalCode: string;
+  businessProvince: string;
+  businessCity: string;
+  businessDistrict: string;
+  businessSubdistrict: string;
+  businessAddress: string;
+  businessPostalCode: string;
   directorName: string;
   directorPosition: string;
 }
@@ -62,12 +62,12 @@ export function createValidInstitutionData(
     npwpNumber: '01.234.567.8-901.000',
     businessType: 'PT',
     businessDescription: 'Technology consulting and software development services',
-    province: 'DKI Jakarta',
-    city: 'Jakarta Selatan',
-    district: 'Kebayoran Baru',
-    subdistrict: 'Senayan',
-    address: 'Jl. Asia Afrika No. 8, Komplex Gelora Bung Karno',
-    postalCode: '10270',
+    businessProvince: 'DKI Jakarta',
+    businessCity: 'Jakarta Selatan',
+    businessDistrict: 'Kebayoran Baru',
+    businessSubdistrict: 'Senayan',
+    businessAddress: 'Jl. Asia Afrika No. 8, Komplex Gelora Bung Karno',
+    businessPostalCode: '10270',
     directorName: 'Budi Santoso',
     directorPosition: 'CEO',
     ...overrides,
@@ -153,10 +153,36 @@ export function createKYCFormData(data: Partial<KYCTestData> = {}, includeFiles 
   });
 
   if (includeFiles) {
-    // Create dummy image files
-    const dummyImageData = 'dummy-image-data';
-    const idCardFile = new Blob([dummyImageData], { type: 'image/jpeg' });
-    const selfieFile = new Blob([dummyImageData], { type: 'image/jpeg' });
+    // Create minimal valid JPEG files
+    // Minimal JPEG file signature: FF D8 FF E0 00 10 4A 46 49 46 00 01 ... FF D9
+    const minimalJpeg = new Uint8Array([
+      0xff,
+      0xd8, // SOI (Start of Image)
+      0xff,
+      0xe0, // APP0 marker
+      0x00,
+      0x10, // APP0 length (16 bytes)
+      0x4a,
+      0x46,
+      0x49,
+      0x46,
+      0x00,
+      0x01, // JFIF\0\1
+      0x01,
+      0x01, // Version 1.1
+      0x00, // Density units: 0 = no units
+      0x00,
+      0x01, // X density = 1
+      0x00,
+      0x01, // Y density = 1
+      0x00,
+      0x00, // Thumbnail width/height = 0
+      0xff,
+      0xd9, // EOI (End of Image)
+    ]);
+
+    const idCardFile = new Blob([minimalJpeg], { type: 'image/jpeg' });
+    const selfieFile = new Blob([minimalJpeg], { type: 'image/jpeg' });
 
     formData.append('idCardPhoto', idCardFile, 'id-card.jpg');
     formData.append('selfieWithIdCardPhoto', selfieFile, 'selfie.jpg');
@@ -182,13 +208,143 @@ export function createInstitutionFormData(
   });
 
   if (includeFiles) {
-    // Create dummy document files
-    const dummyPdfData = 'dummy-pdf-data';
-    const npwpDoc = new Blob([dummyPdfData], { type: 'application/pdf' });
-    const registrationDoc = new Blob([dummyPdfData], { type: 'application/pdf' });
-    const deedDoc = new Blob([dummyPdfData], { type: 'application/pdf' });
-    const directorIdCard = new Blob([dummyPdfData], { type: 'image/jpeg' });
-    const ministryDoc = new Blob([dummyPdfData], { type: 'application/pdf' });
+    // Create minimal valid PDF files - PDF header signature: %PDF-1.4\n%âãÏÓ\n
+    const minimalPdf = new Uint8Array([
+      0x25,
+      0x50,
+      0x44,
+      0x46,
+      0x2d,
+      0x31,
+      0x2e,
+      0x34,
+      0x0a, // %PDF-1.4\n
+      0x25,
+      0xe2,
+      0xe3,
+      0xcf,
+      0xd3,
+      0x0a, // Binary marker
+      0x31,
+      0x20,
+      0x30,
+      0x20,
+      0x6f,
+      0x62,
+      0x6a,
+      0x0a, // 1 0 obj\n
+      0x3c,
+      0x3c,
+      0x2f,
+      0x54,
+      0x79,
+      0x70,
+      0x65,
+      0x2f,
+      0x43,
+      0x61,
+      0x74,
+      0x61,
+      0x6c,
+      0x6f,
+      0x67,
+      0x3e,
+      0x3e,
+      0x0a, // <</Type/Catalog>>\n
+      0x65,
+      0x6e,
+      0x64,
+      0x6f,
+      0x62,
+      0x6a,
+      0x0a, // endobj\n
+      0x78,
+      0x72,
+      0x65,
+      0x66,
+      0x0a, // xref\n
+      0x30,
+      0x20,
+      0x31,
+      0x0a, // 0 1\n
+      0x30,
+      0x30,
+      0x30,
+      0x30,
+      0x30,
+      0x30,
+      0x30,
+      0x30,
+      0x30,
+      0x30,
+      0x20,
+      0x36,
+      0x35,
+      0x35,
+      0x33,
+      0x35,
+      0x20,
+      0x66,
+      0x0a, // 0000000000 65535 f\n
+      0x74,
+      0x72,
+      0x61,
+      0x69,
+      0x6c,
+      0x65,
+      0x72,
+      0x0a, // trailer\n
+      0x3c,
+      0x3c,
+      0x2f,
+      0x53,
+      0x69,
+      0x7a,
+      0x65,
+      0x20,
+      0x31,
+      0x3e,
+      0x3e,
+      0x0a, // <</Size 1>>\n
+      0x25,
+      0x25,
+      0x45,
+      0x4f,
+      0x46, // %%EOF
+    ]);
+
+    // Create minimal valid JPEG for director ID card
+    const minimalJpeg = new Uint8Array([
+      0xff,
+      0xd8, // SOI (Start of Image)
+      0xff,
+      0xe0, // APP0 marker
+      0x00,
+      0x10, // APP0 length (16 bytes)
+      0x4a,
+      0x46,
+      0x49,
+      0x46,
+      0x00,
+      0x01, // JFIF\0\1
+      0x01,
+      0x01, // Version 1.1
+      0x00, // Density units: 0 = no units
+      0x00,
+      0x01, // X density = 1
+      0x00,
+      0x01, // Y density = 1
+      0x00,
+      0x00, // Thumbnail width/height = 0
+      0xff,
+      0xd9, // EOI (End of Image)
+    ]);
+
+    const npwpDoc = new Blob([minimalPdf], { type: 'application/pdf' });
+    const registrationDoc = new Blob([minimalPdf], { type: 'application/pdf' });
+    const deedDoc = new Blob([minimalPdf], { type: 'application/pdf' });
+    const directorIdCard = new Blob([minimalJpeg], { type: 'image/jpeg' });
+    const ministryDoc = new Blob([minimalPdf], { type: 'application/pdf' });
 
     formData.append('npwpDocument', npwpDoc, 'npwp.pdf');
     formData.append('registrationDocument', registrationDoc, 'registration.pdf');

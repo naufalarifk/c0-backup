@@ -60,7 +60,7 @@ suite('User Profile Management', function () {
         cookieJar.setCookieSync(cookie, url, { ignoreError: true });
       });
 
-      const clonedResponse = response.clone();
+      const _clonedResponse = response.clone();
       // console.debug('authenticatedFetch', init?.method, url, {
       //   status: response.status,
       //   // resHeaders: Array.from(response.headers.entries()).reduce(

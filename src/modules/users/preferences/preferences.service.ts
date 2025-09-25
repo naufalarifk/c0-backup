@@ -27,7 +27,7 @@ export class PreferencesService {
 
   async updatePreferences(userId: string, preferences: UserPreferencesDto) {
     try {
-      const result = await this.repo.userUpdatesPreferences({
+      const _result = await this.repo.userUpdatesPreferences({
         userId,
         preferences,
         updateDate: new Date(),

@@ -63,6 +63,7 @@ import {
   assertPropString,
   assertPropStringOrNumber,
 } from '../utils/assertions';
+import { ensureUnique } from '../utils/ensures';
 import { BetterAuthRepository } from './better-auth.repository';
 
 /**
@@ -251,6 +252,24 @@ export abstract class UserRepository extends BetterAuthRepository {
         postalCode,
         submissionDate,
       } = params;
+
+      // Check for duplicate NIK in verified KYCs
+      const existingVerifiedNikRows = await tx.sql`
+        SELECT id, user_id FROM user_kycs
+        WHERE nik = ${nik} AND status = 'Verified'
+      `;
+
+      if (existingVerifiedNikRows.length > 0) {
+        const existingNik = existingVerifiedNikRows[0];
+        assertDefined(existingNik);
+        assertPropStringOrNumber(existingNik, 'user_id');
+
+        // If verified NIK belongs to a different user, throw duplicate error
+        ensureUnique(
+          String(existingNik.user_id) === userId,
+          `NIK ${nik} is already associated with another verified account`,
+        );
+      }
 
       const rows = await tx.sql`
         INSERT INTO user_kycs (
@@ -459,14 +478,16 @@ export abstract class UserRepository extends BetterAuthRepository {
         registrationNumber,
         registrationDocumentPath,
         deedOfEstablishmentPath,
-        businessAddress,
-        businessCity,
-        businessProvince,
-        businessDistrict,
-        businessSubdistrict,
-        businessPostalCode,
+        address,
+        city,
+        province,
+        district,
+        subdistrict,
+        postalCode,
         directorName,
+        directorPosition,
         directorIdCardPath,
+        ministryApprovalDocumentPath,
         applicationDate,
       } = params;
 
@@ -476,14 +497,16 @@ export abstract class UserRepository extends BetterAuthRepository {
           npwp_number, npwp_document_path, registration_number, registration_document_path,
           deed_of_establishment_path, business_address,
           business_city, business_province, business_district, business_subdistrict,
-          business_postal_code, director_name, director_id_card_path, submitted_date
+          business_postal_code, director_name, director_position, director_id_card_path,
+          ministry_approval_document_path, submitted_date
         )
         VALUES (
           ${applicantUserId}, ${businessName}, ${businessDescription}, ${businessType},
           ${npwpNumber}, ${npwpDocumentPath}, ${registrationNumber}, ${registrationDocumentPath},
-          ${deedOfEstablishmentPath}, ${businessAddress},
-          ${businessCity}, ${businessProvince}, ${businessDistrict}, ${businessSubdistrict},
-          ${businessPostalCode}, ${directorName}, ${directorIdCardPath}, ${applicationDate}
+          ${deedOfEstablishmentPath}, ${address},
+          ${city}, ${province}, ${district}, ${subdistrict},
+          ${postalCode}, ${directorName}, ${directorPosition}, ${directorIdCardPath},
+          ${ministryApprovalDocumentPath}, ${applicationDate}
         )
         RETURNING id, applicant_user_id, business_name;
       `;
@@ -506,6 +529,57 @@ export abstract class UserRepository extends BetterAuthRepository {
       await tx.rollbackTransaction();
       throw error;
     }
+  }
+
+  async userViewsInstitutionApplicationStatus(params: { userId: string }) {
+    const { userId } = params;
+
+    const rows = await this.sql`
+      SELECT id, applicant_user_id, business_name, submitted_date, verified_date, rejected_date, rejection_reason
+      FROM institution_applications
+      WHERE applicant_user_id = ${userId}
+      ORDER BY submitted_date DESC
+      LIMIT 1
+    `;
+
+    if (rows.length === 0 || !rows[0]) {
+      return null;
+    }
+
+    const application = rows[0];
+    assertPropStringOrNumber(application, 'id');
+    assertPropStringOrNumber(application, 'applicant_user_id');
+    assertPropString(application, 'business_name');
+    assertPropDate(application, 'submitted_date');
+
+    let status: string;
+    if ('verified_date' in application && application.verified_date) {
+      status = 'Verified';
+    } else if ('rejected_date' in application && application.rejected_date) {
+      status = 'Rejected';
+    } else {
+      status = 'Submitted';
+    }
+
+    return {
+      id: String(application.id),
+      applicantUserId: String(application.applicant_user_id),
+      businessName: application.business_name,
+      submittedDate: application.submitted_date,
+      status,
+      verifiedDate:
+        'verified_date' in application && application.verified_date instanceof Date
+          ? application.verified_date
+          : undefined,
+      rejectedDate:
+        'rejected_date' in application && application.rejected_date instanceof Date
+          ? application.rejected_date
+          : undefined,
+      rejectionReason:
+        'rejection_reason' in application && typeof application.rejection_reason === 'string'
+          ? application.rejection_reason
+          : undefined,
+    };
   }
 
   async adminApprovesInstitutionApplication(

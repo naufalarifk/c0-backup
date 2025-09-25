@@ -7,11 +7,11 @@ info:
     name: CryptoGadai Development Team
 
 servers:
-  - url: https://api.cryptogadai.com/api
+  - url: https://api.cryptogadai.com
     description: Production server
-  - url: https://cg-api.fh47.com/api
+  - url: https://cg-api.fh47.com
     description: Testing server
-  - url: http://cg-api.localhost/api
+  - url: http://cg-api.localhost
     description: Local development server
 
 security:
@@ -20,7 +20,7 @@ security:
 
 paths:
   # KYC Management
-  /users/kyc/submit:
+  /api/users/kyc/submit:
     post:
       tags: [KYC Verification]
       summary: Submit KYC verification
@@ -134,7 +134,7 @@ paths:
         '409':
           $ref: '#/components/responses/DuplicateNIK'
 
-  /users/kyc/status:
+  /api/users/kyc/status:
     get:
       tags: [KYC Verification]
       summary: Get KYC status
@@ -200,7 +200,7 @@ paths:
                     canResubmit: true
 
   # Institution Management
-  /institution-applications:
+  /api/institution-applications:
     post:
       tags: [Institution Verification]
       summary: Apply for institution account
@@ -211,7 +211,7 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [businessName, registrationNumber, npwpNumber, businessType, province, city, district, subdistrict, address, postalCode, npwpDocument, registrationDocument, deedOfEstablishment, directorIdCard, ministryApprovalDocument]
+              required: [businessName, registrationNumber, npwpNumber, businessType, businessProvince, businessCity, businessDistrict, businessSubdistrict, businessAddress, businessPostalCode, npwpDocument, registrationDocument, deedOfEstablishment, directorIdCard, ministryApprovalDocument]
               properties:
                 businessName:
                   type: string
@@ -231,22 +231,22 @@ paths:
                 businessDescription:
                   type: string
                   description: Optional business description
-                province:
+                businessProvince:
                   type: string
                   maxLength: 100
-                city:
+                businessCity:
                   type: string
                   maxLength: 100
-                district:
+                businessDistrict:
                   type: string
                   maxLength: 100
-                subdistrict:
+                businessSubdistrict:
                   type: string
                   maxLength: 100
-                address:
+                businessAddress:
                   type: string
                   description: Complete business address
-                postalCode:
+                businessPostalCode:
                   type: string
                   pattern: ^[0-9]{5,10}$
                   maxLength: 10
@@ -292,12 +292,12 @@ paths:
                   npwpNumber: 01.234.567.8-901.000
                   businessType: PT
                   businessDescription: Technology consulting and software development services
-                  province: DKI Jakarta
-                  city: Jakarta Selatan
-                  district: Kebayoran Baru
-                  subdistrict: Senayan
-                  address: Jl. Asia Afrika No. 8, Komplex Gelora Bung Karno
-                  postalCode: 10270
+                  businessProvince: DKI Jakarta
+                  businessCity: Jakarta Selatan
+                  businessDistrict: Kebayoran Baru
+                  businessSubdistrict: Senayan
+                  businessAddress: Jl. Asia Afrika No. 8, Komplex Gelora Bung Karno
+                  businessPostalCode: 10270
                   directorName: Budi Santoso
                   directorPosition: CEO
                   npwpDocument: [Binary PDF - NPWP document]
@@ -314,12 +314,12 @@ paths:
                   npwpNumber: 02.345.678.9-012.000
                   businessType: CV
                   businessDescription: Import and export trading company specializing in electronics
-                  province: Jawa Timur
-                  city: Surabaya
-                  district: Wonokromo
-                  subdistrict: Wonokromo
-                  address: Jl. Raya Darmo No. 123
-                  postalCode: 60241
+                  businessProvince: Jawa Timur
+                  businessCity: Surabaya
+                  businessDistrict: Wonokromo
+                  businessSubdistrict: Wonokromo
+                  businessAddress: Jl. Raya Darmo No. 123
+                  businessPostalCode: 60241
                   directorName: Siti Rahayu
                   directorPosition: Director
                   npwpDocument: [Binary PDF - NPWP document]
@@ -355,7 +355,7 @@ paths:
         '409':
           $ref: '#/components/responses/BusinessNameExists'
 
-  /institution-applications/status:
+  /api/institution-applications/status:
     get:
       tags: [Institution Verification]
       summary: Get application status

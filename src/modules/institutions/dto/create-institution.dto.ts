@@ -41,57 +41,57 @@ export class CreateInstitutionDto
     description: 'Business address',
     example: 'Jl. Sudirman No. 123, Jakarta Pusat',
   })
-  @IsNotEmpty({ message: 'Business address is required' })
-  @IsString({ message: 'Business address must be a valid text' })
+  @IsNotEmpty({ message: 'Address is required' })
+  @IsString({ message: 'Address must be a valid text' })
   @Transform(({ value }) => value?.trim())
-  businessAddress: string;
+  address: string;
 
   @ApiProperty({
-    description: 'Business district (kecamatan)',
+    description: 'District (kecamatan)',
     example: 'Menteng',
   })
-  @IsNotEmpty({ message: 'Business district is required' })
-  @IsString({ message: 'Business district must be a valid text' })
+  @IsNotEmpty({ message: 'District is required' })
+  @IsString({ message: 'District must be a valid text' })
   @Transform(({ value }) => value?.trim())
-  businessDistrict: string;
+  district: string;
 
   @ApiProperty({
-    description: 'Business subdistrict (kelurahan)',
+    description: 'Subdistrict (kelurahan)',
     example: 'Menteng',
   })
-  @IsNotEmpty({ message: 'Business subdistrict is required' })
-  @IsString({ message: 'Business subdistrict must be a valid text' })
+  @IsNotEmpty({ message: 'Subdistrict is required' })
+  @IsString({ message: 'Subdistrict must be a valid text' })
   @Transform(({ value }) => value?.trim())
-  businessSubdistrict: string;
+  subdistrict: string;
 
   @ApiProperty({
-    description: 'Business city',
+    description: 'City',
     example: 'Jakarta',
   })
-  @IsNotEmpty({ message: 'Business city is required' })
-  @IsString({ message: 'Business city must be a valid text' })
+  @IsNotEmpty({ message: 'City is required' })
+  @IsString({ message: 'City must be a valid text' })
   @Transform(({ value }) => value?.trim())
-  businessCity: string;
+  city: string;
 
   @ApiProperty({
-    description: 'Business province',
+    description: 'Province',
     example: 'DKI Jakarta',
   })
-  @IsNotEmpty({ message: 'Business province is required' })
-  @IsString({ message: 'Business province must be a valid text' })
+  @IsNotEmpty({ message: 'Province is required' })
+  @IsString({ message: 'Province must be a valid text' })
   @Transform(({ value }) => value?.trim())
-  businessProvince: string;
+  province: string;
 
   @ApiProperty({
-    description: 'Business postal code',
+    description: 'Postal code',
     example: '10220',
   })
-  @IsNotEmpty({ message: 'Business postal code is required' })
-  @IsString({ message: 'Business postal code must be a valid text' })
+  @IsNotEmpty({ message: 'Postal code is required' })
+  @IsString({ message: 'Postal code must be a valid text' })
   @Matches(/^\d{5}$/, {
     message: 'Postal code must be 5 digits',
   })
-  businessPostalCode: string;
+  postalCode: string;
 
   @ApiProperty({
     description: 'NPWP (Tax ID) number',
@@ -120,6 +120,15 @@ export class CreateInstitutionDto
   @IsString({ message: 'Director name must be a valid text' })
   @Transform(({ value }) => value?.trim())
   directorName: string;
+
+  @ApiProperty({
+    description: 'Position of the company director',
+    example: 'CEO',
+  })
+  @IsNotEmpty({ message: 'Director position is required' })
+  @IsString({ message: 'Director position must be a valid text' })
+  @Transform(({ value }) => value?.trim())
+  directorPosition: string;
 
   @ApiProperty({
     description: 'NPWP document storage path in format bucket:path',
@@ -164,6 +173,17 @@ export class CreateInstitutionDto
     message: 'Director ID card must be in format bucket:institutions/userId/filename',
   })
   directorIdCardPath: string;
+
+  @ApiProperty({
+    description: 'Ministry approval document storage path in format bucket:path',
+    example: 'documents:institutions/13/ministry-approval-document-1757496173043-ministry.jpg',
+  })
+  @IsNotEmpty({ message: 'Ministry approval document path is required' })
+  @IsString({ message: 'Ministry approval document path must be a valid text' })
+  @Matches(/^[a-zA-Z0-9-_]+:institutions\/\d+\/[a-zA-Z0-9-_.]+$/, {
+    message: 'Ministry approval document must be in format bucket:institutions/userId/filename',
+  })
+  ministryApprovalDocumentPath: string;
 }
 
 // DTO for form data submission (without file URLs - files will be uploaded separately)
@@ -172,4 +192,5 @@ export class SubmitCreateInstitutionDto extends OmitType(CreateInstitutionDto, [
   'registrationDocumentPath',
   'deedOfEstablishmentPath',
   'directorIdCardPath',
+  'ministryApprovalDocumentPath',
 ] as const) {}

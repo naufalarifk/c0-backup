@@ -41,7 +41,7 @@ suite('User verification File Upload Validation E2E Tests', function () {
     const email = `file_upload_test_${testId}@test.com`;
     const password = 'ValidPassword123!';
 
-    const signUpResult = await authClient.authClient.signUp.email({
+    const _signUpResult = await authClient.authClient.signUp.email({
       email,
       password,
       name: `File Upload Test User ${testId}`,
@@ -243,12 +243,12 @@ suite('User verification File Upload Validation E2E Tests', function () {
       formData.append('registrationNumber', '8120202123456');
       formData.append('npwpNumber', '01.234.567.8-901.000');
       formData.append('businessType', 'PT');
-      formData.append('province', 'DKI Jakarta');
-      formData.append('city', 'Jakarta Selatan');
-      formData.append('district', 'Kebayoran Baru');
-      formData.append('subdistrict', 'Senayan');
-      formData.append('address', 'Test Business Address');
-      formData.append('postalCode', '10270');
+      formData.append('businessProvince', 'DKI Jakarta');
+      formData.append('businessCity', 'Jakarta Selatan');
+      formData.append('businessDistrict', 'Kebayoran Baru');
+      formData.append('businessSubdistrict', 'Senayan');
+      formData.append('businessAddress', 'Test Business Address');
+      formData.append('businessPostalCode', '10270');
       formData.append('directorName', 'Test Director');
       formData.append('directorPosition', 'CEO');
 
@@ -278,12 +278,12 @@ suite('User verification File Upload Validation E2E Tests', function () {
       formData.append('registrationNumber', '8120202123457');
       formData.append('npwpNumber', '02.234.567.8-901.000');
       formData.append('businessType', 'PT');
-      formData.append('province', 'DKI Jakarta');
-      formData.append('city', 'Jakarta Selatan');
-      formData.append('district', 'Kebayoran Baru');
-      formData.append('subdistrict', 'Senayan');
-      formData.append('address', 'Test Business Address');
-      formData.append('postalCode', '10270');
+      formData.append('businessProvince', 'DKI Jakarta');
+      formData.append('businessCity', 'Jakarta Selatan');
+      formData.append('businessDistrict', 'Kebayoran Baru');
+      formData.append('businessSubdistrict', 'Senayan');
+      formData.append('businessAddress', 'Test Business Address');
+      formData.append('businessPostalCode', '10270');
       formData.append('directorName', 'Test Director');
       formData.append('directorPosition', 'CEO');
 
@@ -340,12 +340,12 @@ suite('User verification File Upload Validation E2E Tests', function () {
       formData.append('registrationNumber', '8120202123458');
       formData.append('npwpNumber', '03.234.567.8-901.000');
       formData.append('businessType', 'PT');
-      formData.append('province', 'DKI Jakarta');
-      formData.append('city', 'Jakarta Selatan');
-      formData.append('district', 'Kebayoran Baru');
-      formData.append('subdistrict', 'Senayan');
-      formData.append('address', 'Test Business Address');
-      formData.append('postalCode', '10270');
+      formData.append('businessProvince', 'DKI Jakarta');
+      formData.append('businessCity', 'Jakarta Selatan');
+      formData.append('businessDistrict', 'Kebayoran Baru');
+      formData.append('businessSubdistrict', 'Senayan');
+      formData.append('businessAddress', 'Test Business Address');
+      formData.append('businessPostalCode', '10270');
       formData.append('directorName', 'Test Director');
       formData.append('directorPosition', 'CEO');
 
@@ -378,12 +378,12 @@ suite('User verification File Upload Validation E2E Tests', function () {
       formData.append('registrationNumber', '8120202123459');
       formData.append('npwpNumber', '04.234.567.8-901.000');
       formData.append('businessType', 'PT');
-      formData.append('province', 'DKI Jakarta');
-      formData.append('city', 'Jakarta Selatan');
-      formData.append('district', 'Kebayoran Baru');
-      formData.append('subdistrict', 'Senayan');
-      formData.append('address', 'Test Business Address');
-      formData.append('postalCode', '10270');
+      formData.append('businessProvince', 'DKI Jakarta');
+      formData.append('businessCity', 'Jakarta Selatan');
+      formData.append('businessDistrict', 'Kebayoran Baru');
+      formData.append('businessSubdistrict', 'Senayan');
+      formData.append('businessAddress', 'Test Business Address');
+      formData.append('businessPostalCode', '10270');
       formData.append('directorName', 'Test Director');
       formData.append('directorPosition', 'CEO');
 
