@@ -611,7 +611,6 @@ export class WithdrawalsProcessor extends WorkerHost {
     const confirmationTimes = {
       'eip155:1': '15-30 minutes', // Ethereum mainnet
       'eip155:56': '3-5 minutes', // BSC
-      'eip155:137': '5-10 minutes', // Polygon
       bitcoin: '30-60 minutes', // Bitcoin
       solana: '30-60 seconds', // Solana
     };
@@ -853,7 +852,6 @@ export class WithdrawalsProcessor extends WorkerHost {
     const delays = {
       'eip155:1': 5 * 60 * 1000, // Ethereum: 5 minutes
       'eip155:56': 30 * 1000, // BSC: 30 seconds
-      'eip155:137': 60 * 1000, // Polygon: 1 minute
       bitcoin: 10 * 60 * 1000, // Bitcoin: 10 minutes
       solana: 15 * 1000, // Solana: 15 seconds
     };

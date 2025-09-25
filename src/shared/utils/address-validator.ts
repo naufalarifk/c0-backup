@@ -7,7 +7,7 @@ import { isAddress } from 'viem';
  */
 export class AddressValidator {
   /**
-   * Validate Ethereum/EVM addresses (Ethereum, BSC, Polygon, etc.)
+   * Validate Ethereum/EVM addresses (Ethereum, BSC, etc.)
    * Uses viem's isAddress with built-in checksum validation
    */
   static validateEthereumAddress(address: string): boolean {
@@ -69,7 +69,7 @@ export class AddressValidator {
 
     switch (namespace) {
       case 'eip155':
-        // Ethereum, BSC, Polygon, Arbitrum, etc.
+        // Ethereum, BSC, etc.
         return this.validateEthereumAddress(address);
 
       case 'bip122':
@@ -116,8 +116,6 @@ export class AddressValidator {
             return 'Ethereum Mainnet';
           case '56':
             return 'BSC Mainnet';
-          case '137':
-            return 'Polygon Mainnet';
           case '42161':
             return 'Arbitrum One';
           case '10':
