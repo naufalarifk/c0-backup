@@ -1,3 +1,4 @@
+import type {} from 'multer';
 import type { UserViewsProfileResult } from '../../shared/types';
 import type { UserSession } from '../auth/types';
 
