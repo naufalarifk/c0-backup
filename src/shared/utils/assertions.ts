@@ -202,6 +202,20 @@ export function assertPropStringOrNumber<K extends PropKey, V extends NonNullabl
   );
 }
 
+export function assertPropNullableBoolean<K extends PropKey, V extends NonNullable<unknown>>(
+  obj: V,
+  propKey: K,
+  message?: string,
+): asserts obj is V & Record<K, boolean | null> {
+  ok(
+    typeof obj === 'object' &&
+      obj !== null &&
+      propKey in obj &&
+      ((obj as any)[propKey] === null || typeof (obj as any)[propKey] === 'boolean'),
+    message || `Property "${String(propKey)}" is not a boolean or null`,
+  );
+}
+
 export function assertPropNullableString<K extends PropKey, V extends NonNullable<unknown>>(
   obj: V,
   propKey: K,

@@ -356,7 +356,7 @@ export abstract class UserRepository extends BetterAuthRepository {
     };
   }
 
-  async adminApprovesKYCParam(params: AdminApprovesKycParams): Promise<AdminApprovesKycResult> {
+  async adminApprovesKyc(params: AdminApprovesKycParams): Promise<AdminApprovesKycResult> {
     const tx = await this.beginTransaction();
     try {
       const { kycId, verifierUserId, approvalDate } = params;
@@ -1522,15 +1522,21 @@ export abstract class UserRepository extends BetterAuthRepository {
         profile_visibility:
           preferences.privacy?.profileVisibility ?? current.privacy.profileVisibility,
         analytics_enabled:
-          preferences.privacy?.dataSharing?.analytics ?? current.privacy.dataSharing.analytics,
+          preferences.privacy?.dataSharing?.analytics !== undefined
+            ? preferences.privacy.dataSharing.analytics
+            : current.privacy.dataSharing.analytics,
         third_party_integrations_enabled:
-          preferences.privacy?.dataSharing?.thirdPartyIntegrations ??
-          current.privacy.dataSharing.thirdPartyIntegrations,
+          preferences.privacy?.dataSharing?.thirdPartyIntegrations !== undefined
+            ? preferences.privacy.dataSharing.thirdPartyIntegrations
+            : current.privacy.dataSharing.thirdPartyIntegrations,
         market_research_enabled:
-          preferences.privacy?.dataSharing?.marketResearch ??
-          current.privacy.dataSharing.marketResearch,
+          preferences.privacy?.dataSharing?.marketResearch !== undefined
+            ? preferences.privacy.dataSharing.marketResearch
+            : current.privacy.dataSharing.marketResearch,
         activity_tracking_enabled:
-          preferences.privacy?.activityTracking ?? current.privacy.activityTracking,
+          preferences.privacy?.activityTracking !== undefined
+            ? preferences.privacy.activityTracking
+            : current.privacy.activityTracking,
       };
 
       let rows;

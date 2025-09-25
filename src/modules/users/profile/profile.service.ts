@@ -5,7 +5,11 @@ import { FileValidatorService } from '../../../shared/services/file-validator.se
 import { MinioService } from '../../../shared/services/minio.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { File } from '../../../shared/types';
-import { assertDefined, assertPropNullableString } from '../../../shared/utils/assertions.js';
+import {
+  assertDefined,
+  assertPropNullableBoolean,
+  assertPropNullableString,
+} from '../../../shared/utils/assertions.js';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
@@ -79,10 +83,10 @@ export class ProfileService {
 
   private getExtendedProfileFields(profile: unknown) {
     assertDefined(profile);
+    assertPropNullableBoolean(profile, 'phone_number_verified');
 
     // Add phone verification status (from database field)
-    const phoneVerified =
-      'phone_number_verified' in profile ? !!profile.phone_number_verified : false;
+    const phoneVerified = profile.phone_number_verified || false;
 
     // Calculate feature unlock status based on verification levels
     const featureUnlockStatus = this.calculateFeatureUnlockStatus(profile);
@@ -100,7 +104,7 @@ export class ProfileService {
   private calculateFeatureUnlockStatus(profile: unknown) {
     assertDefined(profile);
     assertPropNullableString(profile, 'kycStatus');
-    assertPropNullableString(profile, 'phone_number_verified');
+    assertPropNullableBoolean(profile, 'phone_number_verified');
     assertPropNullableString(profile, 'emailVerified');
     assertPropNullableString(profile, 'userType');
 
@@ -139,7 +143,7 @@ export class ProfileService {
   private getRequiredVerifications(profile) {
     assertDefined(profile);
     assertPropNullableString(profile, 'emailVerified');
-    assertPropNullableString(profile, 'phone_number_verified');
+    assertPropNullableBoolean(profile, 'phone_number_verified');
     assertPropNullableString(profile, 'userType');
     assertPropNullableString(profile, 'kycStatus');
 

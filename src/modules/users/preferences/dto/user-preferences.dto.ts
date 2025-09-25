@@ -100,14 +100,17 @@ export class Notifications {
 export class Display {
   @ApiProperty({ enum: Theme, required: false })
   @IsOptional()
+  @IsEnum(Theme)
   theme?: string;
 
   @ApiProperty({ enum: Language, required: false })
   @IsOptional()
+  @IsEnum(Language)
   language?: string;
 
   @ApiProperty({ enum: Currency, required: false })
   @IsOptional()
+  @IsEnum(Currency)
   currency?: string;
 
   @ApiProperty({ required: false })
@@ -143,6 +146,7 @@ export class DataSharing {
 export class Privacy {
   @ApiProperty({ enum: ProfileVisibility, required: false })
   @IsOptional()
+  @IsEnum(ProfileVisibility)
   profileVisibility?: string;
 
   @ApiProperty({ required: false })

@@ -393,7 +393,7 @@ export async function runUserRepositoryTestSuite(
         });
 
         // Admin approves KYC
-        await repo.adminApprovesKYCParam({
+        await repo.adminApprovesKyc({
           kycId: kyc.id,
           verifierUserId: admin.id,
           approvalDate: new Date('2024-01-02T00:00:00Z'),
@@ -574,7 +574,7 @@ export async function runUserRepositoryTestSuite(
         });
 
         // Admin approves invited user's KYC
-        await repo.adminApprovesKYCParam({
+        await repo.adminApprovesKyc({
           kycId: invitedUserKyc.id,
           verifierUserId: '1', // System user
           approvalDate: new Date('2024-01-01T00:00:00Z'),
@@ -671,7 +671,7 @@ export async function runUserRepositoryTestSuite(
         });
 
         // Admin approves invited user's KYC
-        await repo.adminApprovesKYCParam({
+        await repo.adminApprovesKyc({
           kycId: invitedUserKyc.id,
           verifierUserId: '1', // System user
           approvalDate: new Date('2024-01-01T00:00:00Z'),
@@ -768,7 +768,7 @@ export async function runUserRepositoryTestSuite(
           submissionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
-        const result = await repo.adminApprovesKYCParam({
+        const result = await repo.adminApprovesKyc({
           kycId: kyc.id,
           verifierUserId: admin.id,
           approvalDate: new Date('2024-01-02T00:00:00Z'),
@@ -1108,7 +1108,7 @@ export async function runUserRepositoryTestSuite(
             submissionDate: new Date('2024-01-01T00:00:00Z'),
           });
 
-          await repo.adminApprovesKYCParam({
+          await repo.adminApprovesKyc({
             kycId: kyc.id,
             verifierUserId: admin.id,
             approvalDate: new Date('2024-01-02T00:00:00Z'),

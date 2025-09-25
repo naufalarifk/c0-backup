@@ -385,7 +385,7 @@ suite('User Verification API E2E Tests', function () {
 
         const responseData = await response.json();
         assertDefined(responseData);
-        assertPropOneOf(responseData, 'kycStatus', ['pending', 'verified', 'rejected', 'none']);
+        assertPropOneOf(responseData, 'kycStatus', ['none', 'pending', 'verified', 'rejected']);
 
         // Should have pending status and submission details
         strictEqual(responseData.kycStatus, 'pending');
@@ -421,7 +421,7 @@ suite('User Verification API E2E Tests', function () {
 
         const responseData = await response.json();
         assertDefined(responseData);
-        assertPropOneOf(responseData, 'kycStatus', ['pending', 'verified', 'rejected', 'none']);
+        assertPropOneOf(responseData, 'kycStatus', ['none', 'pending', 'verified', 'rejected']);
         ok('submission' in responseData, 'submission property should exist');
         assertPropDefined(responseData, 'canResubmit');
         strictEqual(responseData.kycStatus, 'none');
@@ -823,7 +823,7 @@ suite('User Verification API E2E Tests', function () {
           npwpNumber: '01.111.111.1-111.111',
         });
 
-        await mainUser.fetch('/api/institutions', {
+        await mainUser.fetch('/api/institution-applications', {
           method: 'POST',
           body: formData1,
         });
@@ -834,7 +834,7 @@ suite('User Verification API E2E Tests', function () {
           npwpNumber: '02.222.222.2-222.222',
         });
 
-        const response = await mainUser.fetch('/institutions', {
+        const response = await mainUser.fetch('/api/institution-applications', {
           method: 'POST',
           body: formData2,
         });

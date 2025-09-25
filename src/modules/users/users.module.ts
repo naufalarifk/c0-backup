@@ -5,6 +5,7 @@ import { KycController } from './kyc/kyc.controller';
 import { KycModule } from './kyc/kyc.module';
 import { KycService } from './kyc/kyc.service';
 import { PreferencesModule } from './preferences/preferences.module';
+import { PreferencesService } from './preferences/preferences.service';
 import { ProfileModule } from './profile/profile.module';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
@@ -36,6 +37,6 @@ import { UsersService } from './users.service';
     ]),
   ],
   controllers: [UsersController],
-  providers: [UsersService],
+  providers: [UsersService, PreferencesService],
 })
 export class UsersModule {}

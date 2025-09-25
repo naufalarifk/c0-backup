@@ -184,8 +184,11 @@ suite('User Profile Management', function () {
       strictEqual(response.status, 409);
       const data = await response.json();
       assertDefined(data);
-      assertPropString(data, 'message');
-      ok(data.message.includes('already selected'));
+      assertPropDefined(data, 'success');
+      strictEqual(data.success, false);
+      assertPropDefined(data, 'error');
+      assertPropString(data.error, 'message');
+      ok(data.error.message.includes('already selected'));
     });
 
     it('should return 401 for unauthenticated user', async function () {
@@ -297,14 +300,14 @@ suite('User Profile Management', function () {
       assertPropString(user, 'createdDate');
 
       // Nullable fields that should be present
-      assertPropNullableStringOrNumber(user, 'profilePictureUrl');
-      assertPropNullableStringOrNumber(user, 'googleId');
-      assertPropNullableStringOrNumber(user, 'emailVerifiedDate');
-      assertPropNullableStringOrNumber(user, 'lastLoginDate');
-      assertPropNullableStringOrNumber(user, 'userType');
+      assertPropNullableString(user, 'profilePictureUrl');
+      assertPropNullableString(user, 'googleId');
+      assertPropNullableString(user, 'emailVerifiedDate');
+      assertPropNullableString(user, 'lastLoginDate');
+      assertPropNullableString(user, 'userType');
       assertPropNullableStringOrNumber(user, 'kycId');
       assertPropNullableStringOrNumber(user, 'institutionId');
-      assertPropNullableStringOrNumber(user, 'institutionRole');
+      assertPropNullableString(user, 'institutionRole');
 
       // Boolean fields
       if ('twoFaEnabled' in user) {
@@ -544,7 +547,7 @@ suite('User Profile Management', function () {
           language: 'id',
           currency: 'EUR',
           timezone: 'Asia/Jakarta',
-          dateFormat: 'DD/MM/YYYY',
+          dateFormat: 'YYYY-MM-DD',
           numberFormat: 'id-ID',
         },
       };
@@ -567,7 +570,7 @@ suite('User Profile Management', function () {
         strictEqual(data.data.display.timezone, 'Asia/Jakarta');
       }
       if ('dateFormat' in data.data.display) {
-        strictEqual(data.data.display.dateFormat, 'DD/MM/YYYY');
+        strictEqual(data.data.display.dateFormat, 'YYYY-MM-DD');
       }
       if ('numberFormat' in data.data.display) {
         strictEqual(data.data.display.numberFormat, 'id-ID');
@@ -624,8 +627,14 @@ suite('User Profile Management', function () {
 
       strictEqual(response.status, 422);
       const data = await response.json();
-      ok(data.success === false);
-      ok(data.error.message.includes('Invalid theme value'));
+      assertDefined(data);
+      assertPropDefined(data, 'success');
+      strictEqual(data.success, false);
+      assertPropDefined(data, 'error');
+      assertPropString(data.error, 'code');
+      assertPropString(data.error, 'message');
+      strictEqual(data.error.code, 'VALIDATION_ERROR');
+      strictEqual(data.error.message, 'Request validation failed');
     });
 
     it('should return 422 for unsupported language', async function () {
@@ -643,8 +652,14 @@ suite('User Profile Management', function () {
 
       strictEqual(response.status, 422);
       const data = await response.json();
-      ok(data.success === false);
-      ok(data.error.message.includes('Unsupported language'));
+      assertDefined(data);
+      assertPropDefined(data, 'success');
+      strictEqual(data.success, false);
+      assertPropDefined(data, 'error');
+      assertPropString(data.error, 'code');
+      assertPropString(data.error, 'message');
+      strictEqual(data.error.code, 'VALIDATION_ERROR');
+      strictEqual(data.error.message, 'Request validation failed');
     });
 
     it('should return 422 for invalid currency', async function () {
@@ -662,7 +677,14 @@ suite('User Profile Management', function () {
 
       strictEqual(response.status, 422);
       const data = await response.json();
-      ok(data.success === false);
+      assertDefined(data);
+      assertPropDefined(data, 'success');
+      strictEqual(data.success, false);
+      assertPropDefined(data, 'error');
+      assertPropString(data.error, 'code');
+      assertPropString(data.error, 'message');
+      strictEqual(data.error.code, 'VALIDATION_ERROR');
+      strictEqual(data.error.message, 'Request validation failed');
     });
 
     it('should return 422 for invalid profile visibility', async function () {
@@ -680,7 +702,14 @@ suite('User Profile Management', function () {
 
       strictEqual(response.status, 422);
       const data = await response.json();
-      ok(data.success === false);
+      assertDefined(data);
+      assertPropDefined(data, 'success');
+      strictEqual(data.success, false);
+      assertPropDefined(data, 'error');
+      assertPropString(data.error, 'code');
+      assertPropString(data.error, 'message');
+      strictEqual(data.error.code, 'VALIDATION_ERROR');
+      strictEqual(data.error.message, 'Request validation failed');
     });
 
     it('should return 401 for unauthenticated requests', async function () {
@@ -719,7 +748,7 @@ suite('User Profile Management', function () {
     });
 
     it('should retrieve empty memberships for individual user', async function () {
-      const response = await authenticatedFetch('/api/user/institutions');
+      const response = await authenticatedFetch('/api/users/institutions');
 
       strictEqual(response.status, 200);
       const data = await response.json();
@@ -729,7 +758,7 @@ suite('User Profile Management', function () {
     });
 
     it('should return 401 for unauthenticated user', async function () {
-      const response = await fetch(`${testSetup.backendUrl}/api/user/institutions`);
+      const response = await fetch(`${testSetup.backendUrl}/api/users/institutions`);
       strictEqual(response.status, 401);
     });
   });
@@ -761,6 +790,12 @@ suite('User Profile Management', function () {
       });
 
       strictEqual(response.status, 422);
+      const data = await response.json();
+      assertDefined(data);
+      assertPropDefined(data, 'success');
+      strictEqual(data.success, false);
+      assertPropDefined(data, 'error');
+      assertPropString(data.error, 'message');
     });
 
     it('should handle empty name in profile update', async function () {

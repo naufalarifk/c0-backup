@@ -53,6 +53,10 @@ export class AuthConfig {
       plugins: this.plugins(),
       user: {
         additionalFields: {
+          role: {
+            type: 'string',
+            defaultValue: 'User',
+          },
           userType: {
             type: 'string',
             defaultValue: 'Undecided',

@@ -262,6 +262,7 @@ export type UserViewsProfileResult = {
   googleId?: string;
   role: 'System' | 'Admin' | 'User';
   twoFactorEnabled: boolean;
+  phone_number_verified?: boolean | null;
   createdAt?: Date;
   updatedAt?: Date;
   userType: 'Undecided' | 'Individual' | 'Institution';

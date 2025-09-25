@@ -32,11 +32,11 @@ info:
     url: https://cryptogadai.com/license
 
 servers:
-  - url: https://api.cryptogadai.com/api/v1
+  - url: https://api.cryptogadai.com/api
     description: Production server
-  - url: https://staging-api.cryptogadai.com/api/v1
+  - url: https://staging-api.cryptogadai.com/api
     description: Staging server
-  - url: http://localhost:3000/api/v1
+  - url: http://localhost:3000/api
     description: Local development server
 
 security:
@@ -112,7 +112,7 @@ x-path-id-param: &pathIdParam
 
 paths:
   # KYC Management - RF-042, RF-043
-  /admin/kyc/queue:
+  /api/admin/kyc/queue:
     get:
       tags:
         - KYC Management
@@ -161,7 +161,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /admin/kyc/{id}:
+  /api/admin/kyc/{id}:
     get:
       tags:
         - KYC Management
@@ -199,7 +199,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /admin/kyc/{id}/approve:
+  /api/admin/kyc/{id}/approve:
     put:
       tags:
         - KYC Management
@@ -252,7 +252,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /admin/kyc/{id}/reject:
+  /api/admin/kyc/{id}/reject:
     put:
       tags:
         - KYC Management
@@ -310,7 +310,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
   # Institution Management - RF-044, RF-045
-  /admin/institutions/applications:
+  /api/admin/institutions/applications:
     get:
       tags:
         - Institution Management
@@ -359,7 +359,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /admin/institutions/applications/{id}:
+  /api/admin/institutions/applications/{id}:
     get:
       tags:
         - Institution Management
@@ -397,7 +397,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /admin/institutions/applications/{id}/approve:
+  /api/admin/institutions/applications/{id}/approve:
     put:
       tags:
         - Institution Management
@@ -452,7 +452,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /admin/institutions/applications/{id}/reject:
+  /api/admin/institutions/applications/{id}/reject:
     put:
       tags:
         - Institution Management
@@ -510,7 +510,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
   # Basic Platform Configuration (mentioned in MAIN-002)
-  /admin/settings:
+  /api/admin/settings:
     get:
       tags:
         - Platform Configuration
@@ -567,7 +567,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
   # Withdrawal Management - RF-046 (Basic withdrawal management only)
-  /admin/withdrawals:
+  /api/admin/withdrawals:
     get:
       tags:
         - Withdrawal Management
@@ -603,7 +603,7 @@ paths:
         '403':
           $ref: '#/components/responses/AdminRequired'
 
-  /admin/withdrawals/{id}/refund:
+  /api/admin/withdrawals/{id}/refund:
     post:
       tags:
         - Withdrawal Management
@@ -644,7 +644,7 @@ paths:
           $ref: '#/components/responses/NotFound'
 
   # Basic Loan Monitoring (simplified from SRS requirements)
-  /admin/loans:
+  /api/admin/loans:
     get:
       tags:
         - Loan Management
@@ -678,7 +678,7 @@ paths:
 
 
   # User Management - RF-048, RF-049 (Basic user management only)
-  /admin/users:
+  /api/admin/users:
     get:
       tags:
         - User Management
@@ -709,7 +709,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserManagementResponse'
 
-  /admin/users/{id}:
+  /api/admin/users/{id}:
     get:
       tags:
         - User Management
@@ -733,7 +733,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /admin/users/{id}/actions:
+  /api/admin/users/{id}/actions:
     post:
       tags:
         - User Management

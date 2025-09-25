@@ -21,6 +21,7 @@ import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import {
   assertArrayOf,
   assertDefined,
+  assertPropNullableDate,
   assertPropNullableString,
   assertPropString,
   validationOptions,
@@ -412,7 +413,7 @@ export class AdminKycController {
     try {
       // Check if KYC exists and is pending
       const checkRows = await this.repo.sql`
-        SELECT id, status FROM user_kycs WHERE id = ${kycId}
+        SELECT id, verified_date, rejected_date FROM user_kycs WHERE id = ${kycId}
       `;
 
       if (checkRows.length === 0) {
@@ -422,17 +423,18 @@ export class AdminKycController {
       assertArrayOf(checkRows, function (row) {
         assertDefined(row);
         assertPropString(row, 'id');
-        assertPropString(row, 'status');
+        assertPropNullableDate(row, 'verified_date');
+        assertPropNullableDate(row, 'rejected_date');
         return row;
       });
 
       const currentKyc = checkRows[0];
-      if (currentKyc.status !== 'Submitted') {
+      if (currentKyc.verified_date !== null || currentKyc.rejected_date !== null) {
         throw new ConflictException('KYC has already been processed');
       }
 
       // Approve the KYC
-      const result = await this.repo.adminApprovesKYCParam({
+      const result = await this.repo.adminApprovesKyc({
         kycId,
         verifierUserId: session.user.id,
         approvalDate: new Date(),
@@ -495,7 +497,7 @@ export class AdminKycController {
 
       // Check if KYC exists and is pending
       const checkRows = await this.repo.sql`
-        SELECT id, status FROM user_kycs WHERE id = ${kycId}
+        SELECT id, verified_date, rejected_date FROM user_kycs WHERE id = ${kycId}
       `;
 
       if (checkRows.length === 0) {
@@ -505,12 +507,13 @@ export class AdminKycController {
       assertArrayOf(checkRows, function (row) {
         assertDefined(row);
         assertPropString(row, 'id');
-        assertPropString(row, 'status');
+        assertPropNullableDate(row, 'verified_date');
+        assertPropNullableDate(row, 'rejected_date');
         return row;
       });
 
       const currentKyc = checkRows[0];
-      if (currentKyc.status !== 'Submitted') {
+      if (currentKyc.verified_date !== null || currentKyc.rejected_date !== null) {
         throw new ConflictException('KYC has already been processed');
       }
 

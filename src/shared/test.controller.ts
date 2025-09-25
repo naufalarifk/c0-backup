@@ -93,6 +93,8 @@ export class TestController {
       throw new Error('Test endpoints are not available in production');
     }
 
+    this.#logger.debug(`Attempting to approve KYC ${kycId}`);
+
     if (!kycId) {
       throw new BadRequestException('KYC ID is required');
     }
@@ -101,6 +103,8 @@ export class TestController {
     const checkRows = await this.repo.sql`
       SELECT id, status FROM user_kycs WHERE id = ${kycId}
     `;
+
+    this.#logger.debug(`KYC query result for ID ${kycId}:`, checkRows);
 
     if (checkRows.length === 0) {
       throw new NotFoundException('KYC submission not found');
@@ -114,8 +118,12 @@ export class TestController {
     });
 
     const currentKyc = checkRows[0];
+    this.#logger.debug(`Current KYC status: ${currentKyc.status}`);
+
     if (currentKyc.status !== 'Submitted') {
-      throw new ConflictException('KYC has already been processed');
+      throw new ConflictException(
+        `KYC has already been processed. Current status: ${currentKyc.status}`,
+      );
     }
 
     // Update KYC status to approved
