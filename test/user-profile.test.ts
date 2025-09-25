@@ -15,67 +15,16 @@ import { setupBetterAuthClient } from './setup/better-auth';
 import { waitForEmailVerification } from './setup/mailpit';
 import { setup } from './setup/setup';
 import { after, before, describe, it, suite } from './setup/test';
+import { createTestUser, type TestUser } from './setup/user';
 
 suite('User Profile Management', function () {
   let testId: string;
   let testSetup: Awaited<ReturnType<typeof setup>>;
-  let authClient: ReturnType<typeof setupBetterAuthClient>['authClient'];
-  let cookieJar: ReturnType<typeof setupBetterAuthClient>['cookieJar'];
-  let authenticatedFetch: (url: string, init?: RequestInit) => Promise<Response>;
+  let testUser: TestUser;
 
   before(async function () {
     testId = Date.now().toString(36).toLowerCase();
     testSetup = await setup();
-    const betterAuthClient = setupBetterAuthClient(testSetup.backendUrl);
-    authClient = betterAuthClient.authClient;
-    cookieJar = betterAuthClient.cookieJar;
-
-    // Create authenticated fetch helper using standard fetch with cookies
-    authenticatedFetch = async function (path: string, init?: RequestInit) {
-      const url = `${testSetup.backendUrl}${path}`;
-
-      // Get cookies from cookieJar
-      const cookies = await new Promise<string>((resolve, reject) => {
-        cookieJar.getCookieString(url, (error, cookieString) => {
-          if (error) return reject(error);
-          resolve(cookieString || '');
-        });
-      });
-
-      // Add cookies to headers
-      const headers = new Headers(init?.headers);
-      if (cookies) {
-        headers.set('Cookie', cookies);
-      }
-
-      // Make the request
-      const response = await fetch(url, {
-        ...init,
-        headers,
-        credentials: 'include',
-      });
-
-      // Store any new cookies
-      response.headers.getSetCookie()?.forEach(cookie => {
-        cookieJar.setCookieSync(cookie, url, { ignoreError: true });
-      });
-
-      const _clonedResponse = response.clone();
-      // console.debug('authenticatedFetch', init?.method, url, {
-      //   status: response.status,
-      //   // resHeaders: Array.from(response.headers.entries()).reduce(
-      //   //   (acc, [key, value]) => {
-      //   //     acc[key] = value;
-      //   //     return acc;
-      //   //   },
-      //   //   {} as Record<string, string>,
-      //   // ),
-      //   reqBody: init?.body,
-      //   resBody: await clonedResponse.text(),
-      // });
-
-      return response;
-    };
   });
 
   after(async function () {
@@ -85,25 +34,21 @@ suite('User Profile Management', function () {
   describe('User Type Selection', function () {
     let userEmail: string;
     let userPassword: string;
+    let institutionUser: TestUser;
+    let invalidTypeUser: TestUser;
 
     before(async function () {
-      userEmail = `user_type_${testId}@test.com`;
-      userPassword = 'ValidPassword123!';
+      testUser = await createTestUser({ testSetup, testId });
 
-      // Create and verify user
-      await authClient.signUp.email({
-        email: userEmail,
-        password: userPassword,
-        name: 'Test User',
-        callbackURL: 'http://localhost/callback',
-      });
+      userEmail = testUser.email;
+      userPassword = testUser.password;
 
-      await waitForEmailVerification(testSetup.mailpitUrl, userEmail);
-      await authClient.signIn.email({ email: userEmail, password: userPassword });
+      // createTestUser already verifies email and signs the user in, so no
+      // additional wait/sign-in is required here.
     });
 
     it('should allow user to select Individual type', async function () {
-      const response = await authenticatedFetch('/api/users/type-selection', {
+      const response = await testUser.fetch('/api/users/type-selection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userType: 'Individual' }),
@@ -122,18 +67,17 @@ suite('User Profile Management', function () {
       const newUserEmail = `inst_user_${testId}@test.com`;
       const newUserPassword = 'ValidPassword123!';
 
-      // Create new user for institution test
-      await authClient.signUp.email({
+      // Create new user for institution test using createTestUser helper
+      institutionUser = await createTestUser({
+        testId,
+        testSetup,
         email: newUserEmail,
-        password: newUserPassword,
         name: 'Institution User',
-        callbackURL: 'http://localhost/callback',
+        // Do not sign-in via another user's auth client — createTestUser already
+        // signs this user in and provides an authenticated `fetch` helper.
       });
 
-      await waitForEmailVerification(testSetup.mailpitUrl, newUserEmail);
-      await authClient.signIn.email({ email: newUserEmail, password: newUserPassword });
-
-      const response = await authenticatedFetch('/api/users/type-selection', {
+      const response = await institutionUser.fetch('/api/users/type-selection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userType: 'Institution' }),
@@ -152,17 +96,15 @@ suite('User Profile Management', function () {
       const newUserEmail = `invalid_type_${testId}@test.com`;
       const newUserPassword = 'ValidPassword123!';
 
-      await authClient.signUp.email({
+      // Create new user for invalid type test
+      invalidTypeUser = await createTestUser({
+        testId,
+        testSetup,
         email: newUserEmail,
-        password: newUserPassword,
         name: 'Invalid Type User',
-        callbackURL: 'http://localhost/callback',
       });
 
-      await waitForEmailVerification(testSetup.mailpitUrl, newUserEmail);
-      await authClient.signIn.email({ email: newUserEmail, password: newUserPassword });
-
-      const response = await authenticatedFetch('/api/users/type-selection', {
+      const response = await invalidTypeUser.fetch('/api/users/type-selection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userType: 'InvalidType' }),
@@ -172,10 +114,11 @@ suite('User Profile Management', function () {
     });
 
     it('should return 409 if user type already selected', async function () {
-      // Re-authenticate as the original user who already selected Individual type
-      await authClient.signIn.email({ email: userEmail, password: userPassword });
+      // The testUser was created and signed in by createTestUser; no need to
+      // re-authenticate via another client. Call the endpoint using the
+      // same testUser helper so its cookieJar is used.
 
-      const response = await authenticatedFetch('/api/users/type-selection', {
+      const response = await testUser.fetch('/api/users/type-selection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userType: 'Institution' }),
@@ -205,25 +148,25 @@ suite('User Profile Management', function () {
   describe('User Profile Retrieval', function () {
     let profileUserEmail: string;
     let profileUserPassword: string;
+    let profileUser: TestUser;
 
     before(async function () {
       profileUserEmail = `profile_user_${testId}@test.com`;
       profileUserPassword = 'ValidPassword123!';
 
-      // Create and verify user
-      await authClient.signUp.email({
+      // Create and sign in user using createTestUser
+      profileUser = await createTestUser({
+        testId,
+        testSetup,
         email: profileUserEmail,
-        password: profileUserPassword,
         name: 'Profile Test User',
-        callbackURL: 'http://localhost/callback',
       });
-
-      await waitForEmailVerification(testSetup.mailpitUrl, profileUserEmail);
-      await authClient.signIn.email({ email: profileUserEmail, password: profileUserPassword });
+      profileUserEmail = profileUser.email;
+      profileUserPassword = profileUser.password;
     });
 
     it('should retrieve user profile successfully', async function () {
-      const response = await authenticatedFetch('/api/users/profile');
+      const response = await profileUser.fetch('/api/users/profile');
 
       strictEqual(response.status, 200);
       const data = await response.json();
@@ -245,7 +188,7 @@ suite('User Profile Management', function () {
     });
 
     it('should include verification status fields', async function () {
-      const response = await authenticatedFetch('/api/users/profile');
+      const response = await profileUser.fetch('/api/users/profile');
       const data = await response.json();
       const user = data.user;
 
@@ -288,7 +231,7 @@ suite('User Profile Management', function () {
     });
 
     it('should include all profile fields from OpenAPI schema', async function () {
-      const response = await authenticatedFetch('/api/users/profile');
+      const response = await profileUser.fetch('/api/users/profile');
       const data = await response.json();
       const user = data.user;
 
@@ -338,28 +281,26 @@ suite('User Profile Management', function () {
   describe('User Profile Updates', function () {
     let updateUserEmail: string;
     let updateUserPassword: string;
+    let updateUser: TestUser;
 
     before(async function () {
       updateUserEmail = `update_user_${testId}@test.com`;
       updateUserPassword = 'ValidPassword123!';
 
-      // Create and verify user
-      await authClient.signUp.email({
+      // Create and sign in user via helper
+      updateUser = await createTestUser({
+        testId,
+        testSetup,
         email: updateUserEmail,
-        password: updateUserPassword,
         name: 'Update Test User',
-        callbackURL: 'http://localhost/callback',
       });
-
-      await waitForEmailVerification(testSetup.mailpitUrl, updateUserEmail);
-      await authClient.signIn.email({ email: updateUserEmail, password: updateUserPassword });
     });
 
     it('should update user name successfully', async function () {
       const formData = new FormData();
       formData.append('name', 'Updated Test User Name');
 
-      const response = await authenticatedFetch('/api/users/profile', {
+      const response = await updateUser.fetch('/api/users/profile', {
         method: 'PUT',
         body: formData,
       });
@@ -379,7 +320,7 @@ suite('User Profile Management', function () {
       const formData = new FormData();
       formData.append('name', '');
 
-      const response = await authenticatedFetch('/api/users/profile', {
+      const response = await updateUser.fetch('/api/users/profile', {
         method: 'PUT',
         body: formData,
       });
@@ -393,7 +334,7 @@ suite('User Profile Management', function () {
       const formData = new FormData();
       formData.append('name', longName);
 
-      const response = await authenticatedFetch('/api/users/profile', {
+      const response = await updateUser.fetch('/api/users/profile', {
         method: 'PUT',
         body: formData,
       });
@@ -417,25 +358,23 @@ suite('User Profile Management', function () {
   describe('User Preferences', function () {
     let prefsUserEmail: string;
     let prefsUserPassword: string;
+    let prefsUser: TestUser;
 
     before(async function () {
       prefsUserEmail = `prefs_user_${testId}@test.com`;
       prefsUserPassword = 'ValidPassword123!';
 
-      // Create and verify user
-      await authClient.signUp.email({
+      // Create and sign in user via helper
+      prefsUser = await createTestUser({
+        testId,
+        testSetup,
         email: prefsUserEmail,
-        password: prefsUserPassword,
         name: 'Preferences Test User',
-        callbackURL: 'http://localhost/callback',
       });
-
-      await waitForEmailVerification(testSetup.mailpitUrl, prefsUserEmail);
-      await authClient.signIn.email({ email: prefsUserEmail, password: prefsUserPassword });
     });
 
     it('should retrieve user preferences with default values', async function () {
-      const response = await authenticatedFetch('/api/users/preferences');
+      const response = await prefsUser.fetch('/api/users/preferences');
 
       strictEqual(response.status, 200);
       const data = await response.json();
@@ -480,7 +419,7 @@ suite('User Profile Management', function () {
         },
       };
 
-      const response = await authenticatedFetch('/api/users/preferences', {
+      const response = await prefsUser.fetch('/api/users/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
@@ -502,7 +441,7 @@ suite('User Profile Management', function () {
         },
       };
 
-      const response = await authenticatedFetch('/api/users/preferences', {
+      const response = await prefsUser.fetch('/api/users/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
@@ -527,7 +466,7 @@ suite('User Profile Management', function () {
         },
       };
 
-      const response = await authenticatedFetch('/api/users/preferences', {
+      const response = await prefsUser.fetch('/api/users/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
@@ -552,7 +491,7 @@ suite('User Profile Management', function () {
         },
       };
 
-      const response = await authenticatedFetch('/api/users/preferences', {
+      const response = await prefsUser.fetch('/api/users/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
@@ -590,7 +529,7 @@ suite('User Profile Management', function () {
         },
       };
 
-      const response = await authenticatedFetch('/api/users/preferences', {
+      const response = await prefsUser.fetch('/api/users/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
@@ -619,7 +558,7 @@ suite('User Profile Management', function () {
         },
       };
 
-      const response = await authenticatedFetch('/api/users/preferences', {
+      const response = await prefsUser.fetch('/api/users/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
@@ -644,7 +583,7 @@ suite('User Profile Management', function () {
         },
       };
 
-      const response = await authenticatedFetch('/api/users/preferences', {
+      const response = await prefsUser.fetch('/api/users/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
@@ -669,7 +608,7 @@ suite('User Profile Management', function () {
         },
       };
 
-      const response = await authenticatedFetch('/api/users/preferences', {
+      const response = await prefsUser.fetch('/api/users/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
@@ -694,7 +633,7 @@ suite('User Profile Management', function () {
         },
       };
 
-      const response = await authenticatedFetch('/api/users/preferences', {
+      const response = await prefsUser.fetch('/api/users/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
@@ -730,25 +669,23 @@ suite('User Profile Management', function () {
   describe('User Institution Memberships', function () {
     let instMemberEmail: string;
     let instMemberPassword: string;
+    let instMember: TestUser;
 
     before(async function () {
       instMemberEmail = `inst_member_${testId}@test.com`;
       instMemberPassword = 'ValidPassword123!';
 
-      // Create and verify user
-      await authClient.signUp.email({
+      // Create and sign in user via helper
+      instMember = await createTestUser({
+        testId,
+        testSetup,
         email: instMemberEmail,
-        password: instMemberPassword,
         name: 'Institution Member User',
-        callbackURL: 'http://localhost/callback',
       });
-
-      await waitForEmailVerification(testSetup.mailpitUrl, instMemberEmail);
-      await authClient.signIn.email({ email: instMemberEmail, password: instMemberPassword });
     });
 
     it('should retrieve empty memberships for individual user', async function () {
-      const response = await authenticatedFetch('/api/users/institutions');
+      const response = await instMember.fetch('/api/users/institutions');
 
       strictEqual(response.status, 200);
       const data = await response.json();
@@ -766,24 +703,22 @@ suite('User Profile Management', function () {
   describe('Edge Cases and Error Handling', function () {
     let edgeUserEmail: string;
     let edgeUserPassword: string;
+    let edgeUser: TestUser;
 
     before(async function () {
       edgeUserEmail = `edge_user_${testId}@test.com`;
       edgeUserPassword = 'ValidPassword123!';
 
-      await authClient.signUp.email({
+      edgeUser = await createTestUser({
+        testId,
+        testSetup,
         email: edgeUserEmail,
-        password: edgeUserPassword,
         name: 'Edge Case User',
-        callbackURL: 'http://localhost/callback',
       });
-
-      await waitForEmailVerification(testSetup.mailpitUrl, edgeUserEmail);
-      await authClient.signIn.email({ email: edgeUserEmail, password: edgeUserPassword });
     });
 
     it('should handle missing request body in user type selection', async function () {
-      const response = await authenticatedFetch('/api/users/type-selection', {
+      const response = await edgeUser.fetch('/api/users/type-selection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
@@ -802,7 +737,7 @@ suite('User Profile Management', function () {
       const formData = new FormData();
       formData.append('name', '');
 
-      const response = await authenticatedFetch('/api/users/profile', {
+      const response = await edgeUser.fetch('/api/users/profile', {
         method: 'PUT',
         body: formData,
       });
@@ -820,7 +755,7 @@ suite('User Profile Management', function () {
       formData.append('name', 'Test User');
       formData.append('profilePicture', blob, 'large-image.jpg');
 
-      const response = await authenticatedFetch('/api/users/profile', {
+      const response = await edgeUser.fetch('/api/users/profile', {
         method: 'PUT',
         body: formData,
       });
@@ -837,7 +772,7 @@ suite('User Profile Management', function () {
       formData.append('name', 'Test User');
       formData.append('profilePicture', blob, 'not-an-image.txt');
 
-      const response = await authenticatedFetch('/api/users/profile', {
+      const response = await edgeUser.fetch('/api/users/profile', {
         method: 'PUT',
         body: formData,
       });
@@ -847,7 +782,7 @@ suite('User Profile Management', function () {
     });
 
     it('should handle missing multipart form data', async function () {
-      const response = await authenticatedFetch('/api/users/profile', {
+      const response = await edgeUser.fetch('/api/users/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: 'Test User' }),
@@ -858,7 +793,7 @@ suite('User Profile Management', function () {
     });
 
     it('should handle malformed JSON in preferences update', async function () {
-      const response = await authenticatedFetch('/api/users/preferences', {
+      const response = await edgeUser.fetch('/api/users/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: 'invalid-json',
@@ -869,7 +804,8 @@ suite('User Profile Management', function () {
 
     it('should handle partial preferences update correctly', async function () {
       // First, get current preferences
-      const getResponse = await authenticatedFetch('/api/users/preferences');
+      const getResponse = await edgeUser.fetch('/api/users/preferences');
+      strictEqual(getResponse.status, 200);
       const currentPrefs = await getResponse.json();
 
       // Update only one field
@@ -879,7 +815,7 @@ suite('User Profile Management', function () {
         },
       };
 
-      const response = await authenticatedFetch('/api/users/preferences', {
+      const response = await edgeUser.fetch('/api/users/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),

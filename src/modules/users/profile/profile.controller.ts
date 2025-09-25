@@ -1,3 +1,4 @@
+import type { Request } from 'express';
 import type { File } from '../../../shared/types';
 import type { UserSession } from '../../auth/types';
 
@@ -10,6 +11,7 @@ import {
   HttpStatus,
   Patch,
   Put,
+  Req,
   UploadedFile,
   UseGuards,
 } from '@nestjs/common';
@@ -74,12 +76,12 @@ export class ProfileController {
   })
   async update(
     @Session() session: UserSession,
-    @Headers() headers: HeadersInit,
+    @Req() req: Request,
     @UploadedFile() profilePicture: File,
     @Body() updateProfileDto: UpdateProfileDto,
   ) {
     // Validate content type for multipart form data
-    const contentType = headers['content-type'];
+    const contentType = req.get('content-type') || '';
     if (contentType && !contentType.includes('multipart/form-data')) {
       throw new HttpException(
         'Invalid content type. Expected multipart/form-data',
@@ -95,7 +97,7 @@ export class ProfileController {
     );
 
     return this.auth.api.updateUser({
-      headers,
+      headers: req.headers,
       body: updateData,
     });
   }
@@ -121,12 +123,18 @@ export class ProfileController {
   })
   async updatePut(
     @Session() session: UserSession,
-    @Headers() headers: HeadersInit,
+    @Req() req: Request,
     @UploadedFile() profilePicture: File,
     @Body() updateProfileDto: UpdateProfileDto,
   ) {
     // Validate content type for multipart form data
-    const contentType = headers['content-type'];
+    const contentType = req.get('content-type') || '';
+    console.debug(
+      'PUT profile update content-type:',
+      contentType,
+      'includes multipart:',
+      contentType.includes('multipart/form-data'),
+    );
     if (contentType && !contentType.includes('multipart/form-data')) {
       throw new HttpException(
         'Invalid content type. Expected multipart/form-data',
@@ -142,7 +150,7 @@ export class ProfileController {
     );
 
     const _updateResult = await this.auth.api.updateUser({
-      headers,
+      headers: req.headers,
       body: updateData,
     });
 

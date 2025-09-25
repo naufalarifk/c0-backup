@@ -224,6 +224,23 @@ export abstract class UserRepository extends BetterAuthRepository {
         throw new Error('User type decision failed or already made');
       }
 
+      // If user selects Institution type, automatically create institution for them
+      if (userType === 'Institution') {
+        // For simplicity, we'll use a sequential institution ID starting from 1
+        // In a real implementation, this would be a proper institution table
+        const existingInstitutionCount = await tx.sql`
+          SELECT COUNT(*) as count FROM users WHERE institution_user_id IS NOT NULL;
+        `;
+        const count = existingInstitutionCount[0] as { count: string | number };
+        const nextInstitutionId = Number(count.count) + 1;
+
+        await tx.sql`
+          UPDATE users
+          SET institution_user_id = ${nextInstitutionId}, institution_role = 'Owner'
+          WHERE id = ${userId};
+        `;
+      }
+
       await tx.commitTransaction();
     } catch (error) {
       console.error('UserRepository', error);

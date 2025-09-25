@@ -21,9 +21,11 @@ import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import {
   assertArrayOf,
   assertDefined,
+  assertPropDate,
   assertPropNullableDate,
   assertPropNullableString,
   assertPropString,
+  assertPropStringOrNumber,
   validationOptions,
 } from '../../../shared/utils';
 import { Session } from '../../auth/auth.decorator';
@@ -297,18 +299,18 @@ export class AdminKycController {
 
       assertArrayOf(rows, function (row) {
         assertDefined(row);
-        assertPropString(row, 'id');
-        assertPropString(row, 'user_id');
-        assertPropNullableString(row, 'nik');
-        assertPropNullableString(row, 'name');
-        assertPropString(row, 'birth_date');
-        assertPropNullableString(row, 'address');
-        assertPropNullableString(row, 'id_card_photo');
-        assertPropNullableString(row, 'selfie_with_id_card_photo');
-        assertPropNullableString(row, 'submitted_date');
+        assertPropStringOrNumber(row, 'id');
+        assertPropStringOrNumber(row, 'user_id');
+        assertPropString(row, 'nik');
+        assertPropString(row, 'name');
+        assertPropDate(row, 'birth_date');
+        assertPropString(row, 'address');
+        assertPropString(row, 'id_card_photo');
+        assertPropString(row, 'selfie_with_id_card_photo');
+        assertPropDate(row, 'submitted_date');
         assertPropNullableString(row, 'email');
         assertPropNullableString(row, 'user_name');
-        assertPropNullableString(row, 'created_date');
+        assertPropNullableDate(row, 'created_date');
         return row;
       });
 
@@ -360,14 +362,12 @@ export class AdminKycController {
         userInfo: {
           email: kyc.email || 'No email found',
           name: kyc.user_name || 'No name found',
-          createdDate: kyc.created_date
-            ? new Date(kyc.created_date).toISOString()
-            : new Date().toISOString(),
+          createdDate: kyc.created_date ? kyc.created_date.toISOString() : new Date().toISOString(),
         },
         submissionData: {
           nik: kyc.nik,
           name: kyc.name,
-          birthDate: new Date(kyc.birth_date).toISOString().split('T')[0],
+          birthDate: kyc.birth_date.toISOString().split('T')[0],
           address: kyc.address,
         },
         documents: {
@@ -422,7 +422,7 @@ export class AdminKycController {
 
       assertArrayOf(checkRows, function (row) {
         assertDefined(row);
-        assertPropString(row, 'id');
+        assertPropStringOrNumber(row, 'id');
         assertPropNullableDate(row, 'verified_date');
         assertPropNullableDate(row, 'rejected_date');
         return row;
@@ -506,7 +506,7 @@ export class AdminKycController {
 
       assertArrayOf(checkRows, function (row) {
         assertDefined(row);
-        assertPropString(row, 'id');
+        assertPropStringOrNumber(row, 'id');
         assertPropNullableDate(row, 'verified_date');
         assertPropNullableDate(row, 'rejected_date');
         return row;

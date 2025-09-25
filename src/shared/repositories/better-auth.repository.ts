@@ -1260,7 +1260,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
       if (!row) return null;
 
       assertDefined(row);
-      assertPropString(row, 'id');
+      assertPropStringOrNumber(row, 'id');
       assertPropString(row, 'secret');
       assertPropString(row, 'backupCodes');
       assertPropStringOrNumber(row, 'userId');
@@ -1310,7 +1310,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       const row = rows[0];
       assertDefined(row);
-      assertPropString(row, 'id');
+      assertPropStringOrNumber(row, 'id');
       assertPropString(row, 'secret');
       assertPropString(row, 'backupCodes');
       assertPropStringOrNumber(row, 'userId');
@@ -1344,7 +1344,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
         return rows.map(row => {
           assertDefined(row);
-          assertPropString(row, 'id');
+          assertPropStringOrNumber(row, 'id');
           assertPropString(row, 'secret');
           assertPropString(row, 'backupCodes');
           assertPropStringOrNumber(row, 'userId');
@@ -1409,7 +1409,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
       }
 
       assertDefined(row);
-      assertPropString(row, 'id');
+      assertPropStringOrNumber(row, 'id');
       assertPropString(row, 'secret');
       assertPropString(row, 'backupCodes');
       assertPropStringOrNumber(row, 'userId');
@@ -1472,7 +1472,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
       }
 
       assertDefined(row);
-      assertPropString(row, 'id');
+      assertPropStringOrNumber(row, 'id');
       assertPropString(row, 'secret');
       assertPropString(row, 'backupCodes');
       assertPropStringOrNumber(row, 'userId');

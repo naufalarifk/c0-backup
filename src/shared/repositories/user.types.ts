@@ -103,12 +103,12 @@ export type UserAppliesForInstitutionParams = {
   registrationNumber: string;
   registrationDocumentPath: string;
   deedOfEstablishmentPath: string;
-  address: string;
-  city: string;
-  province: string;
-  district: string;
-  subdistrict: string;
-  postalCode: string;
+  businessAddress: string;
+  businessCity: string;
+  businessProvince: string;
+  businessDistrict: string;
+  businessSubdistrict: string;
+  businessPostalCode: string;
   directorName: string;
   directorPosition: string;
   directorIdCardPath: string;

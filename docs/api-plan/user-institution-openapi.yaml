@@ -187,7 +187,7 @@ paths:
                     success: false
                     error:
                       code: CANNOT_REMOVE_OWNER
-                      message: Institution owner cannot be removed
+                      message: Institution owner cannot be removed from the institution
                     timestamp: 2024-03-15T10:30:00Z
         '404':
           $ref: '#/components/responses/NotFound'
@@ -263,12 +263,15 @@ paths:
                 userEmail:
                   type: string
                   format: email
+                  maxLength: 254
+                  description: Email address of the user to invite (max 254 characters)
                 role:
                   type: string
                   enum: [Finance]
                 message:
                   type: string
-                  description: Optional invitation message
+                  maxLength: 1000
+                  description: Optional invitation message (max 1000 characters)
             examples:
               finance_member:
                 summary: Invite finance member
@@ -304,6 +307,8 @@ paths:
           $ref: '#/components/responses/UserNotFound'
         '409':
           $ref: '#/components/responses/UserAlreadyMember'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   /api/institutions/invitations/{id}/resend:
     post:
@@ -840,6 +845,65 @@ components:
                     message: This invitation expired and can no longer be accepted
                 timestamp: 2024-03-15T10:30:00Z
                 requestId: req_123e4567-e89b-12d3-a456-426614174007
+
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            validation_error:
+              summary: Validation failed for request parameters
+              value:
+                success: false
+                error:
+                  code: VALIDATION_ERROR
+                  message: Request validation failed
+                  details:
+                    userEmail: ""
+                    role: ""
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174008
+            email_too_long:
+              summary: Email address too long
+              value:
+                success: false
+                error:
+                  code: VALIDATION_ERROR
+                  message: Request validation failed
+                  details:
+                    userEmail: "Email address is too long (maximum 254 characters)"
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174008
+            message_too_long:
+              summary: Message too long
+              value:
+                success: false
+                error:
+                  code: VALIDATION_ERROR
+                  message: Request validation failed
+                  details:
+                    message: "Message is too long (maximum 1000 characters)"
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174008
+
+    BadRequest:
+      description: Bad request - malformed data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            malformed_json:
+              summary: Malformed JSON in request body
+              value:
+                success: false
+                error:
+                  code: BAD_REQUEST
+                  message: "Unexpected token 'i', \"invalid-json-string\" is not valid JSON"
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174009
 
 tags:
   - name: Institution Management

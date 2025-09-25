@@ -102,7 +102,7 @@ export class UsersService {
         lastLoginDate: user.lastLoginDate?.toISOString() || null,
         userType: user.userType === 'Undecided' ? null : user.userType,
         kycId: user.kycId,
-        institutionId: user.institutionUserId,
+        institutionId: user.institutionUserId ? Number(user.institutionUserId) : null,
         institutionRole: user.institutionRole,
         twoFaEnabled: user.twoFactorEnabled,
         isVerified: user.kycStatus === 'verified',

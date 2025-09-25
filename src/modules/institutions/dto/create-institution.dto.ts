@@ -41,57 +41,57 @@ export class CreateInstitutionDto
     description: 'Business address',
     example: 'Jl. Sudirman No. 123, Jakarta Pusat',
   })
-  @IsNotEmpty({ message: 'Address is required' })
-  @IsString({ message: 'Address must be a valid text' })
+  @IsNotEmpty({ message: 'Business address is required' })
+  @IsString({ message: 'Business address must be a valid text' })
   @Transform(({ value }) => value?.trim())
-  address: string;
+  businessAddress: string;
 
   @ApiProperty({
     description: 'District (kecamatan)',
     example: 'Menteng',
   })
-  @IsNotEmpty({ message: 'District is required' })
-  @IsString({ message: 'District must be a valid text' })
+  @IsNotEmpty({ message: 'Business district is required' })
+  @IsString({ message: 'Business district must be a valid text' })
   @Transform(({ value }) => value?.trim())
-  district: string;
+  businessDistrict: string;
 
   @ApiProperty({
     description: 'Subdistrict (kelurahan)',
     example: 'Menteng',
   })
-  @IsNotEmpty({ message: 'Subdistrict is required' })
-  @IsString({ message: 'Subdistrict must be a valid text' })
+  @IsNotEmpty({ message: 'Business subdistrict is required' })
+  @IsString({ message: 'Business subdistrict must be a valid text' })
   @Transform(({ value }) => value?.trim())
-  subdistrict: string;
+  businessSubdistrict: string;
 
   @ApiProperty({
     description: 'City',
     example: 'Jakarta',
   })
-  @IsNotEmpty({ message: 'City is required' })
-  @IsString({ message: 'City must be a valid text' })
+  @IsNotEmpty({ message: 'Business city is required' })
+  @IsString({ message: 'Business city must be a valid text' })
   @Transform(({ value }) => value?.trim())
-  city: string;
+  businessCity: string;
 
   @ApiProperty({
     description: 'Province',
     example: 'DKI Jakarta',
   })
-  @IsNotEmpty({ message: 'Province is required' })
-  @IsString({ message: 'Province must be a valid text' })
+  @IsNotEmpty({ message: 'Business province is required' })
+  @IsString({ message: 'Business province must be a valid text' })
   @Transform(({ value }) => value?.trim())
-  province: string;
+  businessProvince: string;
 
   @ApiProperty({
     description: 'Postal code',
     example: '10220',
   })
-  @IsNotEmpty({ message: 'Postal code is required' })
-  @IsString({ message: 'Postal code must be a valid text' })
+  @IsNotEmpty({ message: 'Business postal code is required' })
+  @IsString({ message: 'Business postal code must be a valid text' })
   @Matches(/^\d{5}$/, {
     message: 'Postal code must be 5 digits',
   })
-  postalCode: string;
+  businessPostalCode: string;
 
   @ApiProperty({
     description: 'NPWP (Tax ID) number',

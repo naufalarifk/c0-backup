@@ -521,6 +521,11 @@ suite('User Verification API E2E Tests', function () {
       it('should retrieve detailed KYC submission for admin review', async function () {
         const response = await adminUser.fetch(`/api/admin/kyc/${kycSubmissionId}`);
 
+        if (response.status !== 200) {
+          const errorData = await response.text();
+          console.error(`KYC details failed with status ${response.status}: ${errorData}`);
+        }
+
         strictEqual(response.status, 200, `Expected 200, got ${response.status}`);
 
         const responseData = await response.json();

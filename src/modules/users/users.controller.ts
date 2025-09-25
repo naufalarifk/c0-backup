@@ -1,3 +1,4 @@
+import type { Request } from 'express';
 import type {} from 'multer';
 import type { UserViewsProfileResult } from '../../shared/types';
 import type { UserSession } from '../auth/types';
@@ -12,6 +13,7 @@ import {
   Patch,
   Post,
   Put,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -172,9 +174,22 @@ export class UsersController {
   })
   async updateProfile(
     @Session() session: UserSession,
+    @Req() req: Request,
     @Body() updateProfileDto: UpdateProfileDto,
     @UploadedFile() profilePicture?: Express.Multer.File,
   ) {
+    // Validate content type for multipart form data
+    const contentType = req.get('content-type') || '';
+    if (contentType && !contentType.includes('multipart/form-data')) {
+      throw new HttpException(
+        {
+          success: false,
+          error: { message: 'Invalid content type. Expected multipart/form-data' },
+        },
+        HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+      );
+    }
+
     // Validate file size (5MB limit)
     if (profilePicture && profilePicture.size > 5 * 1024 * 1024) {
       throw new HttpException(

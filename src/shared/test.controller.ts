@@ -12,7 +12,12 @@ import {
 
 import { CryptogadaiRepository } from './repositories/cryptogadai.repository';
 import { TelemetryLogger } from './telemetry.logger';
-import { assertArrayOf, assertDefined, assertPropString } from './utils/assertions.js';
+import {
+  assertArrayOf,
+  assertDefined,
+  assertPropString,
+  assertPropStringOrNumber,
+} from './utils/assertions.js';
 
 @Controller()
 export class TestController {
@@ -112,7 +117,7 @@ export class TestController {
 
     assertArrayOf(checkRows, function (row) {
       assertDefined(row);
-      assertPropString(row, 'id');
+      assertPropStringOrNumber(row, 'id');
       assertPropString(row, 'status');
       return row;
     });
@@ -176,7 +181,7 @@ export class TestController {
 
     assertArrayOf(checkRows, function (row) {
       assertDefined(row);
-      assertPropString(row, 'id');
+      assertPropStringOrNumber(row, 'id');
       assertPropString(row, 'status');
       return row;
     });

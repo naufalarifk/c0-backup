@@ -33,7 +33,10 @@ export async function createTestUser(options: TestUserOptions): Promise<TestUser
     email = `test_user_${options.testId}_${Date.now()}@test.com`,
     password = 'ValidPassword123!',
     name = `Test User ${options.testId}`,
-    userType = 'Individual',
+    // Do NOT auto-select a user type by default. Tests that need a specific
+    // initial userType should pass it explicitly to avoid accidental
+    // pre-selection that interferes with type-selection tests.
+    userType,
     role = 'user',
     testId,
     testSetup,

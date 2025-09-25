@@ -28,11 +28,11 @@ info:
     url: https://cryptogadai.com/license
 
 servers:
-  - url: https://api.cryptogadai.com/api
+  - url: https://api.cryptogadai.com
     description: Production server
-  - url: https://cg-api.fh47.com/api
+  - url: https://cg-api.fh47.com
     description: Testing server
-  - url: http://cg-api.localhost/api
+  - url: http://cg-api.localhost
     description: Local development server
 
 security:
@@ -41,7 +41,7 @@ security:
 
 paths:
   # Account & Balance Management
-  /accounts/balances:
+  /api/accounts/balances:
     get:
       tags:
         - Account Management
@@ -177,7 +177,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /accounts/{accountId}/mutations:
+  /api/accounts/{accountId}/mutations:
     get:
       tags:
         - Account Management
@@ -330,7 +330,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
   # Portfolio Management
-  /portfolio/analytics:
+  /api/portfolio/analytics:
     get:
       tags:
         - Portfolio Management
@@ -450,7 +450,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /portfolio/overview:
+  /api/portfolio/overview:
     get:
       tags:
         - Portfolio Management

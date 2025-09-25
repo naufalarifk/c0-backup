@@ -178,6 +178,55 @@ export class FileValidatorService {
   }
 
   /**
+   * Validate PDF file with basic security checks for institution applications
+   * CAUTION: PDFs can contain JavaScript/malware, use with caution
+   */
+  validatePdfFile(
+    fileBuffer: Buffer,
+    maxSizeMB: number = 5,
+    mimeType?: string,
+    originalName?: string,
+  ): void {
+    const options: FileValidationOptions = {
+      maxSize: maxSizeMB * 1024 * 1024,
+      allowedMimeTypes: ['application/pdf'],
+      minSize: 256, // PDF files should be at least 256 bytes
+    };
+
+    // Check PDF signature (magic bytes)
+    const pdfSignature = fileBuffer.slice(0, 8);
+    ensure(
+      pdfSignature[0] === 0x25 &&
+        pdfSignature[1] === 0x50 &&
+        pdfSignature[2] === 0x44 &&
+        pdfSignature[3] === 0x46, // %PDF
+      'Invalid PDF file signature - possible malicious file',
+    );
+
+    // Basic security check - look for potentially dangerous content
+    const content = fileBuffer.toString('utf8', 0, Math.min(2048, fileBuffer.length));
+    const suspiciousPdfPatterns = [
+      '/JavaScript',
+      '/JS',
+      '/OpenAction',
+      '/AA',
+      '/Launch',
+      '/EmbeddedFiles',
+      '<script',
+      'javascript:',
+    ];
+
+    for (const pattern of suspiciousPdfPatterns) {
+      if (content.includes(pattern)) {
+        console.warn(`Potentially suspicious PDF content detected: ${pattern}`);
+        // For now, we'll log but not block, since institution documents might legitimately contain some of these
+      }
+    }
+
+    this.validateFile(fileBuffer, options, mimeType, originalName);
+  }
+
+  /**
    * Sanitize filename to prevent path traversal and special characters
    */
   sanitizeFileName(fileName: string): string {

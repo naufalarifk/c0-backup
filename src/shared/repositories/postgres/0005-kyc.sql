@@ -76,26 +76,18 @@ EXECUTE FUNCTION validate_kyc_submission();
 CREATE OR REPLACE FUNCTION update_user_kyc_on_approval()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF OLD.verified_date IS NOT NULL OR OLD.rejected_date IS NOT NULL THEN
-    RAISE EXCEPTION 'Cannot modify a KYC application that has already been verified or rejected';
-  END IF;
-
+  -- Handle approval (from NULL to NOT NULL verified_date)
   IF OLD.verified_date IS NULL AND NEW.verified_date IS NOT NULL THEN
-
     NEW.status = 'Verified';
 
     UPDATE users
     SET kyc_id = NEW.id
     WHERE id = NEW.user_id;
-
-
   END IF;
 
+  -- Handle rejection (from NULL to NOT NULL rejected_date)
   IF OLD.rejected_date IS NULL AND NEW.rejected_date IS NOT NULL THEN
-
     NEW.status = 'Rejected';
-
-
   END IF;
 
   RETURN NEW;

@@ -28,11 +28,11 @@ info:
     url: https://cryptogadai.com/license
 
 servers:
-  - url: https://api.cryptogadai.com/api
+  - url: https://api.cryptogadai.com
     description: Production server
-  - url: https://cg-api.fh47.com/api
+  - url: https://cg-api.fh47.com
     description: Testing server
-  - url: http://cg-api.localhost/api
+  - url: http://cg-api.localhost
     description: Local development server
 
 security:
@@ -41,7 +41,7 @@ security:
 
 paths:
   # Withdrawal Management
-  /beneficiaries:
+  /api/beneficiaries:
     get:
       tags:
         - Withdrawal Management
@@ -205,7 +205,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /withdrawals:
+  /api/withdrawals:
     get:
       tags:
         - Withdrawal Management
@@ -402,7 +402,7 @@ paths:
                           failedDate: null
                           failureReason: null
                           state: "confirmed"
-                          blockchainExplorerUrl: "https://bscscan.com/tx/0xdef456789abcdef123456789abcdef123456789abcdef1234"
+                          blockchainExplorerUrl: "https://bscscan.com/tx/0xdef456789abcdef123456789abcdef123456789abcdef123456789abcdef1234"
                           estimatedConfirmationTime: null
                       pagination:
                         page: 1
@@ -527,7 +527,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /withdrawals/{withdrawalId}:
+  /api/withdrawals/{withdrawalId}:
     get:
       tags:
         - Withdrawal Management
@@ -586,7 +586,7 @@ paths:
                       failedDate: null
                       failureReason: null
                       state: "confirmed"
-                      blockchainExplorerUrl: "https://bscscan.com/tx/0xdef456789abcdef123456789abcdef123456789abcdef1234"
+                      blockchainExplorerUrl: "https://bscscan.com/tx/0xdef456789abcdef123456789abcdef123456789abcdef123456789abcdef1234"
                       estimatedConfirmationTime: null
                 pending_withdrawal:
                   summary: Pending withdrawal request
@@ -673,7 +673,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /withdrawals/{withdrawalId}/refund:
+  /api/withdrawals/{withdrawalId}/refund:
     post:
       tags:
         - Withdrawal Management
