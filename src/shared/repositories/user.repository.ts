@@ -495,12 +495,12 @@ export abstract class UserRepository extends BetterAuthRepository {
         registrationNumber,
         registrationDocumentPath,
         deedOfEstablishmentPath,
-        address,
-        city,
-        province,
-        district,
-        subdistrict,
-        postalCode,
+        businessAddress,
+        businessCity,
+        businessProvince,
+        businessDistrict,
+        businessSubdistrict,
+        businessPostalCode,
         directorName,
         directorPosition,
         directorIdCardPath,
@@ -520,9 +520,9 @@ export abstract class UserRepository extends BetterAuthRepository {
         VALUES (
           ${applicantUserId}, ${businessName}, ${businessDescription}, ${businessType},
           ${npwpNumber}, ${npwpDocumentPath}, ${registrationNumber}, ${registrationDocumentPath},
-          ${deedOfEstablishmentPath}, ${address},
-          ${city}, ${province}, ${district}, ${subdistrict},
-          ${postalCode}, ${directorName}, ${directorPosition}, ${directorIdCardPath},
+          ${deedOfEstablishmentPath}, ${businessAddress},
+          ${businessCity}, ${businessProvince}, ${businessDistrict}, ${businessSubdistrict},
+          ${businessPostalCode}, ${directorName}, ${directorPosition}, ${directorIdCardPath},
           ${ministryApprovalDocumentPath}, ${applicationDate}
         )
         RETURNING id, applicant_user_id, business_name;
