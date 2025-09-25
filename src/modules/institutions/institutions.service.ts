@@ -1,7 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 
-import { assertPropNullableStringOrNumber } from 'test/setup/assertions.js';
-
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { FileValidatorService } from '../../shared/services/file-validator.service';
 import { MinioService } from '../../shared/services/minio.service';
@@ -12,6 +10,7 @@ import {
   assertDefined,
   assertPropNullableDate,
   assertPropNullableString,
+  assertPropNullableStringOrNumber,
   assertPropString,
   assertPropStringOrNumber,
   ensure,
