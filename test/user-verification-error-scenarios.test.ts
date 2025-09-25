@@ -10,10 +10,9 @@ import {
 } from 'node:assert/strict';
 import { assert } from 'node:console';
 
-import { assertPropDefined } from 'src/shared/utils/assertions.js';
-
 import {
   assertDefined,
+  assertPropDefined,
   assertPropNumber,
   assertPropOneOf,
   assertPropString,

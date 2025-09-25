@@ -10,10 +10,9 @@ import {
   Put,
 } from '@nestjs/common';
 
-import { assertArrayOf, assertDefined, assertPropString } from 'src/shared/utils/assertions.js';
-
 import { CryptogadaiRepository } from './repositories/cryptogadai.repository';
 import { TelemetryLogger } from './telemetry.logger';
+import { assertArrayOf, assertDefined, assertPropString } from './utils/assertions.js';
 
 @Controller()
 export class TestController {
