@@ -34,16 +34,16 @@ suite('User Profile Management', function () {
   });
 
   describe('User Type Selection', function () {
-    let userEmail: string;
-    let userPassword: string;
+    let _userEmail: string;
+    let _userPassword: string;
     let institutionUser: TestUser;
     let invalidTypeUser: TestUser;
 
     before(async function () {
       testUser = await createTestUser({ testSetup, testId });
 
-      userEmail = testUser.email;
-      userPassword = testUser.password;
+      _userEmail = testUser.email;
+      _userPassword = testUser.password;
 
       // createTestUser already verifies email and signs the user in, so no
       // additional wait/sign-in is required here.
@@ -67,7 +67,7 @@ suite('User Profile Management', function () {
 
     it('should allow user to select Institution type', async function () {
       const newUserEmail = `inst_user_${testId}@test.com`;
-      const newUserPassword = 'ValidPassword123!';
+      const _newUserPassword = 'ValidPassword123!';
 
       // Create new user for institution test using createTestUser helper
       institutionUser = await createTestUser({
@@ -96,7 +96,7 @@ suite('User Profile Management', function () {
 
     it('should return 422 for invalid user type', async function () {
       const newUserEmail = `invalid_type_${testId}@test.com`;
-      const newUserPassword = 'ValidPassword123!';
+      const _newUserPassword = 'ValidPassword123!';
 
       // Create new user for invalid type test
       invalidTypeUser = await createTestUser({
@@ -149,12 +149,12 @@ suite('User Profile Management', function () {
 
   describe('User Profile Retrieval', function () {
     let profileUserEmail: string;
-    let profileUserPassword: string;
+    let _profileUserPassword: string;
     let profileUser: TestUser;
 
     before(async function () {
       profileUserEmail = `profile_user_${testId}@test.com`;
-      profileUserPassword = 'ValidPassword123!';
+      _profileUserPassword = 'ValidPassword123!';
 
       // Create and sign in user using createTestUser
       profileUser = await createTestUser({
@@ -164,7 +164,7 @@ suite('User Profile Management', function () {
         name: 'Profile Test User',
       });
       profileUserEmail = profileUser.email;
-      profileUserPassword = profileUser.password;
+      _profileUserPassword = profileUser.password;
     });
 
     it('should retrieve user profile successfully', async function () {
@@ -208,8 +208,8 @@ suite('User Profile Management', function () {
       }
 
       // Check phone verification
-      if ('phoneVerified' in user) {
-        ok(typeof user.phoneVerified === 'boolean');
+      if ('phoneNumberVerified' in user) {
+        ok(typeof user.phoneNumberVerified === 'boolean');
       }
 
       // Check feature unlock status for unverified users
@@ -301,12 +301,12 @@ suite('User Profile Management', function () {
 
   describe('User Profile Updates', function () {
     let updateUserEmail: string;
-    let updateUserPassword: string;
+    let _updateUserPassword: string;
     let updateUser: TestUser;
 
     before(async function () {
       updateUserEmail = `update_user_${testId}@test.com`;
-      updateUserPassword = 'ValidPassword123!';
+      _updateUserPassword = 'ValidPassword123!';
 
       // Create and sign in user via helper
       updateUser = await createTestUser({
@@ -378,12 +378,12 @@ suite('User Profile Management', function () {
 
   describe('User Preferences', function () {
     let prefsUserEmail: string;
-    let prefsUserPassword: string;
+    let _prefsUserPassword: string;
     let prefsUser: TestUser;
 
     before(async function () {
       prefsUserEmail = `prefs_user_${testId}@test.com`;
-      prefsUserPassword = 'ValidPassword123!';
+      _prefsUserPassword = 'ValidPassword123!';
 
       // Create and sign in user via helper
       prefsUser = await createTestUser({
@@ -702,12 +702,12 @@ suite('User Profile Management', function () {
 
   describe('User Institution Memberships', function () {
     let instMemberEmail: string;
-    let instMemberPassword: string;
+    let _instMemberPassword: string;
     let instMember: TestUser;
 
     before(async function () {
       instMemberEmail = `inst_member_${testId}@test.com`;
-      instMemberPassword = 'ValidPassword123!';
+      _instMemberPassword = 'ValidPassword123!';
 
       // Create and sign in user via helper
       instMember = await createTestUser({
@@ -736,12 +736,12 @@ suite('User Profile Management', function () {
 
   describe('Edge Cases and Error Handling', function () {
     let edgeUserEmail: string;
-    let edgeUserPassword: string;
+    let _edgeUserPassword: string;
     let edgeUser: TestUser;
 
     before(async function () {
       edgeUserEmail = `edge_user_${testId}@test.com`;
-      edgeUserPassword = 'ValidPassword123!';
+      _edgeUserPassword = 'ValidPassword123!';
 
       edgeUser = await createTestUser({
         testId,

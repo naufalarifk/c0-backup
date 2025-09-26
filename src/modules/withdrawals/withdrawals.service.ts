@@ -43,13 +43,19 @@ export class WithdrawalsService {
     ensureValid(isPositiveNumber(amount), 'Please enter a valid withdrawal amount');
 
     // 2. User profile checks (KYC, 2FA enabled)
-    const { status: kycStatus } = await this.repo.userViewsKYCStatus({ userId: user.id });
+    const { kycStatus, twoFactorEnabled, phoneNumberVerified } = await this.repo.userViewsProfile({
+      userId: user.id,
+    });
     ensurePermission(
       kycStatus === 'verified',
       'Please complete your identity verification (KYC) first',
     );
     ensurePermission(
-      user.twoFactorEnabled,
+      phoneNumberVerified,
+      'Please verify your phone number in your security settings',
+    );
+    ensurePermission(
+      twoFactorEnabled,
       'Please enable two-factor authentication (2FA) in your security settings',
     );
 

@@ -262,7 +262,7 @@ suite('Institution Management API', function () {
 
   describe('Remove Institution Member', function () {
     let institutionOwner: Awaited<ReturnType<typeof createInstitutionTestUser>>;
-    let financeMember: Awaited<ReturnType<typeof createTestUser>>;
+    let _financeMember: Awaited<ReturnType<typeof createTestUser>>;
     let nonMember: Awaited<ReturnType<typeof createTestUser>>;
     let institutionId: number;
 
@@ -276,7 +276,7 @@ suite('Institution Management API', function () {
       });
 
       // Create a finance member (will be invited later in the test flow)
-      financeMember = await createTestUser({
+      _financeMember = await createTestUser({
         testSetup,
         testId,
         email: `remove_member_finance_${testId}@test.com`,
@@ -480,7 +480,7 @@ suite('Institution Management API', function () {
   describe('Create Institution Invitation', function () {
     let institutionOwner: Awaited<ReturnType<typeof createInstitutionTestUser>>;
     let individualUser: Awaited<ReturnType<typeof createTestUser>>;
-    let nonMember: Awaited<ReturnType<typeof createTestUser>>;
+    let _nonMember: Awaited<ReturnType<typeof createTestUser>>;
 
     before(async function () {
       // Create institution owner
@@ -501,7 +501,7 @@ suite('Institution Management API', function () {
       });
 
       // Create non-member user
-      nonMember = await createTestUser({
+      _nonMember = await createTestUser({
         testSetup,
         testId,
         email: `create_invite_non_member_${testId}@test.com`,
@@ -1607,7 +1607,7 @@ suite('Institution Management API', function () {
       // At least one should succeed, or both should fail with appropriate error
       const statuses = [response1.status, response2.status];
       const hasSuccess = statuses.includes(201);
-      const hasConflict = statuses.includes(409);
+      const _hasConflict = statuses.includes(409);
 
       // Either one succeeds and one conflicts, or both fail appropriately
       ok(hasSuccess || statuses.every(status => status >= 400));
