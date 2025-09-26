@@ -1,5 +1,6 @@
 import type { getSession } from 'better-auth/api';
 import type {
+  AdminOptions,
   SessionWithImpersonatedBy,
   UserWithPhoneNumber,
   UserWithRole,
@@ -32,7 +33,7 @@ export type AuthInstance = ReturnType<typeof betterAuth>;
 
 export type PluginEndpoints = ReturnType<typeof twoFactor>['endpoints'] &
   ReturnType<typeof phoneNumber>['endpoints'] &
-  ReturnType<typeof admin>['endpoints'] &
+  ReturnType<typeof admin<AdminOptions>>['endpoints'] &
   ReturnType<typeof sso>['endpoints'] &
   ReturnType<typeof multiSession>['endpoints'] &
   ReturnType<typeof customSession>['endpoints'] &
