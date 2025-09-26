@@ -136,8 +136,8 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
     assertArrayMapOf(exchangeRateRows, function (rate) {
       assertDefined(rate);
       assertProp(check(isString, isNumber), rate, 'id');
-      assertProp(check(isString, isNumber), rate, 'bid_price');
-      assertProp(check(isString, isNumber), rate, 'ask_price');
+      assertPropString(rate, 'bid_price');
+      assertPropString(rate, 'ask_price');
       assertProp(isInstanceOf(Date), rate, 'source_date');
       return rate;
     });
