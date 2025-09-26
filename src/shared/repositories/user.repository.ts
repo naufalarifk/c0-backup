@@ -128,7 +128,7 @@ export abstract class UserRepository extends BetterAuthRepository {
 
     const rows = await this.sql`
       SELECT id, name, email, email_verified_date, last_login_date, profile_picture, role,
-             two_factor_enabled, phone_number_verified,
+             two_factor_enabled, phone_number, phone_number_verified,
              created_date, updated_date, google_id,
              user_type, user_type_selected_date,
              institution_user_id, institution_role,
@@ -175,6 +175,8 @@ export abstract class UserRepository extends BetterAuthRepository {
           ? (user.role as 'System' | 'Admin' | 'User')
           : 'User',
       twoFactorEnabled: 'two_factor_enabled' in user ? !!user.two_factor_enabled : false,
+      phoneNumber:
+        'phone_number' in user && typeof user.phone_number === 'string' ? user.phone_number : null,
       phoneNumberVerified: 'phone_number_verified' in user ? !!user.phone_number_verified : null,
       createdAt:
         'created_date' in user && user.created_date instanceof Date ? user.created_date : undefined,

@@ -43,9 +43,10 @@ export class WithdrawalsService {
     ensureValid(isPositiveNumber(amount), 'Please enter a valid withdrawal amount');
 
     // 2. User profile checks (KYC, 2FA enabled)
-    const { kycStatus, twoFactorEnabled, phoneNumberVerified } = await this.repo.userViewsProfile({
-      userId: user.id,
-    });
+    const { kycStatus, twoFactorEnabled, phoneNumberVerified, phoneNumber } =
+      await this.repo.userViewsProfile({
+        userId: user.id,
+      });
     ensurePermission(
       kycStatus === 'verified',
       'Please complete your identity verification (KYC) first',
@@ -67,6 +68,15 @@ export class WithdrawalsService {
       });
     } catch {
       ensureValid(false, 'Invalid 2FA code. Please check and try again');
+    }
+    // 3b. Phone number code verification (validates user intent)
+    try {
+      await this.authService.api.verifyPhoneNumber({
+        headers,
+        body: { phoneNumber: phoneNumber!, code: createWithdrawalDto.phoneNumberCode },
+      });
+    } catch {
+      ensureValid(false, 'Invalid phone number code. Please check and try again');
     }
 
     // 4. Currency validation (check if currency exists and is supported)

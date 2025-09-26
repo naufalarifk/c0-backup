@@ -2,7 +2,7 @@ module.exports = {
   extends: ['@commitlint/config-conventional'],
   rules: {
     // Enterprise-friendly rules
-    'subject-case': [2, 'always', ['sentence-case']], // Only sentence-case (natural)
+    'subject-case': [0], // Allow any case
     'subject-max-length': [2, 'always', 72], // Max 72 chars for subject
     'body-max-line-length': [2, 'always', 100], // Max 100 chars per line in body
     'subject-empty': [2, 'never'], // Subject is required
@@ -36,7 +36,7 @@ module.exports = {
         'auth',
         'users',
         'profiles',
-        'wallets', 
+        'wallets',
         'blockchains',
         'withdrawals',
         'loans',
