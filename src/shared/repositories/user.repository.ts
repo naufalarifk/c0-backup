@@ -175,6 +175,7 @@ export abstract class UserRepository extends BetterAuthRepository {
           ? (user.role as 'System' | 'Admin' | 'User')
           : 'User',
       twoFactorEnabled: 'two_factor_enabled' in user ? !!user.two_factor_enabled : false,
+      phoneNumberVerified: 'phone_number_verified' in user ? !!user.phone_number_verified : null,
       createdAt:
         'created_date' in user && user.created_date instanceof Date ? user.created_date : undefined,
       updatedAt:

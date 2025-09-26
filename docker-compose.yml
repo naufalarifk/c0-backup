@@ -38,7 +38,6 @@ services:
       retries: ${HEALTHCHECK_RETRIES}
       start_period: ${HEALTHCHECK_START_PERIOD}
 
-
   mail:
     image: ${MAIL_IMAGE}
     container_name: ${MAIL_CONTAINER_NAME}

@@ -163,7 +163,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
           SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
             role, user_type, created_date, updated_date
           FROM users
-          WHERE phone_number = ${phoneCondition.value}
+          WHERE phone_number = ${phoneCondition.value} AND phone_number IS NOT NULL
         `;
       } else {
         console.warn('Find user requires id, email, or phone number condition.');
@@ -214,6 +214,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
       } else {
         const idCondition = where.find(w => w.field === 'id');
         const emailCondition = where.find(w => w.field === 'email' || w.field === 'email_address');
+        const phoneCondition = where.find(w => w.field === 'phoneNumber');
         const nameCondition = where.find(w => w.field === 'name');
 
         if (idCondition && idCondition.operator === 'in') {
@@ -250,6 +251,16 @@ export abstract class BetterAuthRepository extends BaseRepository {
               OFFSET ${offset || 0}
             `;
           }
+        } else if (phoneCondition) {
+          users = await this.sql`
+            SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+                   role, user_type, created_date, updated_date
+            FROM users
+            WHERE phone_number = ${phoneCondition.value} AND phone_number IS NOT NULL
+            ORDER BY created_date DESC
+            LIMIT ${limit || 100}
+            OFFSET ${offset || 0}
+          `;
         } else if (nameCondition) {
           if (nameCondition.operator === 'contains') {
             const searchTerm = `%${nameCondition.value}%`;
