@@ -13,6 +13,10 @@ import {
   LoanOfferResponseDto,
   UpdateLoanOfferDto,
 } from '../dto/loan-offers.dto';
+import {
+  CurrencyNotSupportedException,
+  ValidationErrorException,
+} from '../exceptions/loan-exceptions';
 
 interface ListLoanOffersParams {
   page: number;
@@ -78,12 +82,22 @@ export class LoanOffersService {
       const seed = await mnemonicToSeed(mnemonic);
       const masterKey = HDKey.fromMasterSeed(seed);
 
-      const walletService = this.walletFactory.getWalletService(
-        createLoanOfferDto.principalBlockchainKey,
-      );
+      let walletService;
+      try {
+        walletService = this.walletFactory.getWalletService(
+          createLoanOfferDto.principalBlockchainKey,
+        );
+      } catch (error) {
+        throw new CurrencyNotSupportedException(
+          createLoanOfferDto.principalBlockchainKey,
+          createLoanOfferDto.principalTokenId,
+        );
+      }
+
       if (!walletService) {
-        throw new BadRequestException(
-          `Unsupported blockchain key: ${createLoanOfferDto.principalBlockchainKey}`,
+        throw new CurrencyNotSupportedException(
+          createLoanOfferDto.principalBlockchainKey,
+          createLoanOfferDto.principalTokenId,
         );
       }
 
@@ -118,8 +132,9 @@ export class LoanOffersService {
         lenderId: result.lenderUserId,
         lender: {
           id: result.lenderUserId,
-          type: LenderType.INDIVIDUAL,
-          name: 'Lender User',
+          type:
+            result.lenderUserType === 'Individual' ? LenderType.INDIVIDUAL : LenderType.INSTITUTION,
+          name: result.lenderUserName || 'Lender User',
           verified: true,
         },
         principalCurrency: {
@@ -155,6 +170,28 @@ export class LoanOffersService {
       };
     } catch (error) {
       this.logger.error('Failed to create loan offer', error);
+
+      // Handle currency validation errors
+      if (error.message?.includes('does not exist') || error.message?.includes('Currency')) {
+        // Extract currency info from error message if possible
+        const match = error.message.match(/Currency ([^:]+):([^\s]+)/);
+        if (match) {
+          throw new CurrencyNotSupportedException(match[1], match[2]);
+        }
+        throw new CurrencyNotSupportedException(
+          createLoanOfferDto.principalBlockchainKey,
+          createLoanOfferDto.principalTokenId,
+        );
+      }
+
+      // If it's already a known exception, re-throw it
+      if (
+        error instanceof CurrencyNotSupportedException ||
+        error instanceof ValidationErrorException
+      ) {
+        throw error;
+      }
+
       throw new BadRequestException('Failed to create loan offer');
     }
   }
@@ -387,6 +424,17 @@ export class LoanOffersService {
         throw error;
       }
       this.logger.error('Failed to update loan offer', error);
+      // Check for common "not found" patterns in error messages
+      if (
+        error.message?.includes('not found') ||
+        error.message?.includes('does not exist') ||
+        error.message?.includes('not authorized') ||
+        error.message?.includes('permission denied')
+      ) {
+        throw new NotFoundException(
+          'Loan offer not found or you do not have permission to update it',
+        );
+      }
       throw new BadRequestException('Failed to update loan offer');
     }
   }

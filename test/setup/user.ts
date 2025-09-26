@@ -1,6 +1,5 @@
 import { ok } from 'node:assert/strict';
 
-import { assertDefined, assertPropDefined } from './assertions';
 import { setupBetterAuthClient } from './better-auth';
 import { loggedFetch } from './fetch';
 import { waitForEmailVerification } from './mailpit';

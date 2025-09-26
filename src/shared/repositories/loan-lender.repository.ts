@@ -46,24 +46,33 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
 
     const tx = await this.beginTransaction();
     try {
-      // First, validate that the currency exists
-      const currencyRows = await tx.sql`
-        SELECT blockchain_key, token_id, decimals, symbol, name
-        FROM currencies
-        WHERE blockchain_key = ${principalBlockchainKey} AND token_id = ${principalTokenId}
+      // First, validate that the currency exists and get user info
+      const currencyUserRows = await tx.sql`
+        SELECT
+          c.blockchain_key, c.token_id, c.decimals, c.symbol, c.name,
+          u.user_type, u.name as user_name
+        FROM currencies c
+        CROSS JOIN users u
+        WHERE c.blockchain_key = ${principalBlockchainKey}
+          AND c.token_id = ${principalTokenId}
+          AND u.id = ${lenderUserId}
       `;
 
-      if (currencyRows.length === 0) {
-        throw new Error(`Currency ${principalBlockchainKey}:${principalTokenId} does not exist`);
+      if (currencyUserRows.length === 0) {
+        throw new Error(
+          `Currency ${principalBlockchainKey}:${principalTokenId} does not exist or user not found`,
+        );
       }
 
-      const currency = currencyRows[0];
-      assertDefined(currency, 'Currency validation failed');
-      assertPropString(currency, 'blockchain_key');
-      assertPropString(currency, 'token_id');
-      assertProp(check(isString, isNumber), currency, 'decimals');
-      assertPropString(currency, 'symbol');
-      assertPropString(currency, 'name');
+      const currencyUser = currencyUserRows[0];
+      assertDefined(currencyUser, 'Currency and user validation failed');
+      assertPropString(currencyUser, 'blockchain_key');
+      assertPropString(currencyUser, 'token_id');
+      assertProp(check(isString, isNumber), currencyUser, 'decimals');
+      assertPropString(currencyUser, 'symbol');
+      assertPropString(currencyUser, 'name');
+      assertPropString(currencyUser, 'user_type');
+      assertPropString(currencyUser, 'user_name');
 
       // Create the loan offer
       const loanOfferRows = await tx.sql`
@@ -175,12 +184,14 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
       return {
         id: String(loanOffer.id),
         lenderUserId: String(loanOffer.lender_user_id),
+        lenderUserType: currencyUser.user_type as 'Individual' | 'Institution',
+        lenderUserName: currencyUser.user_name,
         principalCurrency: {
-          blockchainKey: currency.blockchain_key,
-          tokenId: currency.token_id,
-          decimals: Number(currency.decimals),
-          symbol: currency.symbol,
-          name: currency.name,
+          blockchainKey: currencyUser.blockchain_key,
+          tokenId: currencyUser.token_id,
+          decimals: Number(currencyUser.decimals),
+          symbol: currencyUser.symbol,
+          name: currencyUser.name,
         },
         offeredPrincipalAmount: String(loanOffer.offered_principal_amount),
         availablePrincipalAmount: String(loanOffer.available_principal_amount),
@@ -197,11 +208,11 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
           id: String(invoice.id),
           amount: String(invoice.invoiced_amount),
           currency: {
-            blockchainKey: currency.blockchain_key,
-            tokenId: currency.token_id,
-            decimals: Number(currency.decimals),
-            symbol: currency.symbol,
-            name: currency.name,
+            blockchainKey: currencyUser.blockchain_key,
+            tokenId: currencyUser.token_id,
+            decimals: Number(currencyUser.decimals),
+            symbol: currencyUser.symbol,
+            name: currencyUser.name,
           },
           status: invoice.status as 'Pending' | 'Paid' | 'Expired' | 'Cancelled',
           createdDate: invoice.invoice_date,

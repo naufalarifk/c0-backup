@@ -17,7 +17,7 @@ class SolanaMainnetWallet extends BaseSolanaWallet {
 }
 
 @Injectable()
-@WalletProvider('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpWzVF8mS3uVRG')
+@WalletProvider('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp')
 export class SolMainnetWalletService extends IWalletService {
   rpcUrl = 'https://api.mainnet-beta.solana.com';
 

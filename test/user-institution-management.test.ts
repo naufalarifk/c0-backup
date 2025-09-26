@@ -15,8 +15,6 @@ import {
   isString,
 } from 'typeshaper';
 
-import { setupBetterAuthClient } from './setup/better-auth';
-import { waitForEmailVerification } from './setup/mailpit';
 import { setup } from './setup/setup';
 import { after, before, describe, it, suite } from './setup/test';
 import { createInstitutionTestUser, createTestUser } from './setup/user';

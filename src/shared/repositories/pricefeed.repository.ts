@@ -12,6 +12,7 @@ import { FinanceRepository } from './finance.repository';
 import {
   PlatformFeedsExchangeRateParams,
   PlatformFeedsExchangeRateResult,
+  PlatformRetrievesActivePriceFeedsResult,
   PlatformRetrievesExchangeRatesParams,
   PlatformRetrievesExchangeRatesResult,
 } from './pricefeed.types';
@@ -25,6 +26,39 @@ import {
  */
 
 export abstract class PricefeedRepository extends FinanceRepository {
+  // Price Feed Management Methods
+  async platformRetrievesActivePriceFeeds(): Promise<PlatformRetrievesActivePriceFeedsResult> {
+    const rows = await this.sql`
+      SELECT
+        id,
+        blockchain_key,
+        base_currency_token_id,
+        quote_currency_token_id,
+        source
+      FROM price_feeds
+      ORDER BY blockchain_key, base_currency_token_id, quote_currency_token_id
+    `;
+
+    const priceFeeds = rows.map(function (row: unknown) {
+      assertDefined(row, 'Price feed record is undefined');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertPropString(row, 'blockchain_key');
+      assertPropString(row, 'base_currency_token_id');
+      assertPropString(row, 'quote_currency_token_id');
+      assertPropString(row, 'source');
+
+      return {
+        id: String(row.id),
+        blockchainKey: row.blockchain_key,
+        baseCurrencyTokenId: row.base_currency_token_id,
+        quoteCurrencyTokenId: row.quote_currency_token_id,
+        source: row.source,
+      };
+    });
+
+    return { priceFeeds };
+  }
+
   // Exchange Rate Management Methods
   async platformRetrievesExchangeRates(
     params: PlatformRetrievesExchangeRatesParams,

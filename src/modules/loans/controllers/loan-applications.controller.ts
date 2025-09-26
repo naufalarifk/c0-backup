@@ -4,6 +4,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   HttpStatus,
   Logger,
   Param,
@@ -48,6 +49,7 @@ export class LoanApplicationsController {
    * Calculate loan application requirements
    */
   @Post('calculate')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Calculate loan application requirements',
     description: 'Calculate required collateral amount and generate preview for loan application',
@@ -105,6 +107,100 @@ export class LoanApplicationsController {
       success: true,
       data: loanApplication,
     };
+  }
+
+  /**
+   * List available loan applications
+   */
+  @Get()
+  @ApiOperation({
+    summary: 'List available loan applications',
+    description: 'Retrieve paginated list of published loan applications available for matching',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (1-based)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (1-100)',
+    example: 20,
+  })
+  @ApiQuery({
+    name: 'collateralBlockchainKey',
+    required: false,
+    type: String,
+    description: 'Filter by collateral blockchain key',
+  })
+  @ApiQuery({
+    name: 'collateralTokenId',
+    required: false,
+    type: String,
+    description: 'Filter by collateral token ID',
+  })
+  @ApiQuery({
+    name: 'principalBlockchainKey',
+    required: false,
+    type: String,
+    description: 'Filter by principal blockchain key',
+  })
+  @ApiQuery({
+    name: 'principalTokenId',
+    required: false,
+    type: String,
+    description: 'Filter by principal token ID',
+  })
+  @ApiQuery({
+    name: 'minPrincipalAmount',
+    required: false,
+    type: Number,
+    description: 'Minimum principal amount filter',
+  })
+  @ApiQuery({
+    name: 'maxPrincipalAmount',
+    required: false,
+    type: Number,
+    description: 'Maximum principal amount filter',
+  })
+  @ApiQuery({
+    name: 'liquidationMode',
+    required: false,
+    type: String,
+    description: 'Liquidation mode filter (Full/Partial)',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'List of loan applications',
+    type: LoanApplicationListResponseDto,
+  })
+  async listLoanApplications(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('collateralBlockchainKey') collateralBlockchainKey?: string,
+    @Query('collateralTokenId') collateralTokenId?: string,
+    @Query('principalBlockchainKey') principalBlockchainKey?: string,
+    @Query('principalTokenId') principalTokenId?: string,
+    @Query('minPrincipalAmount') minPrincipalAmount?: number,
+    @Query('maxPrincipalAmount') maxPrincipalAmount?: number,
+    @Query('liquidationMode') liquidationMode?: string,
+  ): Promise<LoanApplicationListResponseDto> {
+    this.logger.log('Listing available loan applications');
+    return await this.loanApplicationsService.listLoanApplications({
+      page: page || 1,
+      limit: limit || 20,
+      collateralBlockchainKey,
+      collateralTokenId,
+      principalBlockchainKey,
+      principalTokenId,
+      minPrincipalAmount,
+      maxPrincipalAmount,
+      liquidationMode,
+    });
   }
 
   /**
