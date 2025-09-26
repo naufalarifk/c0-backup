@@ -66,7 +66,7 @@ export class ProfileService {
     assertPropNullableBoolean(profile, 'phoneNumberVerified');
 
     // Add phone verification status (from database field)
-    const phoneVerified = profile.phoneNumberVerified || false;
+    const phoneNumberVerified = profile.phoneNumberVerified || false;
 
     // Calculate feature unlock status based on verification levels
     const featureUnlockStatus = this.calculateFeatureUnlockStatus(profile);
@@ -75,7 +75,7 @@ export class ProfileService {
     const requiredVerifications = this.getRequiredVerifications(profile);
 
     return {
-      phoneVerified,
+      phoneNumberVerified,
       featureUnlockStatus,
       requiredVerifications,
     };

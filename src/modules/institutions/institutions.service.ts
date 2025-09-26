@@ -306,7 +306,7 @@ export class InstitutionsService {
     ensureExists(invitation, 'Invitation not found');
 
     // Verify this invitation is for this user
-    const targetUser = await this.repo.userViewsProfile({ userId });
+    const _targetUser = await this.repo.userViewsProfile({ userId });
     const invitationTargetUsers = await this.repo.sql`
       SELECT target_user_id FROM institution_invitations
       WHERE id = ${inviteId} AND target_user_id = ${userId}
@@ -350,7 +350,7 @@ export class InstitutionsService {
       rejectionReason: reason,
       rejectionDate: new Date(),
     };
-    const result = await this.repo.userRejectsInstitutionInvitation(payload);
+    const _result = await this.repo.userRejectsInstitutionInvitation(payload);
 
     return {
       message: 'Invitation rejected successfully',
@@ -958,7 +958,7 @@ export class InstitutionsService {
     let memberToRemove;
     try {
       memberToRemove = await this.repo.userViewsProfile({ userId: memberId });
-    } catch (error) {
+    } catch (_error) {
       // If user doesn't exist at all, treat as member not found
       ensureExists(null, 'Member not found');
     }

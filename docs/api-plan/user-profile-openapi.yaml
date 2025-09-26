@@ -121,7 +121,7 @@ paths:
                       kycId: 567
                       kycStatus: verified
                       isVerified: true
-                      phoneVerified: true
+                      phoneNumberVerified: true
                       institutionId: null
                       institutionRole: null
                       twoFaEnabled: false
@@ -162,7 +162,7 @@ paths:
                       kycStatus: none
                       isVerified: false
                       verificationLevel: unverified
-                      phoneVerified: false
+                      phoneNumberVerified: false
                       featureUnlockStatus:
                         tradingEnabled: false
                         withdrawalEnabled: false
@@ -610,7 +610,7 @@ components:
           type: string
           enum: [verified, unverified, pending, rejected]
           description: Standardized verification level for UI badges
-        phoneVerified:
+        phoneNumberVerified:
           type: boolean
           description: Phone number verification status (addresses audit discrepancy D03)
         featureUnlockStatus:

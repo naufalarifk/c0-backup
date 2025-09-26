@@ -92,7 +92,7 @@ API Reality: User profile only shows kycStatus, no phone verification or feature
 ```
 
 **Required API Enhancement**:
-- Add `phoneVerified`, `featureUnlockStatus`, `requiredVerifications` to user profile response
+- Add `phoneNumberVerified`, `featureUnlockStatus`, `requiredVerifications` to user profile response
 
 ### D05: Comprehensive Notification System Incomplete
 
