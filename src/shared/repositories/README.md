@@ -41,10 +41,10 @@ This module focus on managing data access and storage through a structured repos
   ```
 - The result form `sql` tagged function and `rawQuery` method are the same, which is an array of rows of unknown type `Array<unknown>`. We must strongly type resulting query using type assertion:
   ```typescript
-  import { assertDefined, assertArrayOf, assertPropString, assertPropNullableString } from '../utils/assertions.ts';
+  import { assertDefined, assertArrayMapOf, assertPropString, assertPropNullableString } from 'typeshaper';
   const userRows = await repo.sql`SELECT id, email, name FROM users`;
   // from here, the userRows variable is still of type Array<unknown>
-  assertArrayOf(userRows, function (row) {
+  assertArrayMapOf(userRows, function (row) {
     assertDefined(row);
     assertPropString(row, 'id');
     assertPropNullableString(row, 'email');

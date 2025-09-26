@@ -1,11 +1,15 @@
 import {
   assertDefined,
-  assertPropDate,
-  assertPropNullableDate,
+  assertProp,
   assertPropNullableString,
   assertPropString,
-  assertPropStringOrNumber,
-} from '../utils/assertions';
+  check,
+  isInstanceOf,
+  isNullable,
+  isNumber,
+  isString,
+} from 'typeshaper';
+
 import {
   AdminApprovesWithdrawalRefundParams,
   AdminApprovesWithdrawalRefundResult,
@@ -94,11 +98,11 @@ export abstract class FinanceRepository extends UserRepository {
     return {
       accounts: accounts.map(function (account: unknown) {
         assertDefined(account, 'Account is undefined');
-        assertPropStringOrNumber(account, 'id');
-        assertPropStringOrNumber(account, 'user_id');
+        assertProp(check(isString, isNumber), account, 'id');
+        assertProp(check(isString, isNumber), account, 'user_id');
         assertPropString(account, 'currency_blockchain_key');
         assertPropString(account, 'currency_token_id');
-        assertPropStringOrNumber(account, 'balance');
+        assertProp(check(isString, isNumber), account, 'balance');
         assertPropString(account, 'account_type');
         return {
           id: String(account.id),
@@ -129,7 +133,7 @@ export abstract class FinanceRepository extends UserRepository {
 
     const countRow = Array.isArray(countResult) ? countResult[0] : countResult;
     assertDefined(countRow, 'Count query failed');
-    assertPropStringOrNumber(countRow, 'total');
+    assertProp(check(isString, isNumber), countRow, 'total');
     const totalCount = Number(countRow.total);
 
     const rows = await this.sql`
@@ -158,11 +162,11 @@ export abstract class FinanceRepository extends UserRepository {
     return {
       mutations: mutations.map(function (mutation: unknown) {
         assertDefined(mutation, 'Mutation is undefined');
-        assertPropStringOrNumber(mutation, 'id');
-        assertPropStringOrNumber(mutation, 'account_id');
+        assertProp(check(isString, isNumber), mutation, 'id');
+        assertProp(check(isString, isNumber), mutation, 'account_id');
         assertPropString(mutation, 'mutation_type');
-        assertPropDate(mutation, 'mutation_date');
-        assertPropStringOrNumber(mutation, 'amount');
+        assertProp(isInstanceOf(Date), mutation, 'mutation_date');
+        assertProp(check(isString, isNumber), mutation, 'amount');
         assertPropNullableString(mutation, 'invoice_id');
         assertPropNullableString(mutation, 'withdrawal_id');
         assertPropNullableString(mutation, 'invoice_payment_id');
@@ -213,11 +217,11 @@ export abstract class FinanceRepository extends UserRepository {
 
       const account = rows[0];
       assertDefined(account, 'Account creation failed');
-      assertPropStringOrNumber(account, 'id');
-      assertPropStringOrNumber(account, 'user_id');
+      assertProp(check(isString, isNumber), account, 'id');
+      assertProp(check(isString, isNumber), account, 'user_id');
       assertPropString(account, 'currency_blockchain_key');
       assertPropString(account, 'currency_token_id');
-      assertPropStringOrNumber(account, 'balance');
+      assertProp(check(isString, isNumber), account, 'balance');
       assertPropString(account, 'account_type');
 
       await tx.commitTransaction();
@@ -284,15 +288,15 @@ export abstract class FinanceRepository extends UserRepository {
 
       const invoice = rows[0];
       assertDefined(invoice, 'Invoice creation failed');
-      assertPropStringOrNumber(invoice, 'id');
-      assertPropStringOrNumber(invoice, 'user_id');
+      assertProp(check(isString, isNumber), invoice, 'id');
+      assertProp(check(isString, isNumber), invoice, 'user_id');
       assertPropString(invoice, 'wallet_address');
       assertPropString(invoice, 'invoice_type');
       assertPropString(invoice, 'status');
-      assertPropStringOrNumber(invoice, 'invoiced_amount');
-      assertPropStringOrNumber(invoice, 'paid_amount');
-      assertPropDate(invoice, 'invoice_date');
-      assertPropNullableDate(invoice, 'due_date');
+      assertProp(check(isString, isNumber), invoice, 'invoiced_amount');
+      assertProp(check(isString, isNumber), invoice, 'paid_amount');
+      assertProp(isInstanceOf(Date), invoice, 'invoice_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'due_date');
 
       await tx.commitTransaction();
 
@@ -338,11 +342,11 @@ export abstract class FinanceRepository extends UserRepository {
 
       const payment = rows[0];
       assertDefined(payment, 'Invoice payment recording failed');
-      assertPropStringOrNumber(payment, 'id');
-      assertPropStringOrNumber(payment, 'invoice_id');
+      assertProp(check(isString, isNumber), payment, 'id');
+      assertProp(check(isString, isNumber), payment, 'invoice_id');
       assertPropString(payment, 'payment_hash');
-      assertPropStringOrNumber(payment, 'amount');
-      assertPropDate(payment, 'payment_date');
+      assertProp(check(isString, isNumber), payment, 'amount');
+      assertProp(isInstanceOf(Date), payment, 'payment_date');
 
       await tx.commitTransaction();
       return {
@@ -380,10 +384,10 @@ export abstract class FinanceRepository extends UserRepository {
 
       const invoice = rows[0];
       assertDefined(invoice, 'Invoice not found or update failed');
-      assertPropStringOrNumber(invoice, 'id');
+      assertProp(check(isString, isNumber), invoice, 'id');
       assertPropString(invoice, 'status');
-      assertPropNullableDate(invoice, 'expired_date');
-      assertPropNullableDate(invoice, 'notified_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'expired_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'notified_date');
 
       await tx.commitTransaction();
 
@@ -429,19 +433,19 @@ export abstract class FinanceRepository extends UserRepository {
 
     const invoice = rows[0];
     assertDefined(invoice, 'Invoice not found');
-    assertPropStringOrNumber(invoice, 'id');
-    assertPropStringOrNumber(invoice, 'user_id');
+    assertProp(check(isString, isNumber), invoice, 'id');
+    assertProp(check(isString, isNumber), invoice, 'user_id');
     assertPropString(invoice, 'currency_blockchain_key');
     assertPropString(invoice, 'currency_token_id');
     assertPropString(invoice, 'wallet_address');
     assertPropString(invoice, 'invoice_type');
     assertPropString(invoice, 'status');
-    assertPropStringOrNumber(invoice, 'invoiced_amount');
-    assertPropStringOrNumber(invoice, 'paid_amount');
-    assertPropDate(invoice, 'invoice_date');
-    assertPropNullableDate(invoice, 'due_date');
-    assertPropNullableDate(invoice, 'expired_date');
-    assertPropNullableDate(invoice, 'paid_date');
+    assertProp(check(isString, isNumber), invoice, 'invoiced_amount');
+    assertProp(check(isString, isNumber), invoice, 'paid_amount');
+    assertProp(isInstanceOf(Date), invoice, 'invoice_date');
+    assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'due_date');
+    assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'expired_date');
+    assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'paid_date');
 
     return {
       id: String(invoice.id),
@@ -476,7 +480,7 @@ export abstract class FinanceRepository extends UserRepository {
 
     const countRow = Array.isArray(countResult) ? countResult[0] : countResult;
     assertDefined(countRow, 'Count query failed');
-    assertPropStringOrNumber(countRow, 'total');
+    assertProp(check(isString, isNumber), countRow, 'total');
     const totalCount = Number(countRow.total);
 
     const rows = await this.sql`
@@ -508,18 +512,18 @@ export abstract class FinanceRepository extends UserRepository {
     return {
       invoices: invoices.map(function (invoice: unknown) {
         assertDefined(invoice, 'Invoice is undefined');
-        assertPropStringOrNumber(invoice, 'id');
-        assertPropStringOrNumber(invoice, 'user_id');
+        assertProp(check(isString, isNumber), invoice, 'id');
+        assertProp(check(isString, isNumber), invoice, 'user_id');
         assertPropString(invoice, 'currency_blockchain_key');
         assertPropString(invoice, 'currency_token_id');
-        assertPropStringOrNumber(invoice, 'invoiced_amount');
-        assertPropStringOrNumber(invoice, 'paid_amount');
+        assertProp(check(isString, isNumber), invoice, 'invoiced_amount');
+        assertProp(check(isString, isNumber), invoice, 'paid_amount');
         assertPropString(invoice, 'wallet_address');
         assertPropString(invoice, 'invoice_type');
         assertPropString(invoice, 'status');
-        assertPropDate(invoice, 'invoice_date');
-        assertPropNullableDate(invoice, 'due_date');
-        assertPropNullableDate(invoice, 'expired_date');
+        assertProp(isInstanceOf(Date), invoice, 'invoice_date');
+        assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'due_date');
+        assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'expired_date');
         return {
           id: String(invoice.id),
           userId: String(invoice.user_id),
@@ -562,9 +566,9 @@ export abstract class FinanceRepository extends UserRepository {
 
       const invoice = rows[0];
       assertDefined(invoice, 'Invoice not found or update failed');
-      assertPropStringOrNumber(invoice, 'id');
+      assertProp(check(isString, isNumber), invoice, 'id');
       assertPropString(invoice, 'status');
-      assertPropDate(invoice, 'expired_date');
+      assertProp(isInstanceOf(Date), invoice, 'expired_date');
 
       await tx.commitTransaction();
 
@@ -603,8 +607,8 @@ export abstract class FinanceRepository extends UserRepository {
 
       const beneficiary = rows[0];
       assertDefined(beneficiary, 'Beneficiary registration failed');
-      assertPropStringOrNumber(beneficiary, 'id');
-      assertPropStringOrNumber(beneficiary, 'user_id');
+      assertProp(check(isString, isNumber), beneficiary, 'id');
+      assertProp(check(isString, isNumber), beneficiary, 'user_id');
       assertPropString(beneficiary, 'blockchain_key');
       assertPropString(beneficiary, 'address');
 
@@ -653,12 +657,12 @@ export abstract class FinanceRepository extends UserRepository {
 
       const withdrawal = rows[0];
       assertDefined(withdrawal, 'Withdrawal request failed');
-      assertPropStringOrNumber(withdrawal, 'id');
-      assertPropStringOrNumber(withdrawal, 'beneficiary_id');
-      assertPropStringOrNumber(withdrawal, 'amount');
-      assertPropStringOrNumber(withdrawal, 'request_amount');
+      assertProp(check(isString, isNumber), withdrawal, 'id');
+      assertProp(check(isString, isNumber), withdrawal, 'beneficiary_id');
+      assertProp(check(isString, isNumber), withdrawal, 'amount');
+      assertProp(check(isString, isNumber), withdrawal, 'request_amount');
       assertPropString(withdrawal, 'status');
-      assertPropDate(withdrawal, 'request_date');
+      assertProp(isInstanceOf(Date), withdrawal, 'request_date');
 
       await tx.commitTransaction();
 
@@ -699,11 +703,11 @@ export abstract class FinanceRepository extends UserRepository {
 
       const withdrawal = rows[0];
       assertDefined(withdrawal, 'Withdrawal not found or update failed');
-      assertPropStringOrNumber(withdrawal, 'id');
+      assertProp(check(isString, isNumber), withdrawal, 'id');
       assertPropString(withdrawal, 'status');
       assertPropString(withdrawal, 'sent_hash');
-      assertPropStringOrNumber(withdrawal, 'sent_amount');
-      assertPropDate(withdrawal, 'sent_date');
+      assertProp(check(isString, isNumber), withdrawal, 'sent_amount');
+      assertProp(isInstanceOf(Date), withdrawal, 'sent_date');
 
       await tx.commitTransaction();
 
@@ -741,9 +745,9 @@ export abstract class FinanceRepository extends UserRepository {
 
       const withdrawal = rows[0];
       assertDefined(withdrawal, 'Withdrawal not found or update failed');
-      assertPropStringOrNumber(withdrawal, 'id');
+      assertProp(check(isString, isNumber), withdrawal, 'id');
       assertPropString(withdrawal, 'status');
-      assertPropDate(withdrawal, 'confirmed_date');
+      assertProp(isInstanceOf(Date), withdrawal, 'confirmed_date');
 
       await tx.commitTransaction();
 
@@ -780,9 +784,9 @@ export abstract class FinanceRepository extends UserRepository {
 
       const withdrawal = rows[0];
       assertDefined(withdrawal, 'Withdrawal not found or update failed');
-      assertPropStringOrNumber(withdrawal, 'id');
+      assertProp(check(isString, isNumber), withdrawal, 'id');
       assertPropString(withdrawal, 'status');
-      assertPropDate(withdrawal, 'failed_date');
+      assertProp(isInstanceOf(Date), withdrawal, 'failed_date');
       assertPropString(withdrawal, 'failure_reason');
 
       await tx.commitTransaction();
@@ -821,9 +825,9 @@ export abstract class FinanceRepository extends UserRepository {
 
       const withdrawal = rows[0];
       assertDefined(withdrawal, 'Withdrawal not found or update failed');
-      assertPropStringOrNumber(withdrawal, 'id');
+      assertProp(check(isString, isNumber), withdrawal, 'id');
       assertPropString(withdrawal, 'status');
-      assertPropDate(withdrawal, 'failure_refund_approved_date');
+      assertProp(isInstanceOf(Date), withdrawal, 'failure_refund_approved_date');
 
       await tx.commitTransaction();
 
@@ -861,9 +865,9 @@ export abstract class FinanceRepository extends UserRepository {
 
       const withdrawal = rows[0];
       assertDefined(withdrawal, 'Withdrawal not found or update failed');
-      assertPropStringOrNumber(withdrawal, 'id');
+      assertProp(check(isString, isNumber), withdrawal, 'id');
       assertPropString(withdrawal, 'status');
-      assertPropDate(withdrawal, 'failure_refund_rejected_date');
+      assertProp(isInstanceOf(Date), withdrawal, 'failure_refund_rejected_date');
 
       await tx.commitTransaction();
 
@@ -945,8 +949,8 @@ export abstract class FinanceRepository extends UserRepository {
 
     const withdrawals = rows.map(row => {
       assertDefined(row, 'Withdrawal record is undefined');
-      assertPropStringOrNumber(row, 'id');
-      assertPropStringOrNumber(row, 'user_id');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'user_id');
       assertPropString(row, 'user_email');
       assertPropString(row, 'user_name');
       assertPropString(row, 'user_phone_number');
@@ -955,14 +959,14 @@ export abstract class FinanceRepository extends UserRepository {
       assertPropString(row, 'currency_blockchain_key');
       assertPropString(row, 'currency_token_id');
       assertPropString(row, 'beneficiary_address');
-      assertPropDate(row, 'request_date');
-      assertPropDate(row, 'failed_date');
+      assertProp(isInstanceOf(Date), row, 'request_date');
+      assertProp(isInstanceOf(Date), row, 'failed_date');
       assertPropString(row, 'failure_reason');
       assertPropString(row, 'status');
       assertPropString(row, 'transaction_hash');
       assertPropString(row, 'network_fee');
       assertPropString(row, 'reviewer_id');
-      assertPropDate(row, 'review_date');
+      assertProp(isInstanceOf(Date), row, 'review_date');
       assertPropString(row, 'review_decision');
       assertPropString(row, 'review_reason');
 
@@ -1059,8 +1063,8 @@ export abstract class FinanceRepository extends UserRepository {
     }
 
     const row = rows[0] as {};
-    assertPropStringOrNumber(row, 'id');
-    assertPropStringOrNumber(row, 'user_id');
+    assertProp(check(isString, isNumber), row, 'id');
+    assertProp(check(isString, isNumber), row, 'user_id');
     assertPropString(row, 'user_email');
     assertPropString(row, 'user_name');
     assertPropString(row, 'user_phone_number');
@@ -1069,8 +1073,8 @@ export abstract class FinanceRepository extends UserRepository {
     assertPropString(row, 'currency_blockchain_key');
     assertPropString(row, 'currency_token_id');
     assertPropString(row, 'beneficiary_address');
-    assertPropDate(row, 'request_date');
-    assertPropDate(row, 'failed_date');
+    assertProp(isInstanceOf(Date), row, 'request_date');
+    assertProp(isInstanceOf(Date), row, 'failed_date');
     assertPropString(row, 'failure_reason');
     assertPropString(row, 'network_fee');
     assertPropString(row, 'status');
@@ -1148,8 +1152,8 @@ export abstract class FinanceRepository extends UserRepository {
     return {
       beneficiaries: beneficiaries.map(function (beneficiary: unknown) {
         assertDefined(beneficiary, 'Beneficiary record is undefined');
-        assertPropStringOrNumber(beneficiary, 'id');
-        assertPropStringOrNumber(beneficiary, 'user_id');
+        assertProp(check(isString, isNumber), beneficiary, 'id');
+        assertProp(check(isString, isNumber), beneficiary, 'user_id');
         assertPropString(beneficiary, 'blockchain_key');
         assertPropString(beneficiary, 'address');
         return {
@@ -1216,18 +1220,18 @@ export abstract class FinanceRepository extends UserRepository {
         assertPropString(currency, 'token_id');
         assertPropString(currency, 'name');
         assertPropString(currency, 'symbol');
-        assertPropStringOrNumber(currency, 'decimals');
+        assertProp(check(isString, isNumber), currency, 'decimals');
         assertPropString(currency, 'logo_url');
-        assertPropStringOrNumber(currency, 'withdrawal_fee_rate');
-        assertPropStringOrNumber(currency, 'min_withdrawal_amount');
-        assertPropStringOrNumber(currency, 'max_withdrawal_amount');
-        assertPropStringOrNumber(currency, 'max_daily_withdrawal_amount');
-        assertPropStringOrNumber(currency, 'min_loan_principal_amount');
-        assertPropStringOrNumber(currency, 'max_loan_principal_amount');
-        assertPropStringOrNumber(currency, 'max_ltv');
-        assertPropStringOrNumber(currency, 'ltv_warning_threshold');
-        assertPropStringOrNumber(currency, 'ltv_critical_threshold');
-        assertPropStringOrNumber(currency, 'ltv_liquidation_threshold');
+        assertProp(check(isString, isNumber), currency, 'withdrawal_fee_rate');
+        assertProp(check(isString, isNumber), currency, 'min_withdrawal_amount');
+        assertProp(check(isString, isNumber), currency, 'max_withdrawal_amount');
+        assertProp(check(isString, isNumber), currency, 'max_daily_withdrawal_amount');
+        assertProp(check(isString, isNumber), currency, 'min_loan_principal_amount');
+        assertProp(check(isString, isNumber), currency, 'max_loan_principal_amount');
+        assertProp(check(isString, isNumber), currency, 'max_ltv');
+        assertProp(check(isString, isNumber), currency, 'ltv_warning_threshold');
+        assertProp(check(isString, isNumber), currency, 'ltv_critical_threshold');
+        assertProp(check(isString, isNumber), currency, 'ltv_liquidation_threshold');
         assertPropString(currency, 'blockchain_key_ref');
         assertPropString(currency, 'blockchain_name');
         assertPropString(currency, 'blockchain_short_name');
@@ -1288,8 +1292,8 @@ export abstract class FinanceRepository extends UserRepository {
 
     const config = rows[0];
     assertDefined(config, 'Platform configuration is undefined');
-    assertPropStringOrNumber(config, 'loan_provision_rate');
-    assertPropDate(config, 'effective_date');
+    assertProp(check(isString, isNumber), config, 'loan_provision_rate');
+    assertProp(isInstanceOf(Date), config, 'effective_date');
 
     return {
       loanProvisionRate: String(config.loan_provision_rate),
@@ -1464,28 +1468,28 @@ export abstract class FinanceRepository extends UserRepository {
 
     const withdrawals = rows.map(function (row: unknown) {
       assertDefined(row, 'Withdrawal record is undefined');
-      assertPropStringOrNumber(row, 'id');
-      assertPropStringOrNumber(row, 'beneficiary_id');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'beneficiary_id');
       assertPropString(row, 'beneficiary_address');
       assertPropString(row, 'beneficiary_blockchain_key');
-      assertPropStringOrNumber(row, 'beneficiary_user_id');
+      assertProp(check(isString, isNumber), row, 'beneficiary_user_id');
       assertPropString(row, 'currency_blockchain_key');
       assertPropString(row, 'currency_token_id');
       assertPropString(row, 'currency_symbol');
       assertPropString(row, 'currency_name');
-      assertPropStringOrNumber(row, 'currency_decimals');
+      assertProp(check(isString, isNumber), row, 'currency_decimals');
       assertPropNullableString(row, 'currency_image');
       assertPropNullableString(row, 'blockchain_name');
       assertPropNullableString(row, 'blockchain_short_name');
       assertPropNullableString(row, 'blockchain_image');
-      assertPropStringOrNumber(row, 'request_amount');
+      assertProp(check(isString, isNumber), row, 'request_amount');
       assertPropString(row, 'status');
-      assertPropDate(row, 'request_date');
-      assertPropNullableDate(row, 'sent_date');
+      assertProp(isInstanceOf(Date), row, 'request_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'sent_date');
       assertPropNullableString(row, 'sent_amount');
       assertPropNullableString(row, 'sent_hash');
-      assertPropNullableDate(row, 'confirmed_date');
-      assertPropNullableDate(row, 'failed_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'confirmed_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'failed_date');
       assertPropNullableString(row, 'failure_reason');
 
       // Calculate network and platform fees (simplified logic)
@@ -1728,29 +1732,29 @@ export abstract class FinanceRepository extends UserRepository {
 
     const row = rows[0];
     assertDefined(row, 'Withdrawal record is undefined');
-    assertPropStringOrNumber(row, 'id');
-    assertPropStringOrNumber(row, 'beneficiary_id');
+    assertProp(check(isString, isNumber), row, 'id');
+    assertProp(check(isString, isNumber), row, 'beneficiary_id');
     assertPropString(row, 'beneficiary_address');
     assertPropString(row, 'beneficiary_blockchain_key');
-    assertPropStringOrNumber(row, 'beneficiary_user_id');
+    assertProp(check(isString, isNumber), row, 'beneficiary_user_id');
     assertPropString(row, 'currency_blockchain_key');
     assertPropString(row, 'currency_token_id');
     assertPropString(row, 'currency_symbol');
     assertPropString(row, 'currency_name');
-    assertPropStringOrNumber(row, 'currency_decimals');
+    assertProp(check(isString, isNumber), row, 'currency_decimals');
     assertPropNullableString(row, 'currency_image');
     assertPropNullableString(row, 'blockchain_name');
     assertPropNullableString(row, 'blockchain_short_name');
     assertPropNullableString(row, 'blockchain_image');
-    assertPropStringOrNumber(row, 'amount');
-    assertPropStringOrNumber(row, 'request_amount');
+    assertProp(check(isString, isNumber), row, 'amount');
+    assertProp(check(isString, isNumber), row, 'request_amount');
     assertPropString(row, 'status');
-    assertPropDate(row, 'request_date');
-    assertPropNullableDate(row, 'sent_date');
+    assertProp(isInstanceOf(Date), row, 'request_date');
+    assertProp(check(isNullable, isInstanceOf(Date)), row, 'sent_date');
     assertPropNullableString(row, 'sent_amount');
     assertPropNullableString(row, 'sent_hash');
-    assertPropNullableDate(row, 'confirmed_date');
-    assertPropNullableDate(row, 'failed_date');
+    assertProp(check(isNullable, isInstanceOf(Date)), row, 'confirmed_date');
+    assertProp(check(isNullable, isInstanceOf(Date)), row, 'failed_date');
     assertPropNullableString(row, 'failure_reason');
 
     // Calculate network and platform fees (simplified logic)

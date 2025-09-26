@@ -2,14 +2,8 @@ import { doesNotReject } from 'node:assert';
 import { deepEqual, equal, notEqual, ok, rejects } from 'node:assert/strict';
 import { describe, suite } from 'node:test';
 
-import {
-  assertArrayOf,
-  assertDefined,
-  assertPropDate,
-  assertPropNullableDate,
-  assertPropString,
-  assertPropStringOrNumber,
-} from '../utils';
+import { assertArrayMapOf, assertDefined, assertProp, check, isNumber, isString } from 'typeshaper';
+
 import { createEarlyExitNodeTestIt } from '../utils/node-test';
 import { LoanUserRepository } from './loan-user.repository';
 
@@ -51,9 +45,9 @@ export async function runLoanUserRepositoryTestSuite(
             AND base_currency_token_id = 'slip44:714' 
             AND quote_currency_token_id = 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d'
           `;
-          assertArrayOf(priceFeedResult, function (item) {
+          assertArrayMapOf(priceFeedResult, function (item) {
             assertDefined(item);
-            assertPropStringOrNumber(item, 'id');
+            assertProp(check(isString, isNumber), item, 'id');
             return item;
           });
 

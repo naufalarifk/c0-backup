@@ -8,7 +8,8 @@ import type {
 
 import { Injectable } from '@nestjs/common';
 
-import { assertDefined, assertPropString, hasProp } from '../../../shared/utils';
+import { assertDefined, assertPropString, hasProp, hasPropDefined } from 'typeshaper';
+
 import { NotificationChannelEnum } from '../notification.types';
 import { Composer, NotificationComposer } from '../notification-composer.abstract';
 
@@ -30,7 +31,7 @@ function assertLoanOfferMatchedNotificationData(
 ): asserts data is LoanOfferMatchedNotificationData {
   assertDefined(data, 'Notification data is required');
   assertPropString(data, 'userId', 'User ID is required');
-  if (hasProp(data, 'deviceToken')) {
+  if (hasPropDefined(data, 'deviceToken')) {
     assertPropString(data, 'deviceToken', 'Device token is required');
   }
   assertPropString(data, 'loanOfferId', 'Loan offer ID is required');

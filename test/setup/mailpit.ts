@@ -1,17 +1,13 @@
 import { equal, ok } from 'node:assert/strict';
 
 import {
-  assertArray,
-  assertArrayMapOf,
-  assertArrayOf,
   assertDefined,
   assertPropArray,
-  assertPropArrayOf,
+  assertPropArrayMapOf,
   assertPropDefined,
   assertPropNumber,
   assertPropString,
-  assertPropStringOrNumber,
-} from './assertions';
+} from 'typeshaper';
 
 export async function waitForEmail(mailpitApiUrl: string, receiver: string) {
   const maxRetries = 10;
@@ -36,7 +32,7 @@ export async function waitForEmail(mailpitApiUrl: string, receiver: string) {
     assertPropDefined(message, 'From');
     assertPropString(message.From, 'Name');
     assertPropString(message.From, 'Address');
-    assertPropArrayOf(message, 'To', function (to) {
+    assertPropArrayMapOf(message, 'To', function (to) {
       assertDefined(to);
       assertPropString(to, 'Address');
       assertPropString(to, 'Name');
@@ -125,11 +121,11 @@ export async function waitForPasswordResetEmail(mailpitApiUrl: string, receiver:
     const resp = (await response.json()) as unknown;
 
     assertDefined(resp);
-    assertPropArrayOf(resp, 'messages', function (msg) {
+    assertPropArrayMapOf(resp, 'messages', function (msg) {
       assertDefined(msg);
       assertPropString(msg, 'ID');
       assertPropString(msg, 'Created');
-      assertPropArrayOf(msg, 'To', function (to) {
+      assertPropArrayMapOf(msg, 'To', function (to) {
         assertDefined(to);
         assertPropString(to, 'Address');
         return to;

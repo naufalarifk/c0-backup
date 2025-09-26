@@ -1,6 +1,7 @@
 import { equal, ok } from 'node:assert';
 
-import { assertDefined, assertPropString } from '../utils';
+import { assertDefined, assertPropString } from 'typeshaper';
+
 import { afterEach, beforeEach, describe, it, suite } from '../utils/early-exit-node-test';
 import { CryptographyService } from './cryptography.service';
 

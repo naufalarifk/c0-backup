@@ -1,14 +1,17 @@
 import {
-  assertArrayOf,
+  assertArrayMapOf,
   assertDefined,
-  assertPropDate,
-  assertPropNullableDate,
+  assertProp,
   assertPropNullableString,
-  assertPropNullableStringOrNumber,
   assertPropString,
-  assertPropStringOrNumber,
+  check,
   hasPropArray,
-} from '../utils/assertions';
+  isInstanceOf,
+  isNullable,
+  isNumber,
+  isString,
+} from 'typeshaper';
+
 import {
   LenderClosesLoanOfferParams,
   LenderClosesLoanOfferResult,
@@ -58,7 +61,7 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
       assertDefined(currency, 'Currency validation failed');
       assertPropString(currency, 'blockchain_key');
       assertPropString(currency, 'token_id');
-      assertPropStringOrNumber(currency, 'decimals');
+      assertProp(check(isString, isNumber), currency, 'decimals');
       assertPropString(currency, 'symbol');
       assertPropString(currency, 'name');
 
@@ -106,16 +109,16 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
 
       const loanOffer = loanOfferRows[0];
       assertDefined(loanOffer, 'Loan offer creation failed');
-      assertPropStringOrNumber(loanOffer, 'id');
-      assertPropStringOrNumber(loanOffer, 'lender_user_id');
-      assertPropStringOrNumber(loanOffer, 'offered_principal_amount');
-      assertPropStringOrNumber(loanOffer, 'available_principal_amount');
-      assertPropStringOrNumber(loanOffer, 'min_loan_principal_amount');
-      assertPropStringOrNumber(loanOffer, 'max_loan_principal_amount');
-      assertPropStringOrNumber(loanOffer, 'interest_rate');
+      assertProp(check(isString, isNumber), loanOffer, 'id');
+      assertProp(check(isString, isNumber), loanOffer, 'lender_user_id');
+      assertProp(check(isString, isNumber), loanOffer, 'offered_principal_amount');
+      assertProp(check(isString, isNumber), loanOffer, 'available_principal_amount');
+      assertProp(check(isString, isNumber), loanOffer, 'min_loan_principal_amount');
+      assertProp(check(isString, isNumber), loanOffer, 'max_loan_principal_amount');
+      assertProp(check(isString, isNumber), loanOffer, 'interest_rate');
       assertPropString(loanOffer, 'status');
-      assertPropDate(loanOffer, 'created_date');
-      assertPropDate(loanOffer, 'expired_date');
+      assertProp(isInstanceOf(Date), loanOffer, 'created_date');
+      assertProp(isInstanceOf(Date), loanOffer, 'expired_date');
 
       // Create funding invoice
       const invoiceRows = await tx.sql`
@@ -159,13 +162,13 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
 
       const invoice = invoiceRows[0];
       assertDefined(invoice, 'Funding invoice creation failed');
-      assertPropStringOrNumber(invoice, 'id');
-      assertPropStringOrNumber(invoice, 'invoiced_amount');
+      assertProp(check(isString, isNumber), invoice, 'id');
+      assertProp(check(isString, isNumber), invoice, 'invoiced_amount');
       assertPropString(invoice, 'status');
-      assertPropDate(invoice, 'invoice_date');
-      assertPropNullableDate(invoice, 'due_date');
-      assertPropNullableDate(invoice, 'expired_date');
-      assertPropNullableDate(invoice, 'paid_date');
+      assertProp(isInstanceOf(Date), invoice, 'invoice_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'due_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'expired_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'paid_date');
 
       await tx.commitTransaction();
 
@@ -265,9 +268,9 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
 
       const updatedOffer = updateRows[0];
       assertDefined(updatedOffer, 'Updated offer validation failed');
-      assertPropStringOrNumber(updatedOffer, 'id');
+      assertProp(check(isString, isNumber), updatedOffer, 'id');
       assertPropString(updatedOffer, 'status');
-      assertPropNullableDate(updatedOffer, 'closed_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), updatedOffer, 'closed_date');
       assertPropNullableString(updatedOffer, 'closure_reason');
 
       await tx.commitTransaction();
@@ -303,7 +306,7 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
 
     const countRow = countRows[0];
     assertDefined(countRow, 'Count query failed');
-    assertPropStringOrNumber(countRow, 'total');
+    assertProp(check(isString, isNumber), countRow, 'total');
     const totalCount = Number(countRow.total);
 
     // Get loan offers with currency details
@@ -341,23 +344,23 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
 
     const loanOffers = offerRows.map(function (row: unknown) {
       assertDefined(row, 'Loan offer row is undefined');
-      assertPropStringOrNumber(row, 'id');
-      assertPropStringOrNumber(row, 'offered_principal_amount');
-      assertPropStringOrNumber(row, 'available_principal_amount');
-      assertPropStringOrNumber(row, 'disbursed_principal_amount');
-      assertPropStringOrNumber(row, 'reserved_principal_amount');
-      assertPropStringOrNumber(row, 'min_loan_principal_amount');
-      assertPropStringOrNumber(row, 'max_loan_principal_amount');
-      assertPropStringOrNumber(row, 'interest_rate');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'offered_principal_amount');
+      assertProp(check(isString, isNumber), row, 'available_principal_amount');
+      assertProp(check(isString, isNumber), row, 'disbursed_principal_amount');
+      assertProp(check(isString, isNumber), row, 'reserved_principal_amount');
+      assertProp(check(isString, isNumber), row, 'min_loan_principal_amount');
+      assertProp(check(isString, isNumber), row, 'max_loan_principal_amount');
+      assertProp(check(isString, isNumber), row, 'interest_rate');
       assertPropString(row, 'status');
-      assertPropDate(row, 'created_date');
-      assertPropDate(row, 'expired_date');
-      assertPropNullableDate(row, 'published_date');
-      assertPropNullableDate(row, 'closed_date');
+      assertProp(isInstanceOf(Date), row, 'created_date');
+      assertProp(isInstanceOf(Date), row, 'expired_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'published_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'closed_date');
       assertPropNullableString(row, 'closure_reason');
       assertPropString(row, 'blockchain_key');
       assertPropString(row, 'token_id');
-      assertPropStringOrNumber(row, 'decimals');
+      assertProp(check(isString, isNumber), row, 'decimals');
       assertPropString(row, 'symbol');
       assertPropString(row, 'name');
 

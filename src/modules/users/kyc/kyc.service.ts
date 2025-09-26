@@ -5,7 +5,7 @@ import { FileValidatorService } from '../../../shared/services/file-validator.se
 import { MinioService } from '../../../shared/services/minio.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { File } from '../../../shared/types';
-import { ensure, ensureUnique, ResponseHelper } from '../../../shared/utils';
+import { ensure, ensureUnique } from '../../../shared/utils/ensures.js';
 import { CreateKycDto, SubmitKycDto } from './dto/create-kyc.dto';
 
 @Injectable()

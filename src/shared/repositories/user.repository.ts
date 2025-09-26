@@ -1,4 +1,18 @@
 import {
+  assertArrayMapOf,
+  assertDefined,
+  assertProp,
+  assertPropDefined,
+  assertPropNullableString,
+  assertPropString,
+  check,
+  isInstanceOf,
+  isNullable,
+  isNumber,
+  isString,
+} from 'typeshaper';
+
+import {
   AdminAddUserToInstitutionParams,
   AdminAddUserToInstitutionResult,
   AdminApprovesInstitutionApplicationParams,
@@ -53,16 +67,6 @@ import {
   UserViewsProfileParams,
   UserViewsProfileResult,
 } from '../types';
-import {
-  assertArrayOf,
-  assertDefined,
-  assertPropDate,
-  assertPropDefined,
-  assertPropNullableString,
-  assertPropNullableStringOrNumber,
-  assertPropString,
-  assertPropStringOrNumber,
-} from '../utils/assertions';
 import { ensureUnique } from '../utils/ensures';
 import { BetterAuthRepository } from './better-auth.repository';
 
@@ -89,9 +93,9 @@ export abstract class UserRepository extends BetterAuthRepository {
         RETURNING id, name, profile_picture, updated_date;
       `;
 
-      assertArrayOf(rows, function (row) {
+      assertArrayMapOf(rows, function (row) {
         assertDefined(row, 'User not found or update failed');
-        assertPropStringOrNumber(row, 'id');
+        assertProp(check(isString, isNumber), row, 'id');
         assertPropString(row, 'name');
         assertPropNullableString(row, 'profile_picture');
         return row;
@@ -136,7 +140,7 @@ export abstract class UserRepository extends BetterAuthRepository {
 
     const user = rows[0];
     assertDefined(user);
-    assertPropStringOrNumber(user, 'id');
+    assertProp(check(isString, isNumber), user, 'id');
 
     // Get KYC status using existing helper; default to 'none' if not available
     let kycStatus: 'none' | 'pending' | 'verified' | 'rejected' = 'none';
@@ -279,7 +283,7 @@ export abstract class UserRepository extends BetterAuthRepository {
       if (existingVerifiedNikRows.length > 0) {
         const existingNik = existingVerifiedNikRows[0];
         assertDefined(existingNik);
-        assertPropStringOrNumber(existingNik, 'user_id');
+        assertProp(check(isString, isNumber), existingNik, 'user_id');
 
         // If verified NIK belongs to a different user, throw duplicate error
         ensureUnique(
@@ -304,8 +308,8 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const kyc = rows[0];
       assertDefined(kyc);
-      assertPropStringOrNumber(kyc, 'id');
-      assertPropStringOrNumber(kyc, 'user_id');
+      assertProp(check(isString, isNumber), kyc, 'id');
+      assertProp(check(isString, isNumber), kyc, 'user_id');
 
       await tx.commitTransaction();
 
@@ -341,8 +345,8 @@ export abstract class UserRepository extends BetterAuthRepository {
     }
 
     const kyc = kycs[0];
-    assertPropStringOrNumber(kyc, 'id');
-    assertPropStringOrNumber(kyc, 'user_id');
+    assertProp(check(isString, isNumber), kyc, 'id');
+    assertProp(check(isString, isNumber), kyc, 'user_id');
 
     let status: 'none' | 'pending' | 'verified' | 'rejected';
     if ('verified_date' in kyc && kyc.verified_date) {
@@ -393,9 +397,9 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const kyc = rows[0];
       assertDefined(kyc, 'KYC not found or already processed');
-      assertPropStringOrNumber(kyc, 'id');
-      assertPropStringOrNumber(kyc, 'user_id');
-      assertPropDate(kyc, 'verified_date');
+      assertProp(check(isString, isNumber), kyc, 'id');
+      assertProp(check(isString, isNumber), kyc, 'user_id');
+      assertProp(isInstanceOf(Date), kyc, 'verified_date');
 
       await tx.commitTransaction();
 
@@ -432,9 +436,9 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const kyc = rows[0];
       assertDefined(kyc, 'KYC not found or already processed');
-      assertPropStringOrNumber(kyc, 'id');
-      assertPropStringOrNumber(kyc, 'user_id');
-      assertPropDate(kyc, 'rejected_date');
+      assertProp(check(isString, isNumber), kyc, 'id');
+      assertProp(check(isString, isNumber), kyc, 'user_id');
+      assertProp(isInstanceOf(Date), kyc, 'rejected_date');
 
       await tx.commitTransaction();
 
@@ -463,11 +467,11 @@ export abstract class UserRepository extends BetterAuthRepository {
     return {
       kycs: kycs.map(function (kyc: unknown) {
         assertDefined(kyc);
-        assertPropStringOrNumber(kyc, 'id');
-        assertPropStringOrNumber(kyc, 'user_id');
+        assertProp(check(isString, isNumber), kyc, 'id');
+        assertProp(check(isString, isNumber), kyc, 'user_id');
         assertPropString(kyc, 'name');
         assertPropString(kyc, 'nik');
-        assertPropDate(kyc, 'submitted_date');
+        assertProp(isInstanceOf(Date), kyc, 'submitted_date');
         return {
           id: String(kyc.id),
           userId: String(kyc.user_id),
@@ -530,8 +534,8 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const application = rows[0];
       assertDefined(application, 'Institution application failed');
-      assertPropStringOrNumber(application, 'id');
-      assertPropStringOrNumber(application, 'applicant_user_id');
+      assertProp(check(isString, isNumber), application, 'id');
+      assertProp(check(isString, isNumber), application, 'applicant_user_id');
       assertPropString(application, 'business_name');
 
       await tx.commitTransaction();
@@ -564,10 +568,10 @@ export abstract class UserRepository extends BetterAuthRepository {
     }
 
     const application = rows[0];
-    assertPropStringOrNumber(application, 'id');
-    assertPropStringOrNumber(application, 'applicant_user_id');
+    assertProp(check(isString, isNumber), application, 'id');
+    assertProp(check(isString, isNumber), application, 'applicant_user_id');
     assertPropString(application, 'business_name');
-    assertPropDate(application, 'submitted_date');
+    assertProp(isInstanceOf(Date), application, 'submitted_date');
 
     let status: string;
     if ('verified_date' in application && application.verified_date) {
@@ -620,8 +624,8 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const application = rows[0];
       assertDefined(application, 'Application not found or already processed');
-      assertPropStringOrNumber(application, 'id');
-      assertPropStringOrNumber(application, 'applicant_user_id');
+      assertProp(check(isString, isNumber), application, 'id');
+      assertProp(check(isString, isNumber), application, 'applicant_user_id');
       assertPropString(application, 'business_name');
 
       // Update application status (trigger will handle user update)
@@ -667,8 +671,8 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const application = rows[0];
       assertDefined(application, 'Application not found or already processed');
-      assertPropStringOrNumber(application, 'id');
-      assertPropDate(application, 'rejected_date');
+      assertProp(check(isString, isNumber), application, 'id');
+      assertProp(isInstanceOf(Date), application, 'rejected_date');
 
       await tx.commitTransaction();
       return {
@@ -707,9 +711,9 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const invitation = rows[0];
       assertDefined(invitation, 'Institution invitation failed');
-      assertPropStringOrNumber(invitation, 'id');
-      assertPropStringOrNumber(invitation, 'institution_user_id');
-      assertPropStringOrNumber(invitation, 'target_user_id');
+      assertProp(check(isString, isNumber), invitation, 'id');
+      assertProp(check(isString, isNumber), invitation, 'institution_user_id');
+      assertProp(check(isString, isNumber), invitation, 'target_user_id');
       assertPropString(invitation, 'role');
 
       await tx.commitTransaction();
@@ -759,9 +763,9 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const updatedInvitation = updatedInvitationRows[0];
       assertDefined(updatedInvitation, 'Failed to update invitation status');
-      assertPropStringOrNumber(updatedInvitation, 'id');
-      assertPropStringOrNumber(updatedInvitation, 'institution_user_id');
-      assertPropDate(updatedInvitation, 'accepted_date');
+      assertProp(check(isString, isNumber), updatedInvitation, 'id');
+      assertProp(check(isString, isNumber), updatedInvitation, 'institution_user_id');
+      assertProp(isInstanceOf(Date), updatedInvitation, 'accepted_date');
 
       await tx.commitTransaction();
 
@@ -802,8 +806,8 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const invitation = rows[0];
       assertDefined(invitation, 'Invitation not found or already processed');
-      assertPropStringOrNumber(invitation, 'id');
-      assertPropDate(invitation, 'rejected_date');
+      assertProp(check(isString, isNumber), invitation, 'id');
+      assertProp(isInstanceOf(Date), invitation, 'rejected_date');
 
       await tx.commitTransaction();
 
@@ -838,10 +842,10 @@ export abstract class UserRepository extends BetterAuthRepository {
         throw new Error('Failed to add user to institution');
       }
 
-      assertArrayOf(rows, function (row) {
+      assertArrayMapOf(rows, function (row) {
         assertDefined(row, 'Failed to add user to institution');
-        assertPropStringOrNumber(row, 'id');
-        assertPropStringOrNumber(row, 'institution_user_id');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isString, isNumber), row, 'institution_user_id');
         assertPropString(row, 'institution_role');
         return row;
       });
@@ -876,9 +880,9 @@ export abstract class UserRepository extends BetterAuthRepository {
         RETURNING id;
       `;
 
-      assertArrayOf(rows, function (row) {
+      assertArrayMapOf(rows, function (row) {
         assertDefined(row, 'Failed to remove user from institution');
-        assertPropStringOrNumber(row, 'id');
+        assertProp(check(isString, isNumber), row, 'id');
         return row;
       });
 
@@ -912,7 +916,7 @@ export abstract class UserRepository extends BetterAuthRepository {
     const rows = await this.sql`SELECT kyc_id FROM users WHERE id = ${userId}`;
     const user = rows[0];
     assertDefined(user, 'User not found');
-    assertPropStringOrNumber(user, 'kyc_id');
+    assertProp(check(isString, isNumber), user, 'kyc_id');
 
     return {
       userId: String(userId),
@@ -957,8 +961,12 @@ export abstract class UserRepository extends BetterAuthRepository {
         assertPropString(notification, 'type');
         assertPropString(notification, 'title');
         assertPropString(notification, 'content');
-        assertPropNullableStringOrNumber(notification, 'user_kyc_id');
-        assertPropNullableStringOrNumber(notification, 'institution_application_id');
+        assertProp(check(isNullable, isString, isNumber), notification, 'user_kyc_id');
+        assertProp(
+          check(isNullable, isString, isNumber),
+          notification,
+          'institution_application_id',
+        );
         return {
           type: notification.type,
           title: notification.title,
@@ -1059,11 +1067,11 @@ export abstract class UserRepository extends BetterAuthRepository {
       // Transform notifications
       const notifications = notificationsQuery.map(function (row: unknown) {
         assertDefined(row);
-        assertPropStringOrNumber(row, 'id');
+        assertProp(check(isString, isNumber), row, 'id');
         assertPropString(row, 'type');
         assertPropString(row, 'title');
         assertPropString(row, 'content');
-        assertPropDate(row, 'creation_date');
+        assertProp(isInstanceOf(Date), row, 'creation_date');
 
         return {
           id: String(row.id),
@@ -1119,8 +1127,8 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const notification = rows[0];
       assertDefined(notification);
-      assertPropStringOrNumber(notification, 'id');
-      assertPropDate(notification, 'read_date');
+      assertProp(check(isString, isNumber), notification, 'id');
+      assertProp(isInstanceOf(Date), notification, 'read_date');
 
       await tx.commitTransaction();
 
@@ -1185,7 +1193,7 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const notification = rows[0];
       assertDefined(notification);
-      assertPropStringOrNumber(notification, 'id');
+      assertProp(check(isString, isNumber), notification, 'id');
 
       await tx.commitTransaction();
 
@@ -1246,8 +1254,8 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const notification = rows[0];
       assertDefined(notification);
-      assertPropStringOrNumber(notification, 'id');
-      assertPropStringOrNumber(notification, 'user_id');
+      assertProp(check(isString, isNumber), notification, 'id');
+      assertProp(check(isString, isNumber), notification, 'user_id');
 
       await tx.commitTransaction();
 
@@ -1303,8 +1311,8 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const application = rows[0];
       assertDefined(application, 'Institution application creation failed');
-      assertPropStringOrNumber(application, 'id');
-      assertPropStringOrNumber(application, 'applicant_user_id');
+      assertProp(check(isString, isNumber), application, 'id');
+      assertProp(check(isString, isNumber), application, 'applicant_user_id');
       assertPropString(application, 'business_name');
 
       await tx.commitTransaction();
@@ -1384,8 +1392,8 @@ export abstract class UserRepository extends BetterAuthRepository {
 
     const preferences = rows[0];
     assertDefined(preferences);
-    assertPropStringOrNumber(preferences, 'id');
-    assertPropStringOrNumber(preferences, 'user_id');
+    assertProp(check(isString, isNumber), preferences, 'id');
+    assertProp(check(isString, isNumber), preferences, 'user_id');
 
     return {
       id: String(preferences.id),
@@ -1617,9 +1625,9 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const result = rows[0];
       assertDefined(result);
-      assertPropStringOrNumber(result, 'id');
-      assertPropStringOrNumber(result, 'user_id');
-      assertPropDate(result, 'updated_date');
+      assertProp(check(isString, isNumber), result, 'id');
+      assertProp(check(isString, isNumber), result, 'user_id');
+      assertProp(isInstanceOf(Date), result, 'updated_date');
 
       await tx.commitTransaction();
 

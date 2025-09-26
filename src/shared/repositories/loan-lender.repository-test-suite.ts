@@ -1,7 +1,8 @@
 import { deepEqual, equal, notEqual, ok, rejects } from 'node:assert/strict';
 import { describe, suite } from 'node:test';
 
-import { assertArrayOf, assertDefined, assertPropStringOrNumber } from '../utils';
+import { assertArrayMapOf, assertDefined } from 'typeshaper';
+
 import { createEarlyExitNodeTestIt } from '../utils/node-test';
 import { BorrowerCreatesLoanApplicationResult, LenderCreatesLoanOfferResult } from './loan.types';
 import { LoanLenderRepository } from './loan-lender.repository';

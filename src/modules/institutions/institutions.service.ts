@@ -5,25 +5,26 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 
+import {
+  assertArrayMapOf,
+  assertDefined,
+  assertProp,
+  assertPropNullableString,
+  assertPropString,
+  check,
+  isInstanceOf,
+  isNullable,
+  isNumber,
+  isString,
+  setPropValue,
+} from 'typeshaper';
+
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { FileValidatorService } from '../../shared/services/file-validator.service';
 import { MinioService } from '../../shared/services/minio.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { File } from '../../shared/types';
-import {
-  assertArrayOf,
-  assertDefined,
-  assertPropNullableDate,
-  assertPropNullableString,
-  assertPropNullableStringOrNumber,
-  assertPropString,
-  assertPropStringOrNumber,
-  ensure,
-  ensureExists,
-  ensurePermission,
-  ensurePrecondition,
-  setAssertPropValue,
-} from '../../shared/utils';
+import { ensure, ensureExists, ensurePermission, ensurePrecondition } from '../../shared/utils';
 import { ResponseHelper } from '../../shared/utils/response.helper';
 import { CreateInstitutionDto, SubmitCreateInstitutionDto } from './dto/create-institution.dto';
 import { CreateInstitutionInviteDto } from './dto/create-institution-invite.dto';
@@ -233,18 +234,18 @@ export class InstitutionsService {
 
     if (targetUsers.length === 0) {
       const error = new Error('User with email not found');
-      setAssertPropValue(error, 'code', 'USER_NOT_FOUND');
+      setPropValue(error, 'code', 'USER_NOT_FOUND');
       throw error;
     }
 
-    assertArrayOf(targetUsers, function (item) {
+    assertArrayMapOf(targetUsers, function (item) {
       assertDefined(item);
-      assertPropStringOrNumber(item, 'id');
+      assertProp(check(isString, isNumber), item, 'id');
       assertPropString(item, 'email');
       assertPropString(item, 'name');
       assertPropString(item, 'user_type');
-      assertPropNullableStringOrNumber(item, 'institution_user_id');
-      assertPropNullableDate(item, 'email_verified_date');
+      assertProp(check(isNullable, isString, isNumber), item, 'institution_user_id');
+      assertProp(check(isNullable, isInstanceOf(Date)), item, 'email_verified_date');
       return item;
     });
 
@@ -254,12 +255,12 @@ export class InstitutionsService {
     if (targetUser.institution_user_id) {
       if (targetUser.institution_user_id === institutionId) {
         const error = new Error('User is already institution member');
-        setAssertPropValue(error, 'code', 'USER_ALREADY_MEMBER');
-        setAssertPropValue(error, 'details', { userEmail: createInstitutionInviteDto.userEmail });
+        setPropValue(error, 'code', 'USER_ALREADY_MEMBER');
+        setPropValue(error, 'details', { userEmail: createInstitutionInviteDto.userEmail });
         throw error;
       } else {
         const error = new Error('User is already institution member');
-        setAssertPropValue(error, 'code', 'USER_ALREADY_MEMBER');
+        setPropValue(error, 'code', 'USER_ALREADY_MEMBER');
         throw error;
       }
     }
@@ -267,7 +268,7 @@ export class InstitutionsService {
     // Target must be Individual user (check this after membership check)
     if (targetUser.user_type !== 'Individual') {
       const error = new Error('Can only invite Individual users');
-      setAssertPropValue(error, 'code', 'USER_INVALID_TYPE');
+      setPropValue(error, 'code', 'USER_INVALID_TYPE');
       throw error;
     }
 
@@ -399,15 +400,15 @@ export class InstitutionsService {
       ORDER BY ii.invited_date DESC;
     `;
 
-    assertArrayOf(invitations, function (item) {
+    assertArrayMapOf(invitations, function (item) {
       assertDefined(item);
-      assertPropStringOrNumber(item, 'id');
+      assertProp(check(isString, isNumber), item, 'id');
       assertPropString(item, 'role');
-      assertPropNullableDate(item, 'invited_date');
-      assertPropNullableDate(item, 'expires_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), item, 'invited_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), item, 'expires_date');
       assertPropString(item, 'status');
       assertPropString(item, 'user_email');
-      assertPropNullableStringOrNumber(item, 'inviter_id');
+      assertProp(check(isNullable, isString, isNumber), item, 'inviter_id');
       assertPropNullableString(item, 'inviter_name');
       return item;
     });
@@ -460,15 +461,15 @@ export class InstitutionsService {
 
     ensureExists(invitationRows.length > 0 ? invitationRows[0] : null, 'Invitation not found');
 
-    assertArrayOf(invitationRows, function (item) {
+    assertArrayMapOf(invitationRows, function (item) {
       assertDefined(item);
-      assertPropStringOrNumber(item, 'id');
-      assertPropStringOrNumber(item, 'institution_user_id');
-      assertPropStringOrNumber(item, 'target_user_id');
+      assertProp(check(isString, isNumber), item, 'id');
+      assertProp(check(isString, isNumber), item, 'institution_user_id');
+      assertProp(check(isString, isNumber), item, 'target_user_id');
       assertPropString(item, 'role');
       assertPropString(item, 'status');
-      assertPropNullableDate(item, 'accepted_date');
-      assertPropNullableDate(item, 'rejected_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), item, 'accepted_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), item, 'rejected_date');
       assertPropString(item, 'user_email');
       return item;
     });
@@ -480,7 +481,7 @@ export class InstitutionsService {
       const error = new Error(
         'Cannot resend invitation that has already been accepted or rejected',
       );
-      setAssertPropValue(error, 'code', 'INVITATION_ALREADY_RESPONDED');
+      setPropValue(error, 'code', 'INVITATION_ALREADY_RESPONDED');
       throw error;
     }
 
@@ -541,17 +542,17 @@ export class InstitutionsService {
 
     ensureExists(invitationRows.length > 0 ? invitationRows[0] : null, 'Invitation not found');
 
-    assertArrayOf(invitationRows, function (item) {
+    assertArrayMapOf(invitationRows, function (item) {
       assertDefined(item);
-      assertPropStringOrNumber(item, 'id');
-      assertPropNullableStringOrNumber(item, 'institution_user_id');
-      assertPropStringOrNumber(item, 'target_user_id');
+      assertProp(check(isString, isNumber), item, 'id');
+      assertProp(check(isNullable, isString, isNumber), item, 'institution_user_id');
+      assertProp(check(isString, isNumber), item, 'target_user_id');
       assertPropString(item, 'role');
-      assertPropNullableDate(item, 'invited_date');
-      assertPropNullableDate(item, 'expires_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), item, 'invited_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), item, 'expires_date');
       assertPropString(item, 'status');
       assertPropString(item, 'user_email');
-      assertPropNullableStringOrNumber(item, 'inviter_id');
+      assertProp(check(isNullable, isString, isNumber), item, 'inviter_id');
       assertPropNullableString(item, 'inviter_name');
       assertPropNullableString(item, 'institution_business_name');
       assertPropNullableString(item, 'institution_business_type');
@@ -606,7 +607,7 @@ export class InstitutionsService {
 
     // Add inviter details if available
     if (invitation.inviter_id && invitation.inviter_name) {
-      setAssertPropValue(result.invitation, 'invitedBy', {
+      setPropValue(result.invitation, 'invitedBy', {
         id: Number(invitation.inviter_id),
         name: invitation.inviter_name,
       });
@@ -645,14 +646,14 @@ export class InstitutionsService {
 
     ensureExists(invitationRows.length > 0 ? invitationRows[0] : null, 'Invitation not found');
 
-    assertArrayOf(invitationRows, function (item) {
+    assertArrayMapOf(invitationRows, function (item) {
       assertDefined(item);
-      assertPropStringOrNumber(item, 'id');
-      assertPropStringOrNumber(item, 'institution_user_id');
-      assertPropStringOrNumber(item, 'target_user_id');
+      assertProp(check(isString, isNumber), item, 'id');
+      assertProp(check(isString, isNumber), item, 'institution_user_id');
+      assertProp(check(isString, isNumber), item, 'target_user_id');
       assertPropString(item, 'status');
-      assertPropNullableDate(item, 'accepted_date');
-      assertPropNullableDate(item, 'rejected_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), item, 'accepted_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), item, 'rejected_date');
       assertPropString(item, 'user_email');
       return item;
     });
@@ -664,7 +665,7 @@ export class InstitutionsService {
       const error = new Error(
         'Cannot cancel invitation that has already been accepted or rejected',
       );
-      setAssertPropValue(error, 'code', 'INVITATION_ALREADY_RESPONDED');
+      setPropValue(error, 'code', 'INVITATION_ALREADY_RESPONDED');
       throw error;
     }
 
@@ -901,13 +902,13 @@ export class InstitutionsService {
 
     const formattedMembers = members.map(function (member: unknown, index) {
       assertDefined(member);
-      assertPropStringOrNumber(member, 'user_id');
+      assertProp(check(isString, isNumber), member, 'user_id');
       assertPropString(member, 'name');
       assertPropString(member, 'email');
       assertPropString(member, 'institution_role');
-      assertPropNullableDate(member, 'joined_at');
+      assertProp(check(isNullable, isInstanceOf(Date)), member, 'joined_at');
       assertPropNullableString(member, 'profile_picture_url');
-      assertPropStringOrNumber(member, 'institution_user_id');
+      assertProp(check(isString, isNumber), member, 'institution_user_id');
       return {
         id: String(index + 1), // Simple ID for now
         userId: Number(member.user_id),
@@ -972,7 +973,7 @@ export class InstitutionsService {
     // Check if trying to remove the owner (not allowed)
     if (memberToRemove.institutionRole === 'Owner') {
       const error = new Error('Institution owner cannot be removed from the institution');
-      setAssertPropValue(error, 'code', 'CANNOT_REMOVE_OWNER');
+      setPropValue(error, 'code', 'CANNOT_REMOVE_OWNER');
       throw error;
     }
 
@@ -1086,15 +1087,15 @@ export class InstitutionsService {
         WHERE ii.id = ${invitationId}
       `;
 
-      assertArrayOf(invitations, function (item) {
+      assertArrayMapOf(invitations, function (item) {
         assertDefined(item);
-        assertPropStringOrNumber(item, 'id');
-        assertPropNullableStringOrNumber(item, 'institution_user_id');
-        assertPropStringOrNumber(item, 'target_user_id');
+        assertProp(check(isString, isNumber), item, 'id');
+        assertProp(check(isNullable, isString, isNumber), item, 'institution_user_id');
+        assertProp(check(isString, isNumber), item, 'target_user_id');
         assertPropString(item, 'role');
         assertPropString(item, 'status');
-        assertPropNullableDate(item, 'accepted_date');
-        assertPropNullableDate(item, 'rejected_date');
+        assertProp(check(isNullable, isInstanceOf(Date)), item, 'accepted_date');
+        assertProp(check(isNullable, isInstanceOf(Date)), item, 'rejected_date');
         assertPropString(item, 'user_email');
         return item;
       });
@@ -1125,7 +1126,7 @@ export class InstitutionsService {
       `;
 
       if (institutions.length > 0) {
-        assertArrayOf(institutions, function (item) {
+        assertArrayMapOf(institutions, function (item) {
           assertDefined(item);
           assertPropNullableString(item, 'name');
           assertPropNullableString(item, 'business_name');

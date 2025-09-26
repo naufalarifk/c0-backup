@@ -14,16 +14,18 @@ import { join } from 'node:path';
 import {
   assertArray,
   assertDefined,
-  assertPropArrayOf,
-  assertPropDate,
+  assertProp,
+  assertPropArrayMapOf,
   assertPropDefined,
-  assertPropNullableDate,
   assertPropNullableString,
-  assertPropNullableStringOrNumber,
   assertPropNumber,
-  assertPropOneOf,
   assertPropString,
-} from './setup/assertions';
+  check,
+  isNullable,
+  isNumber,
+  isString,
+} from 'typeshaper';
+
 import { setup } from './setup/setup';
 import { after, before, describe, it, suite } from './setup/test';
 import {
@@ -122,7 +124,11 @@ suite('User Verification API E2E Tests', function () {
         const kycSubmission = responseData.kycSubmission;
         assertDefined(kycSubmission);
         assertPropNumber(kycSubmission, 'id');
-        assertPropOneOf(kycSubmission, 'status', ['pending', 'verified', 'rejected']);
+        assertProp(
+          v => v === ('pending' as const) || v === ('verified' as const) || v === 'rejected',
+          kycSubmission,
+          'status',
+        );
         // Dates are returned as ISO strings in JSON responses
         assertPropString(kycSubmission, 'submittedDate');
         ok(
@@ -386,7 +392,16 @@ suite('User Verification API E2E Tests', function () {
 
         const responseData = await response.json();
         assertDefined(responseData);
-        assertPropOneOf(responseData, 'kycStatus', ['none', 'pending', 'verified', 'rejected']);
+        // assertPropOneOf(responseData, 'kycStatus', ['none', 'pending', 'verified', 'rejected']);
+        assertProp(
+          v =>
+            v === ('none' as const) ||
+            v === ('pending' as const) ||
+            v === ('verified' as const) ||
+            v === 'rejected',
+          responseData,
+          'kycStatus',
+        );
 
         // Should have pending status and submission details
         strictEqual(responseData.kycStatus, 'pending');
@@ -395,7 +410,11 @@ suite('User Verification API E2E Tests', function () {
         const submission = responseData.submission;
         assertDefined(submission);
         assertPropNumber(submission, 'id');
-        assertPropOneOf(submission, 'status', ['pending', 'verified', 'rejected']);
+        assertProp(
+          v => v === ('pending' as const) || v === ('verified' as const) || v === 'rejected',
+          submission,
+          'status',
+        );
         assertPropString(submission, 'submittedDate');
         ok(
           new Date(submission.submittedDate).getTime() > 0,
@@ -422,7 +441,15 @@ suite('User Verification API E2E Tests', function () {
 
         const responseData = await response.json();
         assertDefined(responseData);
-        assertPropOneOf(responseData, 'kycStatus', ['none', 'pending', 'verified', 'rejected']);
+        assertProp(
+          v =>
+            v === ('none' as const) ||
+            v === ('pending' as const) ||
+            v === ('verified' as const) ||
+            v === 'rejected',
+          responseData,
+          'kycStatus',
+        );
         ok('submission' in responseData, 'submission property should exist');
         assertPropDefined(responseData, 'canResubmit');
         strictEqual(responseData.kycStatus, 'none');
@@ -470,7 +497,7 @@ suite('User Verification API E2E Tests', function () {
 
         const responseData = await response.json();
         assertDefined(responseData);
-        assertPropArrayOf(responseData, 'submissions', function (s) {
+        assertPropArrayMapOf(responseData, 'submissions', function (s) {
           assertDefined(s);
           assertPropNumber(s, 'id');
           return s;
@@ -487,7 +514,11 @@ suite('User Verification API E2E Tests', function () {
         assertPropString(ourSubmission, 'userEmail');
         assertPropString(ourSubmission, 'submittedDate');
         assertPropString(ourSubmission, 'timeInQueue');
-        assertPropOneOf(ourSubmission, 'priority', ['normal', 'high', 'urgent']);
+        assertProp(
+          v => v === ('normal' as const) || v === ('high' as const) || v === 'urgent',
+          ourSubmission,
+          'priority',
+        );
 
         // Verify pagination
         if ('pagination' in responseData && responseData.pagination) {
@@ -787,12 +818,15 @@ suite('User Verification API E2E Tests', function () {
           new Date(application.submittedDate).getTime() > 0,
           'submittedDate should be a valid date string',
         );
-        assertPropOneOf(application, 'status', [
-          'Submitted',
-          'UnderReview',
-          'Verified',
-          'Rejected',
-        ]);
+        assertProp(
+          v =>
+            v === ('Submitted' as const) ||
+            v === ('UnderReview' as const) ||
+            v === ('Verified' as const) ||
+            v === 'Rejected',
+          application,
+          'status',
+        );
 
         // Initial application should be submitted
         strictEqual(application.status, 'Submitted');
@@ -1003,12 +1037,15 @@ suite('User Verification API E2E Tests', function () {
           new Date(application.submittedDate).getTime() > 0,
           'submittedDate should be a valid date string',
         );
-        assertPropOneOf(application, 'status', [
-          'Submitted',
-          'UnderReview',
-          'Verified',
-          'Rejected',
-        ]);
+        assertProp(
+          v =>
+            v === ('Submitted' as const) ||
+            v === ('UnderReview' as const) ||
+            v === ('Verified' as const) ||
+            v === 'Rejected',
+          application,
+          'status',
+        );
 
         // Verify progress information
         const progress = responseData.progress;
@@ -1024,7 +1061,14 @@ suite('User Verification API E2E Tests', function () {
         assertDefined(documents);
         assertPropNumber(documents, 'uploaded');
         assertPropNumber(documents, 'required');
-        assertPropOneOf(documents, 'status', ['incomplete', 'complete', 'under_review']);
+        assertProp(
+          v =>
+            v === ('incomplete' as const) ||
+            v === ('complete' as const) ||
+            v === ('under_review' as const),
+          documents,
+          'status',
+        );
 
         // Initial application should have complete documents
         ok(documents.uploaded >= 5, 'Should have uploaded at least 5 required documents');
@@ -1088,9 +1132,9 @@ suite('User Verification API E2E Tests', function () {
 
         const responseData = await response.json();
         assertDefined(responseData);
-        assertPropArrayOf(responseData, 'applications', function (app) {
+        assertPropArrayMapOf(responseData, 'applications', function (app) {
           assertDefined(app);
-          assertPropNullableStringOrNumber(app, 'id');
+          assertProp(check(isNullable, isString, isNumber), app, 'id');
           return app;
         });
 
@@ -1105,7 +1149,11 @@ suite('User Verification API E2E Tests', function () {
         assertPropString(ourApplication, 'businessName');
         assertPropString(ourApplication, 'submittedDate');
         assertPropString(ourApplication, 'timeInQueue');
-        assertPropOneOf(ourApplication, 'priority', ['normal', 'high', 'urgent']);
+        assertProp(
+          v => v === ('normal' as const) || v === ('high' as const) || v === ('urgent' as const),
+          ourApplication,
+          'priority',
+        );
 
         // Verify applicant info
         assertPropDefined(ourApplication, 'applicantInfo');
@@ -1113,7 +1161,15 @@ suite('User Verification API E2E Tests', function () {
         assertPropNumber(applicantInfo, 'userId');
         assertPropString(applicantInfo, 'name');
         assertPropString(applicantInfo, 'email');
-        assertPropOneOf(applicantInfo, 'kycStatus', ['none', 'pending', 'verified', 'rejected']);
+        assertProp(
+          v =>
+            v === ('none' as const) ||
+            v === ('pending' as const) ||
+            v === ('verified' as const) ||
+            v === 'rejected',
+          applicantInfo,
+          'kycStatus',
+        );
 
         // Verify pagination if present
         if ('pagination' in responseData && responseData.pagination) {
@@ -1161,13 +1217,22 @@ suite('User Verification API E2E Tests', function () {
         assertPropNumber(applicantUser, 'id');
         assertPropString(applicantUser, 'email');
         assertPropString(applicantUser, 'name');
-        assertPropOneOf(applicantUser, 'kycStatus', ['none', 'pending', 'verified', 'rejected']);
+        assertProp(
+          v =>
+            v === ('none' as const) ||
+            v === ('pending' as const) ||
+            v === ('verified' as const) ||
+            v === 'rejected',
+          applicantUser,
+          'kycStatus',
+        );
 
         // Verify business documents with signed URLs
         assertPropDefined(responseData, 'businessDocuments');
         const businessDocuments = responseData.businessDocuments;
 
         // Check if document URLs are provided (may be null in test environment)
+        assertDefined(businessDocuments);
         if (
           'incorporationCertificateUrl' in businessDocuments &&
           businessDocuments.incorporationCertificateUrl
@@ -1411,7 +1476,7 @@ suite('User Verification API E2E Tests', function () {
         assertPropDefined(errorData, 'error');
 
         const error = errorData.error;
-        assertPropNullableStringOrNumber(error, 'code');
+        assertProp(check(isNullable, isString, isNumber), error, 'code');
         strictEqual(error.code, 'ADMIN_REQUIRED');
       });
 
@@ -1430,7 +1495,7 @@ suite('User Verification API E2E Tests', function () {
         assertPropDefined(errorData, 'error');
 
         const error = errorData.error;
-        assertPropNullableStringOrNumber(error, 'code');
+        assertProp(check(isNullable, isString, isNumber), error, 'code');
         strictEqual(error.code, 'ADMIN_REQUIRED');
       });
 

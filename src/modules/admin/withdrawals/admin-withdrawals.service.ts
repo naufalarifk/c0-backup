@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
-import { ensureExists, ensureValid } from '../../../shared/utils';
+import { ensureExists, ensureValid } from '../../../shared/utils/ensures.js';
 import { NotificationQueueService } from '../../notifications/notification-queue.service';
 import {
   AdminNotificationDto,

@@ -6,13 +6,9 @@ import type {
 
 import { Injectable } from '@nestjs/common';
 
+import { assertDefined, assertProp, assertPropString, check, isNumber, isString } from 'typeshaper';
+
 import { AppConfigService } from '../../../shared/services/app-config.service';
-import {
-  assertDefined,
-  assertPropEqual,
-  assertPropString,
-  assertPropStringOrNumber,
-} from '../../../shared/utils';
 import { NotificationChannelEnum } from '../notification.types';
 import { Composer, NotificationComposer } from '../notification-composer.abstract';
 
@@ -27,8 +23,8 @@ export function assertUserRegisteredNotificationParam(
   data: unknown,
 ): asserts data is UserRegisteredNotificationData {
   assertDefined(data, 'Notification data is required');
-  assertPropEqual(data, 'type', 'UserRegistered' as const);
-  assertPropStringOrNumber(data, 'userId');
+  assertProp(v => v === ('UserRegistered' as const), data, 'type');
+  assertProp(check(isString, isNumber), data, 'userId');
   assertPropString(data, 'email');
 }
 

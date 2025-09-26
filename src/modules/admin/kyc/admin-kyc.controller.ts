@@ -14,20 +14,24 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
+import {
+  assertArrayMapOf,
+  assertDefined,
+  assertProp,
+  assertPropNullableString,
+  assertPropString,
+  check,
+  isInstanceOf,
+  isNullable,
+  isNumber,
+  isString,
+} from 'typeshaper';
+
 import { Auth } from '../../../decorators/auth.decorator';
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { MinioService } from '../../../shared/services/minio.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
-import {
-  assertArrayOf,
-  assertDefined,
-  assertPropDate,
-  assertPropNullableDate,
-  assertPropNullableString,
-  assertPropString,
-  assertPropStringOrNumber,
-  validationOptions,
-} from '../../../shared/utils';
+import { validationOptions } from '../../../shared/utils/validation-options.js';
 import { Session } from '../../auth/auth.decorator';
 
 @Controller('admin/kyc')
@@ -297,20 +301,20 @@ export class AdminKycController {
         throw new NotFoundException('KYC submission not found');
       }
 
-      assertArrayOf(rows, function (row) {
+      assertArrayMapOf(rows, function (row) {
         assertDefined(row);
-        assertPropStringOrNumber(row, 'id');
-        assertPropStringOrNumber(row, 'user_id');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isString, isNumber), row, 'user_id');
         assertPropString(row, 'nik');
         assertPropString(row, 'name');
-        assertPropDate(row, 'birth_date');
+        assertProp(isInstanceOf(Date), row, 'birth_date');
         assertPropString(row, 'address');
         assertPropString(row, 'id_card_photo');
         assertPropString(row, 'selfie_with_id_card_photo');
-        assertPropDate(row, 'submitted_date');
+        assertProp(isInstanceOf(Date), row, 'submitted_date');
         assertPropNullableString(row, 'email');
         assertPropNullableString(row, 'user_name');
-        assertPropNullableDate(row, 'created_date');
+        assertProp(check(isNullable, isInstanceOf(Date)), row, 'created_date');
         return row;
       });
 
@@ -420,11 +424,11 @@ export class AdminKycController {
         throw new NotFoundException('KYC submission not found');
       }
 
-      assertArrayOf(checkRows, function (row) {
+      assertArrayMapOf(checkRows, function (row) {
         assertDefined(row);
-        assertPropStringOrNumber(row, 'id');
-        assertPropNullableDate(row, 'verified_date');
-        assertPropNullableDate(row, 'rejected_date');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isNullable, isInstanceOf(Date)), row, 'verified_date');
+        assertProp(check(isNullable, isInstanceOf(Date)), row, 'rejected_date');
         return row;
       });
 
@@ -504,11 +508,11 @@ export class AdminKycController {
         throw new NotFoundException('KYC submission not found');
       }
 
-      assertArrayOf(checkRows, function (row) {
+      assertArrayMapOf(checkRows, function (row) {
         assertDefined(row);
-        assertPropStringOrNumber(row, 'id');
-        assertPropNullableDate(row, 'verified_date');
-        assertPropNullableDate(row, 'rejected_date');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isNullable, isInstanceOf(Date)), row, 'verified_date');
+        assertProp(check(isNullable, isInstanceOf(Date)), row, 'rejected_date');
         return row;
       });
 

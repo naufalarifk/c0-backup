@@ -6,6 +6,9 @@ import type {
 
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
+import { ActiveButExpiredInvoice } from 'src/shared/repositories/finance.types.js';
+import { assertProp, isInstanceOf } from 'typeshaper';
+
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
 
@@ -57,6 +60,8 @@ export class InvoiceExpirationService {
             expiredCount++;
 
             // Send expiration notification
+            assertProp(isInstanceOf(Date), invoice, 'dueDate');
+            assertProp(isInstanceOf(Date), invoice, 'expiredDate');
             await this.sendExpirationNotification(invoice);
 
             processedCount++;
@@ -100,7 +105,7 @@ export class InvoiceExpirationService {
     }
   }
 
-  private async expireInvoice(invoice: ExpiredInvoiceData, expiredDate: Date): Promise<void> {
+  private async expireInvoice(invoice: ActiveButExpiredInvoice, expiredDate: Date): Promise<void> {
     this.logger.debug(`Expiring invoice ${invoice.id} for user ${invoice.userId}`);
 
     await this.repository.platformSetActiveButExpiredInvoiceAsExpired({

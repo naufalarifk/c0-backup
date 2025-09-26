@@ -2,15 +2,19 @@ import { deepStrictEqual, doesNotReject, ok, rejects, strictEqual } from 'node:a
 
 import {
   assertDefined,
+  assertProp,
   assertPropArray,
-  assertPropArrayOf,
+  assertPropArrayMapOf,
   assertPropDefined,
   assertPropNullableString,
-  assertPropNullableStringOrNumber,
   assertPropNumber,
-  assertPropOneOf,
   assertPropString,
-} from './setup/assertions';
+  check,
+  isNullable,
+  isNumber,
+  isString,
+} from 'typeshaper';
+
 import { setupBetterAuthClient } from './setup/better-auth';
 import { waitForEmailVerification } from './setup/mailpit';
 import { setup } from './setup/setup';
@@ -90,13 +94,24 @@ suite('Institution Management API', function () {
       assertPropNumber(institution, 'id');
       assertPropString(institution, 'name');
       assertPropString(institution, 'type');
-      assertPropOneOf(institution, 'verificationStatus', ['Verified', 'Pending', 'Unverified']);
+      assertProp(
+        function (v) {
+          return (
+            v === ('Verified' as const) ||
+            v === ('Pending' as const) ||
+            v === ('Unverified' as const)
+          );
+        },
+        institution,
+        'verificationStatus',
+      );
       assertPropNumber(institution, 'memberCount');
       assertPropString(institution, 'activeSince');
 
       if ('registrationDetails' in institution) {
         assertPropDefined(institution, 'registrationDetails');
         const regDetails = institution.registrationDetails;
+        assertDefined(regDetails);
         if ('npwpNumber' in regDetails) {
           assertPropString(regDetails, 'npwpNumber');
         }
@@ -185,15 +200,19 @@ suite('Institution Management API', function () {
       assertPropNumber(data, 'memberCount');
 
       if (data.members.length > 0) {
-        assertPropArrayOf(data, 'members', member => {
+        assertPropArrayMapOf(data, 'members', member => {
           assertDefined(member);
           assertPropString(member, 'id');
           assertPropNumber(member, 'userId');
           assertPropNumber(member, 'institutionId');
-          assertPropOneOf(member, 'role', ['Owner', 'Finance']);
-          assertPropOneOf(member, 'verificationStatus', ['Verified', 'Pending', 'Unverified']);
+          assertProp(v => v === ('Owner' as const) || v === 'Finance', member, 'role');
+          assertProp(
+            v => v === ('Verified' as const) || v === ('Pending' as const) || v === 'Unverified',
+            member,
+            'verificationStatus',
+          );
           assertPropString(member, 'joinedAt');
-          assertPropNullableStringOrNumber(member, 'invitedBy');
+          assertProp(check(isNullable, isString, isNumber), member, 'invitedBy');
           assertPropDefined(member, 'user');
           const user = member.user;
           assertPropNumber(user, 'id');
@@ -403,21 +422,23 @@ suite('Institution Management API', function () {
 
       // Check invitation structure if any exist
       if (data.invitations.length > 0) {
-        assertPropArrayOf(data, 'invitations', invitation => {
+        assertPropArrayMapOf(data, 'invitations', invitation => {
           assertDefined(invitation);
           assertPropString(invitation, 'id');
           assertPropString(invitation, 'userEmail');
-          assertPropOneOf(invitation, 'role', ['Finance']);
+          assertProp(v => v === ('Finance' as const), invitation, 'role');
           assertPropString(invitation, 'invitedDate');
           assertPropString(invitation, 'expiresAt');
-          assertPropOneOf(invitation, 'status', ['Sent', 'Accepted', 'Rejected', 'Expired']);
-
+          assertProp(
+            v => v === 'Sent' || v === 'Accepted' || v === 'Rejected' || v === 'Expired',
+            invitation,
+            'status',
+          );
           if ('invitedBy' in invitation) {
             assertPropDefined(invitation, 'invitedBy');
             assertPropNumber(invitation.invitedBy, 'id');
             assertPropString(invitation.invitedBy, 'name');
           }
-
           return invitation;
         });
       }
@@ -940,7 +961,7 @@ suite('Institution Management API', function () {
       const invitation = data.invitation;
       assertPropString(invitation, 'id');
       assertPropString(invitation, 'userEmail');
-      assertPropOneOf(invitation, 'role', ['Finance']);
+      assertProp(v => v === ('Finance' as const), invitation, 'role');
       assertPropString(invitation, 'invitedDate');
       assertPropString(invitation, 'expiresAt');
 
@@ -954,7 +975,11 @@ suite('Institution Management API', function () {
         assertPropNumber(institution, 'id');
         assertPropString(institution, 'name');
         assertPropString(institution, 'type');
-        assertPropOneOf(institution, 'verificationStatus', ['Verified', 'Pending', 'Unverified']);
+        assertProp(
+          v => v === ('Verified' as const) || v === ('Pending' as const) || v === 'Unverified',
+          institution,
+          'verificationStatus',
+        );
       }
 
       if ('rolePermissions' in invitation) {
