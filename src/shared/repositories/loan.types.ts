@@ -133,6 +133,33 @@ export type PlatformListsAvailableLoanOffersResult = {
   pagination: PaginationMeta;
 };
 
+export type PlatformListsMatchableLoanApplicationsParams = {
+  page?: number;
+  limit?: number;
+};
+
+export type PlatformListsMatchableLoanApplicationsResult = {
+  loanApplications: Array<{
+    id: string;
+    borrowerUserId: string;
+    loanOfferId?: string;
+    principalCurrency: Currency;
+    principalAmount: string;
+    maxInterestRate: number;
+    termInMonths: number;
+    collateralBlockchainKey: string;
+    collateralTokenId: string;
+    collateralDepositAmount: string;
+    principalBlockchainKey: string;
+    principalTokenId: string;
+    status: LoanApplicationStatus;
+    appliedDate: Date;
+    expirationDate: Date;
+    matchedLoanOfferId?: string;
+  }>;
+  pagination: PaginationMeta;
+};
+
 // Loan Application Types
 export type BorrowerCalculatesLoanRequirementsParams = {
   collateralBlockchainKey: string;

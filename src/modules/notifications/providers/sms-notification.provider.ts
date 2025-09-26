@@ -12,7 +12,7 @@ import { NotificationProviderFlag } from '../notification-provider.factory';
 export class SMSNotificationProvider extends NotificationProvider {
   private readonly logger = new Logger(SMSNotificationProvider.name);
 
-  constructor(private readonly twilioService: TwilioService) {
+  constructor(readonly _twilioService: TwilioService) {
     super();
   }
 
