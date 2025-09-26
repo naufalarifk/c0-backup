@@ -108,7 +108,7 @@ export class UsersService {
         isVerified: user.kycStatus === 'verified',
         verificationLevel: user.kycStatus === 'verified' ? 'verified' : 'unverified',
         kycStatus: user.kycStatus,
-        phoneVerified: user.phone_number_verified || false,
+        phoneVerified: user.phoneNumberVerified,
         featureUnlockStatus: {
           tradingEnabled: user.kycStatus === 'verified',
           withdrawalEnabled: user.kycStatus === 'verified',
