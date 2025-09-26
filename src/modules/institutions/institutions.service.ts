@@ -529,11 +529,13 @@ export class InstitutionsService {
         u.email as user_email,
         inviter.id as inviter_id,
         inviter.name as inviter_name,
-        inviter.institution_user_id,
-        inviter.name as institution_name
+        inviter.business_name as institution_business_name,
+        inviter.business_type as institution_business_type,
+        kyc.status as institution_kyc_status
       FROM institution_invitations ii
       JOIN users u ON ii.target_user_id = u.id
       LEFT JOIN users inviter ON inviter.institution_user_id = ii.institution_user_id AND inviter.institution_role = 'Owner'
+      LEFT JOIN user_kycs kyc ON inviter.kyc_id = kyc.id
       WHERE ii.id = ${invitationId}
     `;
 
@@ -551,8 +553,9 @@ export class InstitutionsService {
       assertPropString(item, 'user_email');
       assertPropNullableStringOrNumber(item, 'inviter_id');
       assertPropNullableString(item, 'inviter_name');
-      assertPropNullableStringOrNumber(item, 'institution_user_id');
-      assertPropNullableString(item, 'institution_name');
+      assertPropNullableString(item, 'institution_business_name');
+      assertPropNullableString(item, 'institution_business_type');
+      assertPropNullableString(item, 'institution_kyc_status');
       return item;
     });
 
@@ -576,17 +579,24 @@ export class InstitutionsService {
         institution: null as unknown,
         rolePermissions: [] as string[],
         roleRestrictions: [] as string[],
-        invitedBy: null as unknown,
       },
     };
 
     // Add institution details if available
     if (invitation.institution_user_id) {
+      const verificationStatus =
+        invitation.institution_kyc_status === 'Verified'
+          ? 'Verified'
+          : invitation.institution_kyc_status === 'Submitted'
+            ? 'Pending'
+            : 'Unverified';
+
       result.invitation.institution = {
         id: Number(invitation.institution_user_id),
-        name: invitation.institution_name || `Institution ${invitation.institution_user_id}`,
-        type: 'Business', // Default type
-        verificationStatus: 'Unverified', // Default status
+        name:
+          invitation.institution_business_name || `Institution ${invitation.institution_user_id}`,
+        type: invitation.institution_business_type || 'Business',
+        verificationStatus: verificationStatus,
       };
     }
 
@@ -595,11 +605,11 @@ export class InstitutionsService {
     result.invitation.roleRestrictions = [];
 
     // Add inviter details if available
-    if (invitation.inviter_id) {
-      result.invitation.invitedBy = {
+    if (invitation.inviter_id && invitation.inviter_name) {
+      setAssertPropValue(result.invitation, 'invitedBy', {
         id: Number(invitation.inviter_id),
         name: invitation.inviter_name,
-      };
+      });
     }
 
     return result;
@@ -615,7 +625,7 @@ export class InstitutionsService {
     // Check if user is an institution owner (basic permission check)
     ensurePermission(
       requestingUser.institutionRole === 'Owner',
-      'Insufficient permissions - only institution owners can cancel invitations',
+      'Access denied - you are not a member with sufficient permissions',
     );
 
     // Get invitation details
