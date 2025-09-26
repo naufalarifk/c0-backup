@@ -6,7 +6,6 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   HttpException,
   HttpStatus,
   Patch,
@@ -16,6 +15,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+
+import { fromNodeHeaders } from 'better-auth/node';
 
 import { ApiFile } from '../../../decorators/swagger.schema';
 import { Session } from '../../auth/auth.decorator';
@@ -97,7 +98,7 @@ export class ProfileController {
     );
 
     return this.auth.api.updateUser({
-      headers: req.headers,
+      headers: fromNodeHeaders(req.headers),
       body: updateData,
     });
   }
@@ -149,8 +150,8 @@ export class ProfileController {
       profilePicture,
     );
 
-    const _updateResult = await this.auth.api.updateUser({
-      headers: req.headers,
+    await this.auth.api.updateUser({
+      headers: fromNodeHeaders(req.headers),
       body: updateData,
     });
 

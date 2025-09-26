@@ -3,18 +3,18 @@ info:
   title: CryptoGadai Finance API
   description: |
     CryptoGadai finance, invoice, and withdrawal management system API.
-    
+
     This API handles all financial operations including:
     - Account and balance management
     - Invoice creation and payment processing
     - Withdrawal request processing
     - Transaction history and auditing
-    
+
     **Security Requirements:**
     - All endpoints require authentication
     - Financial operations require 2FA verification
     - Large amounts may require additional admin approval
-    
+
     **Time-based State Management:**
     - No status columns are used; instead time-based columns indicate record states
     - All timestamps are provided by the application layer
@@ -48,7 +48,7 @@ paths:
       summary: List withdrawal beneficiaries
       description: |
         Retrieve all registered withdrawal addresses for the authenticated user or institution.
-        
+
         **Important**: Beneficiaries are blockchain-specific, not currency-specific. Each beneficiary
         can be used for withdrawals of any supported currency on that blockchain.
       operationId: listBeneficiaries
@@ -136,10 +136,10 @@ paths:
       summary: Register withdrawal beneficiary
       description: |
         Register a new withdrawal address for future withdrawals.
-        
-        **Important**: Beneficiaries are blockchain-specific addresses that can be used 
+
+        **Important**: Beneficiaries are blockchain-specific addresses that can be used
         for withdrawals of any supported currency on that blockchain.
-        
+
         **Registration Process:**
         1. Validate address format for the specified blockchain
         2. Check address is not blacklisted
@@ -212,7 +212,7 @@ paths:
       summary: List withdrawals
       description: |
         Retrieve withdrawal history for the authenticated user or institution.
-        
+
         **Withdrawal States (time-based):**
         - Requested: request_date IS NOT NULL AND sent_date IS NULL
         - Sent: sent_date IS NOT NULL AND confirmed_date IS NULL AND failed_date IS NOT NULL
@@ -424,11 +424,11 @@ paths:
       summary: Request withdrawal
       description: |
         Request a new withdrawal to a registered beneficiary address.
-        
-        **Important**: You must specify both the beneficiary (blockchain address) and the exact 
-        currency (blockchain + token) for the withdrawal. The currency must be supported on the 
+
+        **Important**: You must specify both the beneficiary (blockchain address) and the exact
+        currency (blockchain + token) for the withdrawal. The currency must be supported on the
         beneficiary's blockchain.
-        
+
         **Withdrawal Process:**
         1. Validate 2FA authentication
         2. Verify beneficiary belongs to user and is on the same blockchain as currency
@@ -454,6 +454,7 @@ paths:
                   currencyTokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
                   amount: "1500.000000000000000000"
                   twoFactorCode: "123456"
+                  phoneNumberCode: "123456"
               large_withdrawal:
                 summary: Large USDC withdrawal on Ethereum
                 value:
@@ -462,6 +463,7 @@ paths:
                   currencyTokenId: "erc20:0xa0b86a33e6ba4c2f8b3dcc56b4c3b3f7b123f456"
                   amount: "50000.000000000000000000"
                   twoFactorCode: "789012"
+                  phoneNumberCode: "210987"
               minimum_withdrawal:
                 summary: Minimum withdrawal amount (100 USDC)
                 value:
@@ -470,6 +472,7 @@ paths:
                   currencyTokenId: "erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
                   amount: "100.000000000000000000"
                   twoFactorCode: "345678"
+                  phoneNumberCode: "654321"
       responses:
         '201':
           description: Withdrawal requested successfully
@@ -1002,12 +1005,17 @@ components:
           type: string
           description: 2FA authentication code
           example: "123456"
+        phoneNumberCode:
+          type: string
+          description: Phone number verification code (if enabled)
+          example: "654321"
       required:
         - beneficiaryId
         - currencyBlockchainKey
         - currencyTokenId
         - amount
         - twoFactorCode
+        - phoneNumberCode
 
     WithdrawalRefundRequest:
       type: object
@@ -1311,6 +1319,9 @@ components:
                       code: "INVALID_BENEFICIARY"
                     - field: "twoFactorCode"
                       message: "Two-factor authentication code must be 6 digits"
+                      code: "INVALID_FORMAT"
+                    - field: "phoneNumberCode"
+                      message: "Phone number verification code must be 6 digits"
                       code: "INVALID_FORMAT"
                 timestamp: "2025-08-11T15:30:00Z"
             beneficiary_validation:

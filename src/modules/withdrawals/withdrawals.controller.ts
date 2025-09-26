@@ -50,6 +50,7 @@ export class WithdrawalsController {
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           amount: '1500.000000000000000000',
           twoFactorCode: '123456',
+          phoneNumberCode: '123456',
         },
       },
     },
