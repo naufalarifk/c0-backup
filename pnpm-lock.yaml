@@ -204,8 +204,8 @@ importers:
         specifier: ^5.10.0
         version: 5.10.0
       typeshaper:
-        specifier: ^1.1.0
-        version: 1.1.0
+        specifier: ^1.1.2
+        version: 1.1.2
       uuid:
         specifier: ^13.0.0
         version: 13.0.0
@@ -6659,8 +6659,8 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  typeshaper@1.1.0:
-    resolution: {integrity: sha512-7OEsfWpA7I5oDFadYUQPBs/fk0XSLikcIGcNZJOzKOzyPuKd78d59XFBTjAWt7VgXiGcH2CMzVWjxALmGQObvA==}
+  typeshaper@1.1.2:
+    resolution: {integrity: sha512-aL+uH4dDGQPnB9Jmjrsy/wbNLmaHXs7xNgMeFxyqbU3b12vjlanVrY1pkcj6QLXf1WV6O6y2EHMKBVjYEP9FMQ==}
 
   uid@2.0.2:
     resolution: {integrity: sha512-u3xV3X7uzvi5b1MncmZo3i2Aw222Zk1keqLA1YkHldREkAhAqi65wuPfe7lHx8H/Wzy+8CE7S7uS3jekIM5s8g==}
@@ -15064,7 +15064,7 @@ snapshots:
 
   typescript@5.9.2: {}
 
-  typeshaper@1.1.0: {}
+  typeshaper@1.1.2: {}
 
   uid@2.0.2:
     dependencies:
