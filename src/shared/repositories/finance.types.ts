@@ -367,8 +367,8 @@ export interface ActiveButExpiredInvoice {
   invoiceType: string;
   status: string;
   invoiceDate: Date;
-  dueDate: Date | null;
-  expiredDate: Date | null;
+  dueDate: Date | null | undefined;
+  expiredDate: Date | null | undefined;
 }
 
 export interface PlatformViewsActiveButExpiredInvoicesResult {

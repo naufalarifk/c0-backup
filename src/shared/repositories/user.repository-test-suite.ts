@@ -3,7 +3,8 @@ import type { UserAppliesForInstitutionParams } from './user.types';
 import { doesNotReject, doesNotThrow, equal, ok, rejects, throws } from 'node:assert/strict';
 import { describe, suite } from 'node:test';
 
-import { assertArray, assertArrayMapOf, assertDefined, assertPropDefined } from '../utils';
+import { assertArrayMapOf, assertDefined, assertPropDefined } from 'typeshaper';
+
 import { createEarlyExitNodeTestIt } from '../utils/node-test';
 import { UserRepository } from './user.repository';
 

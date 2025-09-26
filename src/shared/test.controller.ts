@@ -10,14 +10,18 @@ import {
   Put,
 } from '@nestjs/common';
 
+import {
+  assertArrayMapOf,
+  assertDefined,
+  assertProp,
+  assertPropString,
+  check,
+  isNumber,
+  isString,
+} from 'typeshaper';
+
 import { CryptogadaiRepository } from './repositories/cryptogadai.repository';
 import { TelemetryLogger } from './telemetry.logger';
-import {
-  assertArrayOf,
-  assertDefined,
-  assertPropString,
-  assertPropStringOrNumber,
-} from './utils/assertions.js';
 
 @Controller()
 export class TestController {
@@ -115,9 +119,9 @@ export class TestController {
       throw new NotFoundException('KYC submission not found');
     }
 
-    assertArrayOf(checkRows, function (row) {
+    assertArrayMapOf(checkRows, function (row) {
       assertDefined(row);
-      assertPropStringOrNumber(row, 'id');
+      assertProp(check(isString, isNumber), row, 'id');
       assertPropString(row, 'status');
       return row;
     });
@@ -179,9 +183,9 @@ export class TestController {
       throw new NotFoundException('KYC submission not found');
     }
 
-    assertArrayOf(checkRows, function (row) {
+    assertArrayMapOf(checkRows, function (row) {
       assertDefined(row);
-      assertPropStringOrNumber(row, 'id');
+      assertProp(check(isString, isNumber), row, 'id');
       assertPropString(row, 'status');
       return row;
     });
@@ -240,8 +244,8 @@ export class TestController {
 
     const kyc = rows[0];
     assertDefined(kyc);
-    assertPropStringOrNumber(kyc, 'id');
-    assertPropStringOrNumber(kyc, 'user_id');
+    assertProp(check(isString, isNumber), kyc, 'id');
+    assertProp(check(isString, isNumber), kyc, 'user_id');
 
     // Approve the KYC
     await this.repo.sql`
@@ -292,8 +296,8 @@ export class TestController {
 
     const kyc = rows[0];
     assertDefined(kyc);
-    assertPropStringOrNumber(kyc, 'id');
-    assertPropStringOrNumber(kyc, 'user_id');
+    assertProp(check(isString, isNumber), kyc, 'id');
+    assertProp(check(isString, isNumber), kyc, 'user_id');
 
     // Reject the KYC
     await this.repo.sql`

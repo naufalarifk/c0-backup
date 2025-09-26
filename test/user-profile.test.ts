@@ -2,17 +2,19 @@ import { deepStrictEqual, doesNotReject, ok, rejects, strictEqual } from 'node:a
 
 import {
   assertDefined,
+  assertProp,
   assertPropArray,
-  assertPropArrayOf,
+  assertPropArrayMapOf,
   assertPropDefined,
   assertPropNullableString,
-  assertPropNullableStringOrNumber,
   assertPropNumber,
-  assertPropOneOf,
   assertPropString,
-} from './setup/assertions';
-import { setupBetterAuthClient } from './setup/better-auth';
-import { waitForEmailVerification } from './setup/mailpit';
+  check,
+  isNullable,
+  isNumber,
+  isString,
+} from 'typeshaper';
+
 import { setup } from './setup/setup';
 import { after, before, describe, it, suite } from './setup/test';
 import { createTestUser, type TestUser } from './setup/user';
@@ -194,7 +196,15 @@ suite('User Profile Management', function () {
 
       // Check KYC related fields
       if ('kycStatus' in user) {
-        assertPropOneOf(user, 'kycStatus', ['none', 'pending', 'verified', 'rejected']);
+        assertProp(
+          v =>
+            v === ('none' as const) ||
+            v === ('pending' as const) ||
+            v === ('verified' as const) ||
+            v === 'rejected',
+          user,
+          'kycStatus',
+        );
       }
 
       // Check phone verification
@@ -217,13 +227,21 @@ suite('User Profile Management', function () {
       if ('requiredVerifications' in user) {
         assertPropArray(user, 'requiredVerifications');
         if (user.requiredVerifications.length > 0) {
-          assertPropArrayOf(user, 'requiredVerifications', item => {
+          assertPropArrayMapOf(user, 'requiredVerifications', item => {
             assertDefined(item);
             assertPropString(item, 'type');
             assertPropString(item, 'title');
             assertPropString(item, 'description');
             assertPropString(item, 'actionText');
-            assertPropOneOf(item, 'priority', ['low', 'medium', 'high', 'critical']);
+            assertProp(
+              v =>
+                v === ('low' as const) ||
+                v === ('medium' as const) ||
+                v === ('high' as const) ||
+                v === 'critical',
+              item,
+              'priority',
+            );
             return item;
           });
         }
@@ -248,8 +266,8 @@ suite('User Profile Management', function () {
       assertPropNullableString(user, 'emailVerifiedDate');
       assertPropNullableString(user, 'lastLoginDate');
       assertPropNullableString(user, 'userType');
-      assertPropNullableStringOrNumber(user, 'kycId');
-      assertPropNullableStringOrNumber(user, 'institutionId');
+      assertProp(check(isNullable, isString, isNumber), user, 'kycId');
+      assertProp(check(isNullable, isString, isNumber), user, 'institutionId');
       assertPropNullableString(user, 'institutionRole');
 
       // Boolean fields
@@ -263,12 +281,15 @@ suite('User Profile Management', function () {
 
       // Verification level field
       if ('verificationLevel' in user) {
-        assertPropOneOf(user, 'verificationLevel', [
-          'verified',
-          'unverified',
-          'pending',
-          'rejected',
-        ]);
+        assertProp(
+          v =>
+            v === ('verified' as const) ||
+            v === ('unverified' as const) ||
+            v === ('pending' as const) ||
+            v === 'rejected',
+          user,
+          'verificationLevel',
+        );
       }
     });
 
@@ -393,13 +414,26 @@ suite('User Profile Management', function () {
 
       // Check display preferences
       assertPropDefined(prefs, 'display');
-      assertPropOneOf(prefs.display, 'theme', ['light', 'dark']);
-      assertPropOneOf(prefs.display, 'language', ['en', 'id']);
-      assertPropOneOf(prefs.display, 'currency', ['USD', 'IDR', 'EUR', 'BTC', 'ETH']);
+      assertProp(v => v === ('light' as const) || v === ('dark' as const), prefs.display, 'theme');
+      assertProp(v => v === ('en' as const) || v === ('id' as const), prefs.display, 'language');
+      assertProp(
+        v =>
+          v === ('USD' as const) ||
+          v === ('IDR' as const) ||
+          v === ('EUR' as const) ||
+          v === ('BTC' as const) ||
+          v === ('ETH' as const),
+        prefs.display,
+        'currency',
+      );
 
       // Check privacy preferences
       assertPropDefined(prefs, 'privacy');
-      assertPropOneOf(prefs.privacy, 'profileVisibility', ['private', 'public']);
+      assertProp(
+        v => v === ('private' as const) || v === ('public' as const),
+        prefs.privacy,
+        'profileVisibility',
+      );
       assertPropDefined(prefs.privacy, 'dataSharing');
     });
 

@@ -6,7 +6,8 @@ import type {
 
 import { Injectable } from '@nestjs/common';
 
-import { assertDefined, assertPropDefined, assertPropString } from '../../../shared/utils';
+import { assertDefined, assertPropDefined, assertPropString } from 'typeshaper';
+
 import { NotificationChannelEnum } from '../notification.types';
 import { Composer, NotificationComposer } from '../notification-composer.abstract';
 

@@ -1,9 +1,13 @@
 import {
   assertDefined,
-  assertPropDate,
+  assertProp,
   assertPropString,
-  assertPropStringOrNumber,
-} from '../utils/assertions';
+  check,
+  isInstanceOf,
+  isNumber,
+  isString,
+} from 'typeshaper';
+
 import { FinanceRepository } from './finance.repository';
 import {
   PlatformFeedsExchangeRateParams,
@@ -52,12 +56,12 @@ export abstract class PricefeedRepository extends FinanceRepository {
     return {
       exchangeRates: exchangeRates.map(function (rate: unknown) {
         assertDefined(rate, 'Exchange rate record is undefined');
-        assertPropStringOrNumber(rate, 'id');
-        assertPropStringOrNumber(rate, 'price_feed_id');
-        assertPropStringOrNumber(rate, 'bid_price');
-        assertPropStringOrNumber(rate, 'ask_price');
-        assertPropDate(rate, 'retrieval_date');
-        assertPropDate(rate, 'source_date');
+        assertProp(check(isString, isNumber), rate, 'id');
+        assertProp(check(isString, isNumber), rate, 'price_feed_id');
+        assertProp(check(isString, isNumber), rate, 'bid_price');
+        assertProp(check(isString, isNumber), rate, 'ask_price');
+        assertProp(isInstanceOf(Date), rate, 'retrieval_date');
+        assertProp(isInstanceOf(Date), rate, 'source_date');
         assertPropString(rate, 'blockchain_key');
         assertPropString(rate, 'base_currency_token_id');
         assertPropString(rate, 'quote_currency_token_id');
@@ -105,12 +109,12 @@ export abstract class PricefeedRepository extends FinanceRepository {
 
       const exchangeRate = rows[0];
       assertDefined(exchangeRate, 'Exchange rate update failed');
-      assertPropStringOrNumber(exchangeRate, 'id');
-      assertPropStringOrNumber(exchangeRate, 'price_feed_id');
-      assertPropStringOrNumber(exchangeRate, 'bid_price');
-      assertPropStringOrNumber(exchangeRate, 'ask_price');
-      assertPropDate(exchangeRate, 'retrieval_date');
-      assertPropDate(exchangeRate, 'source_date');
+      assertProp(check(isString, isNumber), exchangeRate, 'id');
+      assertProp(check(isString, isNumber), exchangeRate, 'price_feed_id');
+      assertProp(check(isString, isNumber), exchangeRate, 'bid_price');
+      assertProp(check(isString, isNumber), exchangeRate, 'ask_price');
+      assertProp(isInstanceOf(Date), exchangeRate, 'retrieval_date');
+      assertProp(isInstanceOf(Date), exchangeRate, 'source_date');
 
       await tx.commitTransaction();
 
@@ -199,7 +203,7 @@ export abstract class PricefeedRepository extends FinanceRepository {
 
     const row = rows[0];
     assertDefined(row, 'Price feed is undefined');
-    assertPropStringOrNumber(row, 'id');
+    assertProp(check(isString, isNumber), row, 'id');
 
     return { id: String(row.id) };
   }

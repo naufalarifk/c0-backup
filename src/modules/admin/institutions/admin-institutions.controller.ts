@@ -14,18 +14,22 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
+import {
+  assertArrayMapOf,
+  assertDefined,
+  assertProp,
+  assertPropNullableString,
+  assertPropString,
+  check,
+  isNumber,
+  isString,
+} from 'typeshaper';
+
 import { Auth } from '../../../decorators/auth.decorator';
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { MinioService } from '../../../shared/services/minio.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
-import {
-  assertArrayOf,
-  assertDefined,
-  assertPropNullableString,
-  assertPropString,
-  assertPropStringOrNumber,
-  validationOptions,
-} from '../../../shared/utils';
+import { validationOptions } from '../../../shared/utils/validation-options';
 import { Session } from '../../auth/auth.decorator';
 
 @Controller('admin/institutions')
@@ -121,7 +125,7 @@ export class AdminInstitutionsController {
 
       const applications = rows.map(app => {
         assertDefined(app);
-        assertPropStringOrNumber(app, 'id');
+        assertProp(check(isNumber, isString), app, 'id');
         assertPropString(app, 'business_name');
         // submitted_date should be a string or Date - let's assert it exists first
         if (
@@ -136,7 +140,7 @@ export class AdminInstitutionsController {
             `Expected submitted_date to be string or Date, got ${typeof app.submitted_date}`,
           );
         }
-        assertPropStringOrNumber(app, 'applicant_user_id');
+        assertProp(check(isNumber, isString), app, 'applicant_user_id');
         assertPropNullableString(app, 'applicant_name');
         assertPropNullableString(app, 'applicant_email');
         assertPropString(app, 'kyc_status');
@@ -271,9 +275,9 @@ export class AdminInstitutionsController {
         throw new NotFoundException('Institution application not found');
       }
 
-      assertArrayOf(rows, function (row) {
+      assertArrayMapOf(rows, function (row) {
         assertDefined(row);
-        assertPropStringOrNumber(row, 'id');
+        assertProp(check(isNumber, isString), row, 'id');
         assertPropString(row, 'business_name');
         // submitted_date should be a string or Date - let's assert it exists first
         if (
@@ -288,7 +292,7 @@ export class AdminInstitutionsController {
             `Expected submitted_date to be string or Date, got ${typeof row.submitted_date}`,
           );
         }
-        assertPropStringOrNumber(row, 'applicant_user_id');
+        assertProp(check(isNumber, isString), row, 'applicant_user_id');
         assertPropNullableString(row, 'npwp_document_path');
         assertPropNullableString(row, 'registration_document_path');
         assertPropNullableString(row, 'deed_of_establishment_path');
@@ -406,9 +410,9 @@ export class AdminInstitutionsController {
         throw new NotFoundException('Institution application not found');
       }
 
-      assertArrayOf(checkRows, function (row) {
+      assertArrayMapOf(checkRows, function (row) {
         assertDefined(row);
-        assertPropStringOrNumber(row, 'id');
+        assertProp(check(isNumber, isString), row, 'id');
         assertPropString(row, 'status');
         return row;
       });
@@ -493,9 +497,9 @@ export class AdminInstitutionsController {
         throw new NotFoundException('Institution application not found');
       }
 
-      assertArrayOf(checkRows, function (row) {
+      assertArrayMapOf(checkRows, function (row) {
         assertDefined(row);
-        assertPropStringOrNumber(row, 'id');
+        assertProp(check(isNumber, isString), row, 'id');
         assertPropString(row, 'status');
         return row;
       });

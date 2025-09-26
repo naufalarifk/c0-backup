@@ -1,7 +1,8 @@
 import { deepEqual, equal, notEqual, ok, rejects } from 'node:assert/strict';
 import { describe, suite } from 'node:test';
 
-import { assertArrayOf, assertDefined, assertPropStringOrNumber } from '../utils';
+import { assertArrayMapOf, assertDefined, assertProp, check, isNumber, isString } from 'typeshaper';
+
 import { createEarlyExitNodeTestIt } from '../utils/node-test';
 import { BorrowerCreatesLoanApplicationResult, LenderCreatesLoanOfferResult } from './loan.types';
 import { LoanBorrowerRepository } from './loan-borrower.repository';
@@ -163,9 +164,9 @@ export async function runLoanBorrowerRepositoryTestSuite(
             SELECT id FROM price_feeds WHERE blockchain_key = 'eip155:56'
             AND base_currency_token_id = 'slip44:714' AND quote_currency_token_id = 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d'
           `;
-          assertArrayOf(priceFeedRows, function (row) {
+          assertArrayMapOf(priceFeedRows, function (row) {
             assertDefined(row);
-            assertPropStringOrNumber(row, 'id');
+            assertProp(check(isString, isNumber), row, 'id');
             return row;
           });
           const priceFeedId = priceFeedRows[0].id;
@@ -301,9 +302,9 @@ export async function runLoanBorrowerRepositoryTestSuite(
           const priceFeedRows = await repo.sql`
             SELECT id FROM price_feeds WHERE blockchain_key = 'eip155:56'
           `;
-          assertArrayOf(priceFeedRows, function (row) {
+          assertArrayMapOf(priceFeedRows, function (row) {
             assertDefined(row);
-            assertPropStringOrNumber(row, 'id');
+            assertProp(check(isString, isNumber), row, 'id');
             return row;
           });
           const priceFeedId = priceFeedRows[0].id;
