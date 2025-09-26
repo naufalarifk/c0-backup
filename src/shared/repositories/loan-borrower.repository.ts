@@ -143,7 +143,12 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
     });
 
     // Use mock exchange rate if none found (for testing)
-    let exchangeRate: { id: string; bid_price: string; ask_price: string; source_date: Date };
+    let exchangeRate: {
+      id: string | number;
+      bid_price: string;
+      ask_price: string;
+      source_date: Date;
+    };
     if (exchangeRateRows.length === 0) {
       // Mock exchange rate - assume 1:1 for USD-based pairs, realistic rates for crypto
       let mockRate = '1.0';
