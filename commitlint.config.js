@@ -32,17 +32,28 @@ module.exports = {
       1, // Warning level
       'always',
       [
+        // Core modules from src/modules/
         'auth',
-        'user',
-        'profile',
-        'wallet',
-        'blockchain',
-        'notification',
+        'users',
+        'profiles',
+        'wallets', 
+        'blockchains',
+        'withdrawals',
+        'loans',
+        'beneficiaries',
+        'institutions',
+        'sms',
+        'accounts',
+        'notifications',
+        // Infrastructure
         'api',
         'db',
         'config',
+        'shared',
         'test',
-        'deps'
+        'deps',
+        'scripts',
+        'docker'
       ]
     ]
   }
