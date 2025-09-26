@@ -25,57 +25,40 @@ export class ProfileService {
   async findOne(userId: string) {
     const profile = await this.repo.userViewsProfile({ userId });
 
-    // Convert profilePicture based on its format
-    let processedProfile = { ...profile };
-    if (profile.profilePicture) {
-      // Check if it's already a URL (from Google OAuth, etc.)
-      if (profile.profilePicture.startsWith('https://')) {
-        // Already a valid URL, use as-is
-        processedProfile = profile;
-      } else if (profile.profilePicture.includes(':')) {
-        // Check if it's in bucket:objectPath format (uploaded file)
-        const [bucket, objectPath] = profile.profilePicture.split(':');
-        if (bucket && objectPath) {
-          // Generate presigned URL valid for 1 hour
-          const profilePictureUrl = await this.minioService.getFileUrl(bucket, objectPath, 3600);
-          processedProfile = {
-            ...profile,
-            profilePicture: profilePictureUrl, // Replace with actual URL
-          };
-        }
-      } else {
-        // If format is unknown, log warning and remove it
-        this.logger.warn(`Unknown profilePicture format: ${profile.profilePicture}`, {
-          userId,
-          format: 'unknown',
+    let image = profile.profilePicture;
+    if (image && !/^https?:\/\//.test(image)) {
+      const [bucket, objectPath] = image.split(':');
+      if (bucket && objectPath && !objectPath.includes('../')) {
+        // If getFileUrl errors, user.image still uses the original value.
+        image = await this.minioService.getFileUrl(bucket, objectPath, 900).catch(err => {
+          this.logger.error('Failed to get profile picture from MinIO:', err);
+          return image; // return original value
         });
-        const { profilePicture: _profilePicture, ...profileWithoutPicture } = profile;
-        processedProfile = profileWithoutPicture;
       }
     }
 
     // Add additional profile fields expected by tests
     const extendedProfile = {
-      ...processedProfile,
+      ...profile,
       // Convert id to number as expected by tests
-      id: Number(processedProfile.id),
+      id: Number(profile.id),
       // Add field aliases expected by tests
-      profilePictureUrl: processedProfile.profilePicture || null,
-      googleId: processedProfile.googleId || null,
-      createdDate: processedProfile.createdAt?.toISOString() || null,
+      profilePictureUrl: profile.profilePicture || null,
+      googleId: profile.googleId || null,
+      createdDate: profile.createdAt?.toISOString() || null,
       // Add missing OpenAPI schema fields
-      emailVerifiedDate: processedProfile.emailVerifiedDate?.toISOString() || null,
-      lastLoginDate: processedProfile.lastLoginDate?.toISOString() || null,
-      userType: processedProfile.userType || null,
-      kycId: processedProfile.kycId || null,
-      institutionId: processedProfile.institutionUserId || null,
-      institutionRole: processedProfile.institutionRole || null,
+      emailVerifiedDate: profile.emailVerifiedDate?.toISOString() || null,
+      lastLoginDate: profile.lastLoginDate?.toISOString() || null,
+      userType: profile.userType || null,
+      kycId: profile.kycId || null,
+      institutionId: profile.institutionUserId || null,
+      institutionRole: profile.institutionRole || null,
       // Boolean fields
-      twoFaEnabled: processedProfile.twoFactorEnabled || false,
-      isVerified: processedProfile.kycStatus === 'verified',
+      twoFaEnabled: profile.twoFactorEnabled || false,
+      isVerified: profile.kycStatus === 'verified',
       // Verification level
-      verificationLevel: this.getVerificationLevel(processedProfile),
-      ...this.getExtendedProfileFields(processedProfile),
+      verificationLevel: this.getVerificationLevel(profile),
+      ...this.getExtendedProfileFields(profile),
     };
 
     return extendedProfile;
@@ -83,10 +66,10 @@ export class ProfileService {
 
   private getExtendedProfileFields(profile: unknown) {
     assertDefined(profile);
-    assertPropNullableBoolean(profile, 'phone_number_verified');
+    assertPropNullableBoolean(profile, 'phoneNumberVerified');
 
     // Add phone verification status (from database field)
-    const phoneVerified = profile.phone_number_verified || false;
+    const phoneVerified = profile.phoneNumberVerified || false;
 
     // Calculate feature unlock status based on verification levels
     const featureUnlockStatus = this.calculateFeatureUnlockStatus(profile);
@@ -104,12 +87,11 @@ export class ProfileService {
   private calculateFeatureUnlockStatus(profile: unknown) {
     assertDefined(profile);
     assertPropNullableString(profile, 'kycStatus');
-    assertPropNullableBoolean(profile, 'phone_number_verified');
+    assertPropNullableBoolean(profile, 'phoneNumberVerified');
     assertPropNullableString(profile, 'emailVerified');
     assertPropNullableString(profile, 'userType');
 
     const isKycVerified = profile.kycStatus === 'verified';
-    const _isPhoneVerified = profile.phone_number_verified || false;
     const isEmailVerified = profile.emailVerified || false;
     const hasUserType = profile.userType !== 'Undecided';
     const isInstitution = profile.userType === 'Institution';
@@ -143,7 +125,7 @@ export class ProfileService {
   private getRequiredVerifications(profile) {
     assertDefined(profile);
     assertPropNullableString(profile, 'emailVerified');
-    assertPropNullableBoolean(profile, 'phone_number_verified');
+    assertPropNullableBoolean(profile, 'phoneNumberVerified');
     assertPropNullableString(profile, 'userType');
     assertPropNullableString(profile, 'kycStatus');
 
@@ -178,7 +160,7 @@ export class ProfileService {
     }
 
     // Phone verification
-    if (!profile.phone_number_verified) {
+    if (!profile.phoneNumberVerified) {
       verifications.push({
         type: 'phone',
         title: 'Phone Verification',
