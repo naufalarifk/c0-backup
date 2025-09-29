@@ -150,16 +150,19 @@ CREATE TABLE IF NOT EXISTS loan_valuations (
 );
 
 -- Repayment tracking (one-to-one with loans)
+-- Note: acknowledgment field stores boolean API input converted to string ('true'/'false') for audit purposes
 CREATE TABLE IF NOT EXISTS loan_repayments (
   loan_id BIGINT PRIMARY KEY REFERENCES loans (id),
   repayment_initiator VARCHAR(32) CHECK (repayment_initiator IN ('Borrower', 'Platform')),
   repayment_invoice_id BIGINT NOT NULL REFERENCES invoices (id),
-  repayment_invoice_date TIMESTAMP NOT NULL
+  repayment_invoice_date TIMESTAMP NOT NULL,
+  acknowledgment TEXT -- Store borrower's acknowledgment (converted from API boolean to string for audit trail)
 );
 
 COMMENT ON COLUMN loan_repayments.repayment_initiator IS 'Borrower can request for early repayment, Platform initiates repayment on maturity - platform_configs.loan_repayment_duration_in_days';
 
 -- Liquidation management (one-to-one with loans)
+-- Note: acknowledgment field stores boolean API input converted to string ('true'/'false') for audit purposes
 CREATE TABLE IF NOT EXISTS loan_liquidations (
   loan_id BIGINT PRIMARY KEY REFERENCES loans (id),
   liquidation_initiator VARCHAR(32) CHECK (liquidation_initiator IN ('Borrower', 'Platform')),
@@ -175,6 +178,7 @@ CREATE TABLE IF NOT EXISTS loan_liquidations (
   fulfilled_amount DECIMAL(78, 0),
   failure_date TIMESTAMP,
   failure_reason TEXT,
+  acknowledgment TEXT, -- Store borrower's acknowledgment (converted from API boolean to string for audit trail)
   -- BUFFER HARGA DIATAS EXPECTED HARGA LIKUIDASI
   returned_premi_amount DECIMAL(78, 0) -- calculated from MAX(loans.premi_amount, liquidation_target_amount - fulfilled_amount)
 );

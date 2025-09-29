@@ -487,7 +487,7 @@ export type BorrowerRepaysLoanResult = {
 export type BorrowerRequestsEarlyRepaymentParams = {
   loanId: string;
   borrowerUserId: string;
-  acknowledgment: string;
+  acknowledgment: boolean;
   requestDate: Date;
   repaymentWalletDerivationPath: string;
   repaymentWalletAddress: string;
@@ -556,7 +556,7 @@ export type BorrowerRequestsEarlyLiquidationEstimateResult = {
 export type BorrowerRequestsEarlyLiquidationParams = {
   loanId: string;
   borrowerUserId: string;
-  acknowledgment: string;
+  acknowledgment: boolean;
   requestDate: Date;
 };
 
