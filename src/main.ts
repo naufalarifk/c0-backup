@@ -3,6 +3,7 @@ import { argv, env } from 'node:process';
 
 import { indexerEntrypoint } from './entrypoints/indexer.entrypoint';
 import { invoiceExpirationEntrypoint } from './entrypoints/invoice-expiration.entrypoint';
+import { loanMatcherEntrypoint } from './entrypoints/loan-matcher.entrypoint';
 import { notificationEntrypoint } from './entrypoints/notification.entrypoint';
 import { pricefeedEntrypoint } from './entrypoints/pricefeed.entrypoint';
 import { userApiEntrypoint } from './entrypoints/user-api.entrypoint';
@@ -27,6 +28,10 @@ if (commands.includes('pricefeed')) {
 
 if (commands.includes('invoice-expiration')) {
   void invoiceExpirationEntrypoint();
+}
+
+if (commands.includes('loan-matcher')) {
+  void loanMatcherEntrypoint();
 }
 
 if (commands.includes('indexer')) {

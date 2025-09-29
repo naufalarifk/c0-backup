@@ -1159,7 +1159,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
     const {
       loanId,
       borrowerUserId,
-      acknowledgment,
+      acknowledgment: _acknowledgment, // TODO: Store acknowledgment in early repayment request record
       requestDate,
       repaymentWalletDerivationPath,
       repaymentWalletAddress,

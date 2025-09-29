@@ -12,12 +12,15 @@ import {
 } from 'typeshaper';
 
 import {
+  LoanApplicationStatus,
   PlatformDisbursesPrincipalParams,
   PlatformDisbursesPrincipalResult,
   PlatformLiquidatesCollateralParams,
   PlatformLiquidatesCollateralResult,
   PlatformListsAvailableLoanOffersParams,
   PlatformListsAvailableLoanOffersResult,
+  PlatformListsMatchableLoanApplicationsParams,
+  PlatformListsMatchableLoanApplicationsResult,
   PlatformMatchesLoanOffersParams,
   PlatformMatchesLoanOffersResult,
   PlatformMonitorsLtvRatiosParams,
@@ -151,6 +154,120 @@ export abstract class LoanPlatformRepository extends LoanUserRepository {
 
     return {
       loanOffers,
+      pagination: {
+        page: validatedPage,
+        limit: validatedLimit,
+        total: totalCount,
+        totalPages,
+        hasNext: validatedPage < totalPages,
+        hasPrev: validatedPage > 1,
+      },
+    };
+  }
+
+  async platformListsMatchableLoanApplications(
+    params: PlatformListsMatchableLoanApplicationsParams,
+  ): Promise<PlatformListsMatchableLoanApplicationsResult> {
+    const { page = 1, limit = 20 } = params;
+
+    const validatedPage = Math.max(1, page);
+    const validatedLimit = Math.min(Math.max(1, limit), 100);
+    const offset = (validatedPage - 1) * validatedLimit;
+
+    // Get loan applications that are published and not yet matched
+    const applicationRows = await this.sql`
+      SELECT 
+        la.id,
+        la.borrower_user_id,
+        la.loan_offer_id,
+        la.principal_currency_blockchain_key,
+        la.principal_currency_token_id,
+        la.principal_amount,
+        la.max_interest_rate,
+        la.term_in_months,
+        la.collateral_currency_blockchain_key,
+        la.collateral_currency_token_id,
+        la.collateral_deposit_amount,
+        la.status,
+        la.applied_date,
+        la.expired_date,
+        la.matched_loan_offer_id,
+        pc.decimals as principal_decimals,
+        pc.symbol as principal_symbol,
+        pc.name as principal_name
+      FROM loan_applications la
+      JOIN currencies pc ON la.principal_currency_blockchain_key = pc.blockchain_key 
+        AND la.principal_currency_token_id = pc.token_id
+      WHERE la.status = 'Published' 
+        AND la.matched_loan_offer_id IS NULL
+        AND la.expired_date > NOW()
+      ORDER BY la.applied_date ASC
+      LIMIT ${validatedLimit} OFFSET ${offset}
+    `;
+
+    // Get total count for pagination
+    const countResult = await this.sql`
+      SELECT COUNT(*) as total
+      FROM loan_applications la
+      WHERE la.status = 'Published' 
+        AND la.matched_loan_offer_id IS NULL
+        AND la.expired_date > NOW()
+    `;
+
+    assertDefined(countResult[0], 'Count result should be defined');
+    assertPropStringOrNumber(countResult[0], 'total');
+    const totalCount = Number(countResult[0].total);
+    const totalPages = Math.ceil(totalCount / validatedLimit);
+
+    const loanApplications = applicationRows.map(function (row: unknown) {
+      assertDefined(row, 'Row should be defined');
+      assertPropStringOrNumber(row, 'id');
+      assertPropStringOrNumber(row, 'borrower_user_id');
+      assertPropNullableString(row, 'loan_offer_id');
+      assertPropString(row, 'principal_currency_blockchain_key');
+      assertPropString(row, 'principal_currency_token_id');
+      assertPropStringOrNumber(row, 'principal_amount');
+      assertPropStringOrNumber(row, 'max_interest_rate');
+      assertPropStringOrNumber(row, 'term_in_months');
+      assertPropString(row, 'collateral_currency_blockchain_key');
+      assertPropString(row, 'collateral_currency_token_id');
+      assertPropStringOrNumber(row, 'collateral_deposit_amount');
+      assertPropString(row, 'status');
+      assertPropDate(row, 'applied_date');
+      assertPropDate(row, 'expired_date');
+      assertPropNullableString(row, 'matched_loan_offer_id');
+      assertPropStringOrNumber(row, 'principal_decimals');
+      assertPropString(row, 'principal_symbol');
+      assertPropString(row, 'principal_name');
+
+      return {
+        id: String(row.id),
+        borrowerUserId: String(row.borrower_user_id),
+        loanOfferId: row.loan_offer_id || undefined,
+        principalCurrency: {
+          blockchainKey: row.principal_currency_blockchain_key,
+          tokenId: row.principal_currency_token_id,
+          decimals: Number(row.principal_decimals),
+          symbol: row.principal_symbol,
+          name: row.principal_name,
+        },
+        principalAmount: String(row.principal_amount),
+        maxInterestRate: Number(row.max_interest_rate),
+        termInMonths: Number(row.term_in_months),
+        collateralBlockchainKey: row.collateral_currency_blockchain_key,
+        collateralTokenId: row.collateral_currency_token_id,
+        collateralDepositAmount: String(row.collateral_deposit_amount),
+        principalBlockchainKey: row.principal_currency_blockchain_key,
+        principalTokenId: row.principal_currency_token_id,
+        status: row.status as LoanApplicationStatus,
+        appliedDate: row.applied_date,
+        expirationDate: row.expired_date,
+        matchedLoanOfferId: row.matched_loan_offer_id || undefined,
+      };
+    });
+
+    return {
+      loanApplications,
       pagination: {
         page: validatedPage,
         limit: validatedLimit,
