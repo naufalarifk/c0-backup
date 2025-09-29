@@ -1064,7 +1064,8 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   async borrowerRequestsEarlyLiquidation(
     params: BorrowerRequestsEarlyLiquidationParams,
   ): Promise<BorrowerRequestsEarlyLiquidationResult> {
-    const { loanId, borrowerUserId, acknowledgment: _acknowledgment, requestDate } = params;
+    const { loanId, borrowerUserId, acknowledgment, requestDate } = params;
+    const acknowledgmentText = acknowledgment ? 'true' : 'false';
 
     const tx = await this.beginTransaction();
     try {
@@ -1122,7 +1123,8 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           market_symbol,
           order_ref,
           status,
-          order_date
+          order_date,
+          acknowledgment
         )
         VALUES (
           ${loanId},
@@ -1132,7 +1134,8 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           'DEFAULT',
           ${`borrower_liquidation_${loanId}_${Date.now()}`},
           'Pending',
-          ${requestDate.toISOString()}
+          ${requestDate.toISOString()},
+          ${acknowledgmentText}
         )
       `;
 
@@ -1159,11 +1162,12 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
     const {
       loanId,
       borrowerUserId,
-      acknowledgment: _acknowledgment, // TODO: Store acknowledgment in early repayment request record
+      acknowledgment,
       requestDate,
       repaymentWalletDerivationPath,
       repaymentWalletAddress,
     } = params;
+    const acknowledgmentText = acknowledgment ? 'true' : 'false';
 
     const tx = await this.beginTransaction();
     try {
@@ -1292,18 +1296,21 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           loan_id,
           repayment_initiator,
           repayment_invoice_id,
-          repayment_invoice_date
+          repayment_invoice_date,
+          acknowledgment
         )
         VALUES (
           ${loanId},
           'Borrower',
           ${invoice.id},
-          ${requestDate.toISOString()}
+          ${requestDate.toISOString()},
+          ${acknowledgmentText}
         )
         ON CONFLICT (loan_id) DO UPDATE SET
           repayment_initiator = 'Borrower',
           repayment_invoice_id = ${invoice.id},
-          repayment_invoice_date = ${requestDate.toISOString()}
+          repayment_invoice_date = ${requestDate.toISOString()},
+          acknowledgment = ${acknowledgmentText}
       `;
 
       await tx.commitTransaction();
