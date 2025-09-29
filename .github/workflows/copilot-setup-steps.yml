@@ -46,7 +46,7 @@ jobs:
           redis-server --version
 
           # Check Mailpit is available
-          mailpit --version
+          mailpit version
 
           # Check Node.js and pnpm versions
           node --version
