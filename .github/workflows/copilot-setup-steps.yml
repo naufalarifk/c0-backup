@@ -7,12 +7,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: '24'
+          node-version: 24
           cache: 'pnpm'
 
       - name: Install pnpm
@@ -52,4 +52,3 @@ jobs:
       - name: Setup test environment variables
         run: |
           echo "NODE_OPTIONS=--import tsx --experimental-vm-modules" >> $GITHUB_ENV
-          echo "Test environment configured for E2E backend testing"
