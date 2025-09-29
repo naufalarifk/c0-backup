@@ -39,6 +39,17 @@ export class CreateWithdrawalDto {
 
   @ApiProperty({
     example: '123456',
+    description: 'Phone number authentication code (6 digits)',
+    minLength: 6,
+    maxLength: 6,
+  })
+  @IsNotEmpty({ message: 'Phone number authentication code is required' })
+  @Matches(/^\d{6}$/, { message: 'Phone number code must be exactly 6 digits' })
+  @Transform(({ value }) => String(value))
+  phoneNumberCode: string;
+
+  @ApiProperty({
+    example: '123456',
     description: 'Two-factor authentication code (6 digits)',
     minLength: 6,
     maxLength: 6,

@@ -1,5 +1,6 @@
 import type { BetterAuthOptions } from 'better-auth';
 import type { AuthModuleOptions } from './auth.module';
+import type { UserSession } from './types';
 
 import { Injectable } from '@nestjs/common';
 
@@ -52,6 +53,10 @@ export class AuthConfig {
       plugins: this.plugins(),
       user: {
         additionalFields: {
+          role: {
+            type: 'string',
+            defaultValue: 'User',
+          },
           userType: {
             type: 'string',
             defaultValue: 'Undecided',
@@ -204,8 +209,9 @@ export class AuthConfig {
           this.notificationQueueService.queueNotification(payload);
         },
       }),
+      admin(),
       multiSession({ maximumSessions: this.configService.authConfig.maximumSessions }),
-      customSession(async ({ session, user }) => {
+      customSession(async ({ session, user }: UserSession) => {
         // Process image URL if it's a MinIO path
         let image = user.image;
 
@@ -235,7 +241,7 @@ export class AuthConfig {
 
   private rateLimit(): BetterAuthOptions['rateLimit'] {
     return {
-      enabled: true,
+      enabled: this.configService.isProduction,
       window: +this.configService.rateLimitConfigs.ttl,
       max: +this.configService.rateLimitConfigs.limit,
       customRules: this.configService.isProduction

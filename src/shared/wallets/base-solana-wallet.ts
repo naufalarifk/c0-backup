@@ -6,80 +6,66 @@ import {
   SystemProgram,
   Transaction,
 } from '@solana/web3.js';
+import invariant from 'tiny-invariant';
 
-import { IWallet, SolanaTransactionParams } from './Iwallet.types';
+import { IWallet, WalletTransferParams } from './Iwallet.types';
 
-export interface SolanaTransactionData {
-  params: SolanaTransactionParams;
-}
-
-export abstract class BaseSolanaWallet implements IWallet {
+export abstract class BaseSolanaWallet extends IWallet {
   protected abstract connection: Connection;
 
-  constructor(protected readonly privateKey: Uint8Array<ArrayBufferLike>) {}
+  constructor(protected readonly privateKey: Uint8Array<ArrayBufferLike>) {
+    super();
+  }
 
-  getAddress(): Promise<string> {
-    return new Promise(resolve => {
+  async getAddress(): Promise<string> {
+    const privateKeyArray = Array.from(this.privateKey);
+    const keypair = Keypair.fromSecretKey(Uint8Array.from(privateKeyArray));
+    return keypair.publicKey.toBase58();
+  }
+
+  async transfer(params: WalletTransferParams): Promise<{ txHash: string }> {
+    try {
       const privateKeyArray = Array.from(this.privateKey);
       const keypair = Keypair.fromSecretKey(Uint8Array.from(privateKeyArray));
-      resolve(keypair.publicKey.toBase58());
-    });
-  }
+      const toPubkey = new PublicKey(params.to);
+      const amountLamports = Math.floor(parseFloat(params.value) * LAMPORTS_PER_SOL);
 
-  signTransaction<T>(transactionData: T): Promise<T> {
-    return new Promise((resolve, reject) => {
-      void (async () => {
-        try {
-          if (!this.isSolanaTransactionData(transactionData)) {
-            throw new Error('Invalid transaction data format');
-          }
+      // Build transaction
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: keypair.publicKey,
+          toPubkey,
+          lamports: amountLamports,
+        }),
+      );
 
-          const privateKeyArray = Array.from(this.privateKey);
-          const keypair = Keypair.fromSecretKey(Uint8Array.from(privateKeyArray));
-          const { params } = transactionData;
-          const toPubkey = new PublicKey(params.to);
+      transaction.feePayer = keypair.publicKey;
 
-          const transaction = new Transaction().add(
-            SystemProgram.transfer({
-              fromPubkey: keypair.publicKey,
-              toPubkey,
-              lamports: params.amount * LAMPORTS_PER_SOL,
-            }),
-          );
+      // Get recent blockhash
+      const { blockhash } = await this.connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
 
-          transaction.feePayer = keypair.publicKey;
-          const { blockhash } = await this.connection.getLatestBlockhash();
-          transaction.recentBlockhash = blockhash;
-          transaction.sign(keypair);
+      // Sign transaction
+      transaction.sign(keypair);
 
-          const serializedTransaction = transaction.serialize();
+      // Send transaction
+      const signature = await this.connection.sendRawTransaction(transaction.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      });
 
-          const result = {
-            ...transactionData,
-            signedTransaction: Buffer.from(serializedTransaction).toString('base64'),
-          } as T;
+      // Wait for confirmation
+      await this.connection.confirmTransaction({
+        signature,
+        ...(await this.connection.getLatestBlockhash()),
+      });
 
-          resolve(result);
-        } catch (error) {
-          reject(
-            new Error(
-              `Failed to sign transaction: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            ),
-          );
-        }
-      })();
-    });
-  }
-
-  protected isSolanaTransactionData(data: unknown): data is SolanaTransactionData {
-    if (!data || typeof data !== 'object') return false;
-
-    const obj = data as Record<string, unknown>;
-
-    if (!obj.params || typeof obj.params !== 'object') return false;
-
-    const params = obj.params as Record<string, unknown>;
-
-    return typeof params.to === 'string' && typeof params.amount === 'number';
+      return { txHash: signature };
+    } catch (error) {
+      invariant(
+        false,
+        `Transfer failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
   }
 }

@@ -1,18 +1,20 @@
-/** biome-ignore-all lint/suspicious/noExplicitAny: any */
-/** biome-ignore-all lint/correctness/noUnusedVariables: any */
-
-import { v7 } from 'uuid';
+// biome-ignore-all lint/suspicious/noExplicitAny: BetterAuthRepository needs flexible typing for user/session/account objects
 
 import {
-  assertArrayOf,
+  assertArrayMapOf,
   assertDefined,
+  assertProp,
   assertPropDefined,
   assertPropNullableString,
-  assertPropNullableStringOrNumber,
   assertPropString,
-  assertPropStringOrNumber,
-  setAssertPropValue,
-} from '../utils/assertions';
+  check,
+  isNullable,
+  isNumber,
+  isString,
+  setPropValue,
+} from 'typeshaper';
+import { v7 } from 'uuid';
+
 import { BaseRepository } from './base.repository';
 
 function tryToDate(value: unknown): Date | null {
@@ -27,33 +29,39 @@ function tryToDate(value: unknown): Date | null {
 function alignBetterAuthUserData(user: unknown) {
   assertDefined(user);
   if ('profile_picture' in user) {
-    setAssertPropValue(user, 'image', user.profile_picture ?? null);
+    setPropValue(user, 'image', user.profile_picture ?? null);
   }
   if ('email_verified_date' in user) {
-    setAssertPropValue(user, 'emailVerified', !!user.email_verified_date);
-    setAssertPropValue(
+    setPropValue(user, 'emailVerified', !!user.email_verified_date);
+    setPropValue(
       user,
       'emailVerifiedDate',
       'email_verified_date' in user && tryToDate(user.email_verified_date),
     );
   }
   if ('phone_number' in user) {
-    setAssertPropValue(user, 'phoneNumber', user.phone_number ?? null);
+    setPropValue(user, 'phoneNumber', user.phone_number ?? null);
   }
   if ('phone_number_verified' in user) {
-    setAssertPropValue(user, 'phoneNumberVerified', !!user.phone_number_verified);
+    setPropValue(user, 'phoneNumberVerified', !!user.phone_number_verified);
   }
   if ('two_factor_enabled' in user) {
-    setAssertPropValue(user, 'twoFactorEnabled', !!user.two_factor_enabled);
+    setPropValue(user, 'twoFactorEnabled', !!user.two_factor_enabled);
   }
   if ('user_type' in user) {
-    setAssertPropValue(user, 'userType', user.user_type);
+    setPropValue(user, 'userType', user.user_type);
+  }
+  if ('kyc_status' in user) {
+    setPropValue(user, 'kycStatus', user.kyc_status);
+  }
+  if ('role' in user) {
+    setPropValue(user, 'role', user.role);
   }
   if ('created_date' in user) {
-    setAssertPropValue(user, 'createdAt', 'created_date' in user && tryToDate(user.created_date));
+    setPropValue(user, 'createdAt', 'created_date' in user && tryToDate(user.created_date));
   }
   if ('updated_date' in user) {
-    setAssertPropValue(user, 'updatedAt', 'updated_date' in user && tryToDate(user.updated_date));
+    setPropValue(user, 'updatedAt', 'updated_date' in user && tryToDate(user.updated_date));
   }
 }
 
@@ -99,15 +107,15 @@ export abstract class BetterAuthRepository extends BaseRepository {
         RETURNING id, name, profile_picture as "image", email, phone_number, phone_number_verified, two_factor_enabled, role, user_type, created_date, updated_date, email_verified_date
       `;
 
-      assertArrayOf(rows, function (row) {
+      assertArrayMapOf(rows, function (row) {
         assertDefined(row);
         assertPropString(row, 'email');
-        assertPropNullableStringOrNumber(row, 'image');
+        assertProp(check(isNullable, isString, isNumber), row, 'image');
         if (email_address) {
-          setAssertPropValue(row, 'email_address', row.email);
+          setPropValue(row, 'email_address', row.email);
         }
         if (callbackURL) {
-          setAssertPropValue(row, 'callbackURL', callbackURL);
+          setPropValue(row, 'callbackURL', callbackURL);
         }
         alignBetterAuthUserData(row);
         return row;
@@ -155,17 +163,17 @@ export abstract class BetterAuthRepository extends BaseRepository {
           SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
             role, user_type, created_date, updated_date
           FROM users
-          WHERE phone_number = ${phoneCondition.value}
+          WHERE phone_number = ${phoneCondition.value} AND phone_number IS NOT NULL
         `;
       } else {
         console.warn('Find user requires id, email, or phone number condition.');
         return null;
       }
 
-      assertArrayOf(rows, function (row) {
+      assertArrayMapOf(rows, function (row) {
         assertDefined(row);
         if (where.some(w => w.field === 'email_address')) {
-          if ('email' in row) setAssertPropValue(row, 'email_address', row.email);
+          if ('email' in row) setPropValue(row, 'email_address', row.email);
         }
         alignBetterAuthUserData(row);
         return row;
@@ -206,6 +214,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
       } else {
         const idCondition = where.find(w => w.field === 'id');
         const emailCondition = where.find(w => w.field === 'email' || w.field === 'email_address');
+        const phoneCondition = where.find(w => w.field === 'phoneNumber');
         const nameCondition = where.find(w => w.field === 'name');
 
         if (idCondition && idCondition.operator === 'in') {
@@ -242,6 +251,16 @@ export abstract class BetterAuthRepository extends BaseRepository {
               OFFSET ${offset || 0}
             `;
           }
+        } else if (phoneCondition) {
+          users = await this.sql`
+            SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+                   role, user_type, created_date, updated_date
+            FROM users
+            WHERE phone_number = ${phoneCondition.value} AND phone_number IS NOT NULL
+            ORDER BY created_date DESC
+            LIMIT ${limit || 100}
+            OFFSET ${offset || 0}
+          `;
         } else if (nameCondition) {
           if (nameCondition.operator === 'contains') {
             const searchTerm = `%${nameCondition.value}%`;
@@ -277,14 +296,14 @@ export abstract class BetterAuthRepository extends BaseRepository {
         }
       }
 
-      assertArrayOf(users, alignBetterAuthUserData);
+      assertArrayMapOf(users, alignBetterAuthUserData);
 
       // Add email_address field if original query used email_address
       if (hasEmailAddressField) {
         users.forEach(function (user) {
           assertDefined(user);
           assertPropDefined(user, 'email');
-          setAssertPropValue(user, 'email_address', user.email);
+          setPropValue(user, 'email_address', user.email);
           alignBetterAuthUserData(user);
         });
       }
@@ -342,7 +361,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
           two_factor_enabled, role, user_type, created_date, updated_date
       `;
 
-      assertArrayOf(rows, alignBetterAuthUserData);
+      assertArrayMapOf(rows, alignBetterAuthUserData);
 
       const row = rows.length > 0 ? rows[0] : null;
 
@@ -407,7 +426,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
           two_factor_enabled, role, user_type, created_date, updated_date
       `;
 
-      assertArrayOf(rows, alignBetterAuthUserData);
+      assertArrayMapOf(rows, alignBetterAuthUserData);
 
       await tx.commitTransaction();
 
@@ -441,7 +460,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
                    created_date, updated_date
         `;
 
-      assertArrayOf(rows, alignBetterAuthUserData);
+      assertArrayMapOf(rows, alignBetterAuthUserData);
 
       const row = rows.length > 0 ? rows[0] : null;
 
@@ -476,7 +495,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
           RETURNING id, name, profile_picture as "image", email, email_verified_date,
             created_date, updated_date
         `;
-      assertArrayOf(rows, alignBetterAuthUserData);
+      assertArrayMapOf(rows, alignBetterAuthUserData);
 
       await tx.commitTransaction();
 
@@ -731,10 +750,10 @@ export abstract class BetterAuthRepository extends BaseRepository {
       if (!row) return null;
 
       assertDefined(row);
-      assertPropStringOrNumber(row, 'id');
-      assertPropStringOrNumber(row, 'user_id');
-      assertPropStringOrNumber(row, 'account_id');
-      assertPropStringOrNumber(row, 'provider_id');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'user_id');
+      assertProp(check(isString, isNumber), row, 'account_id');
+      assertProp(check(isString, isNumber), row, 'provider_id');
       assertPropNullableString(row, 'access_token');
       assertPropNullableString(row, 'refresh_token');
       assertPropNullableString(row, 'password');
@@ -775,10 +794,10 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       const mapRowToAccount = function (row: unknown) {
         assertDefined(row);
-        assertPropStringOrNumber(row, 'id');
-        assertPropStringOrNumber(row, 'user_id');
-        assertPropStringOrNumber(row, 'account_id');
-        assertPropStringOrNumber(row, 'provider_id');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isString, isNumber), row, 'user_id');
+        assertProp(check(isString, isNumber), row, 'account_id');
+        assertProp(check(isString, isNumber), row, 'provider_id');
         assertPropNullableString(row, 'access_token');
         assertPropNullableString(row, 'refresh_token');
         assertPropNullableString(row, 'password');
@@ -904,10 +923,10 @@ export abstract class BetterAuthRepository extends BaseRepository {
       if (!row) return null;
 
       assertDefined(row);
-      assertPropStringOrNumber(row, 'id');
-      assertPropStringOrNumber(row, 'user_id');
-      assertPropStringOrNumber(row, 'account_id');
-      assertPropStringOrNumber(row, 'provider_id');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'user_id');
+      assertProp(check(isString, isNumber), row, 'account_id');
+      assertProp(check(isString, isNumber), row, 'provider_id');
       assertPropNullableString(row, 'access_token');
       assertPropNullableString(row, 'refresh_token');
       assertPropNullableString(row, 'password');
@@ -1254,10 +1273,10 @@ export abstract class BetterAuthRepository extends BaseRepository {
       if (!row) return null;
 
       assertDefined(row);
-      assertPropString(row, 'id');
+      assertProp(check(isString, isNumber), row, 'id');
       assertPropString(row, 'secret');
       assertPropString(row, 'backupCodes');
-      assertPropStringOrNumber(row, 'userId');
+      assertProp(check(isString, isNumber), row, 'userId');
 
       await tx.commitTransaction();
 
@@ -1304,10 +1323,10 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       const row = rows[0];
       assertDefined(row);
-      assertPropString(row, 'id');
+      assertProp(check(isString, isNumber), row, 'id');
       assertPropString(row, 'secret');
       assertPropString(row, 'backupCodes');
-      assertPropStringOrNumber(row, 'userId');
+      assertProp(check(isString, isNumber), row, 'userId');
 
       return {
         id: row.id,
@@ -1338,10 +1357,10 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
         return rows.map(row => {
           assertDefined(row);
-          assertPropString(row, 'id');
+          assertProp(check(isString, isNumber), row, 'id');
           assertPropString(row, 'secret');
           assertPropString(row, 'backupCodes');
-          assertPropStringOrNumber(row, 'userId');
+          assertProp(check(isString, isNumber), row, 'userId');
 
           return {
             id: row.id,
@@ -1403,10 +1422,10 @@ export abstract class BetterAuthRepository extends BaseRepository {
       }
 
       assertDefined(row);
-      assertPropString(row, 'id');
+      assertProp(check(isString, isNumber), row, 'id');
       assertPropString(row, 'secret');
       assertPropString(row, 'backupCodes');
-      assertPropStringOrNumber(row, 'userId');
+      assertProp(check(isString, isNumber), row, 'userId');
 
       await tx.commitTransaction();
 
@@ -1466,10 +1485,10 @@ export abstract class BetterAuthRepository extends BaseRepository {
       }
 
       assertDefined(row);
-      assertPropString(row, 'id');
+      assertProp(check(isString, isNumber), row, 'id');
       assertPropString(row, 'secret');
       assertPropString(row, 'backupCodes');
-      assertPropStringOrNumber(row, 'userId');
+      assertProp(check(isString, isNumber), row, 'userId');
 
       await tx.commitTransaction();
 

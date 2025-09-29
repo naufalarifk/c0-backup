@@ -1,13 +1,17 @@
 import {
-  assertArrayOf,
+  assertArrayMapOf,
   assertDefined,
-  assertPropDate,
-  assertPropNullableDate,
+  assertProp,
   assertPropNullableString,
   assertPropString,
-  assertPropStringOrNumber,
+  check,
   hasPropArray,
-} from '../utils/assertions';
+  isInstanceOf,
+  isNullable,
+  isNumber,
+  isString,
+} from 'typeshaper';
+
 import {
   UserViewsLoanDetailsParams,
   UserViewsLoanDetailsResult,
@@ -82,40 +86,40 @@ export abstract class LoanUserRepository extends LoanBorrowerRepository {
 
     const loan = loanRows[0];
     assertDefined(loan, 'Loan validation failed');
-    assertPropStringOrNumber(loan, 'id');
-    assertPropStringOrNumber(loan, 'loan_offer_id');
-    assertPropStringOrNumber(loan, 'loan_application_id');
+    assertProp(check(isString, isNumber), loan, 'id');
+    assertProp(check(isString, isNumber), loan, 'loan_offer_id');
+    assertProp(check(isString, isNumber), loan, 'loan_application_id');
     assertPropString(loan, 'principal_currency_blockchain_key');
     assertPropString(loan, 'principal_currency_token_id');
-    assertPropStringOrNumber(loan, 'principal_amount');
-    assertPropStringOrNumber(loan, 'interest_amount');
-    assertPropStringOrNumber(loan, 'repayment_amount');
-    assertPropStringOrNumber(loan, 'redelivery_fee_amount');
-    assertPropStringOrNumber(loan, 'redelivery_amount');
-    assertPropStringOrNumber(loan, 'premi_amount');
-    assertPropStringOrNumber(loan, 'liquidation_fee_amount');
-    assertPropStringOrNumber(loan, 'min_collateral_valuation');
+    assertProp(check(isString, isNumber), loan, 'principal_amount');
+    assertProp(check(isString, isNumber), loan, 'interest_amount');
+    assertProp(check(isString, isNumber), loan, 'repayment_amount');
+    assertProp(check(isString, isNumber), loan, 'redelivery_fee_amount');
+    assertProp(check(isString, isNumber), loan, 'redelivery_amount');
+    assertProp(check(isString, isNumber), loan, 'premi_amount');
+    assertProp(check(isString, isNumber), loan, 'liquidation_fee_amount');
+    assertProp(check(isString, isNumber), loan, 'min_collateral_valuation');
     assertPropString(loan, 'collateral_currency_blockchain_key');
     assertPropString(loan, 'collateral_currency_token_id');
-    assertPropStringOrNumber(loan, 'collateral_amount');
+    assertProp(check(isString, isNumber), loan, 'collateral_amount');
     assertPropString(loan, 'status');
-    assertPropDate(loan, 'origination_date');
-    assertPropNullableDate(loan, 'disbursement_date');
-    assertPropDate(loan, 'maturity_date');
-    assertPropNullableDate(loan, 'concluded_date');
+    assertProp(isInstanceOf(Date), loan, 'origination_date');
+    assertProp(check(isNullable, isInstanceOf(Date)), loan, 'disbursement_date');
+    assertProp(isInstanceOf(Date), loan, 'maturity_date');
+    assertProp(check(isNullable, isInstanceOf(Date)), loan, 'concluded_date');
     assertPropNullableString(loan, 'conclusion_reason');
     assertPropNullableString(loan, 'current_ltv_ratio');
-    assertPropStringOrNumber(loan, 'mc_ltv_ratio');
-    assertPropNullableDate(loan, 'mc_ltv_ratio_date');
+    assertProp(check(isString, isNumber), loan, 'mc_ltv_ratio');
+    assertProp(check(isNullable, isInstanceOf(Date)), loan, 'mc_ltv_ratio_date');
     assertPropNullableString(loan, 'legal_document_path');
     assertPropNullableString(loan, 'legal_document_hash');
-    assertPropNullableDate(loan, 'legal_document_created_date');
-    assertPropStringOrNumber(loan, 'borrower_user_id');
-    assertPropStringOrNumber(loan, 'lender_user_id');
-    assertPropStringOrNumber(loan, 'principal_decimals');
+    assertProp(check(isNullable, isInstanceOf(Date)), loan, 'legal_document_created_date');
+    assertProp(check(isString, isNumber), loan, 'borrower_user_id');
+    assertProp(check(isString, isNumber), loan, 'lender_user_id');
+    assertProp(check(isString, isNumber), loan, 'principal_decimals');
     assertPropString(loan, 'principal_symbol');
     assertPropString(loan, 'principal_name');
-    assertPropStringOrNumber(loan, 'collateral_decimals');
+    assertProp(check(isString, isNumber), loan, 'collateral_decimals');
     assertPropString(loan, 'collateral_symbol');
     assertPropString(loan, 'collateral_name');
 
@@ -185,7 +189,7 @@ export abstract class LoanUserRepository extends LoanBorrowerRepository {
 
     const countRow = countRows[0];
     assertDefined(countRow, 'Count query failed');
-    assertPropStringOrNumber(countRow, 'total');
+    assertProp(check(isString, isNumber), countRow, 'total');
     const totalCount = Number(countRow.total);
 
     // Get loans with details
@@ -236,30 +240,30 @@ export abstract class LoanUserRepository extends LoanBorrowerRepository {
 
     const loans = loanRows.map(function (row: unknown) {
       assertDefined(row, 'Loan row is undefined');
-      assertPropStringOrNumber(row, 'id');
-      assertPropStringOrNumber(row, 'loan_offer_id');
-      assertPropStringOrNumber(row, 'loan_application_id');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'loan_offer_id');
+      assertProp(check(isString, isNumber), row, 'loan_application_id');
       assertPropString(row, 'principal_currency_blockchain_key');
       assertPropString(row, 'principal_currency_token_id');
-      assertPropStringOrNumber(row, 'principal_amount');
-      assertPropStringOrNumber(row, 'interest_amount');
-      assertPropStringOrNumber(row, 'repayment_amount');
+      assertProp(check(isString, isNumber), row, 'principal_amount');
+      assertProp(check(isString, isNumber), row, 'interest_amount');
+      assertProp(check(isString, isNumber), row, 'repayment_amount');
       assertPropString(row, 'collateral_currency_blockchain_key');
       assertPropString(row, 'collateral_currency_token_id');
-      assertPropStringOrNumber(row, 'collateral_amount');
+      assertProp(check(isString, isNumber), row, 'collateral_amount');
       assertPropString(row, 'status');
-      assertPropDate(row, 'origination_date');
-      assertPropNullableDate(row, 'disbursement_date');
-      assertPropDate(row, 'maturity_date');
-      assertPropNullableDate(row, 'concluded_date');
+      assertProp(isInstanceOf(Date), row, 'origination_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'disbursement_date');
+      assertProp(isInstanceOf(Date), row, 'maturity_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'concluded_date');
       assertPropNullableString(row, 'current_ltv_ratio');
-      assertPropStringOrNumber(row, 'mc_ltv_ratio');
-      assertPropStringOrNumber(row, 'borrower_user_id');
-      assertPropStringOrNumber(row, 'lender_user_id');
-      assertPropStringOrNumber(row, 'principal_decimals');
+      assertProp(check(isString, isNumber), row, 'mc_ltv_ratio');
+      assertProp(check(isString, isNumber), row, 'borrower_user_id');
+      assertProp(check(isString, isNumber), row, 'lender_user_id');
+      assertProp(check(isString, isNumber), row, 'principal_decimals');
       assertPropString(row, 'principal_symbol');
       assertPropString(row, 'principal_name');
-      assertPropStringOrNumber(row, 'collateral_decimals');
+      assertProp(check(isString, isNumber), row, 'collateral_decimals');
       assertPropString(row, 'collateral_symbol');
       assertPropString(row, 'collateral_name');
       // TODO TAMBAH INTEREST RATE
@@ -367,19 +371,19 @@ export abstract class LoanUserRepository extends LoanBorrowerRepository {
 
     const valuationHistory = valuationRows.map(function (row: unknown, index: number) {
       assertDefined(row, 'Valuation row is undefined');
-      assertPropStringOrNumber(row, 'loan_id');
-      assertPropStringOrNumber(row, 'exchange_rate_id');
-      assertPropDate(row, 'valuation_date');
-      assertPropStringOrNumber(row, 'ltv_ratio');
-      assertPropStringOrNumber(row, 'collateral_valuation_amount');
+      assertProp(check(isString, isNumber), row, 'loan_id');
+      assertProp(check(isString, isNumber), row, 'exchange_rate_id');
+      assertProp(isInstanceOf(Date), row, 'valuation_date');
+      assertProp(check(isString, isNumber), row, 'ltv_ratio');
+      assertProp(check(isString, isNumber), row, 'collateral_valuation_amount');
       assertPropString(row, 'collateral_currency_blockchain_key');
       assertPropString(row, 'collateral_currency_token_id');
       assertPropString(row, 'principal_currency_blockchain_key');
       assertPropString(row, 'principal_currency_token_id');
-      assertPropStringOrNumber(row, 'collateral_decimals');
+      assertProp(check(isString, isNumber), row, 'collateral_decimals');
       assertPropString(row, 'collateral_symbol');
       assertPropString(row, 'collateral_name');
-      assertPropStringOrNumber(row, 'principal_decimals');
+      assertProp(check(isString, isNumber), row, 'principal_decimals');
       assertPropString(row, 'principal_symbol');
       assertPropString(row, 'principal_name');
 
@@ -388,7 +392,7 @@ export abstract class LoanUserRepository extends LoanBorrowerRepository {
       if (index > 0) {
         const prevRow = valuationRows[index - 1];
         assertDefined(prevRow, 'Previous valuation row is undefined');
-        assertPropStringOrNumber(prevRow, 'ltv_ratio');
+        assertProp(check(isString, isNumber), prevRow, 'ltv_ratio');
         const currentLtv = Number(row.ltv_ratio);
         const prevLtv = Number(prevRow.ltv_ratio);
         ltvChange = ((currentLtv - prevLtv) / prevLtv) * 100; // Percentage change

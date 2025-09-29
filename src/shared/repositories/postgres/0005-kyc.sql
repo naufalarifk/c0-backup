@@ -43,6 +43,9 @@ CREATE TABLE IF NOT EXISTS user_kycs (
 ALTER TABLE user_kycs DROP COLUMN IF EXISTS selfie_photo;
 ALTER TABLE user_kycs DROP COLUMN IF EXISTS phone_number;
 
+-- Add partial unique constraint on NIK only for verified KYCs
+CREATE UNIQUE INDEX IF NOT EXISTS unique_verified_nik ON user_kycs (nik) WHERE status = 'Verified';
+
 --- DEPENDENCY ---
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_id BIGINT REFERENCES user_kycs (id);
@@ -73,26 +76,18 @@ EXECUTE FUNCTION validate_kyc_submission();
 CREATE OR REPLACE FUNCTION update_user_kyc_on_approval()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF OLD.verified_date IS NOT NULL OR OLD.rejected_date IS NOT NULL THEN
-    RAISE EXCEPTION 'Cannot modify a KYC application that has already been verified or rejected';
-  END IF;
-
+  -- Handle approval (from NULL to NOT NULL verified_date)
   IF OLD.verified_date IS NULL AND NEW.verified_date IS NOT NULL THEN
-
     NEW.status = 'Verified';
 
     UPDATE users
     SET kyc_id = NEW.id
     WHERE id = NEW.user_id;
-
-
   END IF;
 
+  -- Handle rejection (from NULL to NOT NULL rejected_date)
   IF OLD.rejected_date IS NULL AND NEW.rejected_date IS NOT NULL THEN
-
     NEW.status = 'Rejected';
-
-
   END IF;
 
   RETURN NEW;

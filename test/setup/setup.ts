@@ -130,7 +130,7 @@ export async function setup() {
           PORT: backendPort,
           REDIS_HOST: `localhost`,
           REDIS_PORT: redisPort,
-          THROTTLER_LIMIT: '10',
+          THROTTLER_LIMIT: '10000',
           THROTTLER_TTL: '1m',
         },
       });
@@ -149,7 +149,7 @@ export async function setup() {
         }
       });
       cgBackendProcess.stderr?.on('data', function (data) {
-        console.error('cg/backend', 'err', data.toString());
+        // console.error('cg/backend', 'err', data.toString());
       });
       cgBackendProcess.on('error', function (error) {
         if (resolvable) {
@@ -166,7 +166,7 @@ export async function setup() {
     }),
   ]);
 
-  console.info('CryptoGadai Backend container and Expo Web started');
+  console.info('CryptoGadai Backend server started at ', backendAddr);
 
   return {
     mailpitUrl: `http://${mailpitApiAddr}`,

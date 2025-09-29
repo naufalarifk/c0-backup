@@ -17,8 +17,28 @@ import { GetBeneficiariesDto } from './dto/get-beneficiaries.dto';
 export class BeneficiariesController {
   constructor(private readonly beneficiariesService: BeneficiariesService) {}
 
+  @Get()
+  @ApiOperation({
+    summary: 'Get all beneficiaries',
+    description:
+      'Retrieve all registered beneficiary addresses for the authenticated user with optional filtering',
+  })
+  @ApiQuery({
+    name: 'blockchainKey',
+    required: false,
+    description: 'Filter by blockchain key (CAIP-2 format)',
+    example: 'eip155:56',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of beneficiary addresses retrieved successfully',
+  })
+  findAll(@Session() session: UserSession, @Query() query: GetBeneficiariesDto) {
+    return this.beneficiariesService.findAll(session.user.id, query);
+  }
+
   @Post()
-  @Throttle({ default: { limit: 3 } })
+  @Throttle({ default: { limit: 3, ttl: 3_600 * 1_000 } })
   @ApiOperation({
     summary: 'Register withdrawal address',
     description: 'Register a new beneficiary address for cryptocurrency withdrawals',
@@ -118,25 +138,5 @@ export class BeneficiariesController {
         `${errorRedirectURL}?status=error&message=${error?.message || 'Verification failed'}`,
       );
     }
-  }
-
-  @Get()
-  @ApiOperation({
-    summary: 'Get all beneficiaries',
-    description:
-      'Retrieve all registered beneficiary addresses for the authenticated user with optional filtering',
-  })
-  @ApiQuery({
-    name: 'blockchainKey',
-    required: false,
-    description: 'Filter by blockchain key (CAIP-2 format)',
-    example: 'eip155:56',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'List of beneficiary addresses retrieved successfully',
-  })
-  findAll(@Session() session: UserSession, @Query() query: GetBeneficiariesDto) {
-    return this.beneficiariesService.findAll(session.user.id, query);
   }
 }

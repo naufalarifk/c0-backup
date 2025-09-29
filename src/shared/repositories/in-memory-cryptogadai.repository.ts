@@ -23,6 +23,7 @@ export class InMemoryCryptogadaiRepository extends CryptogadaiRepository {
      */
     const schemaPaths = [
       join(__dirname, './postgres/0002-user.sql'),
+      join(__dirname, './postgres/0003-user-preferences.sql'),
       join(__dirname, './postgres/0004-notification.sql'),
       join(__dirname, './postgres/0005-admin.sql'),
       join(__dirname, './postgres/0005-institution.sql'),
@@ -132,7 +133,7 @@ export class InMemoryCryptogadaiRepository extends CryptogadaiRepository {
       const convertedRows = this.convertTimestampsToDate(result.rows);
 
       return Array.isArray(convertedRows) ? convertedRows : convertedRows ? [convertedRows] : [];
-    } catch (error: any) {
+    } catch (error) {
       // Treat invalid input syntax for integer (SQL state 22P02) as empty result
       // This makes WHERE clauses with malicious string values behave as literal no-match
       if (error && error.code === '22P02') {
@@ -152,7 +153,7 @@ export class InMemoryCryptogadaiRepository extends CryptogadaiRepository {
       const result = await this.#pgLite.query(queryText, params);
       const converted = this.convertTimestampsToDate(result.rows);
       return converted;
-    } catch (error: any) {
+    } catch (error) {
       if (error && error.code === '22P02') return [];
       throw error;
     }

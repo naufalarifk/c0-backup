@@ -27,7 +27,6 @@ translation_prompt="Your task is to write a report describing discrepencies and 
 Here are the API documentation files that require auditing:
 @docs/api-plan/better-auth.yaml
 @docs/api-plan/user-openapi.yaml
-@docs/api-plan/finance-openapi.yaml
 @docs/api-plan/loan-market-openapi.yaml
 @docs/api-plan/loan-agreement-openapi.yaml
 

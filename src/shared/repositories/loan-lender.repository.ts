@@ -1,14 +1,17 @@
 import {
-  assertArrayOf,
+  assertArrayMapOf,
   assertDefined,
-  assertPropDate,
-  assertPropNullableDate,
+  assertProp,
   assertPropNullableString,
-  assertPropNullableStringOrNumber,
   assertPropString,
-  assertPropStringOrNumber,
+  check,
   hasPropArray,
-} from '../utils/assertions';
+  isInstanceOf,
+  isNullable,
+  isNumber,
+  isString,
+} from 'typeshaper';
+
 import {
   LenderClosesLoanOfferParams,
   LenderClosesLoanOfferResult,
@@ -43,24 +46,33 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
 
     const tx = await this.beginTransaction();
     try {
-      // First, validate that the currency exists
-      const currencyRows = await tx.sql`
-        SELECT blockchain_key, token_id, decimals, symbol, name
-        FROM currencies
-        WHERE blockchain_key = ${principalBlockchainKey} AND token_id = ${principalTokenId}
+      // First, validate that the currency exists and get user info
+      const currencyUserRows = await tx.sql`
+        SELECT
+          c.blockchain_key, c.token_id, c.decimals, c.symbol, c.name,
+          u.user_type, u.name as user_name
+        FROM currencies c
+        CROSS JOIN users u
+        WHERE c.blockchain_key = ${principalBlockchainKey}
+          AND c.token_id = ${principalTokenId}
+          AND u.id = ${lenderUserId}
       `;
 
-      if (currencyRows.length === 0) {
-        throw new Error(`Currency ${principalBlockchainKey}:${principalTokenId} does not exist`);
+      if (currencyUserRows.length === 0) {
+        throw new Error(
+          `Currency ${principalBlockchainKey}:${principalTokenId} does not exist or user not found`,
+        );
       }
 
-      const currency = currencyRows[0];
-      assertDefined(currency, 'Currency validation failed');
-      assertPropString(currency, 'blockchain_key');
-      assertPropString(currency, 'token_id');
-      assertPropStringOrNumber(currency, 'decimals');
-      assertPropString(currency, 'symbol');
-      assertPropString(currency, 'name');
+      const currencyUser = currencyUserRows[0];
+      assertDefined(currencyUser, 'Currency and user validation failed');
+      assertPropString(currencyUser, 'blockchain_key');
+      assertPropString(currencyUser, 'token_id');
+      assertProp(check(isString, isNumber), currencyUser, 'decimals');
+      assertPropString(currencyUser, 'symbol');
+      assertPropString(currencyUser, 'name');
+      assertPropString(currencyUser, 'user_type');
+      assertPropString(currencyUser, 'user_name');
 
       // Create the loan offer
       const loanOfferRows = await tx.sql`
@@ -106,16 +118,16 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
 
       const loanOffer = loanOfferRows[0];
       assertDefined(loanOffer, 'Loan offer creation failed');
-      assertPropStringOrNumber(loanOffer, 'id');
-      assertPropStringOrNumber(loanOffer, 'lender_user_id');
-      assertPropStringOrNumber(loanOffer, 'offered_principal_amount');
-      assertPropStringOrNumber(loanOffer, 'available_principal_amount');
-      assertPropStringOrNumber(loanOffer, 'min_loan_principal_amount');
-      assertPropStringOrNumber(loanOffer, 'max_loan_principal_amount');
-      assertPropStringOrNumber(loanOffer, 'interest_rate');
+      assertProp(check(isString, isNumber), loanOffer, 'id');
+      assertProp(check(isString, isNumber), loanOffer, 'lender_user_id');
+      assertProp(check(isString, isNumber), loanOffer, 'offered_principal_amount');
+      assertProp(check(isString, isNumber), loanOffer, 'available_principal_amount');
+      assertProp(check(isString, isNumber), loanOffer, 'min_loan_principal_amount');
+      assertProp(check(isString, isNumber), loanOffer, 'max_loan_principal_amount');
+      assertProp(check(isString, isNumber), loanOffer, 'interest_rate');
       assertPropString(loanOffer, 'status');
-      assertPropDate(loanOffer, 'created_date');
-      assertPropDate(loanOffer, 'expired_date');
+      assertProp(isInstanceOf(Date), loanOffer, 'created_date');
+      assertProp(isInstanceOf(Date), loanOffer, 'expired_date');
 
       // Create funding invoice
       const invoiceRows = await tx.sql`
@@ -159,25 +171,27 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
 
       const invoice = invoiceRows[0];
       assertDefined(invoice, 'Funding invoice creation failed');
-      assertPropStringOrNumber(invoice, 'id');
-      assertPropStringOrNumber(invoice, 'invoiced_amount');
+      assertProp(check(isString, isNumber), invoice, 'id');
+      assertProp(check(isString, isNumber), invoice, 'invoiced_amount');
       assertPropString(invoice, 'status');
-      assertPropDate(invoice, 'invoice_date');
-      assertPropNullableDate(invoice, 'due_date');
-      assertPropNullableDate(invoice, 'expired_date');
-      assertPropNullableDate(invoice, 'paid_date');
+      assertProp(isInstanceOf(Date), invoice, 'invoice_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'due_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'expired_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'paid_date');
 
       await tx.commitTransaction();
 
       return {
         id: String(loanOffer.id),
         lenderUserId: String(loanOffer.lender_user_id),
+        lenderUserType: currencyUser.user_type as 'Individual' | 'Institution',
+        lenderUserName: currencyUser.user_name,
         principalCurrency: {
-          blockchainKey: currency.blockchain_key,
-          tokenId: currency.token_id,
-          decimals: Number(currency.decimals),
-          symbol: currency.symbol,
-          name: currency.name,
+          blockchainKey: currencyUser.blockchain_key,
+          tokenId: currencyUser.token_id,
+          decimals: Number(currencyUser.decimals),
+          symbol: currencyUser.symbol,
+          name: currencyUser.name,
         },
         offeredPrincipalAmount: String(loanOffer.offered_principal_amount),
         availablePrincipalAmount: String(loanOffer.available_principal_amount),
@@ -194,11 +208,11 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
           id: String(invoice.id),
           amount: String(invoice.invoiced_amount),
           currency: {
-            blockchainKey: currency.blockchain_key,
-            tokenId: currency.token_id,
-            decimals: Number(currency.decimals),
-            symbol: currency.symbol,
-            name: currency.name,
+            blockchainKey: currencyUser.blockchain_key,
+            tokenId: currencyUser.token_id,
+            decimals: Number(currencyUser.decimals),
+            symbol: currencyUser.symbol,
+            name: currencyUser.name,
           },
           status: invoice.status as 'Pending' | 'Paid' | 'Expired' | 'Cancelled',
           createdDate: invoice.invoice_date,
@@ -265,9 +279,9 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
 
       const updatedOffer = updateRows[0];
       assertDefined(updatedOffer, 'Updated offer validation failed');
-      assertPropStringOrNumber(updatedOffer, 'id');
+      assertProp(check(isString, isNumber), updatedOffer, 'id');
       assertPropString(updatedOffer, 'status');
-      assertPropNullableDate(updatedOffer, 'closed_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), updatedOffer, 'closed_date');
       assertPropNullableString(updatedOffer, 'closure_reason');
 
       await tx.commitTransaction();
@@ -303,7 +317,7 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
 
     const countRow = countRows[0];
     assertDefined(countRow, 'Count query failed');
-    assertPropStringOrNumber(countRow, 'total');
+    assertProp(check(isString, isNumber), countRow, 'total');
     const totalCount = Number(countRow.total);
 
     // Get loan offers with currency details
@@ -341,23 +355,23 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
 
     const loanOffers = offerRows.map(function (row: unknown) {
       assertDefined(row, 'Loan offer row is undefined');
-      assertPropStringOrNumber(row, 'id');
-      assertPropStringOrNumber(row, 'offered_principal_amount');
-      assertPropStringOrNumber(row, 'available_principal_amount');
-      assertPropStringOrNumber(row, 'disbursed_principal_amount');
-      assertPropStringOrNumber(row, 'reserved_principal_amount');
-      assertPropStringOrNumber(row, 'min_loan_principal_amount');
-      assertPropStringOrNumber(row, 'max_loan_principal_amount');
-      assertPropStringOrNumber(row, 'interest_rate');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'offered_principal_amount');
+      assertProp(check(isString, isNumber), row, 'available_principal_amount');
+      assertProp(check(isString, isNumber), row, 'disbursed_principal_amount');
+      assertProp(check(isString, isNumber), row, 'reserved_principal_amount');
+      assertProp(check(isString, isNumber), row, 'min_loan_principal_amount');
+      assertProp(check(isString, isNumber), row, 'max_loan_principal_amount');
+      assertProp(check(isString, isNumber), row, 'interest_rate');
       assertPropString(row, 'status');
-      assertPropDate(row, 'created_date');
-      assertPropDate(row, 'expired_date');
-      assertPropNullableDate(row, 'published_date');
-      assertPropNullableDate(row, 'closed_date');
+      assertProp(isInstanceOf(Date), row, 'created_date');
+      assertProp(isInstanceOf(Date), row, 'expired_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'published_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'closed_date');
       assertPropNullableString(row, 'closure_reason');
       assertPropString(row, 'blockchain_key');
       assertPropString(row, 'token_id');
-      assertPropStringOrNumber(row, 'decimals');
+      assertProp(check(isString, isNumber), row, 'decimals');
       assertPropString(row, 'symbol');
       assertPropString(row, 'name');
 

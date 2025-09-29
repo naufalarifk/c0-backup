@@ -86,8 +86,6 @@ export class BeneficiariesService {
 
     // Return success without storing in database
     return ResponseHelper.success('Verification email sent', {
-      message:
-        'A verification email has been sent to your registered email address. Please click the link to confirm your withdrawal address.',
       address: createBeneficiaryDto.address,
       blockchain: createBeneficiaryDto.blockchainKey,
     });

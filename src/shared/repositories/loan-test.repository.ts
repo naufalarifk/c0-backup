@@ -1,4 +1,5 @@
-import { assertDefined, assertPropString, assertPropStringOrNumber } from '../utils/assertions';
+import { assertDefined, assertProp, assertPropString, check, isNumber, isString } from 'typeshaper';
+
 import { PricefeedRepository } from './pricefeed.repository';
 
 /**
@@ -67,7 +68,7 @@ export abstract class LoanTestRepository extends PricefeedRepository {
 
       const priceFeed = priceFeedRows[0];
       assertDefined(priceFeed, 'Price feed creation failed');
-      assertPropStringOrNumber(priceFeed, 'id');
+      assertProp(check(isString, isNumber), priceFeed, 'id');
       const priceFeedId = String(priceFeed.id);
 
       // Insert exchange rate
@@ -79,7 +80,7 @@ export abstract class LoanTestRepository extends PricefeedRepository {
 
       const exchangeRate = exchangeRateRows[0];
       assertDefined(exchangeRate, 'Exchange rate creation failed');
-      assertPropStringOrNumber(exchangeRate, 'id');
+      assertProp(check(isString, isNumber), exchangeRate, 'id');
       const exchangeRateId = String(exchangeRate.id);
 
       await tx.commitTransaction();

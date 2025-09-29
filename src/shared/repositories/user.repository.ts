@@ -1,4 +1,18 @@
 import {
+  assertArrayMapOf,
+  assertDefined,
+  assertProp,
+  assertPropDefined,
+  assertPropNullableString,
+  assertPropString,
+  check,
+  isInstanceOf,
+  isNullable,
+  isNumber,
+  isString,
+} from 'typeshaper';
+
+import {
   AdminAddUserToInstitutionParams,
   AdminAddUserToInstitutionResult,
   AdminApprovesInstitutionApplicationParams,
@@ -32,6 +46,8 @@ import {
   UserDecidesUserTypeParams,
   UserDeletesNotificationParams,
   UserDeletesNotificationResult,
+  UserGetPreferencesParams,
+  UserGetPreferencesResult,
   UserListsNotificationsParams,
   UserListsNotificationsResult,
   UserMarksAllNotificationsReadParams,
@@ -42,6 +58,8 @@ import {
   UserRejectsInstitutionInvitationResult,
   UserSubmitsKYCResult,
   UserSubmitsKycParams,
+  UserUpdatePreferencesParams,
+  UserUpdatePreferencesResult,
   UserUpdatesProfileParams,
   UserUpdatesProfileResult,
   UserViewKYCSStatusResult,
@@ -49,16 +67,7 @@ import {
   UserViewsProfileParams,
   UserViewsProfileResult,
 } from '../types';
-import {
-  assertArrayOf,
-  assertDefined,
-  assertPropDate,
-  assertPropDefined,
-  assertPropNullableString,
-  assertPropNullableStringOrNumber,
-  assertPropString,
-  assertPropStringOrNumber,
-} from '../utils/assertions';
+import { ensureUnique } from '../utils/ensures';
 import { BetterAuthRepository } from './better-auth.repository';
 
 /**
@@ -84,9 +93,9 @@ export abstract class UserRepository extends BetterAuthRepository {
         RETURNING id, name, profile_picture, updated_date;
       `;
 
-      assertArrayOf(rows, function (row) {
+      assertArrayMapOf(rows, function (row) {
         assertDefined(row, 'User not found or update failed');
-        assertPropStringOrNumber(row, 'id');
+        assertProp(check(isString, isNumber), row, 'id');
         assertPropString(row, 'name');
         assertPropNullableString(row, 'profile_picture');
         return row;
@@ -118,9 +127,9 @@ export abstract class UserRepository extends BetterAuthRepository {
     const { userId } = params;
 
     const rows = await this.sql`
-      SELECT id, name, email, email_verified_date, profile_picture, role,
-             two_factor_enabled,
-             created_date, updated_date,
+      SELECT id, name, email, email_verified_date, last_login_date, profile_picture, role,
+             two_factor_enabled, phone_number, phone_number_verified,
+             created_date, updated_date, google_id,
              user_type, user_type_selected_date,
              institution_user_id, institution_role,
              kyc_id, business_name, business_type
@@ -131,7 +140,7 @@ export abstract class UserRepository extends BetterAuthRepository {
 
     const user = rows[0];
     assertDefined(user);
-    assertPropStringOrNumber(user, 'id');
+    assertProp(check(isString, isNumber), user, 'id');
 
     // Get KYC status using existing helper; default to 'none' if not available
     let kycStatus: 'none' | 'pending' | 'verified' | 'rejected' = 'none';
@@ -147,15 +156,28 @@ export abstract class UserRepository extends BetterAuthRepository {
       name: 'name' in user && typeof user.name === 'string' ? user.name : undefined,
       email: 'email' in user && typeof user.email === 'string' ? user.email : undefined,
       emailVerified: 'email_verified_date' in user ? !!user.email_verified_date : false,
+      emailVerifiedDate:
+        'email_verified_date' in user && user.email_verified_date instanceof Date
+          ? user.email_verified_date
+          : undefined,
+      lastLoginDate:
+        'last_login_date' in user && user.last_login_date instanceof Date
+          ? user.last_login_date
+          : undefined,
       profilePicture:
         'profile_picture' in user && typeof user.profile_picture === 'string'
           ? user.profile_picture
           : undefined,
+      googleId:
+        'google_id' in user && typeof user.google_id === 'string' ? user.google_id : undefined,
       role:
         'role' in user && typeof user.role === 'string'
           ? (user.role as 'System' | 'Admin' | 'User')
           : 'User',
       twoFactorEnabled: 'two_factor_enabled' in user ? !!user.two_factor_enabled : false,
+      phoneNumber:
+        'phone_number' in user && typeof user.phone_number === 'string' ? user.phone_number : null,
+      phoneNumberVerified: 'phone_number_verified' in user ? !!user.phone_number_verified : null,
       createdAt:
         'created_date' in user && user.created_date instanceof Date ? user.created_date : undefined,
       updatedAt:
@@ -209,6 +231,23 @@ export abstract class UserRepository extends BetterAuthRepository {
         throw new Error('User type decision failed or already made');
       }
 
+      // If user selects Institution type, automatically create institution for them
+      if (userType === 'Institution') {
+        // For simplicity, we'll use a sequential institution ID starting from 1
+        // In a real implementation, this would be a proper institution table
+        const existingInstitutionCount = await tx.sql`
+          SELECT COUNT(*) as count FROM users WHERE institution_user_id IS NOT NULL;
+        `;
+        const count = existingInstitutionCount[0] as { count: string | number };
+        const nextInstitutionId = Number(count.count) + 1;
+
+        await tx.sql`
+          UPDATE users
+          SET institution_user_id = ${nextInstitutionId}, institution_role = 'Owner'
+          WHERE id = ${userId};
+        `;
+      }
+
       await tx.commitTransaction();
     } catch (error) {
       console.error('UserRepository', error);
@@ -238,6 +277,24 @@ export abstract class UserRepository extends BetterAuthRepository {
         submissionDate,
       } = params;
 
+      // Check for duplicate NIK in verified KYCs
+      const existingVerifiedNikRows = await tx.sql`
+        SELECT id, user_id FROM user_kycs
+        WHERE nik = ${nik} AND status = 'Verified'
+      `;
+
+      if (existingVerifiedNikRows.length > 0) {
+        const existingNik = existingVerifiedNikRows[0];
+        assertDefined(existingNik);
+        assertProp(check(isString, isNumber), existingNik, 'user_id');
+
+        // If verified NIK belongs to a different user, throw duplicate error
+        ensureUnique(
+          String(existingNik.user_id) === userId,
+          `NIK ${nik} is already associated with another verified account`,
+        );
+      }
+
       const rows = await tx.sql`
         INSERT INTO user_kycs (
           user_id, submitted_date, id_card_photo, selfie_with_id_card_photo,
@@ -254,8 +311,8 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const kyc = rows[0];
       assertDefined(kyc);
-      assertPropStringOrNumber(kyc, 'id');
-      assertPropStringOrNumber(kyc, 'user_id');
+      assertProp(check(isString, isNumber), kyc, 'id');
+      assertProp(check(isString, isNumber), kyc, 'user_id');
 
       await tx.commitTransaction();
 
@@ -291,8 +348,8 @@ export abstract class UserRepository extends BetterAuthRepository {
     }
 
     const kyc = kycs[0];
-    assertPropStringOrNumber(kyc, 'id');
-    assertPropStringOrNumber(kyc, 'user_id');
+    assertProp(check(isString, isNumber), kyc, 'id');
+    assertProp(check(isString, isNumber), kyc, 'user_id');
 
     let status: 'none' | 'pending' | 'verified' | 'rejected';
     if ('verified_date' in kyc && kyc.verified_date) {
@@ -323,7 +380,7 @@ export abstract class UserRepository extends BetterAuthRepository {
     };
   }
 
-  async adminApprovesKYCParam(params: AdminApprovesKycParams): Promise<AdminApprovesKycResult> {
+  async adminApprovesKyc(params: AdminApprovesKycParams): Promise<AdminApprovesKycResult> {
     const tx = await this.beginTransaction();
     try {
       const { kycId, verifierUserId, approvalDate } = params;
@@ -343,9 +400,9 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const kyc = rows[0];
       assertDefined(kyc, 'KYC not found or already processed');
-      assertPropStringOrNumber(kyc, 'id');
-      assertPropStringOrNumber(kyc, 'user_id');
-      assertPropDate(kyc, 'verified_date');
+      assertProp(check(isString, isNumber), kyc, 'id');
+      assertProp(check(isString, isNumber), kyc, 'user_id');
+      assertProp(isInstanceOf(Date), kyc, 'verified_date');
 
       await tx.commitTransaction();
 
@@ -382,9 +439,9 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const kyc = rows[0];
       assertDefined(kyc, 'KYC not found or already processed');
-      assertPropStringOrNumber(kyc, 'id');
-      assertPropStringOrNumber(kyc, 'user_id');
-      assertPropDate(kyc, 'rejected_date');
+      assertProp(check(isString, isNumber), kyc, 'id');
+      assertProp(check(isString, isNumber), kyc, 'user_id');
+      assertProp(isInstanceOf(Date), kyc, 'rejected_date');
 
       await tx.commitTransaction();
 
@@ -413,11 +470,11 @@ export abstract class UserRepository extends BetterAuthRepository {
     return {
       kycs: kycs.map(function (kyc: unknown) {
         assertDefined(kyc);
-        assertPropStringOrNumber(kyc, 'id');
-        assertPropStringOrNumber(kyc, 'user_id');
+        assertProp(check(isString, isNumber), kyc, 'id');
+        assertProp(check(isString, isNumber), kyc, 'user_id');
         assertPropString(kyc, 'name');
         assertPropString(kyc, 'nik');
-        assertPropDate(kyc, 'submitted_date');
+        assertProp(isInstanceOf(Date), kyc, 'submitted_date');
         return {
           id: String(kyc.id),
           userId: String(kyc.user_id),
@@ -452,7 +509,9 @@ export abstract class UserRepository extends BetterAuthRepository {
         businessSubdistrict,
         businessPostalCode,
         directorName,
+        directorPosition,
         directorIdCardPath,
+        ministryApprovalDocumentPath,
         applicationDate,
       } = params;
 
@@ -462,22 +521,24 @@ export abstract class UserRepository extends BetterAuthRepository {
           npwp_number, npwp_document_path, registration_number, registration_document_path,
           deed_of_establishment_path, business_address,
           business_city, business_province, business_district, business_subdistrict,
-          business_postal_code, director_name, director_id_card_path, submitted_date
+          business_postal_code, director_name, director_position, director_id_card_path,
+          ministry_approval_document_path, submitted_date
         )
         VALUES (
           ${applicantUserId}, ${businessName}, ${businessDescription}, ${businessType},
           ${npwpNumber}, ${npwpDocumentPath}, ${registrationNumber}, ${registrationDocumentPath},
           ${deedOfEstablishmentPath}, ${businessAddress},
           ${businessCity}, ${businessProvince}, ${businessDistrict}, ${businessSubdistrict},
-          ${businessPostalCode}, ${directorName}, ${directorIdCardPath}, ${applicationDate}
+          ${businessPostalCode}, ${directorName}, ${directorPosition}, ${directorIdCardPath},
+          ${ministryApprovalDocumentPath}, ${applicationDate}
         )
         RETURNING id, applicant_user_id, business_name;
       `;
 
       const application = rows[0];
       assertDefined(application, 'Institution application failed');
-      assertPropStringOrNumber(application, 'id');
-      assertPropStringOrNumber(application, 'applicant_user_id');
+      assertProp(check(isString, isNumber), application, 'id');
+      assertProp(check(isString, isNumber), application, 'applicant_user_id');
       assertPropString(application, 'business_name');
 
       await tx.commitTransaction();
@@ -492,6 +553,57 @@ export abstract class UserRepository extends BetterAuthRepository {
       await tx.rollbackTransaction();
       throw error;
     }
+  }
+
+  async userViewsInstitutionApplicationStatus(params: { userId: string }) {
+    const { userId } = params;
+
+    const rows = await this.sql`
+      SELECT id, applicant_user_id, business_name, submitted_date, verified_date, rejected_date, rejection_reason
+      FROM institution_applications
+      WHERE applicant_user_id = ${userId}
+      ORDER BY submitted_date DESC
+      LIMIT 1
+    `;
+
+    if (rows.length === 0 || !rows[0]) {
+      return null;
+    }
+
+    const application = rows[0];
+    assertProp(check(isString, isNumber), application, 'id');
+    assertProp(check(isString, isNumber), application, 'applicant_user_id');
+    assertPropString(application, 'business_name');
+    assertProp(isInstanceOf(Date), application, 'submitted_date');
+
+    let status: string;
+    if ('verified_date' in application && application.verified_date) {
+      status = 'Verified';
+    } else if ('rejected_date' in application && application.rejected_date) {
+      status = 'Rejected';
+    } else {
+      status = 'Submitted';
+    }
+
+    return {
+      id: String(application.id),
+      applicantUserId: String(application.applicant_user_id),
+      businessName: application.business_name,
+      submittedDate: application.submitted_date,
+      status,
+      verifiedDate:
+        'verified_date' in application && application.verified_date instanceof Date
+          ? application.verified_date
+          : undefined,
+      rejectedDate:
+        'rejected_date' in application && application.rejected_date instanceof Date
+          ? application.rejected_date
+          : undefined,
+      rejectionReason:
+        'rejection_reason' in application && typeof application.rejection_reason === 'string'
+          ? application.rejection_reason
+          : undefined,
+    };
   }
 
   async adminApprovesInstitutionApplication(
@@ -515,8 +627,8 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const application = rows[0];
       assertDefined(application, 'Application not found or already processed');
-      assertPropStringOrNumber(application, 'id');
-      assertPropStringOrNumber(application, 'applicant_user_id');
+      assertProp(check(isString, isNumber), application, 'id');
+      assertProp(check(isString, isNumber), application, 'applicant_user_id');
       assertPropString(application, 'business_name');
 
       // Update application status (trigger will handle user update)
@@ -562,8 +674,8 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const application = rows[0];
       assertDefined(application, 'Application not found or already processed');
-      assertPropStringOrNumber(application, 'id');
-      assertPropDate(application, 'rejected_date');
+      assertProp(check(isString, isNumber), application, 'id');
+      assertProp(isInstanceOf(Date), application, 'rejected_date');
 
       await tx.commitTransaction();
       return {
@@ -602,9 +714,9 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const invitation = rows[0];
       assertDefined(invitation, 'Institution invitation failed');
-      assertPropStringOrNumber(invitation, 'id');
-      assertPropStringOrNumber(invitation, 'institution_user_id');
-      assertPropStringOrNumber(invitation, 'target_user_id');
+      assertProp(check(isString, isNumber), invitation, 'id');
+      assertProp(check(isString, isNumber), invitation, 'institution_user_id');
+      assertProp(check(isString, isNumber), invitation, 'target_user_id');
       assertPropString(invitation, 'role');
 
       await tx.commitTransaction();
@@ -654,9 +766,9 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const updatedInvitation = updatedInvitationRows[0];
       assertDefined(updatedInvitation, 'Failed to update invitation status');
-      assertPropStringOrNumber(updatedInvitation, 'id');
-      assertPropStringOrNumber(updatedInvitation, 'institution_user_id');
-      assertPropDate(updatedInvitation, 'accepted_date');
+      assertProp(check(isString, isNumber), updatedInvitation, 'id');
+      assertProp(check(isString, isNumber), updatedInvitation, 'institution_user_id');
+      assertProp(isInstanceOf(Date), updatedInvitation, 'accepted_date');
 
       await tx.commitTransaction();
 
@@ -697,8 +809,8 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const invitation = rows[0];
       assertDefined(invitation, 'Invitation not found or already processed');
-      assertPropStringOrNumber(invitation, 'id');
-      assertPropDate(invitation, 'rejected_date');
+      assertProp(check(isString, isNumber), invitation, 'id');
+      assertProp(isInstanceOf(Date), invitation, 'rejected_date');
 
       await tx.commitTransaction();
 
@@ -733,10 +845,10 @@ export abstract class UserRepository extends BetterAuthRepository {
         throw new Error('Failed to add user to institution');
       }
 
-      assertArrayOf(rows, function (row) {
+      assertArrayMapOf(rows, function (row) {
         assertDefined(row, 'Failed to add user to institution');
-        assertPropStringOrNumber(row, 'id');
-        assertPropStringOrNumber(row, 'institution_user_id');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isString, isNumber), row, 'institution_user_id');
         assertPropString(row, 'institution_role');
         return row;
       });
@@ -771,9 +883,9 @@ export abstract class UserRepository extends BetterAuthRepository {
         RETURNING id;
       `;
 
-      assertArrayOf(rows, function (row) {
+      assertArrayMapOf(rows, function (row) {
         assertDefined(row, 'Failed to remove user from institution');
-        assertPropStringOrNumber(row, 'id');
+        assertProp(check(isString, isNumber), row, 'id');
         return row;
       });
 
@@ -807,7 +919,7 @@ export abstract class UserRepository extends BetterAuthRepository {
     const rows = await this.sql`SELECT kyc_id FROM users WHERE id = ${userId}`;
     const user = rows[0];
     assertDefined(user, 'User not found');
-    assertPropStringOrNumber(user, 'kyc_id');
+    assertProp(check(isString, isNumber), user, 'kyc_id');
 
     return {
       userId: String(userId),
@@ -852,8 +964,12 @@ export abstract class UserRepository extends BetterAuthRepository {
         assertPropString(notification, 'type');
         assertPropString(notification, 'title');
         assertPropString(notification, 'content');
-        assertPropNullableStringOrNumber(notification, 'user_kyc_id');
-        assertPropNullableStringOrNumber(notification, 'institution_application_id');
+        assertProp(check(isNullable, isString, isNumber), notification, 'user_kyc_id');
+        assertProp(
+          check(isNullable, isString, isNumber),
+          notification,
+          'institution_application_id',
+        );
         return {
           type: notification.type,
           title: notification.title,
@@ -954,11 +1070,11 @@ export abstract class UserRepository extends BetterAuthRepository {
       // Transform notifications
       const notifications = notificationsQuery.map(function (row: unknown) {
         assertDefined(row);
-        assertPropStringOrNumber(row, 'id');
+        assertProp(check(isString, isNumber), row, 'id');
         assertPropString(row, 'type');
         assertPropString(row, 'title');
         assertPropString(row, 'content');
-        assertPropDate(row, 'creation_date');
+        assertProp(isInstanceOf(Date), row, 'creation_date');
 
         return {
           id: String(row.id),
@@ -1014,8 +1130,8 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const notification = rows[0];
       assertDefined(notification);
-      assertPropStringOrNumber(notification, 'id');
-      assertPropDate(notification, 'read_date');
+      assertProp(check(isString, isNumber), notification, 'id');
+      assertProp(isInstanceOf(Date), notification, 'read_date');
 
       await tx.commitTransaction();
 
@@ -1080,7 +1196,7 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const notification = rows[0];
       assertDefined(notification);
-      assertPropStringOrNumber(notification, 'id');
+      assertProp(check(isString, isNumber), notification, 'id');
 
       await tx.commitTransaction();
 
@@ -1141,8 +1257,8 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const notification = rows[0];
       assertDefined(notification);
-      assertPropStringOrNumber(notification, 'id');
-      assertPropStringOrNumber(notification, 'user_id');
+      assertProp(check(isString, isNumber), notification, 'id');
+      assertProp(check(isString, isNumber), notification, 'user_id');
 
       await tx.commitTransaction();
 
@@ -1198,8 +1314,8 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const application = rows[0];
       assertDefined(application, 'Institution application creation failed');
-      assertPropStringOrNumber(application, 'id');
-      assertPropStringOrNumber(application, 'applicant_user_id');
+      assertProp(check(isString, isNumber), application, 'id');
+      assertProp(check(isString, isNumber), application, 'applicant_user_id');
       assertPropString(application, 'business_name');
 
       await tx.commitTransaction();
@@ -1208,6 +1324,320 @@ export abstract class UserRepository extends BetterAuthRepository {
         id: String(application.id),
         applicantUserId: String(application.applicant_user_id),
         businessName: application.business_name,
+      };
+    } catch (error) {
+      console.error('UserRepository', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  // User preferences methods
+  async userGetsPreferences(params: UserGetPreferencesParams): Promise<UserGetPreferencesResult> {
+    const { userId } = params;
+
+    const rows = await this.sql`
+      SELECT id, user_id,
+             email_notifications_enabled, email_payment_alerts, email_system_notifications,
+             push_notifications_enabled, push_payment_alerts, push_system_notifications,
+             sms_notifications_enabled, sms_payment_alerts, sms_system_notifications,
+             theme, language, currency, timezone, date_format, number_format,
+             profile_visibility, analytics_enabled, third_party_integrations_enabled, market_research_enabled, activity_tracking_enabled,
+             created_date, updated_date
+      FROM user_preferences
+      WHERE user_id = ${userId}
+      LIMIT 1
+    `;
+
+    if (rows.length === 0) {
+      // Return default preferences if none exist
+      return {
+        userId: String(userId),
+        notifications: {
+          email: {
+            enabled: true,
+            types: {
+              paymentAlerts: true,
+              systemNotifications: true,
+            },
+          },
+          push: {
+            enabled: true,
+            types: {
+              paymentAlerts: true,
+              systemNotifications: true,
+            },
+          },
+          sms: {
+            enabled: false,
+            types: {
+              paymentAlerts: false,
+              systemNotifications: false,
+            },
+          },
+        },
+        display: {
+          theme: 'light' as const,
+          language: 'en' as const,
+          currency: 'USD' as const,
+        },
+        privacy: {
+          profileVisibility: 'private' as const,
+          dataSharing: {
+            analytics: true,
+            thirdPartyIntegrations: false,
+            marketResearch: false,
+          },
+          activityTracking: false,
+        },
+      };
+    }
+
+    const preferences = rows[0];
+    assertDefined(preferences);
+    assertProp(check(isString, isNumber), preferences, 'id');
+    assertProp(check(isString, isNumber), preferences, 'user_id');
+
+    return {
+      id: String(preferences.id),
+      userId: String(preferences.user_id),
+      notifications: {
+        email: {
+          enabled:
+            'email_notifications_enabled' in preferences
+              ? Boolean(preferences.email_notifications_enabled)
+              : true,
+          types: {
+            paymentAlerts:
+              'email_payment_alerts' in preferences
+                ? Boolean(preferences.email_payment_alerts)
+                : true,
+            systemNotifications:
+              'email_system_notifications' in preferences
+                ? Boolean(preferences.email_system_notifications)
+                : true,
+          },
+        },
+        push: {
+          enabled:
+            'push_notifications_enabled' in preferences
+              ? Boolean(preferences.push_notifications_enabled)
+              : true,
+          types: {
+            paymentAlerts:
+              'push_payment_alerts' in preferences
+                ? Boolean(preferences.push_payment_alerts)
+                : true,
+            systemNotifications:
+              'push_system_notifications' in preferences
+                ? Boolean(preferences.push_system_notifications)
+                : true,
+          },
+        },
+        sms: {
+          enabled:
+            'sms_notifications_enabled' in preferences
+              ? Boolean(preferences.sms_notifications_enabled)
+              : false,
+          types: {
+            paymentAlerts:
+              'sms_payment_alerts' in preferences ? Boolean(preferences.sms_payment_alerts) : false,
+            systemNotifications:
+              'sms_system_notifications' in preferences
+                ? Boolean(preferences.sms_system_notifications)
+                : false,
+          },
+        },
+      },
+      display: {
+        theme: ('theme' in preferences && typeof preferences.theme === 'string'
+          ? preferences.theme
+          : 'light') as 'light' | 'dark',
+        language: ('language' in preferences && typeof preferences.language === 'string'
+          ? preferences.language
+          : 'en') as 'en' | 'id',
+        currency: ('currency' in preferences && typeof preferences.currency === 'string'
+          ? preferences.currency
+          : 'USD') as 'USD' | 'IDR' | 'EUR' | 'BTC' | 'ETH',
+        timezone:
+          'timezone' in preferences && typeof preferences.timezone === 'string'
+            ? preferences.timezone
+            : undefined,
+        dateFormat:
+          'date_format' in preferences && typeof preferences.date_format === 'string'
+            ? preferences.date_format
+            : undefined,
+        numberFormat:
+          'number_format' in preferences && typeof preferences.number_format === 'string'
+            ? preferences.number_format
+            : undefined,
+      },
+      privacy: {
+        profileVisibility: ('profile_visibility' in preferences &&
+        typeof preferences.profile_visibility === 'string'
+          ? preferences.profile_visibility
+          : 'private') as 'public' | 'private',
+        dataSharing: {
+          analytics:
+            'analytics_enabled' in preferences ? Boolean(preferences.analytics_enabled) : true,
+          thirdPartyIntegrations:
+            'third_party_integrations_enabled' in preferences
+              ? Boolean(preferences.third_party_integrations_enabled)
+              : false,
+          marketResearch:
+            'market_research_enabled' in preferences
+              ? Boolean(preferences.market_research_enabled)
+              : false,
+        },
+        activityTracking:
+          'activity_tracking_enabled' in preferences
+            ? Boolean(preferences.activity_tracking_enabled)
+            : false,
+      },
+      createdAt:
+        'created_date' in preferences && preferences.created_date instanceof Date
+          ? preferences.created_date
+          : undefined,
+      updatedAt:
+        'updated_date' in preferences && preferences.updated_date instanceof Date
+          ? preferences.updated_date
+          : undefined,
+    };
+  }
+
+  async userUpdatesPreferences(
+    params: UserUpdatePreferencesParams,
+  ): Promise<UserUpdatePreferencesResult> {
+    const tx = await this.beginTransaction();
+    try {
+      const { userId, preferences, updateDate } = params;
+
+      // Get current preferences to merge with updates
+      const current = await this.userGetsPreferences({ userId });
+
+      // Merge preferences
+      const updated = {
+        email_notifications_enabled:
+          preferences.notifications?.email?.enabled ?? current.notifications.email.enabled,
+        email_payment_alerts:
+          preferences.notifications?.email?.types?.paymentAlerts ??
+          current.notifications.email.types.paymentAlerts,
+        email_system_notifications:
+          preferences.notifications?.email?.types?.systemNotifications ??
+          current.notifications.email.types.systemNotifications,
+        push_notifications_enabled:
+          preferences.notifications?.push?.enabled ?? current.notifications.push.enabled,
+        push_payment_alerts:
+          preferences.notifications?.push?.types?.paymentAlerts ??
+          current.notifications.push.types.paymentAlerts,
+        push_system_notifications:
+          preferences.notifications?.push?.types?.systemNotifications ??
+          current.notifications.push.types.systemNotifications,
+        sms_notifications_enabled:
+          preferences.notifications?.sms?.enabled ?? current.notifications.sms.enabled,
+        sms_payment_alerts:
+          preferences.notifications?.sms?.types?.paymentAlerts ??
+          current.notifications.sms.types.paymentAlerts,
+        sms_system_notifications:
+          preferences.notifications?.sms?.types?.systemNotifications ??
+          current.notifications.sms.types.systemNotifications,
+        theme: preferences.display?.theme ?? current.display.theme,
+        language: preferences.display?.language ?? current.display.language,
+        currency: preferences.display?.currency ?? current.display.currency,
+        timezone: preferences.display?.timezone ?? current.display.timezone,
+        date_format: preferences.display?.dateFormat ?? current.display.dateFormat,
+        number_format: preferences.display?.numberFormat ?? current.display.numberFormat,
+        profile_visibility:
+          preferences.privacy?.profileVisibility ?? current.privacy.profileVisibility,
+        analytics_enabled:
+          preferences.privacy?.dataSharing?.analytics !== undefined
+            ? preferences.privacy.dataSharing.analytics
+            : current.privacy.dataSharing.analytics,
+        third_party_integrations_enabled:
+          preferences.privacy?.dataSharing?.thirdPartyIntegrations !== undefined
+            ? preferences.privacy.dataSharing.thirdPartyIntegrations
+            : current.privacy.dataSharing.thirdPartyIntegrations,
+        market_research_enabled:
+          preferences.privacy?.dataSharing?.marketResearch !== undefined
+            ? preferences.privacy.dataSharing.marketResearch
+            : current.privacy.dataSharing.marketResearch,
+        activity_tracking_enabled:
+          preferences.privacy?.activityTracking !== undefined
+            ? preferences.privacy.activityTracking
+            : current.privacy.activityTracking,
+      };
+
+      let rows;
+      if (current.id) {
+        // Update existing preferences
+        rows = await tx.sql`
+          UPDATE user_preferences
+          SET email_notifications_enabled = ${updated.email_notifications_enabled},
+              email_payment_alerts = ${updated.email_payment_alerts},
+              email_system_notifications = ${updated.email_system_notifications},
+              push_notifications_enabled = ${updated.push_notifications_enabled},
+              push_payment_alerts = ${updated.push_payment_alerts},
+              push_system_notifications = ${updated.push_system_notifications},
+              sms_notifications_enabled = ${updated.sms_notifications_enabled},
+              sms_payment_alerts = ${updated.sms_payment_alerts},
+              sms_system_notifications = ${updated.sms_system_notifications},
+              theme = ${updated.theme},
+              language = ${updated.language},
+              currency = ${updated.currency},
+              timezone = ${updated.timezone},
+              date_format = ${updated.date_format},
+              number_format = ${updated.number_format},
+              profile_visibility = ${updated.profile_visibility},
+              analytics_enabled = ${updated.analytics_enabled},
+              third_party_integrations_enabled = ${updated.third_party_integrations_enabled},
+              market_research_enabled = ${updated.market_research_enabled},
+              activity_tracking_enabled = ${updated.activity_tracking_enabled},
+              updated_date = ${updateDate}
+          WHERE user_id = ${userId}
+          RETURNING id, user_id, updated_date
+        `;
+      } else {
+        // Insert new preferences
+        rows = await tx.sql`
+          INSERT INTO user_preferences (
+            user_id,
+            email_notifications_enabled, email_payment_alerts, email_system_notifications,
+            push_notifications_enabled, push_payment_alerts, push_system_notifications,
+            sms_notifications_enabled, sms_payment_alerts, sms_system_notifications,
+            theme, language, currency, timezone, date_format, number_format,
+            profile_visibility, analytics_enabled, third_party_integrations_enabled, market_research_enabled, activity_tracking_enabled,
+            created_date, updated_date
+          )
+          VALUES (
+            ${userId},
+            ${updated.email_notifications_enabled}, ${updated.email_payment_alerts}, ${updated.email_system_notifications},
+            ${updated.push_notifications_enabled}, ${updated.push_payment_alerts}, ${updated.push_system_notifications},
+            ${updated.sms_notifications_enabled}, ${updated.sms_payment_alerts}, ${updated.sms_system_notifications},
+            ${updated.theme}, ${updated.language}, ${updated.currency}, ${updated.timezone}, ${updated.date_format}, ${updated.number_format},
+            ${updated.profile_visibility}, ${updated.analytics_enabled}, ${updated.third_party_integrations_enabled}, ${updated.market_research_enabled}, ${updated.activity_tracking_enabled},
+            ${updateDate}, ${updateDate}
+          )
+          RETURNING id, user_id, updated_date
+        `;
+      }
+
+      if (rows.length === 0) {
+        await tx.rollbackTransaction();
+        throw new Error('Failed to update user preferences');
+      }
+
+      const result = rows[0];
+      assertDefined(result);
+      assertProp(check(isString, isNumber), result, 'id');
+      assertProp(check(isString, isNumber), result, 'user_id');
+      assertProp(isInstanceOf(Date), result, 'updated_date');
+
+      await tx.commitTransaction();
+
+      return {
+        id: String(result.id),
+        userId: String(result.user_id),
+        updatedAt: result.updated_date,
       };
     } catch (error) {
       console.error('UserRepository', error);

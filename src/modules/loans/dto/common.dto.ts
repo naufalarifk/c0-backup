@@ -154,6 +154,29 @@ export class LenderInfoDto {
   verified: boolean;
 }
 
+export class BorrowerInfoDto {
+  @ApiProperty({
+    description: 'Borrower user identifier',
+    example: 'user_12345',
+  })
+  @IsString()
+  id: string;
+
+  @ApiProperty({
+    description: 'Type of borrower',
+    example: 'Individual',
+  })
+  @IsString()
+  type: string;
+
+  @ApiProperty({
+    description: 'Borrower display name',
+    example: 'Jane Smith',
+  })
+  @IsString()
+  name: string;
+}
+
 export class InvoiceDto {
   @ApiProperty({
     description: 'Invoice identifier',

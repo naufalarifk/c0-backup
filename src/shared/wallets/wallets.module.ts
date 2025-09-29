@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
 
+import { BscMainnetWalletService } from './bsc-mainnet-wallet.service';
 import { BtcMainnetWalletService } from './btc-mainnet-wallet.service';
 import { BtcTestnetWalletService } from './btc-testnet-wallet.service';
 import { EthMainnetWalletService } from './eth-mainnet-wallet.service';
@@ -13,6 +14,7 @@ import { SolTestnetWalletService } from './sol-testnet-wallet.service';
   imports: [DiscoveryModule],
   providers: [
     WalletFactory,
+    BscMainnetWalletService,
     BtcMainnetWalletService,
     BtcTestnetWalletService,
     EthMainnetWalletService,
@@ -22,6 +24,7 @@ import { SolTestnetWalletService } from './sol-testnet-wallet.service';
   ],
   exports: [
     WalletFactory,
+    BscMainnetWalletService,
     BtcMainnetWalletService,
     BtcTestnetWalletService,
     EthMainnetWalletService,

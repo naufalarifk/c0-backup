@@ -20,6 +20,8 @@ export abstract class IWalletFactory {
 export abstract class IWalletService {
   abstract get bip44CoinType(): number;
 
+  abstract getHotWallet(masterKey: HDKey): Promise<IWallet>;
+
   abstract derivedPathToWallet({
     masterKey,
     derivationPath,
@@ -36,9 +38,16 @@ export abstract class IWalletService {
   }
 }
 
+export type WalletTransferParams = {
+  tokenId: string;
+  from: string;
+  to: string;
+  value: string;
+};
+
 export abstract class IWallet {
   abstract getAddress(): Promise<string>;
-  abstract signTransaction<T>(message: T): Promise<T>;
+  abstract transfer(params: WalletTransferParams): Promise<{ txHash: string }>;
 }
 
 export class WalletError extends Error {

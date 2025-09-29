@@ -38,3 +38,16 @@ export interface PlatformFeedsExchangeRateResult {
   retrievalDate: Date;
   sourceDate: Date;
 }
+
+// New interfaces for simplified architecture
+export interface PriceFeed {
+  id: string;
+  blockchainKey: string;
+  baseCurrencyTokenId: string;
+  quoteCurrencyTokenId: string;
+  source: string;
+}
+
+export interface PlatformRetrievesActivePriceFeedsResult {
+  priceFeeds: PriceFeed[];
+}

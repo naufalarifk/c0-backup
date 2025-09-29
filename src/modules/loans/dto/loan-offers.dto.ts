@@ -51,12 +51,12 @@ export class CreateLoanOfferDto {
   @ApiProperty({
     description: 'Annual interest rate (percentage)',
     example: 12.5,
-    minimum: 0,
-    maximum: 100,
+    minimum: 0.1,
+    maximum: 50,
   })
   @IsNumber()
-  @Min(0)
-  @Max(100)
+  @Min(0.1)
+  @Max(50)
   interestRate: number;
 
   @ApiProperty({
@@ -101,6 +101,32 @@ export class CreateLoanOfferDto {
   @IsOptional()
   @IsDateString()
   expirationDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Accepted collateral assets',
+    example: ['BTC', 'ETH'],
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  acceptedCollateral?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Funding deadline for the offer',
+    example: '2025-10-01T23:59:59Z',
+  })
+  @IsOptional()
+  @IsDateString()
+  fundingDeadline?: string;
+
+  @ApiPropertyOptional({
+    description: 'Terms acceptance timestamp',
+    example: '2025-09-23T10:30:00Z',
+  })
+  @IsOptional()
+  @IsDateString()
+  termsAcceptanceTimestamp?: string;
 }
 
 export class UpdateLoanOfferDto {

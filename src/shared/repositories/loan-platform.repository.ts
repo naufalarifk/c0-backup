@@ -1,13 +1,17 @@
 import {
-  assertArrayOf,
+  assertArrayMapOf,
   assertDefined,
-  assertPropDate,
-  assertPropNullableDate,
+  assertProp,
   assertPropNullableString,
+  assertPropNumber,
   assertPropString,
-  assertPropStringOrNumber,
+  check,
   hasPropArray,
-} from '../utils/assertions';
+  isInstanceOf,
+  isNumber,
+  isString,
+} from 'typeshaper';
+
 import {
   LoanApplicationStatus,
   PlatformDisbursesPrincipalParams,
@@ -77,7 +81,7 @@ export abstract class LoanPlatformRepository extends LoanUserRepository {
 
     const countRow = countRows[0];
     assertDefined(countRow, 'Count query failed');
-    assertPropStringOrNumber(countRow, 'total');
+    assertProp(check(isString, isNumber), countRow, 'total');
     const totalCount = Number(countRow.total);
 
     // Get loan offers with currency details
@@ -111,17 +115,17 @@ export abstract class LoanPlatformRepository extends LoanUserRepository {
 
     const loanOffers = offerRows.map(function (row: unknown) {
       assertDefined(row, 'Loan offer row is undefined');
-      assertPropStringOrNumber(row, 'id');
-      assertPropStringOrNumber(row, 'lender_user_id');
-      assertPropStringOrNumber(row, 'available_principal_amount');
-      assertPropStringOrNumber(row, 'min_loan_principal_amount');
-      assertPropStringOrNumber(row, 'max_loan_principal_amount');
-      assertPropStringOrNumber(row, 'interest_rate');
-      assertPropDate(row, 'expired_date');
-      assertPropDate(row, 'published_date');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'lender_user_id');
+      assertProp(check(isString, isNumber), row, 'available_principal_amount');
+      assertProp(check(isString, isNumber), row, 'min_loan_principal_amount');
+      assertProp(check(isString, isNumber), row, 'max_loan_principal_amount');
+      assertProp(check(isString, isNumber), row, 'interest_rate');
+      assertProp(isInstanceOf(Date), row, 'expired_date');
+      assertProp(isInstanceOf(Date), row, 'published_date');
       assertPropString(row, 'blockchain_key');
       assertPropString(row, 'token_id');
-      assertPropStringOrNumber(row, 'decimals');
+      assertProp(check(isString, isNumber), row, 'decimals');
       assertPropString(row, 'symbol');
       assertPropString(row, 'name');
 
@@ -212,28 +216,28 @@ export abstract class LoanPlatformRepository extends LoanUserRepository {
     `;
 
     assertDefined(countResult[0], 'Count result should be defined');
-    assertPropStringOrNumber(countResult[0], 'total');
+    assertProp(check(isString, isNumber), countResult[0], 'total');
     const totalCount = Number(countResult[0].total);
     const totalPages = Math.ceil(totalCount / validatedLimit);
 
     const loanApplications = applicationRows.map(function (row: unknown) {
       assertDefined(row, 'Row should be defined');
-      assertPropStringOrNumber(row, 'id');
-      assertPropStringOrNumber(row, 'borrower_user_id');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'borrower_user_id');
       assertPropNullableString(row, 'loan_offer_id');
       assertPropString(row, 'principal_currency_blockchain_key');
       assertPropString(row, 'principal_currency_token_id');
-      assertPropStringOrNumber(row, 'principal_amount');
-      assertPropStringOrNumber(row, 'max_interest_rate');
-      assertPropStringOrNumber(row, 'term_in_months');
+      assertProp(check(isString, isNumber), row, 'principal_amount');
+      assertProp(check(isString, isNumber), row, 'max_interest_rate');
+      assertProp(check(isString, isNumber), row, 'term_in_months');
       assertPropString(row, 'collateral_currency_blockchain_key');
       assertPropString(row, 'collateral_currency_token_id');
-      assertPropStringOrNumber(row, 'collateral_deposit_amount');
+      assertProp(check(isString, isNumber), row, 'collateral_deposit_amount');
       assertPropString(row, 'status');
-      assertPropDate(row, 'applied_date');
-      assertPropDate(row, 'expired_date');
+      assertProp(isInstanceOf(Date), row, 'applied_date');
+      assertProp(isInstanceOf(Date), row, 'expired_date');
       assertPropNullableString(row, 'matched_loan_offer_id');
-      assertPropStringOrNumber(row, 'principal_decimals');
+      assertProp(check(isString, isNumber), row, 'principal_decimals');
       assertPropString(row, 'principal_symbol');
       assertPropString(row, 'principal_name');
 
@@ -302,10 +306,10 @@ export abstract class LoanPlatformRepository extends LoanUserRepository {
 
       const application = applicationRows[0];
       assertDefined(application, 'Application validation failed');
-      assertPropStringOrNumber(application, 'id');
+      assertProp(check(isString, isNumber), application, 'id');
       assertPropString(application, 'status');
-      assertPropStringOrNumber(application, 'principal_amount');
-      assertPropStringOrNumber(application, 'borrower_user_id');
+      assertProp(check(isString, isNumber), application, 'principal_amount');
+      assertProp(check(isString, isNumber), application, 'borrower_user_id');
 
       // Validate loan offer exists, is published, and has available principal
       const offerRows = await tx.sql`
@@ -320,10 +324,10 @@ export abstract class LoanPlatformRepository extends LoanUserRepository {
 
       const offer = offerRows[0];
       assertDefined(offer, 'Offer validation failed');
-      assertPropStringOrNumber(offer, 'id');
+      assertProp(check(isString, isNumber), offer, 'id');
       assertPropString(offer, 'status');
-      assertPropStringOrNumber(offer, 'available_principal_amount');
-      assertPropStringOrNumber(offer, 'lender_user_id');
+      assertProp(check(isString, isNumber), offer, 'available_principal_amount');
+      assertProp(check(isString, isNumber), offer, 'lender_user_id');
 
       // Ensure borrower and lender are different users
       if (application.borrower_user_id === offer.lender_user_id) {
@@ -425,18 +429,18 @@ export abstract class LoanPlatformRepository extends LoanUserRepository {
 
       const details = detailRows[0];
       assertDefined(details, 'Loan details validation failed');
-      assertPropStringOrNumber(details, 'app_id');
+      assertProp(check(isString, isNumber), details, 'app_id');
       assertPropString(details, 'app_status');
       assertPropString(details, 'principal_currency_blockchain_key');
       assertPropString(details, 'principal_currency_token_id');
       assertPropString(details, 'collateral_currency_blockchain_key');
       assertPropString(details, 'collateral_currency_token_id');
-      assertPropStringOrNumber(details, 'offer_id');
+      assertProp(check(isString, isNumber), details, 'offer_id');
       assertPropString(details, 'offer_status');
-      assertPropStringOrNumber(details, 'principal_decimals');
+      assertProp(check(isString, isNumber), details, 'principal_decimals');
       assertPropString(details, 'principal_symbol');
       assertPropString(details, 'principal_name');
-      assertPropStringOrNumber(details, 'collateral_decimals');
+      assertProp(check(isString, isNumber), details, 'collateral_decimals');
       assertPropString(details, 'collateral_symbol');
       assertPropString(details, 'collateral_name');
 
@@ -507,17 +511,17 @@ export abstract class LoanPlatformRepository extends LoanUserRepository {
 
       const loan = loanRows[0];
       assertDefined(loan, 'Loan creation failed');
-      assertPropStringOrNumber(loan, 'id');
-      assertPropStringOrNumber(loan, 'loan_offer_id');
-      assertPropStringOrNumber(loan, 'loan_application_id');
-      assertPropStringOrNumber(loan, 'principal_amount');
-      assertPropStringOrNumber(loan, 'interest_amount');
-      assertPropStringOrNumber(loan, 'repayment_amount');
-      assertPropStringOrNumber(loan, 'collateral_amount');
+      assertProp(check(isString, isNumber), loan, 'id');
+      assertProp(check(isString, isNumber), loan, 'loan_offer_id');
+      assertProp(check(isString, isNumber), loan, 'loan_application_id');
+      assertProp(check(isString, isNumber), loan, 'principal_amount');
+      assertProp(check(isString, isNumber), loan, 'interest_amount');
+      assertProp(check(isString, isNumber), loan, 'repayment_amount');
+      assertProp(check(isString, isNumber), loan, 'collateral_amount');
       assertPropString(loan, 'status');
-      assertPropDate(loan, 'origination_date');
-      assertPropDate(loan, 'maturity_date');
-      assertPropStringOrNumber(loan, 'mc_ltv_ratio');
+      assertProp(isInstanceOf(Date), loan, 'origination_date');
+      assertProp(isInstanceOf(Date), loan, 'maturity_date');
+      assertProp(check(isString, isNumber), loan, 'mc_ltv_ratio');
       assertPropNullableString(loan, 'legal_document_path');
 
       // Update loan offer reserved and disbursed amounts
@@ -583,7 +587,7 @@ export abstract class LoanPlatformRepository extends LoanUserRepository {
 
       const loan = loanRows[0];
       assertDefined(loan, 'Loan validation failed');
-      assertPropStringOrNumber(loan, 'id');
+      assertProp(check(isString, isNumber), loan, 'id');
       assertPropString(loan, 'status');
 
       if (loan.status !== 'Originated') {
@@ -606,9 +610,9 @@ export abstract class LoanPlatformRepository extends LoanUserRepository {
 
       const updatedLoan = updateRows[0];
       assertDefined(updatedLoan, 'Updated loan validation failed');
-      assertPropStringOrNumber(updatedLoan, 'id');
+      assertProp(check(isString, isNumber), updatedLoan, 'id');
       assertPropString(updatedLoan, 'status');
-      assertPropDate(updatedLoan, 'disbursement_date');
+      assertProp(isInstanceOf(Date), updatedLoan, 'disbursement_date');
 
       await tx.commitTransaction();
 
@@ -715,7 +719,7 @@ export abstract class LoanPlatformRepository extends LoanUserRepository {
     if (!threshold && configRows.length > 0) {
       const config = configRows[0];
       assertDefined(config, 'Platform config validation failed');
-      assertPropStringOrNumber(config, 'loan_max_ltv_ratio');
+      assertProp(check(isString, isNumber), config, 'loan_max_ltv_ratio');
       threshold = Number(config.loan_max_ltv_ratio) / 100; // Convert percentage to decimal
     }
 
@@ -740,10 +744,10 @@ export abstract class LoanPlatformRepository extends LoanUserRepository {
 
     const breachedLoans = breachedLoanRows.map(function (row: unknown) {
       assertDefined(row, 'Breached loan row is undefined');
-      assertPropStringOrNumber(row, 'id');
-      assertPropStringOrNumber(row, 'borrower_user_id');
-      assertPropStringOrNumber(row, 'current_ltv_ratio');
-      assertPropStringOrNumber(row, 'mc_ltv_ratio');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'borrower_user_id');
+      assertProp(check(isString, isNumber), row, 'current_ltv_ratio');
+      assertProp(check(isString, isNumber), row, 'mc_ltv_ratio');
 
       return {
         loanId: String(row.id),
@@ -763,7 +767,7 @@ export abstract class LoanPlatformRepository extends LoanUserRepository {
 
     const totalRow = totalLoanRows[0];
     assertDefined(totalRow, 'Total loans count validation failed');
-    assertPropStringOrNumber(totalRow, 'total');
+    assertProp(check(isString, isNumber), totalRow, 'total');
     const processedLoans = Number(totalRow.total);
 
     return {
@@ -800,7 +804,7 @@ export abstract class LoanPlatformRepository extends LoanUserRepository {
 
       const loan = loanRows[0];
       assertDefined(loan, 'Loan validation failed');
-      assertPropStringOrNumber(loan, 'id');
+      assertProp(check(isString, isNumber), loan, 'id');
       assertPropString(loan, 'status');
 
       if (!['Active', 'Originated'].includes(loan.status)) {

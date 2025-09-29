@@ -11,11 +11,11 @@ info:
     - Loan matching and marketplace activities
     
 servers:
-  - url: https://api.cryptogadai.com/api
+  - url: https://api.cryptogadai.com
     description: Production server
-  - url: https://cg-api.fh47.com/api
+  - url: https://cg-api.fh47.com
     description: Testing server
-  - url: http://cg-api.localhost/api
+  - url: http://cg-api.localhost
     description: Local development server
 
 security:
@@ -30,7 +30,7 @@ tags:
 
 paths:
   # Loan Offers
-  /loan-offers:
+  /api/loan-offers:
     post:
       tags: [Loan Offers]
       summary: Create new loan offer
@@ -288,7 +288,7 @@ paths:
                         hasNext: false
                         hasPrev: false
 
-  /loan-offers/my-offers:
+  /api/loan-offers/my-offers:
     get:
       tags: [Loan Offers]
       summary: Get my loan offers
@@ -304,7 +304,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/LoanOfferListResponse'
 
-  /loan-offers/{id}:
+  /api/loan-offers/{id}:
     patch:
       tags: [Loan Offers]
       summary: Update loan offer
@@ -332,7 +332,7 @@ paths:
           $ref: '#/components/responses/NotFound'
 
   # Loan Applications
-  /loan-applications/calculate:
+  /api/loan-applications/calculate:
     post:
       tags: [Loan Applications]
       summary: Calculate loan application requirements
@@ -416,7 +416,7 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationError'
 
-  /loan-applications:
+  /api/loan-applications:
     post:
       tags: [Loan Applications]
       summary: Create loan application
@@ -716,7 +716,7 @@ paths:
                         hasNext: false
                         hasPrev: false
 
-  /loan-applications/my-applications:
+  /api/loan-applications/my-applications:
     get:
       tags: [Loan Applications]
       summary: Get my loan applications
@@ -732,7 +732,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/LoanApplicationListResponse'
 
-  /loan-applications/{id}:
+  /api/loan-applications/{id}:
     patch:
       tags: [Loan Applications]
       summary: Update loan application

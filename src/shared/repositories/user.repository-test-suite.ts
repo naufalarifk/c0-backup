@@ -3,7 +3,8 @@ import type { UserAppliesForInstitutionParams } from './user.types';
 import { doesNotReject, doesNotThrow, equal, ok, rejects, throws } from 'node:assert/strict';
 import { describe, suite } from 'node:test';
 
-import { assertArray, assertArrayMapOf, assertDefined, assertPropDefined } from '../utils';
+import { assertArrayMapOf, assertDefined, assertPropDefined } from 'typeshaper';
+
 import { createEarlyExitNodeTestIt } from '../utils/node-test';
 import { UserRepository } from './user.repository';
 
@@ -30,7 +31,9 @@ function createInstitutionApplicationData(
     businessSubdistrict: 'Senayan',
     businessPostalCode: '12190',
     directorName: 'John Doe',
+    directorPosition: 'CEO',
     directorIdCardPath: '/path/to/director_id.pdf',
+    ministryApprovalDocumentPath: '/path/to/ministry.pdf',
     applicationDate,
   };
 }
@@ -391,7 +394,7 @@ export async function runUserRepositoryTestSuite(
         });
 
         // Admin approves KYC
-        await repo.adminApprovesKYCParam({
+        await repo.adminApprovesKyc({
           kycId: kyc.id,
           verifierUserId: admin.id,
           approvalDate: new Date('2024-01-02T00:00:00Z'),
@@ -572,7 +575,7 @@ export async function runUserRepositoryTestSuite(
         });
 
         // Admin approves invited user's KYC
-        await repo.adminApprovesKYCParam({
+        await repo.adminApprovesKyc({
           kycId: invitedUserKyc.id,
           verifierUserId: '1', // System user
           approvalDate: new Date('2024-01-01T00:00:00Z'),
@@ -669,7 +672,7 @@ export async function runUserRepositoryTestSuite(
         });
 
         // Admin approves invited user's KYC
-        await repo.adminApprovesKYCParam({
+        await repo.adminApprovesKyc({
           kycId: invitedUserKyc.id,
           verifierUserId: '1', // System user
           approvalDate: new Date('2024-01-01T00:00:00Z'),
@@ -766,7 +769,7 @@ export async function runUserRepositoryTestSuite(
           submissionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
-        const result = await repo.adminApprovesKYCParam({
+        const result = await repo.adminApprovesKyc({
           kycId: kyc.id,
           verifierUserId: admin.id,
           approvalDate: new Date('2024-01-02T00:00:00Z'),
@@ -1106,7 +1109,7 @@ export async function runUserRepositoryTestSuite(
             submissionDate: new Date('2024-01-01T00:00:00Z'),
           });
 
-          await repo.adminApprovesKYCParam({
+          await repo.adminApprovesKyc({
             kycId: kyc.id,
             verifierUserId: admin.id,
             approvalDate: new Date('2024-01-02T00:00:00Z'),
@@ -2054,6 +2057,202 @@ export async function runUserRepositoryTestSuite(
 
         equal(notifications.notifications.length, 2);
         equal(notifications.unreadCount, 2);
+      });
+    });
+
+    describe('User Preferences Management', function () {
+      it('should get default preferences for new user', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Preferences Test User',
+          email: 'preferences-test@example.com',
+          emailVerified: true,
+        });
+
+        const preferences = await repo.userGetsPreferences({ userId: user.id });
+
+        equal(preferences.userId, String(user.id));
+        equal(preferences.notifications.email.enabled, true);
+        equal(preferences.notifications.push.enabled, true);
+        equal(preferences.notifications.sms.enabled, false);
+        equal(preferences.display.theme, 'light');
+        equal(preferences.display.language, 'en');
+        equal(preferences.display.currency, 'USD');
+        equal(preferences.privacy.profileVisibility, 'private');
+        equal(preferences.privacy.dataSharing.analytics, true);
+        equal(preferences.privacy.dataSharing.thirdPartyIntegrations, false);
+      });
+
+      it('should update user preferences', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Update Preferences Test User',
+          email: 'update-preferences-test@example.com',
+          emailVerified: true,
+        });
+
+        // Update preferences
+        const updateResult = await repo.userUpdatesPreferences({
+          userId: user.id,
+          preferences: {
+            display: {
+              theme: 'dark',
+              language: 'id',
+            },
+            notifications: {
+              email: {
+                enabled: false,
+              },
+            },
+            privacy: {
+              profileVisibility: 'public',
+              dataSharing: {
+                analytics: false,
+              },
+            },
+          },
+          updateDate: new Date(),
+        });
+
+        equal(updateResult.userId, String(user.id));
+        ok(updateResult.id, 'Should return preference ID');
+
+        // Get updated preferences
+        const updatedPrefs = await repo.userGetsPreferences({ userId: user.id });
+
+        equal(updatedPrefs.display.theme, 'dark');
+        equal(updatedPrefs.display.language, 'id');
+        equal(updatedPrefs.display.currency, 'USD'); // Should remain default
+        equal(updatedPrefs.notifications.email.enabled, false);
+        equal(updatedPrefs.notifications.push.enabled, true); // Should remain default
+        equal(updatedPrefs.privacy.profileVisibility, 'public');
+        equal(updatedPrefs.privacy.dataSharing.analytics, false);
+        equal(updatedPrefs.privacy.dataSharing.thirdPartyIntegrations, false); // Should remain default
+      });
+
+      it('should handle partial updates correctly', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Partial Update Test User',
+          email: 'partial-update-test@example.com',
+          emailVerified: true,
+        });
+
+        // First update some preferences
+        await repo.userUpdatesPreferences({
+          userId: user.id,
+          preferences: {
+            display: {
+              theme: 'dark',
+            },
+          },
+          updateDate: new Date(),
+        });
+
+        // Then update different preferences
+        await repo.userUpdatesPreferences({
+          userId: user.id,
+          preferences: {
+            notifications: {
+              sms: {
+                enabled: true,
+                types: {
+                  paymentAlerts: true,
+                },
+              },
+            },
+          },
+          updateDate: new Date(),
+        });
+
+        // Check that both updates are preserved
+        const prefs = await repo.userGetsPreferences({ userId: user.id });
+
+        equal(prefs.display.theme, 'dark');
+        equal(prefs.notifications.sms.enabled, true);
+        equal(prefs.notifications.sms.types.paymentAlerts, true);
+        equal(prefs.notifications.sms.types.systemNotifications, false); // Should remain default
+      });
+
+      it('should handle nested notification type updates', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Nested Update Test User',
+          email: 'nested-update-test@example.com',
+          emailVerified: true,
+        });
+
+        // Update only specific notification types
+        await repo.userUpdatesPreferences({
+          userId: user.id,
+          preferences: {
+            notifications: {
+              email: {
+                types: {
+                  paymentAlerts: false, // Turn off payment alerts
+                  // systemNotifications should remain true (default)
+                },
+              },
+              push: {
+                enabled: false, // Disable all push notifications
+              },
+            },
+          },
+          updateDate: new Date(),
+        });
+
+        const prefs = await repo.userGetsPreferences({ userId: user.id });
+
+        // Email should still be enabled but with updated types
+        equal(prefs.notifications.email.enabled, true);
+        equal(prefs.notifications.email.types.paymentAlerts, false);
+        equal(prefs.notifications.email.types.systemNotifications, true);
+
+        // Push should be disabled
+        equal(prefs.notifications.push.enabled, false);
+        equal(prefs.notifications.push.types.paymentAlerts, true); // Should remain default
+        equal(prefs.notifications.push.types.systemNotifications, true); // Should remain default
+
+        // SMS should remain default
+        equal(prefs.notifications.sms.enabled, false);
+      });
+
+      it('should preserve preferences across multiple updates', async function () {
+        const user = await repo.betterAuthCreateUser({
+          name: 'Multiple Updates Test User',
+          email: 'multiple-updates-test@example.com',
+          emailVerified: true,
+        });
+
+        // First update - change theme
+        await repo.userUpdatesPreferences({
+          userId: user.id,
+          preferences: {
+            display: { theme: 'dark' },
+          },
+          updateDate: new Date(),
+        });
+
+        // Second update - change language
+        await repo.userUpdatesPreferences({
+          userId: user.id,
+          preferences: {
+            display: { language: 'id' },
+          },
+          updateDate: new Date(),
+        });
+
+        // Third update - change currency
+        await repo.userUpdatesPreferences({
+          userId: user.id,
+          preferences: {
+            display: { currency: 'IDR' },
+          },
+          updateDate: new Date(),
+        });
+
+        const prefs = await repo.userGetsPreferences({ userId: user.id });
+
+        // All display preferences should be preserved
+        equal(prefs.display.theme, 'dark');
+        equal(prefs.display.language, 'id');
+        equal(prefs.display.currency, 'IDR');
       });
     });
   });

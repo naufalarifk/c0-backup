@@ -7,9 +7,9 @@ import { UserViewsProfileResult } from '../../../../shared/types';
 export class ProfileResponseDto {
   @ApiProperty({
     description: 'User ID',
-    example: 'user-123',
+    example: 123,
   })
-  id: string;
+  id: number;
 
   @ApiProperty({
     description: 'User full name',

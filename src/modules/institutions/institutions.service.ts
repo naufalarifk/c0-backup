@@ -1,11 +1,30 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+
+import {
+  assertArrayMapOf,
+  assertDefined,
+  assertProp,
+  assertPropNullableString,
+  assertPropString,
+  check,
+  isInstanceOf,
+  isNullable,
+  isNumber,
+  isString,
+  setPropValue,
+} from 'typeshaper';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { FileValidatorService } from '../../shared/services/file-validator.service';
 import { MinioService } from '../../shared/services/minio.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { File } from '../../shared/types';
-import { ensure, ensureExists, ensurePrecondition } from '../../shared/utils';
+import { ensure, ensureExists, ensurePermission, ensurePrecondition } from '../../shared/utils';
 import { ResponseHelper } from '../../shared/utils/response.helper';
 import { CreateInstitutionDto, SubmitCreateInstitutionDto } from './dto/create-institution.dto';
 import { CreateInstitutionInviteDto } from './dto/create-institution-invite.dto';
@@ -31,6 +50,7 @@ export class InstitutionsService {
       registrationDocument: File[];
       deedOfEstablishment: File[];
       directorIdCard: File[];
+      ministryApprovalDocument: File[];
     },
   ) {
     // Process file uploads (required)
@@ -49,14 +69,33 @@ export class InstitutionsService {
       applicationDate: new Date(),
     };
 
-    const result = await this.repo.userAppliesForInstitution(payload);
+    let result;
+    try {
+      result = await this.repo.userAppliesForInstitution(payload);
+    } catch (error) {
+      // Handle database constraint violations
+      if (error instanceof Error && error.message.includes('BUSINESS_NAME_EXISTS')) {
+        throw new ConflictException({
+          code: 'BUSINESS_NAME_EXISTS',
+          message: 'Business name already exists',
+          details: {
+            businessName: institutionData.businessName,
+            message: 'This business name is already registered in another application',
+          },
+        });
+      }
+      throw error;
+    }
 
-    return ResponseHelper.created('Institution application', {
-      applicationId: result.id,
-      status: 'Pending',
-      submissionDate: payload.applicationDate,
-      businessName: institutionData.businessName,
-    });
+    return {
+      message: 'Institution application created successfully',
+      application: {
+        id: Number(result.id),
+        businessName: institutionData.businessName,
+        submittedDate: payload.applicationDate,
+        status: 'Submitted',
+      },
+    };
   }
 
   /**
@@ -69,53 +108,64 @@ export class InstitutionsService {
       registrationDocument: File[];
       deedOfEstablishment: File[];
       directorIdCard: File[];
+      ministryApprovalDocument: File[];
     },
   ): Promise<{
     npwpDocumentPath: string;
     registrationDocumentPath: string;
     deedOfEstablishmentPath: string;
     directorIdCardPath: string;
+    ministryApprovalDocumentPath: string;
   }> {
     // Validate required files
     const validatedFiles = this.validateInstitutionFiles(files);
 
     // Upload files in parallel
-    const [npwpResult, registrationResult, deedResult, directorIdResult] = await Promise.all([
-      this.uploadFile(
-        validatedFiles.npwpDocument.buffer,
-        validatedFiles.npwpDocument.originalname,
-        userId,
-        'npwp-document',
-        validatedFiles.npwpDocument.mimetype,
-      ),
-      this.uploadFile(
-        validatedFiles.registrationDocument.buffer,
-        validatedFiles.registrationDocument.originalname,
-        userId,
-        'registration-document',
-        validatedFiles.registrationDocument.mimetype,
-      ),
-      this.uploadFile(
-        validatedFiles.deedOfEstablishment.buffer,
-        validatedFiles.deedOfEstablishment.originalname,
-        userId,
-        'deed-of-establishment',
-        validatedFiles.deedOfEstablishment.mimetype,
-      ),
-      this.uploadFile(
-        validatedFiles.directorIdCard.buffer,
-        validatedFiles.directorIdCard.originalname,
-        userId,
-        'director-id-card',
-        validatedFiles.directorIdCard.mimetype,
-      ),
-    ]);
+    const [npwpResult, registrationResult, deedResult, directorIdResult, ministryResult] =
+      await Promise.all([
+        this.uploadFile(
+          validatedFiles.npwpDocument.buffer,
+          validatedFiles.npwpDocument.originalname,
+          userId,
+          'npwp-document',
+          validatedFiles.npwpDocument.mimetype,
+        ),
+        this.uploadFile(
+          validatedFiles.registrationDocument.buffer,
+          validatedFiles.registrationDocument.originalname,
+          userId,
+          'registration-document',
+          validatedFiles.registrationDocument.mimetype,
+        ),
+        this.uploadFile(
+          validatedFiles.deedOfEstablishment.buffer,
+          validatedFiles.deedOfEstablishment.originalname,
+          userId,
+          'deed-of-establishment',
+          validatedFiles.deedOfEstablishment.mimetype,
+        ),
+        this.uploadFile(
+          validatedFiles.directorIdCard.buffer,
+          validatedFiles.directorIdCard.originalname,
+          userId,
+          'director-id-card',
+          validatedFiles.directorIdCard.mimetype,
+        ),
+        this.uploadFile(
+          validatedFiles.ministryApprovalDocument.buffer,
+          validatedFiles.ministryApprovalDocument.originalname,
+          userId,
+          'ministry-approval-document',
+          validatedFiles.ministryApprovalDocument.mimetype,
+        ),
+      ]);
 
     return {
       npwpDocumentPath: `${npwpResult.bucket}:${npwpResult.objectPath}`,
       registrationDocumentPath: `${registrationResult.bucket}:${registrationResult.objectPath}`,
       deedOfEstablishmentPath: `${deedResult.bucket}:${deedResult.objectPath}`,
       directorIdCardPath: `${directorIdResult.bucket}:${directorIdResult.objectPath}`,
+      ministryApprovalDocumentPath: `${ministryResult.bucket}:${ministryResult.objectPath}`,
     };
   }
 
@@ -127,57 +177,142 @@ export class InstitutionsService {
     registrationDocument: File[];
     deedOfEstablishment: File[];
     directorIdCard: File[];
+    ministryApprovalDocument: File[];
   }) {
-    ensure(files?.npwpDocument?.[0], 'NPWP document is required');
-    ensure(files?.registrationDocument?.[0], 'Registration document is required');
-    ensure(files?.deedOfEstablishment?.[0], 'Deed of establishment document is required');
-    ensure(files?.directorIdCard?.[0], 'Director ID card is required');
+    const errors: Record<string, string> = {};
+
+    if (!files?.npwpDocument?.[0]) {
+      errors.npwpDocument = 'NPWP document is required';
+    }
+    if (!files?.registrationDocument?.[0]) {
+      errors.registrationDocument = 'Registration document is required';
+    }
+    if (!files?.deedOfEstablishment?.[0]) {
+      errors.deedOfEstablishment = 'Deed of establishment document is required';
+    }
+    if (!files?.directorIdCard?.[0]) {
+      errors.directorIdCard = 'Director ID card is required';
+    }
+    if (!files?.ministryApprovalDocument?.[0]) {
+      errors.ministryApprovalDocument = 'Ministry approval document is required';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      throw new UnprocessableEntityException({
+        message: 'Request validation failed',
+        errors,
+      });
+    }
 
     return {
       npwpDocument: files.npwpDocument[0],
       registrationDocument: files.registrationDocument[0],
       deedOfEstablishment: files.deedOfEstablishment[0],
       directorIdCard: files.directorIdCard[0],
+      ministryApprovalDocument: files.ministryApprovalDocument[0],
     };
   }
 
   async invite(userId: string, createInstitutionInviteDto: CreateInstitutionInviteDto) {
-    const userInstitution = await this.repo.userViewsProfile({ userId });
-    ensurePrecondition(userInstitution.emailVerified, 'Email verification required');
-    ensurePrecondition(userInstitution.kycStatus === 'verified', 'KYC verification required');
+    const inviterUser = await this.repo.userViewsProfile({ userId });
+    ensurePrecondition(inviterUser.emailVerified, 'Email verification required');
+    ensurePermission(
+      inviterUser.institutionRole === 'Owner',
+      'Only institution owners can send invitations',
+    );
 
-    const targetUser = await this.repo.userViewsProfile({
-      userId: createInstitutionInviteDto.userId,
+    // Get the institution ID from the inviter's profile
+    const institutionId = inviterUser.institutionUserId;
+    ensureExists(institutionId, 'User is not associated with an institution');
+
+    // Find target user by email
+    const targetUsers = await this.repo.sql`
+      SELECT id, email, name, user_type, institution_user_id, email_verified_date
+      FROM users
+      WHERE email = ${createInstitutionInviteDto.userEmail}
+    `;
+
+    if (targetUsers.length === 0) {
+      const error = new Error('User with email not found');
+      setPropValue(error, 'code', 'USER_NOT_FOUND');
+      throw error;
+    }
+
+    assertArrayMapOf(targetUsers, function (item) {
+      assertDefined(item);
+      assertProp(check(isString, isNumber), item, 'id');
+      assertPropString(item, 'email');
+      assertPropString(item, 'name');
+      assertPropString(item, 'user_type');
+      assertProp(check(isNullable, isString, isNumber), item, 'institution_user_id');
+      assertProp(check(isNullable, isInstanceOf(Date)), item, 'email_verified_date');
+      return item;
     });
 
-    // Ensure target user exists
-    ensureExists(targetUser, 'User not found');
+    const targetUser = targetUsers[0];
 
-    // Check if target user has verified KYC (only if not already institution member)
-    ensure(targetUser.kycStatus === 'verified', 'Can only invite users with verified KYC');
+    // Check if user is already a member of ANY institution (check this first)
+    if (targetUser.institution_user_id) {
+      if (targetUser.institution_user_id === institutionId) {
+        const error = new Error('User is already institution member');
+        setPropValue(error, 'code', 'USER_ALREADY_MEMBER');
+        setPropValue(error, 'details', { userEmail: createInstitutionInviteDto.userEmail });
+        throw error;
+      } else {
+        const error = new Error('User is already institution member');
+        setPropValue(error, 'code', 'USER_ALREADY_MEMBER');
+        throw error;
+      }
+    }
 
-    // Target must be Individual user
-    ensure(targetUser.userType === 'Individual', 'Can only invite Individual users');
-
-    // Check if user is already a member of ANY institution (from targetUser data)
-    ensure(!targetUser.institutionUserId, 'User is already a member of an institution');
+    // Target must be Individual user (check this after membership check)
+    if (targetUser.user_type !== 'Individual') {
+      const error = new Error('Can only invite Individual users');
+      setPropValue(error, 'code', 'USER_INVALID_TYPE');
+      throw error;
+    }
 
     // Check for pending invitations to this specific institution
     const hasPendingInvitation = await this.checkPendingInvitation(
-      createInstitutionInviteDto.userId,
-      createInstitutionInviteDto.institutionId,
+      String(targetUser.id),
+      institutionId,
     );
     ensure(!hasPendingInvitation, 'User already has a pending invitation to this institution');
 
-    const payload = {
-      ...createInstitutionInviteDto,
-      inviterUserId: userId,
+    // Create the invitation
+    const invitationData = {
+      institutionId: userId, // This should be the inviting user's ID, not the institution ID
+      userId: String(targetUser.id),
+      role: createInstitutionInviteDto.role,
       invitationDate: new Date(),
     };
-    return this.repo.ownerUserInvitesUserToInstitution(payload);
+
+    // Store message in invitation record if provided
+    const result = await this.repo.ownerUserInvitesUserToInstitution(invitationData);
+
+    return {
+      invitation: {
+        id: result.id,
+        userEmail: createInstitutionInviteDto.userEmail,
+        role: createInstitutionInviteDto.role,
+        invitedDate: invitationData.invitationDate.toISOString(),
+      },
+    };
   }
 
   async acceptInvite(userId: string, inviteId: string) {
+    // Get invitation details first to validate
+    const invitation = await this.getInvitationById(inviteId);
+    ensureExists(invitation, 'Invitation not found');
+
+    // Verify this invitation is for this user
+    const _targetUser = await this.repo.userViewsProfile({ userId });
+    const invitationTargetUsers = await this.repo.sql`
+      SELECT target_user_id FROM institution_invitations
+      WHERE id = ${inviteId} AND target_user_id = ${userId}
+    `;
+    ensure(invitationTargetUsers.length > 0, 'Invitation not found');
+
     const payload = {
       invitationId: inviteId,
       userId: userId,
@@ -185,33 +320,458 @@ export class InstitutionsService {
     };
     const result = await this.repo.userAcceptsInstitutionInvitation(payload);
 
-    return ResponseHelper.action('Invitation acceptance', {
-      invitationId: inviteId,
-      institutionId: result.institutionId,
-      acceptedAt: result.acceptedDate,
-      status: 'accepted',
-    });
+    // Get institution details for response
+    const institutionDetails = await this.getInstitutionDetailsById(result.institutionId);
+
+    return {
+      institution: {
+        id: Number(result.institutionId),
+        businessName: institutionDetails?.name || `Institution ${result.institutionId}`,
+        role: invitation.role,
+      },
+      message: 'You have successfully joined the institution',
+    };
   }
 
   async rejectInvite(userId: string, inviteId: string, reason?: string) {
+    // Verify this invitation exists and is for this user
+    const invitationTargetUsers = await this.repo.sql`
+      SELECT target_user_id FROM institution_invitations
+      WHERE id = ${inviteId} AND target_user_id = ${userId}
+    `;
+    ensureExists(
+      invitationTargetUsers.length > 0 ? invitationTargetUsers[0] : null,
+      'Invitation not found',
+    );
+
     const payload = {
       invitationId: inviteId,
       userId: userId,
       rejectionReason: reason,
       rejectionDate: new Date(),
     };
-    const result = await this.repo.userRejectsInstitutionInvitation(payload);
+    const _result = await this.repo.userRejectsInstitutionInvitation(payload);
 
-    return ResponseHelper.action('Invitation rejection', {
-      invitationId: inviteId,
-      rejectedAt: result.rejectedDate,
-      status: 'rejected',
-      reason: reason,
-    });
+    return {
+      message: 'Invitation rejected successfully',
+    };
   }
 
   /**
-   * Upload institution document file to Minio (images only, no PDF for security)
+   * List pending invitations for an institution
+   */
+  async listInstitutionInvitations(institutionId: string, requestingUserId: string) {
+    // Verify that the requesting user has access to this institution
+    const user = await this.repo.userViewsProfile({ userId: requestingUserId });
+    ensureExists(user, 'User not found');
+
+    // Check if the institution exists
+    const institutionExists = await this.checkInstitutionExists(institutionId);
+    ensureExists(institutionExists ? {} : null, 'Institution not found');
+
+    // Check if user is a member of this institution and is an owner
+    ensurePermission(
+      user.institutionUserId === institutionId,
+      'You are not a member of this institution',
+    );
+    ensurePermission(
+      user.institutionRole === 'Owner',
+      'Only institution owners can view invitations',
+    );
+
+    // Get pending invitations for this institution
+    const invitations = await this.repo.sql`
+      SELECT
+        ii.id,
+        ii.role,
+        ii.invited_date,
+        ii.expires_date,
+        ii.status,
+        u.email as user_email,
+        inviter.id as inviter_id,
+        inviter.name as inviter_name
+      FROM institution_invitations ii
+      JOIN users u ON ii.target_user_id = u.id
+      LEFT JOIN users inviter ON ii.institution_user_id = inviter.id AND inviter.institution_role = 'Owner'
+      WHERE ii.institution_user_id = ${institutionId}
+        AND ii.status IN ('Sent')
+        AND ii.accepted_date IS NULL
+        AND ii.rejected_date IS NULL
+      ORDER BY ii.invited_date DESC;
+    `;
+
+    assertArrayMapOf(invitations, function (item) {
+      assertDefined(item);
+      assertProp(check(isString, isNumber), item, 'id');
+      assertPropString(item, 'role');
+      assertProp(check(isNullable, isInstanceOf(Date)), item, 'invited_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), item, 'expires_date');
+      assertPropString(item, 'status');
+      assertPropString(item, 'user_email');
+      assertProp(check(isNullable, isString, isNumber), item, 'inviter_id');
+      assertPropNullableString(item, 'inviter_name');
+      return item;
+    });
+
+    const formattedInvitations = invitations.map(function (inv) {
+      return {
+        id: Number(inv.id),
+        userEmail: inv.user_email,
+        role: inv.role,
+        invitedDate: inv.invited_date?.toISOString() || new Date().toISOString(),
+        expiresAt:
+          inv.expires_date?.toISOString() ||
+          new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now if not set
+        status: inv.status || 'Sent',
+        ...(inv.inviter_id
+          ? {
+              invitedBy: {
+                id: Number(inv.inviter_id),
+                name: inv.inviter_name,
+              },
+            }
+          : {}),
+      };
+    });
+
+    return {
+      invitations: formattedInvitations,
+    };
+  }
+
+  /**
+   * Resend an invitation
+   */
+  async resendInvitation(invitationId: string, requestingUserId: string) {
+    // Get invitation details
+    const invitationRows = await this.repo.sql`
+      SELECT
+        ii.id,
+        ii.institution_user_id,
+        ii.target_user_id,
+        ii.role,
+        ii.status,
+        ii.accepted_date,
+        ii.rejected_date,
+        u.email as user_email
+      FROM institution_invitations ii
+      JOIN users u ON ii.target_user_id = u.id
+      WHERE ii.id = ${invitationId}
+    `;
+
+    ensureExists(invitationRows.length > 0 ? invitationRows[0] : null, 'Invitation not found');
+
+    assertArrayMapOf(invitationRows, function (item) {
+      assertDefined(item);
+      assertProp(check(isString, isNumber), item, 'id');
+      assertProp(check(isString, isNumber), item, 'institution_user_id');
+      assertProp(check(isString, isNumber), item, 'target_user_id');
+      assertPropString(item, 'role');
+      assertPropString(item, 'status');
+      assertProp(check(isNullable, isInstanceOf(Date)), item, 'accepted_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), item, 'rejected_date');
+      assertPropString(item, 'user_email');
+      return item;
+    });
+
+    const invitation = invitationRows[0];
+
+    // Check if invitation has already been responded to first (before permission checks)
+    if (invitation.accepted_date || invitation.rejected_date) {
+      const error = new Error(
+        'Cannot resend invitation that has already been accepted or rejected',
+      );
+      setPropValue(error, 'code', 'INVITATION_ALREADY_RESPONDED');
+      throw error;
+    }
+
+    // Verify requesting user is owner of the institution
+    const requestingUser = await this.repo.userViewsProfile({ userId: requestingUserId });
+    ensurePermission(
+      requestingUser.institutionUserId === invitation.institution_user_id,
+      'You are not a member of this institution',
+    );
+    ensurePermission(
+      requestingUser.institutionRole === 'Owner',
+      'Only institution owners can resend invitations',
+    );
+
+    // Update invitation date (simulates resending)
+    await this.repo.sql`
+      UPDATE institution_invitations
+      SET invited_date = NOW(), status = 'Sent'
+      WHERE id = ${invitationId}
+    `;
+
+    return {
+      invitation: {
+        id: Number(invitation.id),
+        userEmail: invitation.user_email,
+        role: invitation.role,
+        invitedDate: new Date().toISOString(),
+      },
+      message: 'Invitation resent successfully',
+    };
+  }
+
+  /**
+   * Get invitation details by ID
+   */
+  async getInvitationDetails(invitationId: string, requestingUserId: string) {
+    const invitationRows = await this.repo.sql`
+      SELECT
+        ii.id,
+        ii.institution_user_id,
+        ii.target_user_id,
+        ii.role,
+        ii.invited_date,
+        ii.expires_date,
+        ii.status,
+        u.email as user_email,
+        inviter.id as inviter_id,
+        inviter.name as inviter_name,
+        inviter.business_name as institution_business_name,
+        inviter.business_type as institution_business_type,
+        kyc.status as institution_kyc_status
+      FROM institution_invitations ii
+      JOIN users u ON ii.target_user_id = u.id
+      LEFT JOIN users inviter ON inviter.institution_user_id = ii.institution_user_id AND inviter.institution_role = 'Owner'
+      LEFT JOIN user_kycs kyc ON inviter.kyc_id = kyc.id
+      WHERE ii.id = ${invitationId}
+    `;
+
+    ensureExists(invitationRows.length > 0 ? invitationRows[0] : null, 'Invitation not found');
+
+    assertArrayMapOf(invitationRows, function (item) {
+      assertDefined(item);
+      assertProp(check(isString, isNumber), item, 'id');
+      assertProp(check(isNullable, isString, isNumber), item, 'institution_user_id');
+      assertProp(check(isString, isNumber), item, 'target_user_id');
+      assertPropString(item, 'role');
+      assertProp(check(isNullable, isInstanceOf(Date)), item, 'invited_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), item, 'expires_date');
+      assertPropString(item, 'status');
+      assertPropString(item, 'user_email');
+      assertProp(check(isNullable, isString, isNumber), item, 'inviter_id');
+      assertPropNullableString(item, 'inviter_name');
+      assertPropNullableString(item, 'institution_business_name');
+      assertPropNullableString(item, 'institution_business_type');
+      assertPropNullableString(item, 'institution_kyc_status');
+      return item;
+    });
+
+    const invitation = invitationRows[0];
+
+    // Verify requesting user is the target of the invitation
+    ensure(
+      String(invitation.target_user_id) === requestingUserId,
+      'You can only view invitations sent to you',
+    );
+
+    const result = {
+      invitation: {
+        id: String(invitation.id),
+        userEmail: invitation.user_email,
+        role: invitation.role,
+        invitedDate: invitation.invited_date?.toISOString() || new Date().toISOString(),
+        expiresAt:
+          invitation.expires_date?.toISOString() ||
+          new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        institution: null as unknown,
+        rolePermissions: [] as string[],
+        roleRestrictions: [] as string[],
+      },
+    };
+
+    // Add institution details if available
+    if (invitation.institution_user_id) {
+      const verificationStatus =
+        invitation.institution_kyc_status === 'Verified'
+          ? 'Verified'
+          : invitation.institution_kyc_status === 'Submitted'
+            ? 'Pending'
+            : 'Unverified';
+
+      result.invitation.institution = {
+        id: Number(invitation.institution_user_id),
+        name:
+          invitation.institution_business_name || `Institution ${invitation.institution_user_id}`,
+        type: invitation.institution_business_type || 'Business',
+        verificationStatus: verificationStatus,
+      };
+    }
+
+    // Add role permissions/restrictions (placeholder)
+    result.invitation.rolePermissions = [];
+    result.invitation.roleRestrictions = [];
+
+    // Add inviter details if available
+    if (invitation.inviter_id && invitation.inviter_name) {
+      setPropValue(result.invitation, 'invitedBy', {
+        id: Number(invitation.inviter_id),
+        name: invitation.inviter_name,
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Cancel an invitation
+   */
+  async cancelInvitation(invitationId: string, requestingUserId: string) {
+    // First verify requesting user has appropriate permissions
+    const requestingUser = await this.repo.userViewsProfile({ userId: requestingUserId });
+
+    // Check if user is an institution owner (basic permission check)
+    ensurePermission(
+      requestingUser.institutionRole === 'Owner',
+      'Access denied - you are not a member with sufficient permissions',
+    );
+
+    // Get invitation details
+    const invitationRows = await this.repo.sql`
+      SELECT
+        ii.id,
+        ii.institution_user_id,
+        ii.target_user_id,
+        ii.status,
+        ii.accepted_date,
+        ii.rejected_date,
+        u.email as user_email
+      FROM institution_invitations ii
+      JOIN users u ON ii.target_user_id = u.id
+      WHERE ii.id = ${invitationId}
+    `;
+
+    ensureExists(invitationRows.length > 0 ? invitationRows[0] : null, 'Invitation not found');
+
+    assertArrayMapOf(invitationRows, function (item) {
+      assertDefined(item);
+      assertProp(check(isString, isNumber), item, 'id');
+      assertProp(check(isString, isNumber), item, 'institution_user_id');
+      assertProp(check(isString, isNumber), item, 'target_user_id');
+      assertPropString(item, 'status');
+      assertProp(check(isNullable, isInstanceOf(Date)), item, 'accepted_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), item, 'rejected_date');
+      assertPropString(item, 'user_email');
+      return item;
+    });
+
+    const invitation = invitationRows[0];
+
+    // Check if invitation has already been responded to
+    if (invitation.accepted_date || invitation.rejected_date) {
+      const error = new Error(
+        'Cannot cancel invitation that has already been accepted or rejected',
+      );
+      setPropValue(error, 'code', 'INVITATION_ALREADY_RESPONDED');
+      throw error;
+    }
+
+    // Verify requesting user is owner of the same institution as the invitation
+    ensurePermission(
+      requestingUser.institutionUserId === invitation.institution_user_id,
+      'You are not a member of this institution',
+    );
+
+    // Delete the invitation (or mark as cancelled)
+    await this.repo.sql`
+      DELETE FROM institution_invitations
+      WHERE id = ${invitationId}
+    `;
+
+    return {
+      message: 'Invitation cancelled successfully',
+    };
+  }
+
+  /**
+   * Get institution application status for a user
+   */
+  async getApplicationStatus(userId: string) {
+    // Get user's institution application
+    const application = await this.repo.userViewsInstitutionApplicationStatus({ userId });
+
+    if (!application || !application.id) {
+      throw new NotFoundException({
+        code: 'NOT_FOUND',
+        message: 'Institution application not found',
+        details: {
+          userId,
+          message: 'No institution application found for this user',
+        },
+      });
+    }
+
+    // Calculate progress based on status
+    const progress = this.calculateApplicationProgress(application.status);
+
+    // Calculate document status
+    const documents = {
+      uploaded: 5, // All required documents are uploaded when application is created
+      required: 5,
+      status: 'complete' as const,
+    };
+
+    return {
+      application: {
+        id: Number(application.id),
+        businessName: application.businessName,
+        submittedDate: application.submittedDate,
+        status: application.status,
+      },
+      progress,
+      documents,
+    };
+  }
+
+  /**
+   * Calculate application progress based on status
+   */
+  private calculateApplicationProgress(status: string) {
+    const totalSteps = 3;
+    let currentStep: number;
+    let completedSteps: number[];
+    let nextAction: string;
+
+    switch (status) {
+      case 'Submitted':
+        currentStep = 1;
+        completedSteps = [1];
+        nextAction = 'Wait for review';
+        break;
+      case 'UnderReview':
+        currentStep = 2;
+        completedSteps = [1, 2];
+        nextAction = 'Under review by admin';
+        break;
+      case 'Verified':
+        currentStep = 3;
+        completedSteps = [1, 2, 3];
+        nextAction = 'Application completed';
+        break;
+      case 'Rejected':
+        currentStep = 3;
+        completedSteps = [1, 2];
+        nextAction = 'Application rejected';
+        break;
+      default:
+        currentStep = 1;
+        completedSteps = [];
+        nextAction = 'Submit application';
+    }
+
+    return {
+      currentStep,
+      totalSteps,
+      completedSteps,
+      nextAction,
+    };
+  }
+
+  /**
+   * Upload institution document file to Minio (accepts both images and PDFs for institution documents)
    */
   async uploadFile(
     fileBuffer: Buffer,
@@ -220,8 +780,17 @@ export class InstitutionsService {
     documentType: string,
     mimeType?: string,
   ): Promise<{ objectPath: string; bucket: string; size: number }> {
-    // Validate file - only images allowed (no PDF for security)
-    this.fileValidatorService.validateImageFile(fileBuffer, 2, mimeType, originalName);
+    // Validate file based on type - director ID card must be image, other documents can be PDF or image
+    if (documentType === 'director-id-card') {
+      this.fileValidatorService.validateImageFile(fileBuffer, 2, mimeType, originalName);
+    } else {
+      // For other institution documents, allow both PDF and images
+      if (mimeType === 'application/pdf' || originalName?.toLowerCase().endsWith('.pdf')) {
+        this.fileValidatorService.validatePdfFile(fileBuffer, 5, mimeType, originalName);
+      } else {
+        this.fileValidatorService.validateImageFile(fileBuffer, 2, mimeType, originalName);
+      }
+    }
 
     const folder = `institutions/${userId}`;
     const sanitizedFileName = this.fileValidatorService.sanitizeFileName(originalName);
@@ -258,6 +827,218 @@ export class InstitutionsService {
   }
 
   /**
+   * Get institution details by ID
+   */
+  async getInstitutionDetails(institutionId: string, requestingUserId: string) {
+    // Verify that the requesting user has access to this institution
+    const user = await this.repo.userViewsProfile({ userId: requestingUserId });
+    ensureExists(user, 'User not found');
+
+    // Check if the institution exists by checking if any users belong to it
+    const institutionExists = await this.checkInstitutionExists(institutionId);
+    ensureExists(institutionExists ? {} : null, 'Institution not found');
+
+    // Check if user is a member of this institution
+    ensurePermission(
+      user.institutionUserId === institutionId,
+      'You are not a member of this institution',
+    );
+
+    // For now, we'll construct institution details from the user data
+    // In a full implementation, this would query an institutions table
+    const memberCount = await this.getInstitutionMemberCount(institutionId);
+
+    return {
+      institution: {
+        id: Number(institutionId),
+        name: user.businessName || `Institution ${institutionId}`,
+        type: user.businessType || 'Business',
+        verificationStatus: user.kycStatus === 'verified' ? 'Verified' : 'Unverified',
+        memberCount,
+        activeSince: user.createdAt?.toISOString() || new Date().toISOString(),
+        registrationDetails: user.businessName
+          ? {
+              businessType: user.businessType || 'Unknown',
+            }
+          : undefined,
+      },
+    };
+  }
+
+  /**
+   * Get institution members
+   */
+  async getInstitutionMembers(institutionId: string, requestingUserId: string) {
+    // Verify that the requesting user has access to this institution
+    const user = await this.repo.userViewsProfile({ userId: requestingUserId });
+    ensureExists(user, 'User not found');
+
+    // Check if the institution exists
+    const institutionExists = await this.checkInstitutionExists(institutionId);
+    ensureExists(institutionExists ? {} : null, 'Institution not found');
+
+    // Check if user is a member of this institution
+    ensurePermission(
+      user.institutionUserId === institutionId,
+      'You are not a member of this institution',
+    );
+
+    // Get all members of this institution
+    const members = await this.repo.sql`
+      SELECT
+        u.id as user_id,
+        u.name,
+        u.email,
+        u.profile_picture as profile_picture_url,
+        u.institution_user_id,
+        u.institution_role,
+        u.created_date as joined_at
+      FROM users u
+      WHERE u.institution_user_id = ${institutionId}
+      ORDER BY u.created_date ASC;
+    `;
+
+    const memberCount = members.length;
+
+    const formattedMembers = members.map(function (member: unknown, index) {
+      assertDefined(member);
+      assertProp(check(isString, isNumber), member, 'user_id');
+      assertPropString(member, 'name');
+      assertPropString(member, 'email');
+      assertPropString(member, 'institution_role');
+      assertProp(check(isNullable, isInstanceOf(Date)), member, 'joined_at');
+      assertPropNullableString(member, 'profile_picture_url');
+      assertProp(check(isString, isNumber), member, 'institution_user_id');
+      return {
+        id: String(index + 1), // Simple ID for now
+        userId: Number(member.user_id),
+        institutionId: Number(institutionId),
+        role: member.institution_role,
+        verificationStatus: 'Unverified', // TODO: Add KYC status check
+        joinedAt: member.joined_at?.toISOString() || new Date().toISOString(),
+        invitedBy: null, // TODO: Add invited_by when invitation system is complete
+        user: {
+          id: Number(member.user_id),
+          name: member.name,
+          email: member.email,
+          profilePictureUrl: member.profile_picture_url,
+        },
+      };
+    });
+
+    return {
+      members: formattedMembers,
+      memberCount,
+    };
+  }
+
+  /**
+   * Remove a member from the institution
+   */
+  async removeInstitutionMember(institutionId: string, memberId: string, requestingUserId: string) {
+    // Verify that the requesting user has access to this institution
+    const requestingUser = await this.repo.userViewsProfile({ userId: requestingUserId });
+    ensureExists(requestingUser, 'User not found');
+
+    // Check if the institution exists
+    const institutionExists = await this.checkInstitutionExists(institutionId);
+    ensureExists(institutionExists ? {} : null, 'Institution not found');
+
+    // Check if requesting user is a member and is an owner
+    ensurePermission(
+      requestingUser.institutionUserId === institutionId,
+      'You are not a member of this institution',
+    );
+    ensurePermission(
+      requestingUser.institutionRole === 'Owner',
+      'Only institution owners can remove members',
+    );
+
+    // Get the member to be removed
+    let memberToRemove;
+    try {
+      memberToRemove = await this.repo.userViewsProfile({ userId: memberId });
+    } catch (_error) {
+      // If user doesn't exist at all, treat as member not found
+      ensureExists(null, 'Member not found');
+    }
+    ensureExists(memberToRemove, 'Member not found');
+
+    // Check if the member is part of this institution
+    ensure(
+      memberToRemove.institutionUserId === institutionId,
+      'User is not a member of this institution',
+    );
+
+    // Check if trying to remove the owner (not allowed)
+    if (memberToRemove.institutionRole === 'Owner') {
+      const error = new Error('Institution owner cannot be removed from the institution');
+      setPropValue(error, 'code', 'CANNOT_REMOVE_OWNER');
+      throw error;
+    }
+
+    // Remove the member from the institution
+    await this.repo.sql`
+      UPDATE users
+      SET institution_user_id = NULL, institution_role = NULL
+      WHERE id = ${memberId};
+    `;
+
+    return {
+      message: 'Member removed successfully',
+      removedMember: {
+        id: Number(memberId),
+        name: memberToRemove.name,
+        email: memberToRemove.email,
+      },
+    };
+  }
+
+  /**
+   * Check if an institution exists by checking if any users belong to it
+   */
+  private async checkInstitutionExists(institutionId: string): Promise<boolean> {
+    try {
+      const result = await this.repo.sql`
+        SELECT COUNT(*) as count
+        FROM users
+        WHERE institution_user_id = ${institutionId}
+      `;
+
+      const count = result[0] as { count: string | number };
+      return Number(count.count) > 0;
+    } catch (error) {
+      this.logger.error('Error checking institution existence', {
+        institutionId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Get the member count for an institution
+   */
+  private async getInstitutionMemberCount(institutionId: string): Promise<number> {
+    try {
+      const result = await this.repo.sql`
+        SELECT COUNT(*) as count
+        FROM users
+        WHERE institution_user_id = ${institutionId}
+      `;
+
+      const count = result[0] as { count: string | number };
+      return Number(count.count);
+    } catch (error) {
+      this.logger.error('Error getting institution member count', {
+        institutionId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return 0;
+    }
+  }
+
+  /**
    * Check if user has pending invitation to specific institution
    */
   private async checkPendingInvitation(userId: string, institutionId: string): Promise<boolean> {
@@ -268,7 +1049,7 @@ export class InstitutionsService {
         FROM institution_invitations
         WHERE institution_user_id = ${institutionId}
           AND target_user_id = ${userId}
-          AND status = 'pending'
+          AND status IN ('pending', 'Sent')
           AND accepted_date IS NULL
           AND rejected_date IS NULL
       `;
@@ -283,6 +1064,88 @@ export class InstitutionsService {
 
       // On error, be conservative and allow the invitation
       return false;
+    }
+  }
+
+  /**
+   * Get invitation by ID (helper method)
+   */
+  private async getInvitationById(invitationId: string) {
+    try {
+      const invitations = await this.repo.sql`
+        SELECT
+          ii.id,
+          ii.institution_user_id,
+          ii.target_user_id,
+          ii.role,
+          ii.status,
+          ii.accepted_date,
+          ii.rejected_date,
+          u.email as user_email
+        FROM institution_invitations ii
+        JOIN users u ON ii.target_user_id = u.id
+        WHERE ii.id = ${invitationId}
+      `;
+
+      assertArrayMapOf(invitations, function (item) {
+        assertDefined(item);
+        assertProp(check(isString, isNumber), item, 'id');
+        assertProp(check(isNullable, isString, isNumber), item, 'institution_user_id');
+        assertProp(check(isString, isNumber), item, 'target_user_id');
+        assertPropString(item, 'role');
+        assertPropString(item, 'status');
+        assertProp(check(isNullable, isInstanceOf(Date)), item, 'accepted_date');
+        assertProp(check(isNullable, isInstanceOf(Date)), item, 'rejected_date');
+        assertPropString(item, 'user_email');
+        return item;
+      });
+
+      return invitations.length > 0 ? invitations[0] : null;
+    } catch (error) {
+      this.logger.error('Error getting invitation by ID', {
+        invitationId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Get institution details by ID (helper method)
+   */
+  private async getInstitutionDetailsById(institutionId: string) {
+    try {
+      const institutions = await this.repo.sql`
+        SELECT
+          u.name,
+          u.business_name
+        FROM users u
+        WHERE u.institution_user_id = ${institutionId}
+          AND u.institution_role = 'Owner'
+        LIMIT 1
+      `;
+
+      if (institutions.length > 0) {
+        assertArrayMapOf(institutions, function (item) {
+          assertDefined(item);
+          assertPropNullableString(item, 'name');
+          assertPropNullableString(item, 'business_name');
+          return item;
+        });
+
+        const inst = institutions[0];
+        return {
+          name: inst.business_name || inst.name || `Institution ${institutionId}`,
+        };
+      }
+
+      return { name: `Institution ${institutionId}` };
+    } catch (error) {
+      this.logger.error('Error getting institution details', {
+        institutionId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return { name: `Institution ${institutionId}` };
     }
   }
 }

@@ -7,11 +7,11 @@ info:
     name: CryptoGadai Development Team
 
 servers:
-  - url: https://api.cryptogadai.com/api
+  - url: https://api.cryptogadai.com
     description: Production server
-  - url: https://cg-api.fh47.com/api
+  - url: https://cg-api.fh47.com
     description: Testing server
-  - url: http://cg-api.localhost/api
+  - url: http://cg-api.localhost
     description: Local development server
 
 security:
@@ -19,7 +19,7 @@ security:
   - bearerAuth: []
 
 paths:
-  /institutions/{id}:
+  /api/institutions/{id}:
     get:
       tags: [Institution Management]
       summary: Get institution details
@@ -62,7 +62,7 @@ paths:
         '403':
           $ref: '#/components/responses/InsufficientPermissions'
 
-  /institutions/{id}/members:
+  /api/institutions/{id}/members:
     get:
       tags: [Institution Management]
       summary: List institution members
@@ -125,7 +125,7 @@ paths:
         '403':
           $ref: '#/components/responses/InsufficientPermissions'
 
-  /institutions/{id}/members/{userId}:
+  /api/institutions/{id}/members/{userId}:
     delete:
       tags: [Institution Management]
       summary: Remove institution member
@@ -187,14 +187,14 @@ paths:
                     success: false
                     error:
                       code: CANNOT_REMOVE_OWNER
-                      message: Institution owner cannot be removed
+                      message: Institution owner cannot be removed from the institution
                     timestamp: 2024-03-15T10:30:00Z
         '404':
           $ref: '#/components/responses/NotFound'
         '403':
           $ref: '#/components/responses/InsufficientPermissions'
 
-  /institutions/{id}/invitations:
+  /api/institutions/{id}/invitations:
     get:
       tags: [Institution Management]
       summary: List pending invitations
@@ -247,7 +247,7 @@ paths:
         '403':
           $ref: '#/components/responses/InsufficientPermissions'
 
-  /institutions/invitations:
+  /api/institutions/invitations:
     post:
       tags: [Institution Management]
       summary: Invite institution member
@@ -263,12 +263,15 @@ paths:
                 userEmail:
                   type: string
                   format: email
+                  maxLength: 254
+                  description: Email address of the user to invite (max 254 characters)
                 role:
                   type: string
                   enum: [Finance]
                 message:
                   type: string
-                  description: Optional invitation message
+                  maxLength: 1000
+                  description: Optional invitation message (max 1000 characters)
             examples:
               finance_member:
                 summary: Invite finance member
@@ -304,8 +307,10 @@ paths:
           $ref: '#/components/responses/UserNotFound'
         '409':
           $ref: '#/components/responses/UserAlreadyMember'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
-  /institutions/invitations/{id}/resend:
+  /api/institutions/invitations/{id}/resend:
     post:
       tags: [Institution Management]
       summary: Resend institution invitation
@@ -360,7 +365,7 @@ paths:
         '403':
           $ref: '#/components/responses/InsufficientPermissions'
 
-  /institutions/invitations/{id}:
+  /api/institutions/invitations/{id}:
     delete:
       tags: [Institution Management]
       summary: Cancel pending invitation
@@ -459,7 +464,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /institutions/invitations/{id}/accept:
+  /api/institutions/invitations/{id}/accept:
     post:
       tags: [Institution Management]
       summary: Accept institution invitation
@@ -504,7 +509,7 @@ paths:
         '400':
           $ref: '#/components/responses/InvitationExpired'
 
-  /institutions/invitations/{id}/reject:
+  /api/institutions/invitations/{id}/reject:
     post:
       tags: [Institution Management]
       summary: Reject institution invitation
@@ -840,6 +845,65 @@ components:
                     message: This invitation expired and can no longer be accepted
                 timestamp: 2024-03-15T10:30:00Z
                 requestId: req_123e4567-e89b-12d3-a456-426614174007
+
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            validation_error:
+              summary: Validation failed for request parameters
+              value:
+                success: false
+                error:
+                  code: VALIDATION_ERROR
+                  message: Request validation failed
+                  details:
+                    userEmail: ""
+                    role: ""
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174008
+            email_too_long:
+              summary: Email address too long
+              value:
+                success: false
+                error:
+                  code: VALIDATION_ERROR
+                  message: Request validation failed
+                  details:
+                    userEmail: "Email address is too long (maximum 254 characters)"
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174008
+            message_too_long:
+              summary: Message too long
+              value:
+                success: false
+                error:
+                  code: VALIDATION_ERROR
+                  message: Request validation failed
+                  details:
+                    message: "Message is too long (maximum 1000 characters)"
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174008
+
+    BadRequest:
+      description: Bad request - malformed data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            malformed_json:
+              summary: Malformed JSON in request body
+              value:
+                success: false
+                error:
+                  code: BAD_REQUEST
+                  message: "Unexpected token 'i', \"invalid-json-string\" is not valid JSON"
+                timestamp: 2024-03-15T10:30:00Z
+                requestId: req_123e4567-e89b-12d3-a456-426614174009
 
 tags:
   - name: Institution Management

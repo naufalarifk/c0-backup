@@ -7,11 +7,11 @@ info:
     name: CryptoGadai Development Team
 
 servers:
-  - url: https://api.cryptogadai.com/api
+  - url: https://api.cryptogadai.com
     description: Production server
-  - url: https://cg-api.fh47.com/api
+  - url: https://cg-api.fh47.com
     description: Testing server
-  - url: http://cg-api.localhost/api
+  - url: http://cg-api.localhost
     description: Local development server
 
 security:
@@ -20,7 +20,7 @@ security:
 
 paths:
   # User Type Selection
-  /users/type-selection:
+  /api/users/type-selection:
     post:
       tags: [User Profile]
       summary: Select user type
@@ -77,22 +77,20 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  userType:
-                    type: string
-                    enum: [Individual, Institution]
-                  message:
-                    type: string
+                $ref: '#/components/schemas/ErrorResponse'
               examples:
                 already_selected:
                   summary: User type already selected
                   value:
-                    userType: Individual
-                    message: User type already selected
+                    success: false
+                    error:
+                      code: CONFLICT
+                      message: User type already selected
+                    timestamp: 2024-03-15T10:30:00Z
+                    requestId: req_123e4567-e89b-12d3-a456-426614174000
 
   # User Profile Management
-  /users/profile:
+  /api/users/profile:
     get:
       tags: [User Profile]
       summary: Get user profile
@@ -123,7 +121,7 @@ paths:
                       kycId: 567
                       kycStatus: verified
                       isVerified: true
-                      phoneVerified: true
+                      phoneNumberVerified: true
                       institutionId: null
                       institutionRole: null
                       twoFaEnabled: false
@@ -164,7 +162,7 @@ paths:
                       kycStatus: none
                       isVerified: false
                       verificationLevel: unverified
-                      phoneVerified: false
+                      phoneNumberVerified: false
                       featureUnlockStatus:
                         tradingEnabled: false
                         withdrawalEnabled: false
@@ -255,7 +253,7 @@ paths:
         '413':
           $ref: '#/components/responses/FileTooLarge'
 
-  /users/preferences:
+  /api/users/preferences:
     get:
       tags: [User Profile]
       summary: Get user preferences
@@ -307,7 +305,7 @@ paths:
                         language: "en"
                         currency: "USD"
                         timezone: "UTC"
-                        dateFormat: "DD/MM/YYYY"
+                        dateFormat: "YYYY-MM-DD"
                         numberFormat: "en-US"
                       privacy:
                         profileVisibility: "private"
@@ -345,11 +343,11 @@ paths:
                             marketingCommunications: false
                       display:
                         theme: "dark"
-                        language: "es"
-                        currency: "EUR"
-                        timezone: "Europe/Madrid"
-                        dateFormat: "DD/MM/YYYY"
-                        numberFormat: "es-ES"
+                        language: "id"
+                        currency: "IDR"
+                        timezone: "Asia/Jakarta"
+                        dateFormat: "YYYY-MM-DD"
+                        numberFormat: "id-ID"
                       privacy:
                         profileVisibility: "public"
                         dataSharing:
@@ -468,7 +466,7 @@ paths:
                         language: "en"
                         currency: "USD"
                         timezone: "UTC"
-                        dateFormat: "DD/MM/YYYY"
+                        dateFormat: "YYYY-MM-DD"
                         numberFormat: "en-US"
                       privacy:
                         profileVisibility: "private"
@@ -490,18 +488,18 @@ paths:
                     success: false
                     error:
                       code: "VALIDATION_ERROR"
-                      message: "Invalid theme value. Must be 'light' or 'dark'"
+                      message: "Invalid theme value"
                 invalid_language:
                   summary: Unsupported language
                   value:
                     success: false
                     error:
                       code: "VALIDATION_ERROR"
-                      message: "Unsupported language code. Supported languages: en, es, fr, de, it"
+                      message: "Unsupported language"
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /user/institutions:
+  /api/user/institutions:
     get:
       tags: [User Profile]
       summary: Get user's institution memberships
@@ -612,7 +610,7 @@ components:
           type: string
           enum: [verified, unverified, pending, rejected]
           description: Standardized verification level for UI badges
-        phoneVerified:
+        phoneNumberVerified:
           type: boolean
           description: Phone number verification status (addresses audit discrepancy D03)
         featureUnlockStatus:
@@ -825,12 +823,12 @@ components:
           example: "light"
         language:
           type: string
-          enum: [en, es, fr, de, it]
+          enum: [en, id]
           description: Display language
           example: "en"
         currency:
           type: string
-          enum: [USD, EUR, GBP, JPY, CAD, AUD]
+          enum: [USD, IDR, EUR, BTC, ETH]
           description: Preferred display currency
           example: "USD"
         timezone:
@@ -839,9 +837,9 @@ components:
           example: "UTC"
         dateFormat:
           type: string
-          enum: [DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD]
+          enum: [YYYY-MM-DD]
           description: Date display format
-          example: "DD/MM/YYYY"
+          example: "YYYY-MM-DD"
         numberFormat:
           type: string
           description: Number formatting locale

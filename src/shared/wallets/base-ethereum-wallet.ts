@@ -1,78 +1,54 @@
+import type { TransactionRequest } from 'ethers';
+
 import { ethers } from 'ethers';
+import invariant from 'tiny-invariant';
 
-import { EthereumTransactionParams, IWallet } from './Iwallet.types';
+import { IWallet, WalletTransferParams } from './Iwallet.types';
 
-export interface EthereumTransactionData {
-  params: EthereumTransactionParams;
-}
-
-export abstract class BaseEthereumWallet implements IWallet {
+export abstract class BaseEthereumWallet extends IWallet {
   protected abstract provider: ethers.JsonRpcProvider;
 
-  constructor(protected readonly privateKey: Uint8Array<ArrayBufferLike>) {}
+  constructor(protected readonly privateKey: Uint8Array<ArrayBufferLike>) {
+    super();
+  }
 
-  getAddress(): Promise<string> {
-    return new Promise(resolve => {
+  async getAddress(): Promise<string> {
+    const privateKeyHex = Buffer.from(this.privateKey).toString('hex');
+    const wallet = new ethers.Wallet(privateKeyHex);
+    return wallet.address;
+  }
+
+  async transfer(params: WalletTransferParams): Promise<{ txHash: string }> {
+    try {
       const privateKeyHex = Buffer.from(this.privateKey).toString('hex');
-      const wallet = new ethers.Wallet(privateKeyHex);
-      resolve(wallet.address as `0x${string}`);
-    });
-  }
+      const wallet = new ethers.Wallet(privateKeyHex, this.provider);
 
-  signTransaction<T>(transactionData: T): Promise<T> {
-    return new Promise((resolve, reject) => {
-      void (async () => {
-        try {
-          if (!this.isEthereumTransactionData(transactionData)) {
-            throw new Error('Invalid transaction data format');
-          }
+      // Get gas price
+      const feeData = await this.provider.getFeeData();
 
-          const privateKeyHex = Buffer.from(this.privateKey).toString('hex');
-          const wallet = new ethers.Wallet(privateKeyHex, this.provider);
+      // Build transaction
+      const transaction: TransactionRequest = {
+        to: params.to,
+        value: ethers.parseEther(params.value),
+        gasLimit: BigInt(21000),
+        gasPrice: feeData.gasPrice || BigInt(20000000000), // 20 gwei fallback
+      };
 
-          const { params } = transactionData;
-          const transaction = {
-            to: params.to,
-            value: ethers.parseEther(params.value),
-            gasLimit: params.gasLimit ? BigInt(params.gasLimit) : BigInt(21000),
-            gasPrice: params.gasPrice ? ethers.parseUnits(params.gasPrice, 'gwei') : undefined,
-            data: params.data || '0x',
-          };
+      // Sign transaction
+      const signedTx = await wallet.signTransaction(transaction);
 
-          // Get gas price if not provided
-          if (!transaction.gasPrice) {
-            const feeData = await this.provider.getFeeData();
-            transaction.gasPrice = feeData.gasPrice || BigInt(20000000000); // 20 gwei fallback
-          }
+      // Send transaction
+      const txResponse = await this.provider.broadcastTransaction(signedTx);
 
-          const signedTx = await wallet.signTransaction(transaction);
+      // Wait for confirmation
+      const receipt = await txResponse.wait();
 
-          const result = {
-            ...transactionData,
-            signedTransaction: signedTx,
-          } as T;
-
-          resolve(result);
-        } catch (error) {
-          reject(
-            new Error(
-              `Failed to sign transaction: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            ),
-          );
-        }
-      })();
-    });
-  }
-
-  protected isEthereumTransactionData(data: unknown): data is EthereumTransactionData {
-    if (!data || typeof data !== 'object') return false;
-
-    const obj = data as Record<string, unknown>;
-
-    if (!obj.params || typeof obj.params !== 'object') return false;
-
-    const params = obj.params as Record<string, unknown>;
-
-    return typeof params.to === 'string' && typeof params.value === 'string';
+      return { txHash: receipt?.hash || txResponse.hash };
+    } catch (error) {
+      invariant(
+        false,
+        `Transfer failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
   }
 }

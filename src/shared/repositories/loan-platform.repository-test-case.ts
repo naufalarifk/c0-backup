@@ -2,12 +2,15 @@ import { deepEqual, equal, notEqual, ok, rejects } from 'node:assert/strict';
 import { describe, suite } from 'node:test';
 
 import {
-  assertArrayOf,
   assertDefined,
-  assertPropDate,
+  assertProp,
   assertPropString,
-  assertPropStringOrNumber,
-} from '../utils';
+  check,
+  isInstanceOf,
+  isNumber,
+  isString,
+} from 'typeshaper';
+
 import { createEarlyExitNodeTestIt } from '../utils/node-test';
 import {
   BorrowerCreatesLoanApplicationResult,
@@ -44,11 +47,11 @@ async function simulateLoanOfferInvoicePayment(
 
   const loanOffer = loanOfferRows[0];
   assertDefined(loanOffer, 'Loan offer validation failed');
-  assertPropStringOrNumber(loanOffer, 'lender_user_id');
-  assertPropStringOrNumber(loanOffer, 'offered_principal_amount');
+  assertProp(check(isString, isNumber), loanOffer, 'lender_user_id');
+  assertProp(check(isString, isNumber), loanOffer, 'offered_principal_amount');
   assertPropString(loanOffer, 'principal_currency_blockchain_key');
   assertPropString(loanOffer, 'principal_currency_token_id');
-  assertPropStringOrNumber(loanOffer, 'invoice_id');
+  assertProp(check(isString, isNumber), loanOffer, 'invoice_id');
 
   // First, ensure the lender has sufficient balance by adding funds
   await repo.sql`
@@ -109,11 +112,11 @@ async function simulateLoanApplicationInvoicePayment(
 
   const loanApplication = loanApplicationRows[0];
   assertDefined(loanApplication, 'Loan application validation failed');
-  assertPropStringOrNumber(loanApplication, 'borrower_user_id');
-  assertPropStringOrNumber(loanApplication, 'collateral_deposit_amount');
+  assertProp(check(isString, isNumber), loanApplication, 'borrower_user_id');
+  assertProp(check(isString, isNumber), loanApplication, 'collateral_deposit_amount');
   assertPropString(loanApplication, 'collateral_currency_blockchain_key');
   assertPropString(loanApplication, 'collateral_currency_token_id');
-  assertPropStringOrNumber(loanApplication, 'invoice_id');
+  assertProp(check(isString, isNumber), loanApplication, 'invoice_id');
 
   // First, ensure the borrower has sufficient balance by adding funds
   await repo.sql`
@@ -224,9 +227,9 @@ export async function runLoanPlatformRepositoryTestSuite(
             equal(publishedOfferRows.length, 1);
             const publishedOffer = publishedOfferRows[0];
             assertDefined(publishedOffer, 'Published offer validation failed');
-            assertPropStringOrNumber(publishedOffer, 'id');
+            assertProp(check(isString, isNumber), publishedOffer, 'id');
             assertPropString(publishedOffer, 'status');
-            assertPropDate(publishedOffer, 'published_date');
+            assertProp(isInstanceOf(Date), publishedOffer, 'published_date');
 
             equal(publishedOffer.status, 'Published');
             deepEqual(new Date(publishedOffer.published_date), paymentDate);
@@ -308,10 +311,14 @@ export async function runLoanPlatformRepositoryTestSuite(
             equal(publishedApplicationRows.length, 1);
             const publishedApplication = publishedApplicationRows[0];
             assertDefined(publishedApplication, 'Published application validation failed');
-            assertPropStringOrNumber(publishedApplication, 'id');
+            assertProp(check(isString, isNumber), publishedApplication, 'id');
             assertPropString(publishedApplication, 'status');
-            assertPropStringOrNumber(publishedApplication, 'collateral_prepaid_amount');
-            assertPropDate(publishedApplication, 'published_date');
+            assertProp(
+              check(isString, isNumber),
+              publishedApplication,
+              'collateral_prepaid_amount',
+            );
+            assertProp(isInstanceOf(Date), publishedApplication, 'published_date');
 
             equal(publishedApplication.status, 'Published');
             deepEqual(new Date(publishedApplication.published_date), paymentDate);

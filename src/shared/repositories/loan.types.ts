@@ -52,6 +52,8 @@ export type LenderCreatesLoanOfferParams = {
 export type LenderCreatesLoanOfferResult = {
   id: string;
   lenderUserId: string;
+  lenderUserType: 'Individual' | 'Institution';
+  lenderUserName: string;
   principalCurrency: Currency;
   offeredPrincipalAmount: string;
   availablePrincipalAmount: string;

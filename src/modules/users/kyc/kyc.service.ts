@@ -5,7 +5,7 @@ import { FileValidatorService } from '../../../shared/services/file-validator.se
 import { MinioService } from '../../../shared/services/minio.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { File } from '../../../shared/types';
-import { ensure, ensureUnique, ResponseHelper } from '../../../shared/utils';
+import { ensure, ensureUnique } from '../../../shared/utils/ensures.js';
 import { CreateKycDto, SubmitKycDto } from './dto/create-kyc.dto';
 
 @Injectable()
@@ -18,8 +18,28 @@ export class KycService {
     private readonly fileValidatorService: FileValidatorService,
   ) {}
 
-  getKyc(userId: string) {
-    return this.repo.userViewsKYCStatus({ userId });
+  async getKyc(userId: string) {
+    const kycData = await this.repo.userViewsKYCStatus({ userId });
+
+    // Transform response to match API contract expected by tests
+    const response = {
+      kycStatus: kycData.status,
+      submission: null as unknown,
+      canResubmit: kycData.canResubmit,
+    };
+
+    if (kycData.id && kycData.submittedDate) {
+      response.submission = {
+        id: parseInt(kycData.id, 10),
+        status: kycData.status,
+        submittedDate: kycData.submittedDate.toISOString(),
+        verifiedDate: kycData.verifiedDate?.toISOString() || null,
+        rejectedDate: kycData.rejectedDate?.toISOString() || null,
+        rejectionReason: kycData.rejectionReason || null,
+      };
+    }
+
+    return response;
   }
 
   /**
@@ -111,12 +131,18 @@ export class KycService {
     // 5. Log successful submission
     this.logger.log(`KYC submitted successfully`, { userId, kycId: res.id });
 
-    // 6. Return response using ResponseHelper
-    return ResponseHelper.created('KYC', {
-      id: res.id,
-      status: 'pending' as const,
-      submissionDate: kycData.submissionDate,
-    });
+    // 6. Return response in format expected by test
+    return {
+      message: 'KYC submission created successfully',
+      kycSubmission: {
+        id: Number(res.id),
+        status: 'pending' as const,
+        submittedDate: kycData.submissionDate,
+        verifiedDate: null,
+        rejectedDate: null,
+        rejectionReason: null,
+      },
+    };
   }
 
   /**

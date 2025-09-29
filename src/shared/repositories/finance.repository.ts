@@ -1,16 +1,24 @@
 import {
   assertDefined,
-  assertPropDate,
-  assertPropNullableDate,
+  assertProp,
   assertPropNullableString,
   assertPropString,
-  assertPropStringOrNumber,
-} from '../utils/assertions';
+  check,
+  isInstanceOf,
+  isNullable,
+  isNumber,
+  isString,
+} from 'typeshaper';
+
 import {
   AdminApprovesWithdrawalRefundParams,
   AdminApprovesWithdrawalRefundResult,
   AdminRejectsWithdrawalRefundParams,
   AdminRejectsWithdrawalRefundResult,
+  AdminViewsFailedWithdrawalsParams,
+  AdminViewsFailedWithdrawalsResult,
+  AdminViewsWithdrawalDetailsParams,
+  AdminWithdrawalDetailsResult,
   BlockchainDetectsInvoicePaymentParams,
   BlockchainDetectsInvoicePaymentResult,
   GetRemainingDailyWithdrawalLimitParams,
@@ -90,11 +98,11 @@ export abstract class FinanceRepository extends UserRepository {
     return {
       accounts: accounts.map(function (account: unknown) {
         assertDefined(account, 'Account is undefined');
-        assertPropStringOrNumber(account, 'id');
-        assertPropStringOrNumber(account, 'user_id');
+        assertProp(check(isString, isNumber), account, 'id');
+        assertProp(check(isString, isNumber), account, 'user_id');
         assertPropString(account, 'currency_blockchain_key');
         assertPropString(account, 'currency_token_id');
-        assertPropStringOrNumber(account, 'balance');
+        assertProp(check(isString, isNumber), account, 'balance');
         assertPropString(account, 'account_type');
         return {
           id: String(account.id),
@@ -125,7 +133,7 @@ export abstract class FinanceRepository extends UserRepository {
 
     const countRow = Array.isArray(countResult) ? countResult[0] : countResult;
     assertDefined(countRow, 'Count query failed');
-    assertPropStringOrNumber(countRow, 'total');
+    assertProp(check(isString, isNumber), countRow, 'total');
     const totalCount = Number(countRow.total);
 
     const rows = await this.sql`
@@ -154,11 +162,11 @@ export abstract class FinanceRepository extends UserRepository {
     return {
       mutations: mutations.map(function (mutation: unknown) {
         assertDefined(mutation, 'Mutation is undefined');
-        assertPropStringOrNumber(mutation, 'id');
-        assertPropStringOrNumber(mutation, 'account_id');
+        assertProp(check(isString, isNumber), mutation, 'id');
+        assertProp(check(isString, isNumber), mutation, 'account_id');
         assertPropString(mutation, 'mutation_type');
-        assertPropDate(mutation, 'mutation_date');
-        assertPropStringOrNumber(mutation, 'amount');
+        assertProp(isInstanceOf(Date), mutation, 'mutation_date');
+        assertProp(check(isString, isNumber), mutation, 'amount');
         assertPropNullableString(mutation, 'invoice_id');
         assertPropNullableString(mutation, 'withdrawal_id');
         assertPropNullableString(mutation, 'invoice_payment_id');
@@ -209,11 +217,11 @@ export abstract class FinanceRepository extends UserRepository {
 
       const account = rows[0];
       assertDefined(account, 'Account creation failed');
-      assertPropStringOrNumber(account, 'id');
-      assertPropStringOrNumber(account, 'user_id');
+      assertProp(check(isString, isNumber), account, 'id');
+      assertProp(check(isString, isNumber), account, 'user_id');
       assertPropString(account, 'currency_blockchain_key');
       assertPropString(account, 'currency_token_id');
-      assertPropStringOrNumber(account, 'balance');
+      assertProp(check(isString, isNumber), account, 'balance');
       assertPropString(account, 'account_type');
 
       await tx.commitTransaction();
@@ -280,15 +288,15 @@ export abstract class FinanceRepository extends UserRepository {
 
       const invoice = rows[0];
       assertDefined(invoice, 'Invoice creation failed');
-      assertPropStringOrNumber(invoice, 'id');
-      assertPropStringOrNumber(invoice, 'user_id');
+      assertProp(check(isString, isNumber), invoice, 'id');
+      assertProp(check(isString, isNumber), invoice, 'user_id');
       assertPropString(invoice, 'wallet_address');
       assertPropString(invoice, 'invoice_type');
       assertPropString(invoice, 'status');
-      assertPropStringOrNumber(invoice, 'invoiced_amount');
-      assertPropStringOrNumber(invoice, 'paid_amount');
-      assertPropDate(invoice, 'invoice_date');
-      assertPropNullableDate(invoice, 'due_date');
+      assertProp(check(isString, isNumber), invoice, 'invoiced_amount');
+      assertProp(check(isString, isNumber), invoice, 'paid_amount');
+      assertProp(isInstanceOf(Date), invoice, 'invoice_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'due_date');
 
       await tx.commitTransaction();
 
@@ -334,11 +342,11 @@ export abstract class FinanceRepository extends UserRepository {
 
       const payment = rows[0];
       assertDefined(payment, 'Invoice payment recording failed');
-      assertPropStringOrNumber(payment, 'id');
-      assertPropStringOrNumber(payment, 'invoice_id');
+      assertProp(check(isString, isNumber), payment, 'id');
+      assertProp(check(isString, isNumber), payment, 'invoice_id');
       assertPropString(payment, 'payment_hash');
-      assertPropStringOrNumber(payment, 'amount');
-      assertPropDate(payment, 'payment_date');
+      assertProp(check(isString, isNumber), payment, 'amount');
+      assertProp(isInstanceOf(Date), payment, 'payment_date');
 
       await tx.commitTransaction();
       return {
@@ -376,10 +384,10 @@ export abstract class FinanceRepository extends UserRepository {
 
       const invoice = rows[0];
       assertDefined(invoice, 'Invoice not found or update failed');
-      assertPropStringOrNumber(invoice, 'id');
+      assertProp(check(isString, isNumber), invoice, 'id');
       assertPropString(invoice, 'status');
-      assertPropNullableDate(invoice, 'expired_date');
-      assertPropNullableDate(invoice, 'notified_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'expired_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'notified_date');
 
       await tx.commitTransaction();
 
@@ -425,19 +433,19 @@ export abstract class FinanceRepository extends UserRepository {
 
     const invoice = rows[0];
     assertDefined(invoice, 'Invoice not found');
-    assertPropStringOrNumber(invoice, 'id');
-    assertPropStringOrNumber(invoice, 'user_id');
+    assertProp(check(isString, isNumber), invoice, 'id');
+    assertProp(check(isString, isNumber), invoice, 'user_id');
     assertPropString(invoice, 'currency_blockchain_key');
     assertPropString(invoice, 'currency_token_id');
     assertPropString(invoice, 'wallet_address');
     assertPropString(invoice, 'invoice_type');
     assertPropString(invoice, 'status');
-    assertPropStringOrNumber(invoice, 'invoiced_amount');
-    assertPropStringOrNumber(invoice, 'paid_amount');
-    assertPropDate(invoice, 'invoice_date');
-    assertPropNullableDate(invoice, 'due_date');
-    assertPropNullableDate(invoice, 'expired_date');
-    assertPropNullableDate(invoice, 'paid_date');
+    assertProp(check(isString, isNumber), invoice, 'invoiced_amount');
+    assertProp(check(isString, isNumber), invoice, 'paid_amount');
+    assertProp(isInstanceOf(Date), invoice, 'invoice_date');
+    assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'due_date');
+    assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'expired_date');
+    assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'paid_date');
 
     return {
       id: String(invoice.id),
@@ -472,7 +480,7 @@ export abstract class FinanceRepository extends UserRepository {
 
     const countRow = Array.isArray(countResult) ? countResult[0] : countResult;
     assertDefined(countRow, 'Count query failed');
-    assertPropStringOrNumber(countRow, 'total');
+    assertProp(check(isString, isNumber), countRow, 'total');
     const totalCount = Number(countRow.total);
 
     const rows = await this.sql`
@@ -504,18 +512,18 @@ export abstract class FinanceRepository extends UserRepository {
     return {
       invoices: invoices.map(function (invoice: unknown) {
         assertDefined(invoice, 'Invoice is undefined');
-        assertPropStringOrNumber(invoice, 'id');
-        assertPropStringOrNumber(invoice, 'user_id');
+        assertProp(check(isString, isNumber), invoice, 'id');
+        assertProp(check(isString, isNumber), invoice, 'user_id');
         assertPropString(invoice, 'currency_blockchain_key');
         assertPropString(invoice, 'currency_token_id');
-        assertPropStringOrNumber(invoice, 'invoiced_amount');
-        assertPropStringOrNumber(invoice, 'paid_amount');
+        assertProp(check(isString, isNumber), invoice, 'invoiced_amount');
+        assertProp(check(isString, isNumber), invoice, 'paid_amount');
         assertPropString(invoice, 'wallet_address');
         assertPropString(invoice, 'invoice_type');
         assertPropString(invoice, 'status');
-        assertPropDate(invoice, 'invoice_date');
-        assertPropNullableDate(invoice, 'due_date');
-        assertPropNullableDate(invoice, 'expired_date');
+        assertProp(isInstanceOf(Date), invoice, 'invoice_date');
+        assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'due_date');
+        assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'expired_date');
         return {
           id: String(invoice.id),
           userId: String(invoice.user_id),
@@ -558,9 +566,9 @@ export abstract class FinanceRepository extends UserRepository {
 
       const invoice = rows[0];
       assertDefined(invoice, 'Invoice not found or update failed');
-      assertPropStringOrNumber(invoice, 'id');
+      assertProp(check(isString, isNumber), invoice, 'id');
       assertPropString(invoice, 'status');
-      assertPropDate(invoice, 'expired_date');
+      assertProp(isInstanceOf(Date), invoice, 'expired_date');
 
       await tx.commitTransaction();
 
@@ -599,8 +607,8 @@ export abstract class FinanceRepository extends UserRepository {
 
       const beneficiary = rows[0];
       assertDefined(beneficiary, 'Beneficiary registration failed');
-      assertPropStringOrNumber(beneficiary, 'id');
-      assertPropStringOrNumber(beneficiary, 'user_id');
+      assertProp(check(isString, isNumber), beneficiary, 'id');
+      assertProp(check(isString, isNumber), beneficiary, 'user_id');
       assertPropString(beneficiary, 'blockchain_key');
       assertPropString(beneficiary, 'address');
 
@@ -649,12 +657,12 @@ export abstract class FinanceRepository extends UserRepository {
 
       const withdrawal = rows[0];
       assertDefined(withdrawal, 'Withdrawal request failed');
-      assertPropStringOrNumber(withdrawal, 'id');
-      assertPropStringOrNumber(withdrawal, 'beneficiary_id');
-      assertPropStringOrNumber(withdrawal, 'amount');
-      assertPropStringOrNumber(withdrawal, 'request_amount');
+      assertProp(check(isString, isNumber), withdrawal, 'id');
+      assertProp(check(isString, isNumber), withdrawal, 'beneficiary_id');
+      assertProp(check(isString, isNumber), withdrawal, 'amount');
+      assertProp(check(isString, isNumber), withdrawal, 'request_amount');
       assertPropString(withdrawal, 'status');
-      assertPropDate(withdrawal, 'request_date');
+      assertProp(isInstanceOf(Date), withdrawal, 'request_date');
 
       await tx.commitTransaction();
 
@@ -695,11 +703,11 @@ export abstract class FinanceRepository extends UserRepository {
 
       const withdrawal = rows[0];
       assertDefined(withdrawal, 'Withdrawal not found or update failed');
-      assertPropStringOrNumber(withdrawal, 'id');
+      assertProp(check(isString, isNumber), withdrawal, 'id');
       assertPropString(withdrawal, 'status');
       assertPropString(withdrawal, 'sent_hash');
-      assertPropStringOrNumber(withdrawal, 'sent_amount');
-      assertPropDate(withdrawal, 'sent_date');
+      assertProp(check(isString, isNumber), withdrawal, 'sent_amount');
+      assertProp(isInstanceOf(Date), withdrawal, 'sent_date');
 
       await tx.commitTransaction();
 
@@ -737,9 +745,9 @@ export abstract class FinanceRepository extends UserRepository {
 
       const withdrawal = rows[0];
       assertDefined(withdrawal, 'Withdrawal not found or update failed');
-      assertPropStringOrNumber(withdrawal, 'id');
+      assertProp(check(isString, isNumber), withdrawal, 'id');
       assertPropString(withdrawal, 'status');
-      assertPropDate(withdrawal, 'confirmed_date');
+      assertProp(isInstanceOf(Date), withdrawal, 'confirmed_date');
 
       await tx.commitTransaction();
 
@@ -776,9 +784,9 @@ export abstract class FinanceRepository extends UserRepository {
 
       const withdrawal = rows[0];
       assertDefined(withdrawal, 'Withdrawal not found or update failed');
-      assertPropStringOrNumber(withdrawal, 'id');
+      assertProp(check(isString, isNumber), withdrawal, 'id');
       assertPropString(withdrawal, 'status');
-      assertPropDate(withdrawal, 'failed_date');
+      assertProp(isInstanceOf(Date), withdrawal, 'failed_date');
       assertPropString(withdrawal, 'failure_reason');
 
       await tx.commitTransaction();
@@ -817,9 +825,9 @@ export abstract class FinanceRepository extends UserRepository {
 
       const withdrawal = rows[0];
       assertDefined(withdrawal, 'Withdrawal not found or update failed');
-      assertPropStringOrNumber(withdrawal, 'id');
+      assertProp(check(isString, isNumber), withdrawal, 'id');
       assertPropString(withdrawal, 'status');
-      assertPropDate(withdrawal, 'failure_refund_approved_date');
+      assertProp(isInstanceOf(Date), withdrawal, 'failure_refund_approved_date');
 
       await tx.commitTransaction();
 
@@ -857,9 +865,9 @@ export abstract class FinanceRepository extends UserRepository {
 
       const withdrawal = rows[0];
       assertDefined(withdrawal, 'Withdrawal not found or update failed');
-      assertPropStringOrNumber(withdrawal, 'id');
+      assertProp(check(isString, isNumber), withdrawal, 'id');
       assertPropString(withdrawal, 'status');
-      assertPropDate(withdrawal, 'failure_refund_rejected_date');
+      assertProp(isInstanceOf(Date), withdrawal, 'failure_refund_rejected_date');
 
       await tx.commitTransaction();
 
@@ -872,6 +880,255 @@ export abstract class FinanceRepository extends UserRepository {
       await tx.rollbackTransaction();
       throw error;
     }
+  }
+
+  async adminViewsFailedWithdrawals(
+    params: AdminViewsFailedWithdrawalsParams,
+  ): Promise<AdminViewsFailedWithdrawalsResult> {
+    const { page = 1, limit = 20, failureType, reviewed } = params;
+    const validatedPage = Math.max(1, page);
+    const validatedLimit = Math.min(Math.max(1, limit), 100);
+    const offset = (validatedPage - 1) * validatedLimit;
+
+    // Get total count with filters
+    const countRows = await this.sql`
+      SELECT COUNT(*) as total
+      FROM withdrawals w
+      JOIN users u ON w.user_id = u.id
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      LEFT JOIN withdrawal_beneficiaries wb ON w.beneficiary_id = wb.id
+      WHERE w.status = 'Failed'
+        AND (${failureType}::text IS NULL OR w.failure_reason ILIKE '%' || ${failureType} || '%')
+        AND (${reviewed}::boolean IS NULL OR
+          (${reviewed} = true AND w.failure_refund_reviewer_user_id IS NOT NULL) OR
+          (${reviewed} = false AND w.failure_refund_reviewer_user_id IS NULL))
+    `;
+
+    const countRow = countRows[0] as { total: number };
+    const total = Number(countRow.total);
+    const totalPages = Math.ceil(total / validatedLimit);
+
+    // Get withdrawals with user and beneficiary details
+    const rows = await this.sql`
+      SELECT
+        w.id,
+        w.user_id,
+        u.email as user_email,
+        u.name as user_name,
+        up.phone_number as user_phone_number,
+        up.kyc_status as user_kyc_status,
+        w.amount,
+        w.currency_blockchain_key,
+        w.currency_token_id,
+        wb.address as beneficiary_address,
+        wb.label as beneficiary_label,
+        w.request_date,
+        w.failed_date,
+        w.failure_reason,
+        w.status,
+        w.sent_hash as transaction_hash,
+        w.sent_amount as network_fee,
+        w.failure_refund_reviewer_user_id as reviewer_id,
+        w.failure_refund_approved_date as review_date,
+        w.failure_refund_rejection_reason as review_reason,
+        CASE WHEN w.failure_refund_approved_date IS NOT NULL THEN 'approve'
+             WHEN w.failure_refund_rejected_date IS NOT NULL THEN 'reject'
+             ELSE NULL END as review_decision
+      FROM withdrawals w
+      JOIN users u ON w.user_id = u.id
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      LEFT JOIN withdrawal_beneficiaries wb ON w.beneficiary_id = wb.id
+      WHERE w.status = 'Failed'
+        AND (${failureType}::text IS NULL OR w.failure_reason ILIKE '%' || ${failureType} || '%')
+        AND (${reviewed}::boolean IS NULL OR
+          (${reviewed} = true AND w.failure_refund_reviewer_user_id IS NOT NULL) OR
+          (${reviewed} = false AND w.failure_refund_reviewer_user_id IS NULL))
+      ORDER BY w.failed_date DESC NULLS LAST, w.request_date DESC
+      LIMIT ${validatedLimit} OFFSET ${offset}
+    `;
+
+    const withdrawals = rows.map(row => {
+      assertDefined(row, 'Withdrawal record is undefined');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'user_id');
+      assertPropString(row, 'user_email');
+      assertPropString(row, 'user_name');
+      assertPropString(row, 'user_phone_number');
+      assertPropString(row, 'user_kyc_status');
+      assertPropString(row, 'amount');
+      assertPropString(row, 'currency_blockchain_key');
+      assertPropString(row, 'currency_token_id');
+      assertPropString(row, 'beneficiary_address');
+      assertProp(isInstanceOf(Date), row, 'request_date');
+      assertProp(isInstanceOf(Date), row, 'failed_date');
+      assertPropString(row, 'failure_reason');
+      assertPropString(row, 'status');
+      assertPropString(row, 'transaction_hash');
+      assertPropString(row, 'network_fee');
+      assertPropString(row, 'reviewer_id');
+      assertProp(isInstanceOf(Date), row, 'review_date');
+      assertPropString(row, 'review_decision');
+      assertPropString(row, 'review_reason');
+
+      return {
+        id: String(row.id),
+        userId: String(row.user_id),
+        userEmail: row.user_email,
+        userName: row.user_name,
+        userPhoneNumber: row.user_phone_number || undefined,
+        userKycStatus: row.user_kyc_status,
+        amount: row.amount,
+        currencyBlockchainKey: row.currency_blockchain_key,
+        currencyTokenId: row.currency_token_id,
+        beneficiaryAddress: row.beneficiary_address,
+        requestDate:
+          row.request_date instanceof Date
+            ? row.request_date.toISOString()
+            : String(row.request_date),
+        failedDate: row.failed_date
+          ? row.failed_date instanceof Date
+            ? row.failed_date.toISOString()
+            : String(row.failed_date)
+          : undefined,
+        failureReason: row.failure_reason,
+        status: row.status,
+        transactionHash: row.transaction_hash || undefined,
+        networkFee: row.network_fee || undefined,
+        attempts: 1,
+        lastAttemptDate: row.failed_date
+          ? row.failed_date instanceof Date
+            ? row.failed_date.toISOString()
+            : String(row.failed_date)
+          : undefined,
+        reviewerId: row.reviewer_id || undefined,
+        reviewDate: row.review_date
+          ? row.review_date instanceof Date
+            ? row.review_date.toISOString()
+            : String(row.review_date)
+          : undefined,
+        reviewDecision: row.review_decision || undefined,
+        reviewReason: row.review_reason || undefined,
+        adminNotes: undefined,
+      };
+    });
+
+    return {
+      // biome-ignore lint/suspicious/noExplicitAny: Allow any
+      withdrawals: withdrawals as any,
+      total,
+      page: validatedPage,
+      limit: validatedLimit,
+      totalPages,
+    };
+  }
+
+  async adminViewsWithdrawalDetails(
+    params: AdminViewsWithdrawalDetailsParams,
+  ): Promise<AdminWithdrawalDetailsResult | null> {
+    const { withdrawalId } = params;
+
+    const rows = await this.sql`
+      SELECT
+        w.id,
+        w.user_id,
+        u.email as user_email,
+        u.name as user_name,
+        up.phone_number as user_phone_number,
+        up.kyc_status as user_kyc_status,
+        w.amount,
+        w.currency_blockchain_key,
+        w.currency_token_id,
+        wb.address as beneficiary_address,
+        w.request_date,
+        w.failed_date,
+        w.failure_reason,
+        w.status,
+        w.sent_hash as transaction_hash,
+        w.sent_amount as network_fee,
+        w.failure_refund_reviewer_user_id as reviewer_id,
+        w.failure_refund_approved_date as review_date,
+        w.failure_refund_rejection_reason as review_reason,
+        CASE WHEN w.failure_refund_approved_date IS NOT NULL THEN 'approve'
+             WHEN w.failure_refund_rejected_date IS NOT NULL THEN 'reject'
+             ELSE NULL END as review_decision
+      FROM withdrawals w
+      JOIN users u ON w.user_id = u.id
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      LEFT JOIN withdrawal_beneficiaries wb ON w.beneficiary_id = wb.id
+      WHERE w.id = ${withdrawalId}
+    `;
+
+    if (rows.length === 0) {
+      return null;
+    }
+
+    const row = rows[0] as {};
+    assertProp(check(isString, isNumber), row, 'id');
+    assertProp(check(isString, isNumber), row, 'user_id');
+    assertPropString(row, 'user_email');
+    assertPropString(row, 'user_name');
+    assertPropString(row, 'user_phone_number');
+    assertPropString(row, 'user_kyc_status');
+    assertPropString(row, 'amount');
+    assertPropString(row, 'currency_blockchain_key');
+    assertPropString(row, 'currency_token_id');
+    assertPropString(row, 'beneficiary_address');
+    assertProp(isInstanceOf(Date), row, 'request_date');
+    assertProp(isInstanceOf(Date), row, 'failed_date');
+    assertPropString(row, 'failure_reason');
+    assertPropString(row, 'network_fee');
+    assertPropString(row, 'status');
+    assertPropString(row, 'transaction_hash');
+    assertPropString(row, 'reviewer_id');
+    assertPropString(row, 'review_date');
+    assertPropString(row, 'review_decision');
+    assertPropString(row, 'review_reason');
+
+    const withdrawal = {
+      id: String(row.id),
+      userId: String(row.user_id),
+      userEmail: row.user_email,
+      userName: row.user_name,
+      userPhoneNumber: row.user_phone_number || undefined,
+      userKycStatus: row.user_kyc_status,
+      amount: row.amount,
+      currencyBlockchainKey: row.currency_blockchain_key,
+      currencyTokenId: row.currency_token_id,
+      beneficiaryAddress: row.beneficiary_address,
+      requestDate: row.request_date,
+      failedDate: row.failed_date,
+      failureReason: row.failure_reason,
+      status: row.status,
+      transactionHash: row.transaction_hash || undefined,
+      networkFee: row.network_fee || undefined,
+      attempts: 1,
+      lastAttemptDate: row.failed_date,
+      reviewerId: row.reviewer_id || undefined,
+      reviewDate: row.review_date || undefined,
+      reviewDecision: row.review_decision || undefined,
+      reviewReason: row.review_reason || undefined,
+      adminNotes: undefined,
+    };
+
+    // Analyze failure type from failure reason
+    const failureReason = row.failure_reason.toLowerCase();
+    let failureType = 'SYSTEM_ERROR';
+    if (failureReason.includes('timeout')) failureType = 'TRANSACTION_TIMEOUT';
+    else if (failureReason.includes('network')) failureType = 'NETWORK_ERROR';
+    else if (failureReason.includes('address')) failureType = 'INVALID_ADDRESS';
+    else if (failureReason.includes('insufficient')) failureType = 'INSUFFICIENT_FUNDS';
+    else if (failureReason.includes('rejected')) failureType = 'BLOCKCHAIN_REJECTION';
+
+    return {
+      // biome-ignore lint/suspicious/noExplicitAny: Allow any
+      withdrawal: withdrawal as any,
+      systemContext: {
+        failureType,
+        networkStatus: 'operational',
+        platformWalletBalance: '1000000.00',
+        errorLogs: [row.failure_reason],
+      },
+    };
   }
 
   async userViewsWithdrawalBeneficiaries(
@@ -895,8 +1152,8 @@ export abstract class FinanceRepository extends UserRepository {
     return {
       beneficiaries: beneficiaries.map(function (beneficiary: unknown) {
         assertDefined(beneficiary, 'Beneficiary record is undefined');
-        assertPropStringOrNumber(beneficiary, 'id');
-        assertPropStringOrNumber(beneficiary, 'user_id');
+        assertProp(check(isString, isNumber), beneficiary, 'id');
+        assertProp(check(isString, isNumber), beneficiary, 'user_id');
         assertPropString(beneficiary, 'blockchain_key');
         assertPropString(beneficiary, 'address');
         return {
@@ -963,18 +1220,18 @@ export abstract class FinanceRepository extends UserRepository {
         assertPropString(currency, 'token_id');
         assertPropString(currency, 'name');
         assertPropString(currency, 'symbol');
-        assertPropStringOrNumber(currency, 'decimals');
+        assertProp(check(isString, isNumber), currency, 'decimals');
         assertPropString(currency, 'logo_url');
-        assertPropStringOrNumber(currency, 'withdrawal_fee_rate');
-        assertPropStringOrNumber(currency, 'min_withdrawal_amount');
-        assertPropStringOrNumber(currency, 'max_withdrawal_amount');
-        assertPropStringOrNumber(currency, 'max_daily_withdrawal_amount');
-        assertPropStringOrNumber(currency, 'min_loan_principal_amount');
-        assertPropStringOrNumber(currency, 'max_loan_principal_amount');
-        assertPropStringOrNumber(currency, 'max_ltv');
-        assertPropStringOrNumber(currency, 'ltv_warning_threshold');
-        assertPropStringOrNumber(currency, 'ltv_critical_threshold');
-        assertPropStringOrNumber(currency, 'ltv_liquidation_threshold');
+        assertProp(check(isString, isNumber), currency, 'withdrawal_fee_rate');
+        assertProp(check(isString, isNumber), currency, 'min_withdrawal_amount');
+        assertProp(check(isString, isNumber), currency, 'max_withdrawal_amount');
+        assertProp(check(isString, isNumber), currency, 'max_daily_withdrawal_amount');
+        assertProp(check(isString, isNumber), currency, 'min_loan_principal_amount');
+        assertProp(check(isString, isNumber), currency, 'max_loan_principal_amount');
+        assertProp(check(isString, isNumber), currency, 'max_ltv');
+        assertProp(check(isString, isNumber), currency, 'ltv_warning_threshold');
+        assertProp(check(isString, isNumber), currency, 'ltv_critical_threshold');
+        assertProp(check(isString, isNumber), currency, 'ltv_liquidation_threshold');
         assertPropString(currency, 'blockchain_key_ref');
         assertPropString(currency, 'blockchain_name');
         assertPropString(currency, 'blockchain_short_name');
@@ -1021,7 +1278,7 @@ export abstract class FinanceRepository extends UserRepository {
   // Platform Configuration Methods
   async platformRetrievesProvisionRate(): Promise<PlatformRetrievesProvisionRateResult> {
     const rows = await this.sql`
-      SELECT 
+      SELECT
         loan_provision_rate,
         effective_date
       FROM platform_configs
@@ -1035,8 +1292,8 @@ export abstract class FinanceRepository extends UserRepository {
 
     const config = rows[0];
     assertDefined(config, 'Platform configuration is undefined');
-    assertPropStringOrNumber(config, 'loan_provision_rate');
-    assertPropDate(config, 'effective_date');
+    assertProp(check(isString, isNumber), config, 'loan_provision_rate');
+    assertProp(isInstanceOf(Date), config, 'effective_date');
 
     return {
       loanProvisionRate: String(config.loan_provision_rate),
@@ -1211,28 +1468,28 @@ export abstract class FinanceRepository extends UserRepository {
 
     const withdrawals = rows.map(function (row: unknown) {
       assertDefined(row, 'Withdrawal record is undefined');
-      assertPropStringOrNumber(row, 'id');
-      assertPropStringOrNumber(row, 'beneficiary_id');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'beneficiary_id');
       assertPropString(row, 'beneficiary_address');
       assertPropString(row, 'beneficiary_blockchain_key');
-      assertPropStringOrNumber(row, 'beneficiary_user_id');
+      assertProp(check(isString, isNumber), row, 'beneficiary_user_id');
       assertPropString(row, 'currency_blockchain_key');
       assertPropString(row, 'currency_token_id');
       assertPropString(row, 'currency_symbol');
       assertPropString(row, 'currency_name');
-      assertPropStringOrNumber(row, 'currency_decimals');
+      assertProp(check(isString, isNumber), row, 'currency_decimals');
       assertPropNullableString(row, 'currency_image');
       assertPropNullableString(row, 'blockchain_name');
       assertPropNullableString(row, 'blockchain_short_name');
       assertPropNullableString(row, 'blockchain_image');
-      assertPropStringOrNumber(row, 'request_amount');
+      assertProp(check(isString, isNumber), row, 'request_amount');
       assertPropString(row, 'status');
-      assertPropDate(row, 'request_date');
-      assertPropNullableDate(row, 'sent_date');
+      assertProp(isInstanceOf(Date), row, 'request_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'sent_date');
       assertPropNullableString(row, 'sent_amount');
       assertPropNullableString(row, 'sent_hash');
-      assertPropNullableDate(row, 'confirmed_date');
-      assertPropNullableDate(row, 'failed_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'confirmed_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'failed_date');
       assertPropNullableString(row, 'failure_reason');
 
       // Calculate network and platform fees (simplified logic)
@@ -1475,29 +1732,29 @@ export abstract class FinanceRepository extends UserRepository {
 
     const row = rows[0];
     assertDefined(row, 'Withdrawal record is undefined');
-    assertPropStringOrNumber(row, 'id');
-    assertPropStringOrNumber(row, 'beneficiary_id');
+    assertProp(check(isString, isNumber), row, 'id');
+    assertProp(check(isString, isNumber), row, 'beneficiary_id');
     assertPropString(row, 'beneficiary_address');
     assertPropString(row, 'beneficiary_blockchain_key');
-    assertPropStringOrNumber(row, 'beneficiary_user_id');
+    assertProp(check(isString, isNumber), row, 'beneficiary_user_id');
     assertPropString(row, 'currency_blockchain_key');
     assertPropString(row, 'currency_token_id');
     assertPropString(row, 'currency_symbol');
     assertPropString(row, 'currency_name');
-    assertPropStringOrNumber(row, 'currency_decimals');
+    assertProp(check(isString, isNumber), row, 'currency_decimals');
     assertPropNullableString(row, 'currency_image');
     assertPropNullableString(row, 'blockchain_name');
     assertPropNullableString(row, 'blockchain_short_name');
     assertPropNullableString(row, 'blockchain_image');
-    assertPropStringOrNumber(row, 'amount');
-    assertPropStringOrNumber(row, 'request_amount');
+    assertProp(check(isString, isNumber), row, 'amount');
+    assertProp(check(isString, isNumber), row, 'request_amount');
     assertPropString(row, 'status');
-    assertPropDate(row, 'request_date');
-    assertPropNullableDate(row, 'sent_date');
+    assertProp(isInstanceOf(Date), row, 'request_date');
+    assertProp(check(isNullable, isInstanceOf(Date)), row, 'sent_date');
     assertPropNullableString(row, 'sent_amount');
     assertPropNullableString(row, 'sent_hash');
-    assertPropNullableDate(row, 'confirmed_date');
-    assertPropNullableDate(row, 'failed_date');
+    assertProp(check(isNullable, isInstanceOf(Date)), row, 'confirmed_date');
+    assertProp(check(isNullable, isInstanceOf(Date)), row, 'failed_date');
     assertPropNullableString(row, 'failure_reason');
 
     // Calculate network and platform fees (simplified logic)

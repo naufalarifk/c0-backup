@@ -7,7 +7,7 @@ export function setupBetterAuthClient(backendUrl: string) {
     prefixSecurity: 'silent',
     rejectPublicSuffixes: false,
   });
-  return createAuthClient({
+  const authClient = createAuthClient({
     baseURL: backendUrl,
     fetchOptions: {
       async customFetchImpl(
@@ -24,12 +24,6 @@ export function setupBetterAuthClient(backendUrl: string) {
         if (cookie) {
           headers.set('Cookie', cookie);
         }
-        // console.debug('[BetterAuthClientFetch] Request:', input?.toString(), {
-        //   method: init?.method,
-        //   credentials: init?.credentials,
-        //   headers,
-        //   body: init?.body,
-        // });
         const response = await fetch(input, {
           ...init,
           headers,
@@ -41,24 +35,27 @@ export function setupBetterAuthClient(backendUrl: string) {
             ignoreError: true,
           });
         });
-        // clonedResponse.text().then(function (bodyText) {
-        //   console.debug('[BetterAuthClientFetch] Response:', {
-        //     url: response.url,
-        //     status: response.status,
-        //     statusText: response.statusText,
-        //     headers: Array.from(response.headers.entries()).reduce(
-        //       (acc, [key, value]) => {
-        //         acc[key] = value;
-        //         return acc;
-        //       },
-        //       {} as Record<string, string>,
-        //     ),
-        //     body: bodyText,
-        //   });
-        // });
+        clonedResponse.text().then(function (bodyText) {
+          // console.debug('[BetterAuthClientFetch]:', init?.method, response.url, {
+          //   status: response.status,
+          //   // resHeaders: Array.from(response.headers.entries()).reduce(
+          //   //   (acc, [key, value]) => {
+          //   //     acc[key] = value;
+          //   //     return acc;
+          //   //   },
+          //   //   {} as Record<string, string>,
+          //   // ),
+          //   reqBody: init?.body,
+          //   resBody: bodyText,
+          // });
+        });
         return response;
       },
     },
     plugins: [twoFactorClient()],
   });
+  return {
+    authClient,
+    cookieJar,
+  };
 }

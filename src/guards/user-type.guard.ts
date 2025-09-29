@@ -44,7 +44,8 @@ export class UserTypeGuard implements CanActivate {
 
     const userId = session?.user.id;
     if (!userId) {
-      throw new ForbiddenException('User not authenticated');
+      // User is not authenticated - skip this guard and let AuthGuard handle it
+      return true;
     }
 
     // Get user profile to check user type

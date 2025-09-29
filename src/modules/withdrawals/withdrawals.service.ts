@@ -10,6 +10,10 @@ import {
   isPositiveNumber,
 } from '../../shared/utils';
 import { AuthService } from '../auth/auth.service';
+import { UserSession } from '../auth/types';
+import { SMSWithdrawalRequestedNotificationData } from '../notifications/composers/withdrawal-requested-notification.composer';
+import { NotificationQueueService } from '../notifications/notification-queue.service';
+import { BlockchainService } from './blockchain.service';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
 import {
   WithdrawalCreatedResponseDto,
@@ -17,64 +21,79 @@ import {
   WithdrawalRefundRequestResponseDto,
   WithdrawalsListResponseDto,
 } from './dto/withdrawal-response.dto';
+import { WithdrawalsQueueService } from './withdrawals-queue.service';
 
 @Injectable()
 export class WithdrawalsService {
   constructor(
     private readonly repo: CryptogadaiRepository,
     private readonly authService: AuthService,
+    private readonly notificationQueueService: NotificationQueueService,
+    private readonly withdrawalsQueueService: WithdrawalsQueueService,
+    private readonly blockchainService: BlockchainService,
   ) {}
 
   async create(
     headers: HeadersInit,
-    userId: string,
+    user: UserSession['user'],
     createWithdrawalDto: CreateWithdrawalDto,
   ): Promise<WithdrawalCreatedResponseDto> {
-    // Verify user has completed KYC and enabled 2FA
-    const { kycStatus, twoFactorEnabled } = await this.repo.userViewsProfile({ userId });
+    // 1. Basic input validation first (cheapest check)
+    const amount = parseFloat(createWithdrawalDto.amount);
+    ensureValid(isPositiveNumber(amount), 'Please enter a valid withdrawal amount');
+
+    // 2. User profile checks (KYC, 2FA enabled)
+    const { kycStatus, twoFactorEnabled, phoneNumberVerified, phoneNumber } =
+      await this.repo.userViewsProfile({
+        userId: user.id,
+      });
     ensurePermission(
       kycStatus === 'verified',
-      'KYC must be verified before creating withdrawal request',
+      'Please complete your identity verification (KYC) first',
     );
-
+    ensurePermission(
+      phoneNumberVerified,
+      'Please verify your phone number in your security settings',
+    );
     ensurePermission(
       twoFactorEnabled,
-      'Two-factor authentication must be enabled before creating withdrawal request',
+      'Please enable two-factor authentication (2FA) in your security settings',
     );
 
-    // Verify 2FA code
-    const verifyTOTP = await this.authService.api.verifyTOTP({
-      headers,
-      body: { code: createWithdrawalDto.twoFactorCode },
-    });
+    // 3. 2FA code verification (validates user intent)
+    try {
+      await this.authService.api.verifyTOTP({
+        headers,
+        body: { code: createWithdrawalDto.twoFactorCode },
+      });
+    } catch {
+      ensureValid(false, 'Invalid 2FA code. Please check and try again');
+    }
+    // 3b. Phone number code verification (validates user intent)
+    try {
+      await this.authService.api.verifyPhoneNumber({
+        headers,
+        body: { phoneNumber: phoneNumber!, code: createWithdrawalDto.phoneNumberCode },
+      });
+    } catch {
+      ensureValid(false, 'Invalid phone number code. Please check and try again');
+    }
 
-    ensureValid(verifyTOTP?.user, 'Invalid 2FA code');
-
-    // Verify beneficiary belongs to user and is on the same blockchain as currency
-    const { beneficiaries } = await this.repo.userViewsWithdrawalBeneficiaries({ userId });
-    const beneficiary = beneficiaries.find(b => b.id === createWithdrawalDto.beneficiaryId);
-    ensureExists(beneficiary, 'Beneficiary not found or does not belong to user');
-
-    ensureValid(
-      beneficiary.blockchainKey === createWithdrawalDto.currencyBlockchainKey,
-      'Beneficiary blockchain must match currency blockchain',
-    );
-
-    // Get withdrawal limits from currencies table
+    // 4. Currency validation (check if currency exists and is supported)
     const { currencies } = await this.repo.userViewsCurrencies({
       blockchainKey: createWithdrawalDto.currencyBlockchainKey,
     });
-
     const currency = currencies.find(c => c.tokenId === createWithdrawalDto.currencyTokenId);
-    ensureExists(currency, 'Currency not found or not supported for withdrawal');
+    ensureExists(currency, 'This currency is not available for withdrawal');
 
-    // Validate amount against limits
-    const amount = parseFloat(createWithdrawalDto.amount);
-    ensureValid(isPositiveNumber(amount), 'Withdrawal amount must be a positive number');
+    // 5. Beneficiary validation (check ownership)
+    const { beneficiaries } = await this.repo.userViewsWithdrawalBeneficiaries({ userId: user.id });
+    const beneficiary = beneficiaries.find(b => b.id === createWithdrawalDto.beneficiaryId);
+    ensureExists(beneficiary, 'Withdrawal address not found. Please add it first');
 
+    // 6. Amount limits validation (min/max withdrawal amounts)
     const minAmount = parseFloat(currency.minWithdrawalAmount);
     const maxAmount = parseFloat(currency.maxWithdrawalAmount);
-
     ensureInRange(
       amount,
       minAmount,
@@ -82,70 +101,65 @@ export class WithdrawalsService {
       `Withdrawal amount must be between ${minAmount} and ${maxAmount}`,
     );
 
-    // Check daily withdrawal limit
-    const { remainingLimit } = await this.repo.getRemainingDailyWithdrawalLimit({
-      userId,
-      currencyBlockchainKey: createWithdrawalDto.currencyBlockchainKey,
-      currencyTokenId: createWithdrawalDto.currencyTokenId,
-    });
-
-    ensureValid(
-      amount <= parseFloat(remainingLimit),
-      `Daily withdrawal limit exceeded. Remaining: ${remainingLimit}`,
-    );
-
-    // Validate no conflicting pending withdrawal requests
-    const { withdrawals: pendingWithdrawals } = await this.repo.userViewsWithdrawals({
-      userId,
-      page: 1,
-      limit: 1,
-      state: 'requested',
-    });
-
-    ensureUnique(
-      pendingWithdrawals.length === 0,
-      'You have a pending withdrawal request. Please wait for it to be processed before creating a new one',
-    );
-
-    // Check sufficient account balance for the specified currency
-    const { accounts } = await this.repo.userRetrievesAccountBalances({ userId });
+    // 7. Account balance check (ensure sufficient funds)
+    const { accounts } = await this.repo.userRetrievesAccountBalances({ userId: user.id });
     const account = accounts.find(
       acc =>
         acc.currencyBlockchainKey === createWithdrawalDto.currencyBlockchainKey &&
         acc.currencyTokenId === createWithdrawalDto.currencyTokenId,
     );
-    ensureExists(account, 'Account not found for the specified currency');
+    ensureExists(account, 'You do not have an account for this currency');
 
     const availableBalance = parseFloat(account.balance);
     ensureValid(
       availableBalance >= amount,
-      `Insufficient balance. Available: ${availableBalance}, Required: ${amount}`,
+      `Insufficient funds. You have ${availableBalance}, but need ${amount}`,
+    );
+
+    // 8. Daily limit check (prevent exceeding daily withdrawal limits)
+    const { remainingLimit } = await this.repo.getRemainingDailyWithdrawalLimit({
+      userId: user.id,
+      currencyBlockchainKey: createWithdrawalDto.currencyBlockchainKey,
+      currencyTokenId: createWithdrawalDto.currencyTokenId,
+    });
+    ensureValid(
+      amount <= parseFloat(remainingLimit),
+      `Daily withdrawal limit exceeded. You can still withdraw ${remainingLimit} today`,
+    );
+
+    // 9. Pending withdrawal check (ensure no conflicting requests)
+    const { withdrawals: pendingWithdrawals } = await this.repo.userViewsWithdrawals({
+      userId: user.id,
+      page: 1,
+      limit: 1,
+      state: 'requested',
+    });
+    ensureUnique(
+      pendingWithdrawals.length === 0,
+      'You already have a pending withdrawal. Please wait for it to complete first',
     );
 
     // Calculate withdrawal details with fees
-    // TODO: Integrate with BlockchainService for network fee estimation
-    // const networkFee = await this.blockchainService.estimateNetworkFee({
-    //   blockchain: createWithdrawalDto.currencyBlockchainKey,
-    //   tokenId: createWithdrawalDto.currencyTokenId
-    // });
-
     const platformFee = amount * currency.withdrawalFeeRate;
-    const estimatedNetworkFee = 0; // TODO: Get from BlockchainService
+
+    // Get estimated network fee from blockchain service
+    const networkFeeEstimate = await this.blockchainService.estimateNetworkFee(
+      currency.blockchainKey,
+      currency.tokenId,
+      { priority: 'standard' },
+    );
+    const estimatedNetworkFee = networkFeeEstimate.fee;
+
     const totalFees = platformFee + estimatedNetworkFee;
     const netAmount = amount - totalFees;
 
     // Ensure net amount is positive after fees
     ensureValid(
       netAmount > 0,
-      `Amount too small to cover fees. Minimum amount needed: ${totalFees + 0.01}`,
+      `Amount is too small after fees. Please withdraw at least ${totalFees + 0.01}`,
     );
 
-    // Begin atomic database transaction
-    // TODO: Implement proper transaction atomicity with FinanceRepository
-    // const tx = await this.repo.beginTransaction();
-    // try {
-
-    // 1. Create withdrawal record
+    // Create withdrawal record (triggers handle balance debit & account mutations automatically)
     const withdrawal = await this.repo.userRequestsWithdrawal({
       beneficiaryId: createWithdrawalDto.beneficiaryId,
       currencyBlockchainKey: createWithdrawalDto.currencyBlockchainKey,
@@ -154,44 +168,30 @@ export class WithdrawalsService {
       requestDate: new Date(),
     });
 
-    // 2. Create account mutation record and debit user account balance
-    // TODO: Implement account mutation - need repository method
-    // await this.repo.platformCreatesAccountMutation({
-    //   userId,
-    //   accountId: account.id,
-    //   mutationType: 'WithdrawalRequested',
-    //   amount: `-${createWithdrawalDto.amount}`, // Debit
-    //   withdrawalId: withdrawal.id,
-    //   mutationDate: new Date()
-    // });
+    // Queue withdrawal for blockchain processing
+    await this.withdrawalsQueueService.queueWithdrawalProcessing({
+      withdrawalId: withdrawal.id,
+      amount: createWithdrawalDto.amount,
+      currencyBlockchainKey: createWithdrawalDto.currencyBlockchainKey,
+      currencyTokenId: createWithdrawalDto.currencyTokenId,
+      beneficiaryAddress: beneficiary.address,
+      userId: user.id,
+    });
 
-    // 3. Update user withdrawal limits tracking
-    // TODO: Implement withdrawal limits tracking update
-    // await this.repo.updateUserWithdrawalLimitsTracking({
-    //   userId,
-    //   currencyBlockchainKey: createWithdrawalDto.currencyBlockchainKey,
-    //   currencyTokenId: createWithdrawalDto.currencyTokenId,
-    //   amount: createWithdrawalDto.amount
-    // });
-
-    // 4. Create withdrawal request notification
-    // TODO: Implement notification system
-    // await this.notificationService.createWithdrawalRequestNotification({
-    //   userId,
-    //   withdrawalId: withdrawal.id,
-    //   amount: createWithdrawalDto.amount
-    // });
-
-    // 5. Commit database transaction
-    // await tx.commitTransaction();
-
-    // 6. Queue withdrawal for processing via BlockchainService
-    // TODO: Implement queue system
-    // await this.blockchainService.queueWithdrawalForProcessing(withdrawal.id);
+    // Send withdrawal notification
+    const notificationData: SMSWithdrawalRequestedNotificationData = {
+      type: 'WithdrawalRequested',
+      name: 'Withdrawal Requested',
+      phoneNumber: user.phoneNumber,
+      amount: createWithdrawalDto.amount,
+      withdrawalId: withdrawal.id,
+      bankAccount: beneficiary.address,
+    };
+    await this.notificationQueueService.queueNotification(notificationData);
 
     return {
       id: withdrawal.id,
-      status: 'Requested',
+      status: withdrawal.status,
       requestAmount: createWithdrawalDto.amount,
       feeAmount: totalFees.toFixed(currency.decimals),
       netAmount: netAmount.toFixed(currency.decimals),
@@ -223,7 +223,7 @@ export class WithdrawalsService {
       withdrawalId,
     });
 
-    ensureExists(withdrawal, 'Withdrawal request not found');
+    ensureExists(withdrawal, 'Withdrawal not found');
     return withdrawal;
   }
 
@@ -234,16 +234,16 @@ export class WithdrawalsService {
       withdrawalId,
     });
 
-    ensureExists(withdrawal, 'Withdrawal request not found');
+    ensureExists(withdrawal, 'Withdrawal not found');
 
     // Cannot refund if already processed or requested
     ensureValid(
       !['RefundRequested', 'RefundApproved', 'RefundRejected'].includes(withdrawal.state),
-      'Refund has already been requested or processed for this withdrawal',
+      'A refund has already been requested for this withdrawal',
     );
 
     // Only failed withdrawals can be refunded
-    ensureValid(withdrawal.state === 'failed', 'Only failed withdrawals can be refunded');
+    ensureValid(withdrawal.state === 'failed', 'Only failed withdrawals are eligible for refund');
 
     // Update withdrawal status to refund requested
     await this.repo.updateWithdrawalStatus({

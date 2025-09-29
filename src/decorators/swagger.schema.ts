@@ -49,13 +49,20 @@ function reverseObjectKeys<T extends Record<string, unknown>>(originalObject: T)
 }
 
 function explore(instance: object, propertyKey: string | symbol): Type<unknown> | null {
-  const types: Array<Type<unknown>> = Reflect.getMetadata(
+  const types: Array<Type<unknown>> | undefined = Reflect.getMetadata(
     PARAMTYPES_METADATA,
     instance,
     propertyKey,
   );
   const routeArgsMetadata: Record<string, ParameterMetadata> =
     Reflect.getMetadata(ROUTE_ARGS_METADATA, instance.constructor, propertyKey) || {};
+
+  // If TypeScript didn't emit param types metadata or it's unavailable in this
+  // runtime (some loaders/transformers may not preserve it), bail out safely.
+  if (!types || !Array.isArray(types)) {
+    // console.debug('No parameter type metadata available for', propertyKey);
+    return null;
+  }
 
   const parametersWithType: Record<string, ParameterWithType> = _.mapValues(
     reverseObjectKeys(routeArgsMetadata),

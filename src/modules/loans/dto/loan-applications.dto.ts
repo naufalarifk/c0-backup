@@ -1,9 +1,19 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 import {
+  BorrowerInfoDto,
   CurrencyDto,
   InvoiceDto,
   IsDecimalAmount,
@@ -65,6 +75,18 @@ export class LoanCalculationRequestDto {
   @Min(1)
   @Max(60)
   termInMonths?: number;
+
+  @ApiPropertyOptional({
+    description: 'Loan term (alias for termInMonths)',
+    example: 6,
+    minimum: 1,
+    maximum: 60,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(60)
+  loanTerm?: number;
 }
 
 export class LoanCalculationDetailsDto {
@@ -199,6 +221,7 @@ export class CreateLoanApplicationDto {
     enum: [1, 3, 6, 12],
   })
   @IsNumber()
+  @IsIn([1, 3, 6, 12])
   termMonths: number;
 
   @ApiProperty({
@@ -247,12 +270,54 @@ export class LoanApplicationResponseDto {
   @IsString()
   borrowerId: string;
 
-  @ApiProperty({
-    description: 'Collateral currency identifier',
-    example: 'ETH',
+  @ApiPropertyOptional({
+    description: 'Borrower information',
+    type: BorrowerInfoDto,
   })
-  @IsString()
-  collateralCurrency: string;
+  @IsOptional()
+  @Type(() => BorrowerInfoDto)
+  borrower?: BorrowerInfoDto;
+
+  @ApiProperty({
+    description: 'Collateral currency details',
+    type: CurrencyDto,
+  })
+  @Type(() => CurrencyDto)
+  collateralCurrency: CurrencyDto;
+
+  @ApiPropertyOptional({
+    description: 'Principal currency details',
+    type: CurrencyDto,
+  })
+  @IsOptional()
+  @Type(() => CurrencyDto)
+  principalCurrency?: CurrencyDto;
+
+  @ApiPropertyOptional({
+    description: 'Maximum acceptable interest rate',
+    example: 15.0,
+  })
+  @IsOptional()
+  @IsNumber()
+  maxInterestRate?: number;
+
+  @ApiPropertyOptional({
+    description: 'Loan term in months',
+    example: 6,
+    enum: [1, 3, 6, 12],
+  })
+  @IsOptional()
+  @IsNumber()
+  termMonths?: number;
+
+  @ApiPropertyOptional({
+    description: 'Liquidation mode preference',
+    enum: LiquidationMode,
+    example: LiquidationMode.FULL,
+  })
+  @IsOptional()
+  @IsEnum(LiquidationMode)
+  liquidationMode?: LiquidationMode;
 
   @ApiProperty({
     description: 'Principal amount requested',

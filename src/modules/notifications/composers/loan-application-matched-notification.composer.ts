@@ -2,12 +2,8 @@ import type { AnyNotificationPayload, NotificationData } from '../notification.t
 
 import { Injectable } from '@nestjs/common';
 
-import {
-  assertDefined,
-  assertPropEqual,
-  assertPropString,
-  assertPropStringOrNumber,
-} from '../../../shared/utils';
+import { assertDefined, assertProp, assertPropString, check, isNumber, isString } from 'typeshaper';
+
 import { NotificationChannelEnum } from '../notification.types';
 import { Composer, NotificationComposer } from '../notification-composer.abstract';
 
@@ -27,8 +23,12 @@ export function assertLoanApplicationMatchedNotificationParam(
   data: unknown,
 ): asserts data is LoanApplicationMatchedNotificationData {
   assertDefined(data, 'Notification data is required');
-  assertPropEqual(data, 'type', 'LoanApplicationMatched' as const);
-  assertPropStringOrNumber(data, 'userId');
+  assertProp(
+    (value: unknown): value is 'LoanApplicationMatched' => value === 'LoanApplicationMatched',
+    data,
+    'type',
+  );
+  assertProp(check(isString, isNumber), data, 'userId');
   assertPropString(data, 'loanApplicationId');
   assertPropString(data, 'loanOfferId');
   assertPropString(data, 'principalAmount');

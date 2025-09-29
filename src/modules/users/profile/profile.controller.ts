@@ -1,3 +1,4 @@
+import type { Request } from 'express';
 import type { File } from '../../../shared/types';
 import type { UserSession } from '../../auth/types';
 
@@ -5,13 +6,17 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
+  HttpException,
   HttpStatus,
   Patch,
+  Put,
+  Req,
   UploadedFile,
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+
+import { fromNodeHeaders } from 'better-auth/node';
 
 import { ApiFile } from '../../../decorators/swagger.schema';
 import { Session } from '../../auth/auth.decorator';
@@ -45,8 +50,9 @@ export class ProfileController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Authentication required',
   })
-  findOne(@Session() session: UserSession): Promise<ProfileResponseDto> {
-    return this.profileService.findOne(session.user.id);
+  async findOne(@Session() session: UserSession) {
+    const user = await this.profileService.findOne(session.user.id);
+    return { user };
   }
 
   @Patch()
@@ -71,10 +77,19 @@ export class ProfileController {
   })
   async update(
     @Session() session: UserSession,
-    @Headers() headers: HeadersInit,
+    @Req() req: Request,
     @UploadedFile() profilePicture: File,
     @Body() updateProfileDto: UpdateProfileDto,
   ) {
+    // Validate content type for multipart form data
+    const contentType = req.get('content-type') || '';
+    if (contentType && !contentType.includes('multipart/form-data')) {
+      throw new HttpException(
+        'Invalid content type. Expected multipart/form-data',
+        HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+      );
+    }
+
     // Process profile update with optional file upload
     const updateData = await this.profileService.processProfileUpdate(
       session.user.id,
@@ -83,8 +98,69 @@ export class ProfileController {
     );
 
     return this.auth.api.updateUser({
-      headers,
+      headers: fromNodeHeaders(req.headers),
       body: updateData,
     });
+  }
+
+  @Put()
+  @ApiFile({ name: 'profilePicture' })
+  @ApiOperation({
+    summary: 'Update current user profile (PUT method)',
+    description: 'Updates user profile information. Handles FormData with optional file upload.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Profile updated successfully',
+    type: UpdateProfileResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Request validation failed or invalid file format',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Authentication required',
+  })
+  async updatePut(
+    @Session() session: UserSession,
+    @Req() req: Request,
+    @UploadedFile() profilePicture: File,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ) {
+    // Validate content type for multipart form data
+    const contentType = req.get('content-type') || '';
+    console.debug(
+      'PUT profile update content-type:',
+      contentType,
+      'includes multipart:',
+      contentType.includes('multipart/form-data'),
+    );
+    if (contentType && !contentType.includes('multipart/form-data')) {
+      throw new HttpException(
+        'Invalid content type. Expected multipart/form-data',
+        HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+      );
+    }
+
+    // Process profile update with optional file upload
+    const updateData = await this.profileService.processProfileUpdate(
+      session.user.id,
+      updateProfileDto,
+      profilePicture,
+    );
+
+    await this.auth.api.updateUser({
+      headers: fromNodeHeaders(req.headers),
+      body: updateData,
+    });
+
+    // Get updated profile to return in response
+    const updatedProfile = await this.profileService.findOne(session.user.id);
+
+    return {
+      user: updatedProfile,
+      message: 'Profile updated successfully',
+    };
   }
 }

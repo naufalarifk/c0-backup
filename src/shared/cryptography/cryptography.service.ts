@@ -6,7 +6,8 @@ import { DecryptionResult, EncryptionResult } from './vault.dto';
 export abstract class CryptographyService {
   abstract getSecret(path: string): Promise<unknown>;
 
-  abstract writeSecret(path: string, data: Record<string, string>): Promise<void>;
+  // biome-ignore lint/suspicious/noExplicitAny: Using any for dynamic secret data
+  abstract writeSecret(path: string, data: Record<string, any>): Promise<void>;
 
   abstract deleteSecret(path: string): Promise<void>;
 

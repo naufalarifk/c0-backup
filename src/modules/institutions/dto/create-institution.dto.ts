@@ -47,7 +47,7 @@ export class CreateInstitutionDto
   businessAddress: string;
 
   @ApiProperty({
-    description: 'Business district (kecamatan)',
+    description: 'District (kecamatan)',
     example: 'Menteng',
   })
   @IsNotEmpty({ message: 'Business district is required' })
@@ -56,7 +56,7 @@ export class CreateInstitutionDto
   businessDistrict: string;
 
   @ApiProperty({
-    description: 'Business subdistrict (kelurahan)',
+    description: 'Subdistrict (kelurahan)',
     example: 'Menteng',
   })
   @IsNotEmpty({ message: 'Business subdistrict is required' })
@@ -65,7 +65,7 @@ export class CreateInstitutionDto
   businessSubdistrict: string;
 
   @ApiProperty({
-    description: 'Business city',
+    description: 'City',
     example: 'Jakarta',
   })
   @IsNotEmpty({ message: 'Business city is required' })
@@ -74,7 +74,7 @@ export class CreateInstitutionDto
   businessCity: string;
 
   @ApiProperty({
-    description: 'Business province',
+    description: 'Province',
     example: 'DKI Jakarta',
   })
   @IsNotEmpty({ message: 'Business province is required' })
@@ -83,7 +83,7 @@ export class CreateInstitutionDto
   businessProvince: string;
 
   @ApiProperty({
-    description: 'Business postal code',
+    description: 'Postal code',
     example: '10220',
   })
   @IsNotEmpty({ message: 'Business postal code is required' })
@@ -120,6 +120,15 @@ export class CreateInstitutionDto
   @IsString({ message: 'Director name must be a valid text' })
   @Transform(({ value }) => value?.trim())
   directorName: string;
+
+  @ApiProperty({
+    description: 'Position of the company director',
+    example: 'CEO',
+  })
+  @IsNotEmpty({ message: 'Director position is required' })
+  @IsString({ message: 'Director position must be a valid text' })
+  @Transform(({ value }) => value?.trim())
+  directorPosition: string;
 
   @ApiProperty({
     description: 'NPWP document storage path in format bucket:path',
@@ -164,6 +173,17 @@ export class CreateInstitutionDto
     message: 'Director ID card must be in format bucket:institutions/userId/filename',
   })
   directorIdCardPath: string;
+
+  @ApiProperty({
+    description: 'Ministry approval document storage path in format bucket:path',
+    example: 'documents:institutions/13/ministry-approval-document-1757496173043-ministry.jpg',
+  })
+  @IsNotEmpty({ message: 'Ministry approval document path is required' })
+  @IsString({ message: 'Ministry approval document path must be a valid text' })
+  @Matches(/^[a-zA-Z0-9-_]+:institutions\/\d+\/[a-zA-Z0-9-_.]+$/, {
+    message: 'Ministry approval document must be in format bucket:institutions/userId/filename',
+  })
+  ministryApprovalDocumentPath: string;
 }
 
 // DTO for form data submission (without file URLs - files will be uploaded separately)
@@ -172,4 +192,5 @@ export class SubmitCreateInstitutionDto extends OmitType(CreateInstitutionDto, [
   'registrationDocumentPath',
   'deedOfEstablishmentPath',
   'directorIdCardPath',
+  'ministryApprovalDocumentPath',
 ] as const) {}
