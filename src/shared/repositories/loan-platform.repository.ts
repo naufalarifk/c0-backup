@@ -3,6 +3,7 @@ import {
   assertDefined,
   assertProp,
   assertPropNullableString,
+  assertPropNumber,
   assertPropString,
   check,
   hasPropArray,
@@ -215,28 +216,28 @@ export abstract class LoanPlatformRepository extends LoanUserRepository {
     `;
 
     assertDefined(countResult[0], 'Count result should be defined');
-    assertPropStringOrNumber(countResult[0], 'total');
+    assertProp(check(isString, isNumber), countResult[0], 'total');
     const totalCount = Number(countResult[0].total);
     const totalPages = Math.ceil(totalCount / validatedLimit);
 
     const loanApplications = applicationRows.map(function (row: unknown) {
       assertDefined(row, 'Row should be defined');
-      assertPropStringOrNumber(row, 'id');
-      assertPropStringOrNumber(row, 'borrower_user_id');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'borrower_user_id');
       assertPropNullableString(row, 'loan_offer_id');
       assertPropString(row, 'principal_currency_blockchain_key');
       assertPropString(row, 'principal_currency_token_id');
-      assertPropStringOrNumber(row, 'principal_amount');
-      assertPropStringOrNumber(row, 'max_interest_rate');
-      assertPropStringOrNumber(row, 'term_in_months');
+      assertProp(check(isString, isNumber), row, 'principal_amount');
+      assertProp(check(isString, isNumber), row, 'max_interest_rate');
+      assertProp(check(isString, isNumber), row, 'term_in_months');
       assertPropString(row, 'collateral_currency_blockchain_key');
       assertPropString(row, 'collateral_currency_token_id');
-      assertPropStringOrNumber(row, 'collateral_deposit_amount');
+      assertProp(check(isString, isNumber), row, 'collateral_deposit_amount');
       assertPropString(row, 'status');
-      assertPropDate(row, 'applied_date');
-      assertPropDate(row, 'expired_date');
+      assertProp(isInstanceOf(Date), row, 'applied_date');
+      assertProp(isInstanceOf(Date), row, 'expired_date');
       assertPropNullableString(row, 'matched_loan_offer_id');
-      assertPropStringOrNumber(row, 'principal_decimals');
+      assertProp(check(isString, isNumber), row, 'principal_decimals');
       assertPropString(row, 'principal_symbol');
       assertPropString(row, 'principal_name');
 
