@@ -1,6 +1,12 @@
 import test from 'node:test';
 
+import { getFetchLogs } from 'test/setup/fetch.js';
+
 let earlyExit = false;
+
+export function isEarlyExit() {
+  return earlyExit;
+}
 
 export function suite(name: string, fn: () => void) {
   return test.suite(name, fn);
@@ -25,7 +31,15 @@ export function before(fn: () => Promise<void>) {
 }
 
 export function after(fn: () => Promise<void>) {
-  test.after(fn);
+  test.after(function () {
+    if (earlyExit) {
+      console.debug('Skipping after hook due to earlier failure. Recent fetch logs:');
+      for (const log of getFetchLogs().slice(-10)) {
+        console.debug(log);
+      }
+    }
+    return fn();
+  });
 }
 
 export function beforeEach(fn: () => Promise<void>) {

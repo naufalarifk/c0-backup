@@ -30,13 +30,16 @@ export abstract class PricefeedRepository extends FinanceRepository {
   async platformRetrievesActivePriceFeeds(): Promise<PlatformRetrievesActivePriceFeedsResult> {
     const rows = await this.sql`
       SELECT
-        id,
-        blockchain_key,
-        base_currency_token_id,
-        quote_currency_token_id,
-        source
-      FROM price_feeds
-      ORDER BY blockchain_key, base_currency_token_id, quote_currency_token_id
+        pf.id,
+        pf.blockchain_key,
+        pf.base_currency_token_id,
+        pf.quote_currency_token_id,
+        pf.source,
+        qc.decimals as quote_currency_decimals
+      FROM price_feeds pf
+      JOIN currencies qc ON pf.blockchain_key = qc.blockchain_key
+        AND pf.quote_currency_token_id = qc.token_id
+      ORDER BY pf.blockchain_key, pf.base_currency_token_id, pf.quote_currency_token_id
     `;
 
     const priceFeeds = rows.map(function (row: unknown) {
@@ -46,6 +49,7 @@ export abstract class PricefeedRepository extends FinanceRepository {
       assertPropString(row, 'base_currency_token_id');
       assertPropString(row, 'quote_currency_token_id');
       assertPropString(row, 'source');
+      assertProp(check(isString, isNumber), row, 'quote_currency_decimals');
 
       return {
         id: String(row.id),
@@ -53,6 +57,7 @@ export abstract class PricefeedRepository extends FinanceRepository {
         baseCurrencyTokenId: row.base_currency_token_id,
         quoteCurrencyTokenId: row.quote_currency_token_id,
         source: row.source,
+        quoteCurrencyDecimals: Number(row.quote_currency_decimals),
       };
     });
 

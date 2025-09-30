@@ -207,12 +207,10 @@ export class CreateLoanApplicationDto {
   @ApiProperty({
     description: 'Maximum acceptable interest rate',
     example: 15.0,
-    minimum: 0,
-    maximum: 100,
+    minimum: 0.1,
+    maximum: 50,
   })
   @IsNumber()
-  @Min(0)
-  @Max(100)
   maxInterestRate: number;
 
   @ApiProperty({

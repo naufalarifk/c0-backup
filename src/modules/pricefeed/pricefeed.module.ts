@@ -1,46 +1,26 @@
-import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
-import { DiscoveryModule } from '@nestjs/core';
+import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 
-import { SharedModule } from '../../shared/shared.module';
-import { CryptocurrencyPriceService } from './cryptocurrency-price.service';
-import { PriceFeedProcessor } from './pricefeed.processor';
-import { PriceFeedService } from './pricefeed.service';
-import { PriceFeedQueueService } from './pricefeed-queue.service';
-import { PriceFeedWorkerFactory } from './pricefeed-worker.factory';
-// Providers
-import { CoinMarketCapProvider } from './providers/coinmarketcap.provider';
-// Workers
-import { ExchangeRateFetcherWorker } from './workers/exchange-rate-fetcher.worker';
-import { ExchangeRateUpdaterWorker } from './workers/exchange-rate-updater.worker';
+import { RepositoryModule } from '../../shared/repositories/repository.module';
+import { PricefeedService } from './pricefeed.service';
+import { PriceFeedProviderFactory } from './pricefeed-provider.factory.js';
+import { BinancePriceFeedProvider } from './providers/binance.provider.js';
+import { CoinGeckoPriceFeedProvider } from './providers/coingecko.provider.js';
+import { CoinMarketCapPriceFeedProvider } from './providers/coinmarketcap.provider.js';
+import { RandomPriceFeedProvider } from './providers/random.provider.js';
 
 @Module({
-  imports: [
-    SharedModule, // Provides repository access
-    DiscoveryModule, // Required for worker factory
-    BullModule.registerQueue({
-      name: 'pricefeedQueue',
-      defaultJobOptions: {
-        removeOnComplete: 100,
-        removeOnFail: 50,
-      },
-    }),
-  ],
+  imports: [ConfigModule, ScheduleModule.forRoot(), RepositoryModule],
   providers: [
-    // Core services
-    PriceFeedService,
-    PriceFeedProcessor,
-    PriceFeedQueueService,
-    PriceFeedWorkerFactory,
-    CryptocurrencyPriceService,
+    PricefeedService,
+    PriceFeedProviderFactory,
 
-    // Workers
-    ExchangeRateFetcherWorker,
-    ExchangeRateUpdaterWorker,
-
-    // Providers
-    CoinMarketCapProvider,
+    BinancePriceFeedProvider,
+    CoinGeckoPriceFeedProvider,
+    CoinMarketCapPriceFeedProvider,
+    RandomPriceFeedProvider,
   ],
-  exports: [PriceFeedService, PriceFeedQueueService, CryptocurrencyPriceService],
+  exports: [PricefeedService],
 })
-export class PriceFeedModule {}
+export class PricefeedModule {}

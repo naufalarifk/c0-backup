@@ -112,6 +112,11 @@ export type NotificationType =
   | 'WithdrawalRefunded'
   | 'WithdrawalRefundApproved'
   | 'WithdrawalRefundRejected'
+  | 'WithdrawalSent'
+  | 'WithdrawalConfirmed'
+  | 'WithdrawalTimeout'
+  | 'WithdrawalFailed'
+  | 'WithdrawalInfoRequested'
   // Admin notifications
   | 'AdminInvitationSent'
   | 'AdminInvitationAccepted'
@@ -119,7 +124,9 @@ export type NotificationType =
   | 'AdminInvitationExpired'
   | 'UserKycSubmitted'
   | 'InstitutionApplicationSubmitted'
-  | 'WithdrawalFailed'
+  | 'AdminWithdrawalFailure'
+  | 'AdminRefundProcessed'
+  | 'AdminMonitoringFailure'
   // Enhanced loan notifications
   | 'LiquidationWarning'
   | 'LiquidationCompleted'

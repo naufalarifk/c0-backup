@@ -1,6 +1,9 @@
+import 'reflect-metadata';
+
 import { networkInterfaces } from 'node:os';
 import { argv, env } from 'node:process';
 
+import { documentEntrypoint } from './entrypoints/document.entrypoint';
 import { indexerEntrypoint } from './entrypoints/indexer.entrypoint';
 import { invoiceExpirationEntrypoint } from './entrypoints/invoice-expiration.entrypoint';
 import { loanMatcherEntrypoint } from './entrypoints/loan-matcher.entrypoint';
@@ -36,6 +39,10 @@ if (commands.includes('loan-matcher')) {
 
 if (commands.includes('indexer')) {
   void indexerEntrypoint();
+}
+
+if (commands.includes('document')) {
+  void documentEntrypoint();
 }
 
 function getDefaultAuthUrl(): string {

@@ -2,7 +2,6 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
-import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { AccountsModule } from '../modules/accounts/accounts.module';
@@ -48,8 +47,6 @@ import { TestController } from '../shared/test.controller';
       }),
       inject: [AppConfigService],
     }),
-
-    EventEmitterModule.forRoot(),
 
     AuthModule.forRootAsync({ imports: [NotificationModule], useClass: AuthConfig }),
     UsersModule,

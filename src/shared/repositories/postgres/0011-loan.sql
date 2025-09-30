@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS loan_applications (
   collateral_deposit_amount DECIMAL(78, 0) NOT NULL CHECK (collateral_deposit_amount > 0), -- calculated from principal_amount / min_ltv_ratio
   collateral_deposit_exchange_rate_id BIGINT NOT NULL REFERENCES exchange_rates (id), -- collateral valuation on applied_date
 
-  status VARCHAR(32) NOT NULL DEFAULT 'PendingCollateral' CHECK (status IN ('PendingCollateral', 'Published', 'Matched', 'Closed', 'Expired')),
+  status VARCHAR(32) NOT NULL DEFAULT 'PendingCollateral' CHECK (status IN ('PendingCollateral', 'Published', 'Matched', 'Cancelled', 'Closed', 'Expired')),
 
   applied_date TIMESTAMP NOT NULL,
   expired_date TIMESTAMP NOT NULL, -- loan application expires after this date, configured by borrower_user_id
@@ -293,9 +293,10 @@ BEGIN
   END IF;
 
   IF OLD IS NOT NULL AND OLD.status != NEW.status THEN
-    IF (OLD.status = 'PendingCollateral' AND NEW.status NOT IN ('Published', 'Closed', 'Expired')) OR
-       (OLD.status = 'Published' AND NEW.status NOT IN ('Matched', 'Closed', 'Expired')) OR
+    IF (OLD.status = 'PendingCollateral' AND NEW.status NOT IN ('Published', 'Cancelled', 'Closed', 'Expired')) OR
+       (OLD.status = 'Published' AND NEW.status NOT IN ('Matched', 'Cancelled', 'Closed', 'Expired')) OR
        (OLD.status = 'Matched' AND NEW.status NOT IN ('Closed')) OR
+       (OLD.status = 'Cancelled' AND NEW.status NOT IN ('Cancelled')) OR
        (OLD.status = 'Closed' AND NEW.status NOT IN ('Closed')) OR
        (OLD.status = 'Expired' AND NEW.status NOT IN ('Expired')) THEN
       RAISE EXCEPTION 'Invalid status transition from % to %', OLD.status, NEW.status;

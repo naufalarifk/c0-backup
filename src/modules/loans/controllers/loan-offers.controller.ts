@@ -22,6 +22,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
+import { validationOptions } from '../../../shared/utils/validation-options';
 import { Session } from '../../auth/auth.decorator';
 import { AuthGuard } from '../../auth/auth.guard';
 import { ErrorResponseDto } from '../dto/common.dto';
@@ -68,7 +69,7 @@ export class LoanOffersController {
   })
   async createLoanOffer(
     @Session() session: UserSession,
-    @Body(ValidationPipe) createLoanOfferDto: CreateLoanOfferDto,
+    @Body(new ValidationPipe(validationOptions)) createLoanOfferDto: CreateLoanOfferDto,
   ): Promise<{ success: boolean; data: LoanOfferResponseDto }> {
     this.logger.log(`Creating loan offer for lender: ${session.user.id}`);
     const loanOffer = await this.loanOffersService.createLoanOffer(

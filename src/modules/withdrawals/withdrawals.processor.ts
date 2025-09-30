@@ -1,4 +1,3 @@
-/** biome-ignore-all lint/suspicious/noExplicitAny: Allow any */
 import type { Job, Queue } from 'bullmq';
 import type { WithdrawalProcessingData } from './withdrawals-queue.service';
 
@@ -14,7 +13,9 @@ import { CryptographyService } from '../../shared/cryptography/cryptography.serv
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../shared/services/app-config.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
-import { IWallet, WalletFactory } from '../../shared/wallets/Iwallet.types';
+import { WalletFactory } from '../../shared/wallets/Iwallet.service';
+import { IWallet } from '../../shared/wallets/Iwallet.types';
+import { FailureType } from '../admin/withdrawals/admin-withdrawal.dto';
 import { AdminWithdrawalsService } from '../admin/withdrawals/admin-withdrawals.service';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
 import { BlockchainService } from './blockchain.service';
@@ -145,7 +146,7 @@ export class WithdrawalsProcessor extends WorkerHost {
           transactionHash: transactionResult.transactionHash,
           blockchainNetwork: currencyBlockchainKey,
           estimatedConfirmationTime: this.getEstimatedConfirmationTime(currencyBlockchainKey),
-        } as any);
+        });
 
         this.logger.log(
           `[WM-003] Withdrawal ${withdrawalId} sent successfully. Hash: ${transactionResult.transactionHash}`,
@@ -234,7 +235,7 @@ export class WithdrawalsProcessor extends WorkerHost {
           withdrawalId,
           transactionHash,
           confirmations: confirmationStatus.confirmations,
-        } as any);
+        });
 
         this.logger.log(
           `[WM-003] Withdrawal ${withdrawalId} confirmed with ${confirmationStatus.confirmations} confirmations`,
@@ -248,7 +249,7 @@ export class WithdrawalsProcessor extends WorkerHost {
           transactionHash,
           confirmationStatus.failureReason || 'Unknown failure reason',
         );
-        return { status: 'failed', reason: confirmationStatus.failureReason };
+        return { status: 'Failed', reason: confirmationStatus.failureReason };
       } else {
         // Still pending, requeue for next check
         await this.requeueConfirmationMonitoring(
@@ -648,7 +649,7 @@ export class WithdrawalsProcessor extends WorkerHost {
         priority: this.getFailurePriority(mappedFailureType),
         requiresAction: true,
         reviewLink: `/admin/withdrawals/failed/${withdrawalId}`,
-      } as any);
+      });
 
       // Send user notification
       await this.notificationQueueService.queueNotification({
@@ -657,7 +658,7 @@ export class WithdrawalsProcessor extends WorkerHost {
         withdrawalId,
         failureReason: 'Technical issue occurred during processing',
         nextSteps: 'Our team has been notified. You can request a refund or contact support.',
-      } as any);
+      });
 
       this.logger.log(
         `[WM-003] Withdrawal ${withdrawalId} marked as failed and notifications sent`,
@@ -769,7 +770,7 @@ export class WithdrawalsProcessor extends WorkerHost {
         priority: 'high',
         requiresAction: true,
         reviewLink: `/admin/withdrawals/failed/${withdrawalId}`,
-      } as any);
+      });
 
       // User notification
       await this.notificationQueueService.queueNotification({
@@ -777,7 +778,7 @@ export class WithdrawalsProcessor extends WorkerHost {
         name: 'Withdrawal Processing Delayed',
         withdrawalId,
         message: 'Your withdrawal is taking longer than expected. Our team is investigating.',
-      } as any);
+      });
     } catch (error) {
       this.logger.error(
         `[WM-003] Failed to handle transaction timeout for ${withdrawalId}:`,
@@ -806,7 +807,7 @@ export class WithdrawalsProcessor extends WorkerHost {
       await this.adminWithdrawalsService.createFailureNotification(
         withdrawalId,
         `Transaction failed: ${failureReason}`,
-        'BLOCKCHAIN_REJECTION' as any, // FailureType enum
+        FailureType.BLOCKCHAIN_REJECTION, // FailureType enum
       );
 
       // TODO: Initiate automatic refund process as per WM-003
@@ -838,7 +839,7 @@ export class WithdrawalsProcessor extends WorkerHost {
         transactionHash,
         error,
         requiresManualCheck: true,
-      } as any);
+      });
     } catch (notificationError) {
       this.logger.error(
         `[WM-003] Failed to send monitoring failure notification for ${withdrawalId}:`,

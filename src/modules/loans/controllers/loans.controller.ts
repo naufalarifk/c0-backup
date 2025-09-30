@@ -32,6 +32,7 @@ import {
   EarlyRepaymentRequestResponseDto,
 } from '../dto/loan-operations.dto';
 import {
+  LoanAgreementResponseDto,
   LoanListResponseDto,
   LoanResponseDto,
   LoanValuationListResponseDto,
@@ -253,7 +254,7 @@ export class LoansController {
     @Param('id') id: string,
   ): Promise<EarlyLiquidationEstimateResponseDto> {
     this.logger.log(`Calculating early liquidation for loan: ${id}, borrower: ${session.user.id}`);
-    return await this.loansService.calculateEarlyLiquidation(session.user.id, id);
+    return await this.loansService.estimateEarlyLiquidation(session.user.id, id);
   }
 
   /**
@@ -348,5 +349,47 @@ export class LoansController {
   ): Promise<EarlyRepaymentRequestResponseDto> {
     this.logger.log(`Requesting early repayment for loan: ${id}, borrower: ${session.user.id}`);
     return await this.loansService.requestEarlyRepayment(session.user.id, id, requestDto);
+  }
+
+  /**
+   * Download loan agreement document
+   */
+  @Get(':id/agreement')
+  @ApiOperation({
+    summary: 'Download loan agreement document',
+    description: 'Download the loan agreement contract document in PDF or HTML format.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: String,
+    description: 'Loan ID',
+  })
+  @ApiQuery({
+    name: 'format',
+    required: false,
+    enum: ['pdf', 'html'],
+    description: 'Document format to download',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Loan agreement document',
+    type: LoanAgreementResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Loan not found',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Access denied - user not party to this loan',
+    type: ErrorResponseDto,
+  })
+  async getLoanAgreement(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+  ): Promise<LoanAgreementResponseDto> {
+    this.logger.log(`Getting loan agreement for loan: ${id}, user: ${session.user.id}`);
+    return await this.loansService.getLoanAgreement(session.user.id, id);
   }
 }

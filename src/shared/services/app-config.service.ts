@@ -4,7 +4,7 @@ import type { RedisOptions } from 'ioredis';
 
 import { networkInterfaces } from 'node:os';
 
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import parse from 'parse-duration';
@@ -12,7 +12,7 @@ import invariant from 'tiny-invariant';
 
 @Injectable()
 export class AppConfigService {
-  constructor(private configService: ConfigService) {}
+  constructor(@Inject(ConfigService) private configService: ConfigService) {}
 
   get isDevelopment(): boolean {
     return this.nodeEnv === 'development';
@@ -274,6 +274,13 @@ export class AppConfigService {
       platformSeedEncrypted: this.getString('PLATFORM_MASTER_SEED_ENCRYPTED', ''),
       platformSeedEncryptionKey: this.getString('PLATFORM_SEED_ENCRYPTION_KEY', ''),
       enableTestMode: this.getBoolean('WALLET_TEST_MODE', !this.isProduction),
+    };
+  }
+
+  get invoiceConfig() {
+    return {
+      epochMs: this.getNumber('INVOICE_ID_EPOCH_MS', Date.UTC(2024, 0, 1)),
+      workerId: this.getNumber('INVOICE_ID_WORKER_ID', 0),
     };
   }
 

@@ -3,6 +3,8 @@ export interface PlatformRetrievesExchangeRatesParams {
   blockchainKey?: string;
   baseCurrencyTokenId?: string;
   quoteCurrencyTokenId?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export interface ExchangeRate {
@@ -46,6 +48,7 @@ export interface PriceFeed {
   baseCurrencyTokenId: string;
   quoteCurrencyTokenId: string;
   source: string;
+  quoteCurrencyDecimals: number;
 }
 
 export interface PlatformRetrievesActivePriceFeedsResult {

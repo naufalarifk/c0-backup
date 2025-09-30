@@ -1,10 +1,11 @@
 import type { Provider } from '@nestjs/common';
 
 import { Global, Module } from '@nestjs/common';
-import { CqrsModule } from '@nestjs/cqrs';
 
 import { CryptographyModule } from './cryptography/cryptography.module';
 import { TelemetryInterceptor } from './interceptors';
+import { InvoiceService } from './invoice/invoice.service';
+import { InvoiceIdGenerator } from './invoice/invoice-id.generator';
 import { RepositoryModule } from './repositories/repository.module';
 import { AppConfigService } from './services/app-config.service';
 import { CacheService } from './services/cache.service';
@@ -29,6 +30,8 @@ const providers: Provider[] = [
   TelemetryInterceptor,
   TelemetryService,
   TwilioService,
+  InvoiceIdGenerator,
+  InvoiceService,
   {
     provide: MinioService,
     inject: [AppConfigService],
@@ -45,8 +48,8 @@ const providers: Provider[] = [
 @Global()
 @Module({
   providers,
-  imports: [CqrsModule, CryptographyModule, RepositoryModule, WalletsModule],
+  imports: [CryptographyModule, RepositoryModule, WalletsModule],
   controllers: [MinioMockController],
-  exports: [...providers, CqrsModule, CryptographyModule, RepositoryModule, WalletsModule],
+  exports: [...providers, CryptographyModule, RepositoryModule, WalletsModule],
 })
 export class SharedModule {}

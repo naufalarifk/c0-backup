@@ -1,3 +1,9 @@
+const logs: Array<string> = [];
+
+export function getFetchLogs() {
+  return logs;
+}
+
 export async function loggedFetch(input: string | URL | Request, init?: RequestInit | undefined) {
   const response = await fetch(input, init);
 
@@ -12,10 +18,12 @@ export async function loggedFetch(input: string | URL | Request, init?: RequestI
   const pathname = `${url.pathname}${url.search}`;
 
   const clonedResponse = response.clone();
-  console.debug('>', init?.method ?? 'GET', pathname);
-  console.debug('>', init?.body ?? '');
-  console.debug('<', 'HTTP', response.status);
-  console.debug('<', await clonedResponse.text());
+  let log = '';
+  log += `> ${init?.method ?? 'GET'} ${pathname}\n`;
+  log += `> ${init?.body ?? ''}\n`;
+  log += `< HTTP ${response.status}\n`;
+  log += `< ${await clonedResponse.text()}\n`;
+  logs.push(log);
 
   return response;
 }

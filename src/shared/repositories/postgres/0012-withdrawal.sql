@@ -14,12 +14,12 @@ ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS blockchain_key VARCHAR(64);
 ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS address VARCHAR(64);
 DO $$ 
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'fk_beneficiaries_blockchain') THEN
-        ALTER TABLE beneficiaries ADD CONSTRAINT fk_beneficiaries_blockchain FOREIGN KEY (blockchain_key) REFERENCES blockchains (key);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'uq_beneficiaries_user_blockchain_address') THEN
-        ALTER TABLE beneficiaries ADD CONSTRAINT uq_beneficiaries_user_blockchain_address UNIQUE (user_id, blockchain_key, address);
-    END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'fk_beneficiaries_blockchain') THEN
+    ALTER TABLE beneficiaries ADD CONSTRAINT fk_beneficiaries_blockchain FOREIGN KEY (blockchain_key) REFERENCES blockchains (key);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'uq_beneficiaries_user_blockchain_address') THEN
+    ALTER TABLE beneficiaries ADD CONSTRAINT uq_beneficiaries_user_blockchain_address UNIQUE (user_id, blockchain_key, address);
+  END IF;
 END $$;
 
 CREATE TABLE IF NOT EXISTS withdrawals (
@@ -326,7 +326,7 @@ RETURNS TRIGGER AS $$
 DECLARE
   beneficiary_record RECORD;
   total_pending_amount DECIMAL(78, 0);
-  account_balance BIGINT;
+  account_balance DECIMAL(78, 0);
 BEGIN
   -- Get beneficiary information
   SELECT * INTO beneficiary_record

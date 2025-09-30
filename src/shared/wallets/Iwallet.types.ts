@@ -30,9 +30,19 @@ export abstract class IWalletService {
     derivationPath: string;
   }): Promise<IWallet>;
 
+  getInvoiceDerivationPath(invoiceId: number): string {
+    if (invoiceId < 0) {
+      throw new WalletError(`Invoice ID must be positive. Received: ${invoiceId}`);
+    }
+    // Constrain invoice ID to valid BIP32 derivation range (0 to 2^31-1)
+    // Use modulo to ensure we don't exceed the maximum index
+    const constrainedId = invoiceId % 2147483647; // 2^31 - 1
+    return `m/44'/${this.bip44CoinType}'/5'/0/${constrainedId}`;
+  }
+
   async createInvoiceWallet(masterKey: HDKey, invoiceId: number): Promise<IWallet> {
     return await this.derivedPathToWallet({
-      derivationPath: `m/44'/${this.bip44CoinType}'/1200'/0/${invoiceId}`,
+      derivationPath: this.getInvoiceDerivationPath(invoiceId),
       masterKey,
     });
   }
@@ -56,75 +66,3 @@ export class WalletError extends Error {
     this.name = 'WalletError';
   }
 }
-
-import { DiscoveryService } from '@nestjs/core';
-// === Example implementation of IWalletService and IWallet ===
-
-// import { ICryptographyService } from '../cryptography/cryptography';
-// import { HDKey } from '@scure/bip32';
-
-export class WalletFactory implements IWalletFactory {
-  #blockchainKeyToWalletServiceMap = {
-    // 'eip155:1': EthereumWalletService,
-    // TODO: Lengkapi
-  };
-
-  constructor(
-    private discoveryService: DiscoveryService, // DiscoveryService from nestjs
-  ) {}
-
-  getWalletService(blockchainKey: string): IWalletService {
-    const walletService = this.discoveryService
-      .getProviders()
-      .map(provider => provider.instance)
-      .find((instance: unknown) => {
-        return instance instanceof this.#blockchainKeyToWalletServiceMap[blockchainKey];
-      });
-    if (!(walletService instanceof IWalletService)) {
-      throw new WalletError('WalletService not supported');
-    }
-    return walletService;
-  }
-}
-
-// https://chainagnostic.org/CAIPs/caip-2#simple-summary
-// export class EthereumWalletService implements IWalletService {
-//   constructor(
-//     private cryptographyService: ICryptographyService,
-//   ) { }
-
-//   async derivedPathToWallet(derivedPath: string): Promise<EthereumWallet> {
-//     const HDWallet = HDKey.fromExtendedKey(derivedPath);
-//     const privateKey = await this.cryptographyService.getPlatformPrivateKey();
-//     const hdWallet = HDWallet(privateKey);
-//     const derivedPrivateKeyPrivateKey = hdWallet.derivePath(derivedPath);
-//     return new EthereumWallet(privateKey);
-//   }
-// }
-
-// export class EthereumWallet implements IWallet {
-//   constructor(
-//     private privateKey: Uint8Array,
-//   ) { }
-
-// getAddress(): Promise<string> {
-//     throw  new Error('TODO: implement getAddress from private key using viem');
-//   }
-
-//   signTransaction<T>(message: T): Promise<T> {
-//     throw new Error('TODO: implement signTransaction using viem');
-//   }
-// }
-
-// export class BitcoinWallet implements IWallet {
-//     constructor(
-//         private privateKey: Uint8Array,
-//     ) { }
-//     getAddress(): Promise<string> {
-//         throw new Error('TODO: implement getAddress from private key using bitcoinjs-lib');
-//     }
-//     signTransaction<T>(message: T): Promise<T> {
-//         throw new Error('TODO: implement signTransaction using bitcoinjs-lib');
-//     }
-
-// }

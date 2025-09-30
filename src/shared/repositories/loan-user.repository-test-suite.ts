@@ -37,6 +37,7 @@ export async function runLoanUserRepositoryTestSuite(
           await repo.sql`
             INSERT INTO price_feeds (blockchain_key, base_currency_token_id, quote_currency_token_id, source)
             VALUES ('eip155:56', 'slip44:714', 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d', 'test')
+            ON CONFLICT (blockchain_key, base_currency_token_id, quote_currency_token_id, source) DO NOTHING
           `;
 
           const priceFeedResult = await repo.sql`
@@ -51,10 +52,15 @@ export async function runLoanUserRepositoryTestSuite(
             return item;
           });
 
-          await repo.sql`
-            INSERT INTO exchange_rates (price_feed_id, bid_price, ask_price, retrieval_date, source_date)
-            VALUES (${priceFeedResult[0]?.id}, 1500.0, 1505.0, NOW(), NOW())
-          `;
+          const { exchangeRateId } = await repo.testSetupPriceFeeds({
+            blockchainKey: 'eip155:56',
+            baseCurrencyTokenId: 'slip44:714',
+            quoteCurrencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+            source: 'test',
+            bidPrice: 1500.0,
+            askPrice: 1505.0,
+            sourceDate: new Date('2025-10-30'),
+          });
 
           const loanOfferResult = await repo.lenderCreatesLoanOffer({
             lenderUserId: '1',
@@ -79,10 +85,15 @@ export async function runLoanUserRepositoryTestSuite(
               collateralTokenId: 'slip44:714',
               principalBlockchainKey: 'eip155:56',
               principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-              principalAmount: '2000000000',
+              principalAmount: '2000000000000000000000', // 2000 USDC in smallest units
+              provisionAmount: '60000000000000000000', // 3% provision
               maxInterestRate: 15.0,
+              minLtvRatio: 0.6,
+              maxLtvRatio: 0.75,
               termInMonths: 6,
               liquidationMode: 'Partial',
+              collateralDepositAmount: '1666666666666666666', // Calculated collateral
+              collateralDepositExchangeRateId: exchangeRateId,
               appliedDate: new Date('2025-11-01'),
               expirationDate: new Date('2025-11-30'),
               collateralWalletDerivationPath: "m/44'/0'/0'/0/77777",

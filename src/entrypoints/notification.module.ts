@@ -1,7 +1,6 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { EventEmitterModule } from '@nestjs/event-emitter';
 
 import { NotificationModule } from '../modules/notifications/notification.module';
 import { NotificationProcessor } from '../modules/notifications/notification.processor';
@@ -15,7 +14,6 @@ import { SharedModule } from '../shared/shared.module';
       envFilePath: ['.env', '.env.docker'],
     }),
     SharedModule,
-    EventEmitterModule.forRoot(),
     BullModule.forRootAsync({
       useFactory(configService: AppConfigService) {
         return {

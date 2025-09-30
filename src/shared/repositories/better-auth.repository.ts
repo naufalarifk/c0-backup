@@ -1,13 +1,24 @@
-// biome-ignore-all lint/suspicious/noExplicitAny: BetterAuthRepository needs flexible typing for user/session/account objects
-
 import {
   assertArrayMapOf,
   assertDefined,
+  assertNullableBoolean,
+  assertNullableNumber,
+  assertNullableString,
   assertProp,
+  assertPropBoolean,
   assertPropDefined,
+  assertPropNullableBoolean,
+  assertPropNullableFunction,
+  assertPropNullableNumber,
   assertPropNullableString,
+  assertPropNumber,
   assertPropString,
+  assertString,
   check,
+  isArray,
+  isBoolean,
+  isFunction,
+  isInstanceOf,
   isNullable,
   isNumber,
   isString,
@@ -16,6 +27,172 @@ import {
 import { v7 } from 'uuid';
 
 import { BaseRepository } from './base.repository';
+
+export type BetterAuthRecord = Record<string, unknown>;
+
+interface BetterAuthUserInput extends BetterAuthRecord {
+  name?: string;
+  email?: string;
+  email_address?: string;
+  emailVerified?: boolean;
+  phoneNumber?: string;
+  phoneNumberVerified?: boolean;
+  createdAt?: Date | string | number;
+  updatedAt?: Date | string | number;
+  id?: string;
+  image?: string | null;
+  callbackURL?: string;
+}
+
+interface BetterAuthWhereCondition extends BetterAuthRecord {
+  field: string;
+  value?: unknown;
+  operator?: string;
+}
+
+const isNullableDateLike = check(isNullable, isNumber, isString, isInstanceOf(Date));
+
+function ensureRecord(value: unknown, context: string): BetterAuthRecord {
+  assertDefined(value, `${context} must be defined`);
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new TypeError(`${context} must be an object`);
+  }
+  return value as BetterAuthRecord;
+}
+
+function ensureArray(value: unknown, context: string): unknown[] {
+  if (!isArray(value)) {
+    throw new TypeError(`${context} must be an array`);
+  }
+  return value;
+}
+
+function ensureWhereConditions(where: unknown, context: string): BetterAuthWhereCondition[] {
+  const array = ensureArray(where, context);
+  assertArrayMapOf(array, function (candidate) {
+    const record = ensureRecord(candidate, `${context} item`);
+    assertPropString(record, 'field', `${context} field must be a string`);
+    if ('operator' in record && record.operator !== undefined) {
+      assertPropNullableString(record, 'operator', `${context} operator must be a string`);
+    }
+    return record as BetterAuthWhereCondition;
+  });
+  return array as BetterAuthWhereCondition[];
+}
+
+function readOptionalString(record: BetterAuthRecord, key: string): string | undefined {
+  if (!(key in record)) {
+    return undefined;
+  }
+  assertPropNullableString(record, key);
+  const value = record[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function readOptionalStringOrNull(
+  record: BetterAuthRecord,
+  key: string,
+): string | null | undefined {
+  if (!(key in record)) {
+    return undefined;
+  }
+  assertPropNullableString(record, key);
+  const value = record[key];
+  if (value === null) {
+    return null;
+  }
+  return typeof value === 'string' ? value : undefined;
+}
+
+function readOptionalBoolean(record: BetterAuthRecord, key: string): boolean | undefined {
+  if (!(key in record)) {
+    return undefined;
+  }
+  assertPropNullableBoolean(record, key);
+  const value = record[key];
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function readOptionalDateInput(
+  record: BetterAuthRecord,
+  key: string,
+): Date | string | number | undefined {
+  if (!(key in record)) {
+    return undefined;
+  }
+  assertProp(isNullableDateLike, record, key);
+  const value = record[key];
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+  return value as Date | string | number;
+}
+
+function normalizeDateInput(value: Date | string | number | undefined, fallback: Date): Date {
+  if (value === undefined) {
+    return fallback;
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? fallback : value;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? fallback : date;
+}
+
+function readOptionalStringOrNumber(
+  record: BetterAuthRecord,
+  key: string,
+): string | number | undefined {
+  if (!(key in record)) {
+    return undefined;
+  }
+  assertProp(check(isNullable, isString, isNumber), record, key);
+  const value = record[key];
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+  if (isString(value) || isNumber(value)) {
+    return value;
+  }
+  return undefined;
+}
+
+function readOptionalRecord(value: unknown, context: string): BetterAuthRecord | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  return ensureRecord(value, context);
+}
+
+function ensureOptionalStringArray(value: unknown, context: string): string[] {
+  if (value === undefined || value === null) {
+    return [];
+  }
+  const array = ensureArray(value, context);
+  assertArrayMapOf(array, function (item) {
+    assertDefined(item, `${context} item must be defined`);
+    if (!isString(item) && !isNumber(item)) {
+      throw new TypeError(`${context} item must be a string or number`);
+    }
+    return item;
+  });
+  return array.map(item => String(item));
+}
+
+function assertStringOrNumber(value: unknown, context: string): asserts value is string | number {
+  if (!isString(value) && !isNumber(value)) {
+    throw new TypeError(`${context} must be a string or number`);
+  }
+}
+
+function ensureStringArray(value: unknown, context: string): string[] {
+  const array = ensureArray(value, context);
+  assertArrayMapOf(array, function (item) {
+    assertString(item, `${context} item must be a string`);
+    return item;
+  });
+  return array;
+}
 
 function tryToDate(value: unknown): Date | null {
   if (value instanceof Date) return value;
@@ -73,33 +250,34 @@ function alignBetterAuthUserData(user: unknown) {
  * should be handled by services that use this repository.
  */
 export abstract class BetterAuthRepository extends BaseRepository {
-  async betterAuthCreateUser(data: any): Promise<any> {
+  async betterAuthCreateUser(data: unknown): Promise<BetterAuthRecord> {
+    const payload = ensureRecord(
+      data,
+      'BetterAuthRepository.betterAuthCreateUser payload',
+    ) as BetterAuthUserInput;
+
+    const name = readOptionalString(payload, 'name');
+    const email = readOptionalString(payload, 'email');
+    const emailAddress = readOptionalString(payload, 'email_address');
+    const emailVerified = readOptionalBoolean(payload, 'emailVerified') ?? false;
+    const phoneNumber = readOptionalString(payload, 'phoneNumber');
+    const phoneNumberVerified = readOptionalBoolean(payload, 'phoneNumberVerified') ?? false;
+    const createdAtInput = readOptionalDateInput(payload, 'createdAt');
+    const updatedAtInput = readOptionalDateInput(payload, 'updatedAt');
+    const id = readOptionalString(payload, 'id');
+    const image = readOptionalStringOrNull(payload, 'image');
+    const callbackURL = readOptionalString(payload, 'callbackURL');
+
+    if (id) {
+      console.warn('Creating user with specific ID is not supported.', id);
+    }
+
     const tx = await this.beginTransaction();
     try {
-      const {
-        name,
-        email,
-        email_address,
-        emailVerified = false,
-        phoneNumber,
-        phoneNumberVerified = false,
-        createdAt,
-        updatedAt,
-        id,
-        image,
-        callbackURL,
-      } = data;
-
-      if (id) {
-        console.warn('Creating user with specific ID is not supported.', id);
-      }
-
-      // Handle field mapping: email_address maps to email column
-      const emailValue = email_address || email || `user-${Date.now()}@example.com`;
-
-      // Convert Dates to UTC milliseconds for database storage
-      const createdAtUtc = new Date(createdAt ?? Date.now());
-      const updatedAtUtc = new Date(updatedAt ?? Date.now());
+      const emailValue = emailAddress || email || `user-${Date.now()}@example.com`;
+      const now = new Date();
+      const createdAtUtc = normalizeDateInput(createdAtInput, now);
+      const updatedAtUtc = normalizeDateInput(updatedAtInput, now);
 
       const rows = await tx.sql`
         INSERT INTO users (name, profile_picture, email, phone_number, phone_number_verified, created_date, updated_date, email_verified_date)
@@ -111,7 +289,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
         assertDefined(row);
         assertPropString(row, 'email');
         assertProp(check(isNullable, isString, isNumber), row, 'image');
-        if (email_address) {
+        if (emailAddress) {
           setPropValue(row, 'email_address', row.email);
         }
         if (callbackURL) {
@@ -122,10 +300,11 @@ export abstract class BetterAuthRepository extends BaseRepository {
       });
 
       const user = rows[0];
+      assertDefined(user, 'User creation result missing');
 
       await tx.commitTransaction();
 
-      return user;
+      return user as BetterAuthRecord;
     } catch (error) {
       console.error('BetterAuthRepository', error);
       await tx.rollbackTransaction();
@@ -133,47 +312,67 @@ export abstract class BetterAuthRepository extends BaseRepository {
     }
   }
 
-  async betterAuthFindOneUser(where: any[]): Promise<any> {
+  async betterAuthFindOneUser(where: unknown): Promise<BetterAuthRecord | null> {
     try {
-      if (!Array.isArray(where) || where.length === 0) {
+      if (!where) {
         return null;
       }
 
-      const idCondition = where.find(w => w.field === 'id');
-      const emailCondition = where.find(w => w.field === 'email' || w.field === 'email_address');
-      const phoneCondition = where.find(w => w.field === 'phoneNumber');
+      const conditions = ensureWhereConditions(
+        where,
+        'BetterAuthRepository.betterAuthFindOneUser where',
+      );
+
+      if (conditions.length === 0) {
+        return null;
+      }
+
+      const idCondition = conditions.find(condition => condition.field === 'id');
+      const emailCondition = conditions.find(
+        condition => condition.field === 'email' || condition.field === 'email_address',
+      );
+      const phoneCondition = conditions.find(condition => condition.field === 'phoneNumber');
 
       let rows: Array<unknown> = [];
-      if (idCondition) {
+      if (idCondition?.value !== undefined) {
+        assertStringOrNumber(idCondition.value, 'betterAuthFindOneUser id value');
         rows = await this.sql`
           SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
             role, user_type, created_date, updated_date
           FROM users
           WHERE id = ${idCondition.value}
         `;
-      } else if (emailCondition) {
+      } else if (emailCondition?.value !== undefined) {
+        const emailValue = emailCondition.value;
+        assertString(emailValue, 'betterAuthFindOneUser email value');
         rows = await this.sql`
           SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
             role, user_type, created_date, updated_date
           FROM users
-          WHERE email = ${emailCondition.value}
+          WHERE email = ${emailValue}
         `;
-      } else if (phoneCondition) {
+      } else if (phoneCondition?.value !== undefined) {
+        const phoneValue = phoneCondition.value;
+        assertString(phoneValue, 'betterAuthFindOneUser phone value');
         rows = await this.sql`
           SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
             role, user_type, created_date, updated_date
           FROM users
-          WHERE phone_number = ${phoneCondition.value} AND phone_number IS NOT NULL
+          WHERE phone_number = ${phoneValue} AND phone_number IS NOT NULL
         `;
       } else {
         console.warn('Find user requires id, email, or phone number condition.');
         return null;
       }
 
+      const hasEmailAddressField = conditions.some(
+        condition => condition.field === 'email_address',
+      );
+
       assertArrayMapOf(rows, function (row) {
         assertDefined(row);
-        if (where.some(w => w.field === 'email_address')) {
-          if ('email' in row) setPropValue(row, 'email_address', row.email);
+        if (hasEmailAddressField && 'email' in row) {
+          setPropValue(row, 'email_address', row.email);
         }
         alignBetterAuthUserData(row);
         return row;
@@ -182,7 +381,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
       if (rows.length > 0) {
         const user = rows[0];
         assertDefined(user);
-        return user;
+        return user as BetterAuthRecord;
       }
 
       return null;
@@ -193,95 +392,120 @@ export abstract class BetterAuthRepository extends BaseRepository {
   }
 
   async betterAuthFindManyUsers(
-    where?: any[],
+    where?: unknown,
     limit?: number,
     offset?: number,
-    sortBy?: any,
-  ): Promise<any[]> {
+    sortBy?: unknown,
+  ): Promise<BetterAuthRecord[]> {
     try {
-      const hasEmailAddressField = where && where.some(w => w.field === 'email_address');
+      const limitValue = typeof limit === 'number' && Number.isFinite(limit) ? limit : 100;
+      const offsetValue = typeof offset === 'number' && Number.isFinite(offset) ? offset : 0;
+
+      if (sortBy) {
+        void sortBy; // reserved for future sorting logic
+      }
+
+      const conditions = where
+        ? ensureWhereConditions(where, 'BetterAuthRepository.betterAuthFindManyUsers where')
+        : [];
+
+      const hasEmailAddressField = conditions.some(
+        condition => condition.field === 'email_address',
+      );
 
       let users: Array<unknown> = [];
-      if (!where || where.length === 0) {
+      if (conditions.length === 0) {
         users = await this.sql`
           SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
                  role, user_type, created_date, updated_date
           FROM users
           ORDER BY created_date DESC
-          LIMIT ${limit || 100}
-          OFFSET ${offset || 0}
+          LIMIT ${limitValue}
+          OFFSET ${offsetValue}
         `;
       } else {
-        const idCondition = where.find(w => w.field === 'id');
-        const emailCondition = where.find(w => w.field === 'email' || w.field === 'email_address');
-        const phoneCondition = where.find(w => w.field === 'phoneNumber');
-        const nameCondition = where.find(w => w.field === 'name');
+        const idCondition = conditions.find(condition => condition.field === 'id');
+        const emailCondition = conditions.find(
+          condition => condition.field === 'email' || condition.field === 'email_address',
+        );
+        const phoneCondition = conditions.find(condition => condition.field === 'phoneNumber');
+        const nameCondition = conditions.find(condition => condition.field === 'name');
 
-        if (idCondition && idCondition.operator === 'in') {
-          const ids = idCondition.value;
+        if (idCondition?.operator === 'in' && idCondition.value !== undefined) {
+          const ids = ensureStringArray(
+            idCondition.value,
+            'betterAuthFindManyUsers id condition values',
+          );
           users = await this.sql`
             SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
                    role, user_type, created_date, updated_date
             FROM users
             WHERE id = ANY(${ids})
             ORDER BY created_date DESC
-            LIMIT ${limit || 100}
-            OFFSET ${offset || 0}
+            LIMIT ${limitValue}
+            OFFSET ${offsetValue}
           `;
-        } else if (emailCondition) {
+        } else if (emailCondition?.value !== undefined) {
+          const emailValue = emailCondition.value;
           if (emailCondition.operator === 'contains') {
-            const searchTerm = `%${emailCondition.value}%`;
+            assertString(emailValue, 'betterAuthFindManyUsers email contains value');
+            const searchTerm = `%${emailValue}%`;
             users = await this.sql`
               SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
                      role, user_type, created_date, updated_date
               FROM users
               WHERE email LIKE ${searchTerm}
               ORDER BY created_date DESC
-              LIMIT ${limit || 100}
-              OFFSET ${offset || 0}
+              LIMIT ${limitValue}
+              OFFSET ${offsetValue}
             `;
           } else {
+            assertString(emailValue, 'betterAuthFindManyUsers email value');
             users = await this.sql`
               SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
                      role, user_type, created_date, updated_date
               FROM users
-              WHERE email = ${emailCondition.value}
+              WHERE email = ${emailValue}
               ORDER BY created_date DESC
-              LIMIT ${limit || 100}
-              OFFSET ${offset || 0}
+              LIMIT ${limitValue}
+              OFFSET ${offsetValue}
             `;
           }
-        } else if (phoneCondition) {
+        } else if (phoneCondition?.value !== undefined) {
+          const phoneValue = phoneCondition.value;
+          assertString(phoneValue, 'betterAuthFindManyUsers phone value');
           users = await this.sql`
             SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
                    role, user_type, created_date, updated_date
             FROM users
-            WHERE phone_number = ${phoneCondition.value} AND phone_number IS NOT NULL
+            WHERE phone_number = ${phoneValue} AND phone_number IS NOT NULL
             ORDER BY created_date DESC
-            LIMIT ${limit || 100}
-            OFFSET ${offset || 0}
+            LIMIT ${limitValue}
+            OFFSET ${offsetValue}
           `;
-        } else if (nameCondition) {
+        } else if (nameCondition?.value !== undefined) {
+          const nameValue = nameCondition.value;
+          assertString(nameValue, 'betterAuthFindManyUsers name value');
           if (nameCondition.operator === 'contains') {
-            const searchTerm = `%${nameCondition.value}%`;
+            const searchTerm = `%${nameValue}%`;
             users = await this.sql`
               SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
                      role, user_type, created_date, updated_date
               FROM users
               WHERE name LIKE ${searchTerm}
               ORDER BY created_date DESC
-              LIMIT ${limit || 100}
-              OFFSET ${offset || 0}
+              LIMIT ${limitValue}
+              OFFSET ${offsetValue}
             `;
           } else {
             users = await this.sql`
               SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
                      role, user_type, created_date, updated_date
               FROM users
-              WHERE name = ${nameCondition.value}
+              WHERE name = ${nameValue}
               ORDER BY created_date DESC
-              LIMIT ${limit || 100}
-              OFFSET ${offset || 0}
+              LIMIT ${limitValue}
+              OFFSET ${offsetValue}
             `;
           }
         } else {
@@ -290,15 +514,18 @@ export abstract class BetterAuthRepository extends BaseRepository {
                    role, user_type, created_date, updated_date
             FROM users
             ORDER BY created_date DESC
-            LIMIT ${limit || 100}
-            OFFSET ${offset || 0}
+            LIMIT ${limitValue}
+            OFFSET ${offsetValue}
           `;
         }
       }
 
-      assertArrayMapOf(users, alignBetterAuthUserData);
+      assertArrayMapOf(users, function (row) {
+        assertDefined(row);
+        alignBetterAuthUserData(row);
+        return row as BetterAuthRecord;
+      });
 
-      // Add email_address field if original query used email_address
       if (hasEmailAddressField) {
         users.forEach(function (user) {
           assertDefined(user);
@@ -308,36 +535,62 @@ export abstract class BetterAuthRepository extends BaseRepository {
         });
       }
 
-      return users;
+      return users as BetterAuthRecord[];
     } catch (error) {
       console.error('BetterAuthRepository', error);
       throw error;
     }
   }
 
-  async betterAuthUpdateUser(where: any[], update: any): Promise<any> {
+  async betterAuthUpdateUser(where: unknown, update: unknown): Promise<BetterAuthRecord | null> {
     const tx = await this.beginTransaction();
     try {
-      if (!Array.isArray(where) || where.length === 0) {
+      const conditions = ensureWhereConditions(
+        where,
+        'BetterAuthRepository.betterAuthUpdateUser where',
+      );
+
+      if (conditions.length === 0) {
         await tx.rollbackTransaction();
         return null;
       }
 
-      const {
-        name,
-        email,
-        emailVerified,
-        phoneNumber,
-        phoneNumberVerified,
-        twoFactorEnabled,
-        createdAt,
-        updatedAt,
-        image,
-      } = update;
+      const updates = ensureRecord(update, 'BetterAuthRepository.betterAuthUpdateUser update');
 
-      // Convert Dates to UTC milliseconds for database storage if they exist
-      const createdAtUtc = createdAt ? new Date(createdAt ?? Date.now()) : new Date();
-      const updatedAtUtc = updatedAt ? new Date(updatedAt ?? Date.now()) : new Date();
+      const name = readOptionalString(updates, 'name');
+      const email = readOptionalString(updates, 'email');
+      const emailVerified = readOptionalBoolean(updates, 'emailVerified') ?? false;
+      const phoneNumber = readOptionalString(updates, 'phoneNumber');
+      const phoneNumberVerified = readOptionalBoolean(updates, 'phoneNumberVerified');
+      const twoFactorEnabled = readOptionalBoolean(updates, 'twoFactorEnabled');
+      const createdAtInput = readOptionalDateInput(updates, 'createdAt');
+      const updatedAtInput = readOptionalDateInput(updates, 'updatedAt');
+      const image = readOptionalStringOrNull(updates, 'image');
+
+      const now = new Date();
+      const createdAtUtc = normalizeDateInput(createdAtInput, now);
+      const updatedAtUtc = normalizeDateInput(updatedAtInput, now);
+
+      const idCondition = conditions.find(condition => condition.field === 'id');
+      const emailCondition = conditions.find(
+        condition => condition.field === 'email' || condition.field === 'email_address',
+      );
+
+      const idValue = idCondition?.value;
+      if (idValue !== undefined) {
+        assertStringOrNumber(idValue, 'betterAuthUpdateUser id value');
+      }
+
+      const emailConditionValue = emailCondition?.value;
+      if (emailConditionValue !== undefined) {
+        assertString(emailConditionValue, 'betterAuthUpdateUser email where value');
+      }
+
+      if (idValue === undefined && emailConditionValue === undefined) {
+        console.warn('Update user requires id or email condition.');
+        await tx.rollbackTransaction();
+        return null;
+      }
 
       const rows = await tx.sql`
         UPDATE users
@@ -355,15 +608,19 @@ export abstract class BetterAuthRepository extends BaseRepository {
           profile_picture = COALESCE(${image}, profile_picture),
           created_date = COALESCE(${createdAtUtc}, created_date),
           updated_date = COALESCE(${updatedAtUtc}, updated_date)
-        WHERE id = ${where.find(w => w.field === 'id')?.value}
-          OR email = ${where.find(w => w.field === 'email' || w.field === 'email_address')?.value}
+        WHERE (${idValue !== undefined} AND id = ${idValue ?? null})
+          OR (${emailConditionValue !== undefined} AND email = ${emailConditionValue ?? null})
         RETURNING id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
           two_factor_enabled, role, user_type, created_date, updated_date
       `;
 
-      assertArrayMapOf(rows, alignBetterAuthUserData);
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row);
+        alignBetterAuthUserData(row);
+        return row as BetterAuthRecord;
+      });
 
-      const row = rows.length > 0 ? rows[0] : null;
+      const row = rows.length > 0 ? (rows[0] as BetterAuthRecord) : null;
 
       await tx.commitTransaction();
 
@@ -375,36 +632,55 @@ export abstract class BetterAuthRepository extends BaseRepository {
     }
   }
 
-  async betterAuthUpdateManyUsers(where: any[], update: any): Promise<any[]> {
+  async betterAuthUpdateManyUsers(where: unknown, update: unknown): Promise<BetterAuthRecord[]> {
     const tx = await this.beginTransaction();
     try {
-      if (!Array.isArray(where) || where.length === 0) {
+      const conditions = ensureWhereConditions(
+        where,
+        'BetterAuthRepository.betterAuthUpdateManyUsers where',
+      );
+
+      if (conditions.length === 0) {
         await tx.rollbackTransaction();
         return [];
       }
 
-      const {
-        name,
-        email,
-        emailVerified,
-        phoneNumber,
-        phoneNumberVerified,
-        createdAt,
-        updatedAt,
-        image,
-      } = update;
+      const updates = ensureRecord(update, 'BetterAuthRepository.betterAuthUpdateManyUsers update');
 
-      // Convert Dates to UTC milliseconds for database storage if they exist
-      const createdAtUtc = createdAt ? new Date(createdAt ?? Date.now()) : null;
-      const updatedAtUtc = updatedAt ? new Date(updatedAt ?? Date.now()) : null;
+      const name = readOptionalString(updates, 'name');
+      const email = readOptionalString(updates, 'email');
+      const emailVerified = readOptionalBoolean(updates, 'emailVerified');
+      const phoneNumber = readOptionalString(updates, 'phoneNumber');
+      const phoneNumberVerified = readOptionalBoolean(updates, 'phoneNumberVerified');
+      const createdAtInput = readOptionalDateInput(updates, 'createdAt');
+      const updatedAtInput = readOptionalDateInput(updates, 'updatedAt');
+      const image = readOptionalStringOrNull(updates, 'image');
 
-      // For multiple users, we need to handle where conditions properly
-      const idCondition = where.find(w => w.field === 'id');
+      const now = new Date();
+      const createdAtUtc = createdAtInput ? normalizeDateInput(createdAtInput, now) : null;
+      const updatedAtUtc = updatedAtInput ? normalizeDateInput(updatedAtInput, now) : null;
 
+      const idCondition = conditions.find(condition => condition.field === 'id');
       if (!idCondition) {
         console.warn('Update many users requires id condition.');
+        await tx.rollbackTransaction();
         return [];
       }
+
+      const emailCondition = conditions.find(
+        condition => condition.field === 'email' || condition.field === 'email_address',
+      );
+
+      if (idCondition.value !== undefined) {
+        assertStringOrNumber(idCondition.value, 'betterAuthUpdateManyUsers id value');
+      }
+
+      const emailConditionValue = emailCondition?.value;
+      if (emailConditionValue !== undefined) {
+        assertString(emailConditionValue, 'betterAuthUpdateManyUsers email value');
+      }
+
+      const emailVerifiedFlag = emailVerified ? 1 : 0;
 
       const rows = await tx.sql`
         UPDATE users
@@ -414,23 +690,27 @@ export abstract class BetterAuthRepository extends BaseRepository {
             phone_number_verified = COALESCE(${phoneNumberVerified}, phone_number_verified),
             profile_picture = COALESCE(${image}, profile_picture),
             email_verified_date = CASE
-              WHEN ${emailVerified ? 1 : 0} = 1 AND email_verified_date IS NULL THEN ${updatedAtUtc}
-              WHEN ${emailVerified ? 1 : 0} = 0 THEN NULL
+              WHEN ${emailVerifiedFlag} = 1 AND email_verified_date IS NULL THEN ${updatedAtUtc}
+              WHEN ${emailVerifiedFlag} = 0 THEN NULL
               ELSE email_verified_date
             END,
             created_date = COALESCE(${createdAtUtc}, created_date),
             updated_date = COALESCE(${updatedAtUtc}, updated_date)
-        WHERE id = ${idCondition.value}
-          OR email = ${where.find(w => w.field === 'email' || w.field === 'email_address')?.value}
+        WHERE id = ${idCondition.value ?? null}
+          OR email = ${emailConditionValue ?? null}
         RETURNING id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date,
           two_factor_enabled, role, user_type, created_date, updated_date
       `;
 
-      assertArrayMapOf(rows, alignBetterAuthUserData);
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row);
+        alignBetterAuthUserData(row);
+        return row as BetterAuthRecord;
+      });
 
       await tx.commitTransaction();
 
-      return rows;
+      return rows as BetterAuthRecord[];
     } catch (error) {
       console.error('BetterAuthRepository', error);
       await tx.rollbackTransaction();
@@ -438,31 +718,45 @@ export abstract class BetterAuthRepository extends BaseRepository {
     }
   }
 
-  async betterAuthDeleteUser(where: any[]): Promise<any> {
+  async betterAuthDeleteUser(where: unknown): Promise<BetterAuthRecord | null> {
     const tx = await this.beginTransaction();
     try {
-      if (!Array.isArray(where) || where.length === 0) {
+      const conditions = ensureWhereConditions(
+        where,
+        'BetterAuthRepository.betterAuthDeleteUser where',
+      );
+
+      if (conditions.length === 0) {
         await tx.rollbackTransaction();
         return null;
       }
 
-      const idCondition = where.find(w => w.field === 'id');
+      const idCondition = conditions.find(condition => condition.field === 'id');
 
       if (!idCondition) {
         console.warn('Delete user requires id condition.');
+        await tx.rollbackTransaction();
         return null;
+      }
+
+      if (idCondition.value !== undefined) {
+        assertStringOrNumber(idCondition.value, 'betterAuthDeleteUser id value');
       }
 
       const rows = await tx.sql`
           DELETE FROM users
-          WHERE id = ${idCondition.value}
+          WHERE id = ${idCondition.value ?? null}
           RETURNING id, name, profile_picture as "image", email, email_verified_date,
                    created_date, updated_date
         `;
 
-      assertArrayMapOf(rows, alignBetterAuthUserData);
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row);
+        alignBetterAuthUserData(row);
+        return row as BetterAuthRecord;
+      });
 
-      const row = rows.length > 0 ? rows[0] : null;
+      const row = rows.length > 0 ? (rows[0] as BetterAuthRecord) : null;
 
       await tx.commitTransaction();
 
@@ -474,32 +768,47 @@ export abstract class BetterAuthRepository extends BaseRepository {
     }
   }
 
-  async betterAuthDeleteManyUsers(where: any[]): Promise<any[]> {
+  async betterAuthDeleteManyUsers(where: unknown): Promise<BetterAuthRecord[]> {
     const tx = await this.beginTransaction();
     try {
-      if (!Array.isArray(where) || where.length === 0) {
+      const conditions = ensureWhereConditions(
+        where,
+        'BetterAuthRepository.betterAuthDeleteManyUsers where',
+      );
+
+      if (conditions.length === 0) {
         await tx.rollbackTransaction();
         return [];
       }
 
-      const idCondition = where.find(w => w.field === 'id');
+      const idCondition = conditions.find(condition => condition.field === 'id');
 
       if (!idCondition) {
         console.warn('Delete many users requires id condition.');
+        await tx.rollbackTransaction();
         return [];
+      }
+
+      if (idCondition.value !== undefined) {
+        assertStringOrNumber(idCondition.value, 'betterAuthDeleteManyUsers id value');
       }
 
       const rows = await tx.sql`
           DELETE FROM users
-          WHERE id = ${idCondition.value}
+          WHERE id = ${idCondition.value ?? null}
           RETURNING id, name, profile_picture as "image", email, email_verified_date,
             created_date, updated_date
         `;
-      assertArrayMapOf(rows, alignBetterAuthUserData);
+
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row);
+        alignBetterAuthUserData(row);
+        return row as BetterAuthRecord;
+      });
 
       await tx.commitTransaction();
 
-      return rows;
+      return rows as BetterAuthRecord[];
     } catch (error) {
       console.error('BetterAuthRepository', error);
       await tx.rollbackTransaction();
@@ -508,43 +817,54 @@ export abstract class BetterAuthRepository extends BaseRepository {
   }
 
   // Session methods for better-auth (using Redis)
-  async betterAuthCreateSession(data: any): Promise<any> {
+  async betterAuthCreateSession(data: unknown): Promise<BetterAuthRecord> {
     try {
-      const { token, userId, expiresAt, createdAt = new Date(), updatedAt = new Date(), id } = data;
+      const payload = ensureRecord(data, 'BetterAuthRepository.betterAuthCreateSession payload');
 
-      const sessionId = id || v7();
+      assertPropString(payload, 'token', 'Session token must be a string');
+      assertPropDefined(payload, 'userId', 'Session userId must be defined');
 
-      const session = {
+      const token = payload.token as string;
+      const userIdValue = readOptionalStringOrNumber(payload, 'userId');
+      assertDefined(userIdValue, 'Session userId must be a string or number');
+      const userId = String(userIdValue);
+
+      const sessionId = readOptionalString(payload, 'id') ?? v7();
+
+      const createdAt = normalizeDateInput(readOptionalDateInput(payload, 'createdAt'), new Date());
+      const updatedAt = normalizeDateInput(readOptionalDateInput(payload, 'updatedAt'), new Date());
+      const expiresAtInput = readOptionalDateInput(payload, 'expiresAt');
+      const expiresAt = expiresAtInput ? normalizeDateInput(expiresAtInput, updatedAt) : undefined;
+
+      const session: BetterAuthRecord = {
         id: String(sessionId),
         token,
         userId,
-        expiresAt,
         createdAt,
         updatedAt,
+        ...(expiresAt ? { expiresAt } : {}),
       };
 
       const user = await this.betterAuthFindOneUser([
         { field: 'id', value: userId, operator: 'eq' },
       ]);
 
-      let ttl: number | undefined = undefined;
+      let ttl: number | undefined;
       if (expiresAt) {
-        const expiresAtMs = new Date(expiresAt).getTime();
+        const expiresAtMs = expiresAt.getTime();
         const nowMs = Date.now();
         const diffSeconds = Math.floor((expiresAtMs - nowMs) / 1000);
-        ttl = Math.max(1, Math.floor(diffSeconds)); // Ensure TTL is an integer
+        if (Number.isFinite(diffSeconds)) {
+          ttl = Math.max(1, diffSeconds);
+        }
       }
 
-      // Store session using Better Auth's expected key pattern
-      // Better Auth's internal adapter expects sessions to be stored directly by token
-      // with both session and user data together
       const sessionWithUser = {
-        session: session,
-        user: user,
+        session,
+        user,
       };
       await this.set(token, JSON.stringify(sessionWithUser), ttl);
 
-      // Also store our internal mappings for cleanup/management
       await this.set(`session:token:${token}`, sessionId, ttl);
       await this.set(`session:userId:${userId}`, sessionId, ttl);
       await this.set(`session:${sessionId}`, session, ttl);
@@ -556,88 +876,81 @@ export abstract class BetterAuthRepository extends BaseRepository {
     }
   }
 
-  async betterAuthFindOneSession(where: any[]): Promise<any> {
+  async betterAuthFindOneSession(where: unknown): Promise<BetterAuthRecord | null> {
     try {
-      console.log(
-        'BetterAuthRepository:betterAuthFindOneSession called with where:',
-        JSON.stringify(where, null, 2),
+      const conditions = ensureWhereConditions(
+        where,
+        'BetterAuthRepository.betterAuthFindOneSession where',
       );
 
-      if (!Array.isArray(where) || where.length === 0) {
-        console.log('BetterAuthRepository:betterAuthFindOneSession - empty where clause');
+      if (conditions.length === 0) {
         return null;
       }
 
-      // Handle different search criteria
-      for (const condition of where) {
-        console.log(
-          'BetterAuthRepository:betterAuthFindOneSession - checking condition:',
-          condition,
-        );
+      for (const condition of conditions) {
+        const value = condition.value;
+        if (value === undefined) {
+          continue;
+        }
 
         if (condition.field === 'token') {
-          // Find session by token
-          console.log(
-            'BetterAuthRepository:betterAuthFindOneSession - looking up session by token:',
-            condition.value?.slice(0, 10) + '...',
+          if (!isString(value)) {
+            continue;
+          }
+          const sessionIdValue = await this.get(`session:token:${value}`);
+          let sessionId: string | undefined;
+          if (isString(sessionIdValue) || isNumber(sessionIdValue)) {
+            sessionId = String(sessionIdValue);
+          }
+          if (!sessionId) {
+            continue;
+          }
+          const sessionValue = await this.get(`session:${sessionId}`);
+          const sessionRecord = readOptionalRecord(
+            sessionValue,
+            'BetterAuthRepository.betterAuthFindOneSession session record',
           );
-          const sessionId = await this.get(`session:token:${condition.value}`);
-          console.log(
-            'BetterAuthRepository:betterAuthFindOneSession - sessionId from token lookup:',
-            sessionId,
-          );
-
-          if (sessionId) {
-            const session = await this.get(`session:${sessionId}`);
-            console.log(
-              'BetterAuthRepository:betterAuthFindOneSession - session from sessionId lookup:',
-              session ? 'Found' : 'Not found',
-            );
-            if (session) {
-              return session;
-            }
+          if (sessionRecord) {
+            assertPropString(sessionRecord, 'id', 'Session record must include id');
+            return sessionRecord;
           }
         } else if (condition.field === 'id') {
-          // Find session by ID
-          console.log(
-            'BetterAuthRepository:betterAuthFindOneSession - looking up session by id:',
-            condition.value,
+          if (!isString(value) && !isNumber(value)) {
+            continue;
+          }
+          const sessionValue = await this.get(`session:${String(value)}`);
+          const sessionRecord = readOptionalRecord(
+            sessionValue,
+            'BetterAuthRepository.betterAuthFindOneSession session by id',
           );
-          const session = await this.get(`session:${condition.value}`);
-          console.log(
-            'BetterAuthRepository:betterAuthFindOneSession - session from id lookup:',
-            session ? 'Found' : 'Not found',
-          );
-          if (session) {
-            return session;
+          if (sessionRecord) {
+            assertPropString(sessionRecord, 'id', 'Session record must include id');
+            return sessionRecord;
           }
         } else if (condition.field === 'userId') {
-          // Find session by userId
-          console.log(
-            'BetterAuthRepository:betterAuthFindOneSession - looking up session by userId:',
-            condition.value,
+          if (!isString(value) && !isNumber(value)) {
+            continue;
+          }
+          const sessionIdValue = await this.get(`session:userId:${String(value)}`);
+          let sessionId: string | undefined;
+          if (isString(sessionIdValue) || isNumber(sessionIdValue)) {
+            sessionId = String(sessionIdValue);
+          }
+          if (!sessionId) {
+            continue;
+          }
+          const sessionValue = await this.get(`session:${sessionId}`);
+          const sessionRecord = readOptionalRecord(
+            sessionValue,
+            'BetterAuthRepository.betterAuthFindOneSession session by userId',
           );
-          const sessionId = await this.get(`session:userId:${condition.value}`);
-          console.log(
-            'BetterAuthRepository:betterAuthFindOneSession - sessionId from userId lookup:',
-            sessionId,
-          );
-          if (sessionId) {
-            const session = await this.get(`session:${sessionId}`);
-            console.log(
-              'BetterAuthRepository:betterAuthFindOneSession - session from sessionId lookup:',
-              session ? 'Found' : 'Not found',
-            );
-            if (session) {
-              return session;
-            }
+          if (sessionRecord) {
+            assertPropString(sessionRecord, 'id', 'Session record must include id');
+            return sessionRecord;
           }
         }
       }
 
-      console.log(
-        'BetterAuthRepository:betterAuthFindOneSession - no session found for any condition',
-      );
       return null;
     } catch (error) {
       console.error('BetterAuthRepository:betterAuthFindOneSession error:', error);
@@ -645,54 +958,82 @@ export abstract class BetterAuthRepository extends BaseRepository {
     }
   }
 
-  async betterAuthUpdateSession(where: any[], update: any): Promise<any> {
-    if (!Array.isArray(where) || where.length === 0) {
+  async betterAuthUpdateSession(where: unknown, update: unknown): Promise<BetterAuthRecord | null> {
+    const conditions = ensureWhereConditions(
+      where,
+      'BetterAuthRepository.betterAuthUpdateSession where',
+    );
+
+    if (conditions.length === 0) {
       return null;
     }
 
-    // Find the session first
-    const session = await this.betterAuthFindOneSession(where);
+    const session = await this.betterAuthFindOneSession(conditions);
     if (!session) {
       return null;
     }
 
-    // Update the session data
-    const updatedSession = { ...session, ...update, updatedAt: new Date() };
+    const updates = ensureRecord(update, 'BetterAuthRepository.betterAuthUpdateSession update');
 
-    // Calculate new TTL if expiresAt changed
-    let ttl: number | undefined = undefined;
-    if (updatedSession.expiresAt) {
-      const expiresAtMs = new Date(updatedSession.expiresAt).getTime();
-      const nowMs = Date.now();
-      const diffSeconds = Math.floor((expiresAtMs - nowMs) / 1000);
-      ttl = Math.max(1, Math.floor(diffSeconds)); // Ensure TTL is an integer
+    const updatedSession: BetterAuthRecord = { ...session };
+
+    for (const [key, value] of Object.entries(updates)) {
+      updatedSession[key] = value;
     }
 
-    // Update in Redis
-    await this.set(`session:${session.id}`, updatedSession, ttl);
-    if (session.token) {
-      await this.set(`session:token:${session.token}`, session.id, ttl);
+    updatedSession.updatedAt = new Date();
+
+    let ttl: number | undefined;
+    const expiresAtInput = readOptionalDateInput(updatedSession, 'expiresAt');
+    if (expiresAtInput !== undefined) {
+      const expiresAtDate = normalizeDateInput(expiresAtInput, new Date());
+      updatedSession.expiresAt = expiresAtDate;
+      const diffSeconds = Math.floor((expiresAtDate.getTime() - Date.now()) / 1000);
+      if (Number.isFinite(diffSeconds)) {
+        ttl = Math.max(1, diffSeconds);
+      }
+    }
+
+    const sessionIdValue = readOptionalStringOrNumber(updatedSession, 'id');
+    assertDefined(sessionIdValue, 'Updated session must contain id');
+    const sessionId = String(sessionIdValue);
+
+    const sessionToken =
+      readOptionalString(updatedSession, 'token') ?? readOptionalString(session, 'token');
+
+    await this.set(`session:${sessionId}`, updatedSession, ttl);
+    if (sessionToken) {
+      await this.set(`session:token:${sessionToken}`, sessionId, ttl);
     }
 
     return updatedSession;
   }
 
-  async betterAuthDeleteSession(where: any[]): Promise<any> {
+  async betterAuthDeleteSession(where: unknown): Promise<BetterAuthRecord | null> {
     try {
-      if (!Array.isArray(where) || where.length === 0) {
+      const conditions = ensureWhereConditions(
+        where,
+        'BetterAuthRepository.betterAuthDeleteSession where',
+      );
+
+      if (conditions.length === 0) {
         return null;
       }
 
-      // Find the session first
-      const session = await this.betterAuthFindOneSession(where);
+      const session = await this.betterAuthFindOneSession(conditions);
       if (!session) {
         return null;
       }
 
-      // Delete from Redis
-      await this.del(`session:${session.id}`);
-      if (session.token) {
-        await this.del(`session:token:${session.token}`);
+      const sessionIdValue = readOptionalStringOrNumber(session, 'id');
+      assertDefined(sessionIdValue, 'Session to delete must contain id');
+      const sessionId = String(sessionIdValue);
+
+      const sessionToken = readOptionalString(session, 'token');
+
+      await this.del(`session:${sessionId}`);
+      if (sessionToken) {
+        await this.del(`session:token:${sessionToken}`);
       }
 
       return session;
@@ -702,9 +1043,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
     }
   }
 
-  async betterAuthDeleteManySession(where: any[]): Promise<any[]> {
-    // For simplicity, this implementation finds and deletes sessions one by one
-    // In a production environment, you might want to use Redis patterns or maintain indexes
+  async betterAuthDeleteManySession(where: unknown): Promise<BetterAuthRecord[]> {
     const session = await this.betterAuthFindOneSession(where);
     if (session) {
       await this.betterAuthDeleteSession(where);
@@ -714,40 +1053,51 @@ export abstract class BetterAuthRepository extends BaseRepository {
   }
 
   // Account methods for better-auth (stored in auth_providers table)
-  async betterAuthCreateAccount(data: any): Promise<any> {
+  async betterAuthCreateAccount(data: unknown): Promise<BetterAuthRecord> {
     const tx = await this.beginTransaction();
     try {
-      const {
-        id,
-        userId,
-        accountId,
-        providerId,
-        accessToken,
-        refreshToken,
-        expiresAt,
-        password,
-        createdAt,
-        updatedAt,
-      } = data;
+      const payload = ensureRecord(data, 'BetterAuthRepository.betterAuthCreateAccount payload');
 
-      const accountRecordId = id || v7();
+      const accountRecordId = readOptionalString(payload, 'id') ?? v7();
 
-      const createdDate = new Date(createdAt);
-      const updatedDate = new Date(updatedAt);
-      const accessTokenExpiresDate = expiresAt ? new Date(expiresAt) : null;
+      const userIdValue = readOptionalStringOrNumber(payload, 'userId');
+      assertDefined(userIdValue, 'Account userId must be provided');
+      const accountIdValue = readOptionalStringOrNumber(payload, 'accountId');
+      assertDefined(accountIdValue, 'Account accountId must be provided');
+      const providerIdValue = readOptionalStringOrNumber(payload, 'providerId');
+      assertDefined(providerIdValue, 'Account providerId must be provided');
+
+      const accessToken = readOptionalString(payload, 'accessToken');
+      const refreshToken = readOptionalString(payload, 'refreshToken');
+      const password = readOptionalString(payload, 'password');
+
+      const createdDate = normalizeDateInput(
+        readOptionalDateInput(payload, 'createdAt'),
+        new Date(),
+      );
+      const updatedDate = normalizeDateInput(
+        readOptionalDateInput(payload, 'updatedAt'),
+        createdDate,
+      );
+      const expiresAtInput = readOptionalDateInput(payload, 'expiresAt');
+      const accessTokenExpiresDate = expiresAtInput
+        ? normalizeDateInput(expiresAtInput, updatedDate)
+        : null;
 
       const rows = await tx.sql`
       INSERT INTO auth_providers (
         id, account_id, provider_id, user_id, access_token, refresh_token, password,
         access_token_expires_date, created_date, updated_date
       ) VALUES (
-        ${String(accountRecordId)}, ${accountId}, ${providerId}, ${userId}, ${accessToken}, ${refreshToken}, ${password},
+        ${String(accountRecordId)}, ${String(accountIdValue)}, ${String(providerIdValue)}, ${String(userIdValue)}, ${accessToken}, ${refreshToken}, ${password},
         ${accessTokenExpiresDate}, ${createdDate}, ${updatedDate}
       ) RETURNING id, account_id, provider_id, user_id, access_token, refresh_token, password, access_token_expires_date, created_date, updated_date;
     `;
 
       const row = rows[0];
-      if (!row) return null;
+      if (!row) {
+        throw new Error('Failed to create account record');
+      }
 
       assertDefined(row);
       assertProp(check(isString, isNumber), row, 'id');
@@ -760,39 +1110,49 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       await tx.commitTransaction();
 
-      return {
+      const account: BetterAuthRecord = {
         id: String(row.id),
         userId: row.user_id ? String(row.user_id) : undefined,
         accountId: row.account_id,
         providerId: row.provider_id,
         accessToken: row.access_token,
         refreshToken: row.refresh_token,
-        expiresAt:
-          'access_token_expires_date' in row && row.access_token_expires_date instanceof Date
-            ? row.access_token_expires_date
-            : undefined,
         password: row.password,
-        createdAt:
-          'created_date' in row && row.created_date instanceof Date ? row.created_date : undefined,
-        updatedAt:
-          'updated_date' in row && row.updated_date instanceof Date ? row.updated_date : undefined,
       };
+
+      if ('access_token_expires_date' in row && row.access_token_expires_date instanceof Date) {
+        account.expiresAt = row.access_token_expires_date;
+      }
+      if ('created_date' in row && row.created_date instanceof Date) {
+        account.createdAt = row.created_date;
+      }
+      if ('updated_date' in row && row.updated_date instanceof Date) {
+        account.updatedAt = row.updated_date;
+      }
+
+      return account;
     } catch (error) {
       console.error('BetterAuthRepository', error);
+      await tx.rollbackTransaction();
       throw error;
     }
   }
 
-  async betterAuthFindOneAccount(where: any[]): Promise<any> {
+  async betterAuthFindOneAccount(where: unknown): Promise<BetterAuthRecord | null> {
     try {
-      if (!Array.isArray(where) || where.length === 0) return null;
+      const conditions = ensureWhereConditions(
+        where,
+        'BetterAuthRepository.betterAuthFindOneAccount where',
+      );
 
-      const userId = where.find(w => w.field === 'userId')?.value;
-      const providerId = where.find(w => w.field === 'providerId')?.value;
-      const accountId = where.find(w => w.field === 'accountId')?.value;
-      const idField = where.find(w => w.field === 'id')?.value;
+      if (conditions.length === 0) return null;
 
-      const mapRowToAccount = function (row: unknown) {
+      const userIdCondition = conditions.find(condition => condition.field === 'userId');
+      const providerIdCondition = conditions.find(condition => condition.field === 'providerId');
+      const accountIdCondition = conditions.find(condition => condition.field === 'accountId');
+      const idCondition = conditions.find(condition => condition.field === 'id');
+
+      const mapRowToAccount = function (row: unknown): BetterAuthRecord {
         assertDefined(row);
         assertProp(check(isString, isNumber), row, 'id');
         assertProp(check(isString, isNumber), row, 'user_id');
@@ -801,68 +1161,81 @@ export abstract class BetterAuthRepository extends BaseRepository {
         assertPropNullableString(row, 'access_token');
         assertPropNullableString(row, 'refresh_token');
         assertPropNullableString(row, 'password');
-        return {
+
+        const account: BetterAuthRecord = {
           id: String(row.id),
           userId: row.user_id ? String(row.user_id) : undefined,
           accountId: row.account_id,
           providerId: row.provider_id,
           accessToken: row.access_token,
           refreshToken: row.refresh_token,
-          expiresAt:
-            'access_token_expires_date' in row && row.access_token_expires_date instanceof Date
-              ? row.access_token_expires_date.toISOString()
-              : undefined,
           password: row.password,
-          createdAt:
-            'created_date' in row && row.created_date instanceof Date
-              ? row.created_date.toISOString()
-              : undefined,
-          updatedAt:
-            'updated_date' in row && row.updated_date instanceof Date
-              ? row.updated_date.toISOString()
-              : undefined,
         };
+
+        if ('access_token_expires_date' in row && row.access_token_expires_date instanceof Date) {
+          account.expiresAt = row.access_token_expires_date.toISOString();
+        }
+        if ('created_date' in row && row.created_date instanceof Date) {
+          account.createdAt = row.created_date.toISOString();
+        }
+        if ('updated_date' in row && row.updated_date instanceof Date) {
+          account.updatedAt = row.updated_date.toISOString();
+        }
+
+        return account;
       };
 
-      if (idField) {
+      if (idCondition?.value !== undefined) {
+        assertStringOrNumber(idCondition.value, 'betterAuthFindOneAccount id value');
         const rows = await this.sql`
         SELECT id, account_id, provider_id, user_id, access_token, refresh_token, password, access_token_expires_date, created_date, updated_date
-        FROM auth_providers WHERE id = ${String(idField)} LIMIT 1
+        FROM auth_providers WHERE id = ${String(idCondition.value)} LIMIT 1
       `;
         const row = rows[0];
         if (row) return mapRowToAccount(row);
       }
 
-      if (accountId && providerId) {
+      if (accountIdCondition?.value !== undefined && providerIdCondition?.value !== undefined) {
+        assertStringOrNumber(accountIdCondition.value, 'betterAuthFindOneAccount accountId value');
+        assertStringOrNumber(
+          providerIdCondition.value,
+          'betterAuthFindOneAccount providerId value',
+        );
         const rows = await this.sql`
         SELECT id, account_id, provider_id, user_id, access_token, refresh_token, password, access_token_expires_date, created_date, updated_date
-        FROM auth_providers WHERE account_id = ${accountId} AND provider_id = ${providerId} LIMIT 1
+        FROM auth_providers WHERE account_id = ${String(accountIdCondition.value)} AND provider_id = ${String(providerIdCondition.value)} LIMIT 1
       `;
         const row = rows[0];
         if (row) return mapRowToAccount(row);
       }
 
-      if (userId && providerId) {
+      if (userIdCondition?.value !== undefined && providerIdCondition?.value !== undefined) {
+        assertStringOrNumber(userIdCondition.value, 'betterAuthFindOneAccount userId value');
+        assertStringOrNumber(
+          providerIdCondition.value,
+          'betterAuthFindOneAccount providerId value',
+        );
         const rows = await this.sql`
         SELECT id, account_id, provider_id, user_id, access_token, refresh_token, password, access_token_expires_date, created_date, updated_date
-        FROM auth_providers WHERE user_id = ${userId} AND provider_id = ${providerId} LIMIT 1
+        FROM auth_providers WHERE user_id = ${String(userIdCondition.value)} AND provider_id = ${String(providerIdCondition.value)} LIMIT 1
       `;
         const row = rows[0];
         if (row) return mapRowToAccount(row);
       }
 
-      if (userId && !providerId) {
+      if (userIdCondition?.value !== undefined && providerIdCondition?.value === undefined) {
+        assertStringOrNumber(userIdCondition.value, 'betterAuthFindOneAccount userId value');
         const rows = await this.sql`
         SELECT id, account_id, provider_id, user_id, access_token, refresh_token, password, access_token_expires_date, created_date, updated_date
-        FROM auth_providers WHERE user_id = ${userId} AND provider_id = 'credential' LIMIT 1
+        FROM auth_providers WHERE user_id = ${String(userIdCondition.value)} AND provider_id = 'credential' LIMIT 1
       `;
         let row = rows[0];
         if (!row) {
-          const rows = await this.sql`
+          const fallbackRows = await this.sql`
           SELECT id, account_id, provider_id, user_id, access_token, refresh_token, password, access_token_expires_date, created_date, updated_date
-          FROM auth_providers WHERE user_id = ${userId} LIMIT 1
+          FROM auth_providers WHERE user_id = ${String(userIdCondition.value)} LIMIT 1
         `;
-          row = rows[0];
+          row = fallbackRows[0];
         }
         if (row) return mapRowToAccount(row);
       }
@@ -875,15 +1248,26 @@ export abstract class BetterAuthRepository extends BaseRepository {
   }
 
   async betterAuthFindManyAccounts(
-    where?: any[],
+    where?: unknown,
     limit?: number,
     offset?: number,
-    sortBy?: any,
-  ): Promise<any[]> {
-    if (!where || where.length === 0) return [];
-
+    sortBy?: unknown,
+  ): Promise<BetterAuthRecord[]> {
     try {
-      const account = await this.betterAuthFindOneAccount(where);
+      void limit;
+      void offset;
+      void sortBy;
+
+      const conditions = ensureWhereConditions(
+        where,
+        'BetterAuthRepository.betterAuthFindManyAccounts where',
+      );
+
+      if (conditions.length === 0) {
+        return [];
+      }
+
+      const account = await this.betterAuthFindOneAccount(conditions);
       return account ? [account] : [];
     } catch (error) {
       console.error('BetterAuthRepository', error);
@@ -891,36 +1275,58 @@ export abstract class BetterAuthRepository extends BaseRepository {
     }
   }
 
-  async betterAuthUpdateAccount(where: any[], update: any): Promise<any> {
-    if (!Array.isArray(where) || where.length === 0) return null;
-    const account = await this.betterAuthFindOneAccount(where);
+  async betterAuthUpdateAccount(where: unknown, update: unknown): Promise<BetterAuthRecord | null> {
+    const conditions = ensureWhereConditions(
+      where,
+      'BetterAuthRepository.betterAuthUpdateAccount where',
+    );
+
+    if (conditions.length === 0) {
+      return null;
+    }
+
+    const account = await this.betterAuthFindOneAccount(conditions);
     if (!account) return null;
 
-    const { accountId, providerId, userId, accessToken, refreshToken, expiresAt, password } =
-      update;
+    const updates = ensureRecord(update, 'BetterAuthRepository.betterAuthUpdateAccount update');
 
-    const updatedAt = new Date();
-    const updatedAtUtc = updatedAt;
-    const accessTokenExpiresUtc = expiresAt ? new Date(expiresAt) : null;
+    const accountIdValue = readOptionalStringOrNumber(updates, 'accountId');
+    const providerIdValue = readOptionalStringOrNumber(updates, 'providerId');
+    const userIdValue = readOptionalStringOrNumber(updates, 'userId');
+    const accessToken = readOptionalString(updates, 'accessToken');
+    const refreshToken = readOptionalString(updates, 'refreshToken');
+    const password = readOptionalString(updates, 'password');
+    const expiresAtInput = readOptionalDateInput(updates, 'expiresAt');
+    const accessTokenExpiresUtc = expiresAtInput
+      ? normalizeDateInput(expiresAtInput, new Date())
+      : null;
+
+    const updatedAtUtc = new Date();
+
+    const accountId = readOptionalStringOrNumber(account, 'id');
+    assertDefined(accountId, 'Existing account must include id');
 
     const tx = await this.beginTransaction();
     try {
       const rows = await tx.sql`
       UPDATE auth_providers SET
-        account_id = COALESCE(${accountId}, account_id),
-        provider_id = COALESCE(${providerId}, provider_id),
-        user_id = COALESCE(${userId}, user_id),
+        account_id = COALESCE(${accountIdValue !== undefined ? String(accountIdValue) : null}, account_id),
+        provider_id = COALESCE(${providerIdValue !== undefined ? String(providerIdValue) : null}, provider_id),
+        user_id = COALESCE(${userIdValue !== undefined ? String(userIdValue) : null}, user_id),
         access_token = COALESCE(${accessToken}, access_token),
         refresh_token = COALESCE(${refreshToken}, refresh_token),
         password = COALESCE(${password}, password),
         access_token_expires_date = COALESCE(${accessTokenExpiresUtc}, access_token_expires_date),
         updated_date = ${updatedAtUtc}
-      WHERE id = ${account.id}
+      WHERE id = ${String(accountId)}
       RETURNING id, account_id, provider_id, user_id, access_token, refresh_token, password, access_token_expires_date, created_date, updated_date;
     `;
 
       const row = rows[0];
-      if (!row) return null;
+      if (!row) {
+        await tx.commitTransaction();
+        return null;
+      }
 
       assertDefined(row);
       assertProp(check(isString, isNumber), row, 'id');
@@ -933,23 +1339,27 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       await tx.commitTransaction();
 
-      return {
+      const updatedAccount: BetterAuthRecord = {
         id: String(row.id),
         userId: row.user_id ? String(row.user_id) : undefined,
         accountId: row.account_id,
         providerId: row.provider_id,
         accessToken: row.access_token,
         refreshToken: row.refresh_token,
-        expiresAt:
-          'access_token_expires_date' in row && row.access_token_expires_date instanceof Date
-            ? row.access_token_expires_date
-            : undefined,
         password: row.password,
-        createdAt:
-          'created_date' in row && row.created_date instanceof Date ? row.created_date : undefined,
-        updatedAt:
-          'updated_date' in row && row.updated_date instanceof Date ? row.updated_date : undefined,
       };
+
+      if ('access_token_expires_date' in row && row.access_token_expires_date instanceof Date) {
+        updatedAccount.expiresAt = row.access_token_expires_date;
+      }
+      if ('created_date' in row && row.created_date instanceof Date) {
+        updatedAccount.createdAt = row.created_date;
+      }
+      if ('updated_date' in row && row.updated_date instanceof Date) {
+        updatedAccount.updatedAt = row.updated_date;
+      }
+
+      return updatedAccount;
     } catch (error) {
       console.error('BetterAuthRepository', error);
       await tx.rollbackTransaction();
@@ -957,19 +1367,27 @@ export abstract class BetterAuthRepository extends BaseRepository {
     }
   }
 
-  async betterAuthUpdateManyAccounts(where: any[], update: any): Promise<any[]> {
+  async betterAuthUpdateManyAccounts(where: unknown, update: unknown): Promise<BetterAuthRecord[]> {
     const account = await this.betterAuthUpdateAccount(where, update);
     return account ? [account] : [];
   }
 
-  async betterAuthDeleteAccount(where: any[]): Promise<any> {
-    if (!Array.isArray(where) || where.length === 0) return null;
-    const account = await this.betterAuthFindOneAccount(where);
+  async betterAuthDeleteAccount(where: unknown): Promise<BetterAuthRecord | null> {
+    const conditions = ensureWhereConditions(
+      where,
+      'BetterAuthRepository.betterAuthDeleteAccount where',
+    );
+    if (conditions.length === 0) return null;
+
+    const account = await this.betterAuthFindOneAccount(conditions);
     if (!account) return null;
+
+    const accountIdValue = readOptionalStringOrNumber(account, 'id');
+    assertDefined(accountIdValue, 'Account deletion requires account id');
 
     const tx = await this.beginTransaction();
     try {
-      await tx.sql`DELETE FROM auth_providers WHERE id = ${account.id}`;
+      await tx.sql`DELETE FROM auth_providers WHERE id = ${String(accountIdValue)}`;
       await tx.commitTransaction();
       return account;
     } catch (error) {
@@ -979,54 +1397,60 @@ export abstract class BetterAuthRepository extends BaseRepository {
     }
   }
 
-  async betterAuthDeleteManyAccounts(where: any[]): Promise<any[]> {
+  async betterAuthDeleteManyAccounts(where: unknown): Promise<BetterAuthRecord[]> {
     const account = await this.betterAuthDeleteAccount(where);
     return account ? [account] : [];
   }
 
-  async betterAuthCreateVerification(data: any): Promise<any> {
+  async betterAuthCreateVerification(data: unknown): Promise<BetterAuthRecord> {
     try {
-      const {
-        id,
-        identifier,
-        value,
-        expiresAt,
-        createdAt = new Date(),
-        updatedAt = new Date(),
-      } = data;
+      const payload = ensureRecord(
+        data,
+        'BetterAuthRepository.betterAuthCreateVerification payload',
+      );
 
-      const verificationId = id || v7();
+      const verificationId = readOptionalString(payload, 'id') ?? v7();
+      const identifier = readOptionalString(payload, 'identifier');
+      assertDefined(identifier, 'Verification identifier must be provided');
 
-      const verification = {
+      const value = readOptionalString(payload, 'value');
+
+      const createdAt = normalizeDateInput(readOptionalDateInput(payload, 'createdAt'), new Date());
+      const updatedAt = normalizeDateInput(readOptionalDateInput(payload, 'updatedAt'), createdAt);
+      const expiresAtInput = readOptionalDateInput(payload, 'expiresAt');
+      const expiresAt = expiresAtInput ? normalizeDateInput(expiresAtInput, updatedAt) : undefined;
+
+      const verification: BetterAuthRecord = {
         id: verificationId,
         identifier,
         value,
-        expiresAt,
         createdAt,
         updatedAt,
       };
 
-      // Store verification in Redis with TTL based on expiration
-      let ttl = 3600; // Default 1 hour if no expiration
       if (expiresAt) {
-        const expiresAtMs = new Date(expiresAt).getTime();
-        const nowMs = Date.now();
-        const diffSeconds = Math.floor((expiresAtMs - nowMs) / 1000);
-        ttl = Math.max(1, Math.floor(diffSeconds)); // Ensure TTL is an integer
+        verification.expiresAt = expiresAt;
+      }
+
+      let ttl = 3600;
+      if (expiresAt) {
+        const diffSeconds = Math.floor((expiresAt.getTime() - Date.now()) / 1000);
+        if (Number.isFinite(diffSeconds)) {
+          ttl = Math.max(1, diffSeconds);
+        }
       }
 
       await this.set(`verification:${verificationId}`, verification, ttl);
 
-      // Also store a direct mapping from token value -> verification id so we can
-      // efficiently lookup verifications by token value (Better Auth sometimes
-      // queries by value).
       if (value) {
         await this.set(`verification:value:${value}`, verificationId, ttl);
       }
 
-      // For multiple verifications per identifier, store in a list
       const listKey = `verification:list:${identifier}`;
-      const existingList = ((await this.get(listKey)) as Array<any>) || [];
+      const existingList = ensureOptionalStringArray(
+        await this.get(listKey),
+        'BetterAuthRepository.betterAuthCreateVerification list',
+      );
       existingList.push(verificationId);
       await this.set(listKey, existingList, ttl);
 
@@ -1037,53 +1461,81 @@ export abstract class BetterAuthRepository extends BaseRepository {
     }
   }
 
-  async betterAuthFindOneVerification(where: any[]): Promise<any> {
+  async betterAuthFindOneVerification(where: unknown): Promise<BetterAuthRecord | null> {
     try {
-      if (!Array.isArray(where) || where.length === 0) {
+      const conditions = ensureWhereConditions(
+        where,
+        'BetterAuthRepository.betterAuthFindOneVerification where',
+      );
+
+      if (conditions.length === 0) {
         return null;
       }
 
-      // Handle different search criteria
-      for (const condition of where) {
-        if (condition.field === 'identifier') {
-          // Find verification by identifier - return the most recent one
-          const listKey = `verification:list:${condition.value}`;
-          const verificationIds = ((await this.get(listKey)) as Array<any>) || [];
+      for (const condition of conditions) {
+        const value = condition.value;
+        if (value === undefined) {
+          continue;
+        }
 
-          // Get all verifications and sort by createdAt desc
-          const verifications: any[] = [];
+        if (condition.field === 'identifier') {
+          assertString(value, 'Verification identifier must be a string');
+          const listKey = `verification:list:${value}`;
+          const verificationIds = ensureOptionalStringArray(
+            await this.get(listKey),
+            'BetterAuthRepository.betterAuthFindOneVerification id list',
+          );
+
+          const verifications: BetterAuthRecord[] = [];
           for (const verificationId of verificationIds) {
-            const verification = await this.get(`verification:${verificationId}`);
+            const verification = readOptionalRecord(
+              await this.get(`verification:${verificationId}`),
+              'BetterAuthRepository.betterAuthFindOneVerification verification item',
+            );
             if (verification) {
               verifications.push(verification);
             }
           }
 
           if (verifications.length > 0) {
-            // Sort by createdAt desc and return the most recent
-            verifications.sort(
-              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-            );
+            verifications.sort(function (a, b) {
+              const aCreated = tryToDate(a.createdAt) ?? new Date(0);
+              const bCreated = tryToDate(b.createdAt) ?? new Date(0);
+              return bCreated.getTime() - aCreated.getTime();
+            });
             return verifications[0];
           }
         } else if (condition.field === 'id') {
-          // Find verification by ID
-          const verification = await this.get(`verification:${condition.value}`);
+          assertStringOrNumber(value, 'Verification id must be string or number');
+          const verification = readOptionalRecord(
+            await this.get(`verification:${String(value)}`),
+            'BetterAuthRepository.betterAuthFindOneVerification by id',
+          );
           if (verification) {
             return verification;
           }
         } else if (condition.field === 'value' || condition.field === 'token') {
-          // Better Auth sometimes queries verifications by the token value itself.
-          // Support lookup by value -> id mapping stored at verification:value:{value}
-          const mappedId = await this.get(`verification:value:${condition.value}`);
-          if (mappedId) {
-            const verification = await this.get(`verification:${String(mappedId)}`);
-            if (verification) return verification;
+          if (!isString(value)) {
+            continue;
           }
-          // Fallback: try direct key by value (in case some implementations store the
-          // token under a value key)
-          const direct = await this.get(`verification:value:${condition.value}`);
-          if (direct && typeof direct === 'object') return direct;
+          const mappedId = await this.get(`verification:value:${value}`);
+          if (isString(mappedId) || isNumber(mappedId)) {
+            const verification = readOptionalRecord(
+              await this.get(`verification:${String(mappedId)}`),
+              'BetterAuthRepository.betterAuthFindOneVerification by mapped id',
+            );
+            if (verification) {
+              return verification;
+            }
+          }
+
+          const direct = readOptionalRecord(
+            await this.get(`verification:value:${value}`),
+            'BetterAuthRepository.betterAuthFindOneVerification direct',
+          );
+          if (direct) {
+            return direct;
+          }
         }
       }
 
@@ -1095,38 +1547,65 @@ export abstract class BetterAuthRepository extends BaseRepository {
   }
 
   async betterAuthFindManyVerifications(
-    where?: any[],
+    where?: unknown,
     limit?: number,
     offset?: number,
-    sortBy?: any,
-  ): Promise<any[]> {
+    sortBy?: unknown,
+  ): Promise<BetterAuthRecord[]> {
     try {
-      if (!where || where.length === 0) {
+      const conditions = ensureWhereConditions(
+        where,
+        'BetterAuthRepository.betterAuthFindManyVerifications where',
+      );
+
+      if (conditions.length === 0) {
         return [];
       }
 
       // Find by identifier and return array
-      const identifier = where.find(w => w.field === 'identifier')?.value;
-      if (identifier) {
-        const listKey = `verification:list:${identifier}`;
-        const verificationIds = ((await this.get(listKey)) as Array<any>) || [];
+      const identifierCondition = conditions.find(condition => condition.field === 'identifier');
+      if (identifierCondition?.value !== undefined) {
+        assertString(identifierCondition.value, 'Verification identifier must be string');
+        const listKey = `verification:list:${identifierCondition.value}`;
+        const verificationIds = ensureOptionalStringArray(
+          await this.get(listKey),
+          'BetterAuthRepository.betterAuthFindManyVerifications list',
+        );
 
-        const verifications: any[] = [];
+        const verifications: BetterAuthRecord[] = [];
         for (const verificationId of verificationIds) {
-          const verification = await this.get(`verification:${verificationId}`);
+          const verification = readOptionalRecord(
+            await this.get(`verification:${verificationId}`),
+            'BetterAuthRepository.betterAuthFindManyVerifications item',
+          );
           if (verification) {
             verifications.push(verification);
           }
         }
 
-        // Sort by createdAt desc if specified
-        if (sortBy?.field === 'createdAt' && sortBy?.direction === 'desc') {
-          verifications.sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-          );
+        let sortField: string | undefined;
+        let sortDirection: string | undefined;
+        if (sortBy !== undefined) {
+          try {
+            const sortRecord = ensureRecord(
+              sortBy,
+              'BetterAuthRepository.betterAuthFindManyVerifications sortBy',
+            );
+            sortField = readOptionalString(sortRecord, 'field');
+            sortDirection = readOptionalString(sortRecord, 'direction');
+          } catch (sortError) {
+            console.warn('Invalid sortBy provided for verifications', sortError);
+          }
         }
 
-        // Apply limit
+        if (sortField === 'createdAt' && sortDirection === 'desc') {
+          verifications.sort(function (a, b) {
+            const aCreated = tryToDate(a.createdAt) ?? new Date(0);
+            const bCreated = tryToDate(b.createdAt) ?? new Date(0);
+            return bCreated.getTime() - aCreated.getTime();
+          });
+        }
+
         if (limit && limit > 0) {
           return verifications.slice(0, limit);
         }
@@ -1141,45 +1620,68 @@ export abstract class BetterAuthRepository extends BaseRepository {
     }
   }
 
-  async betterAuthUpdateVerification(where: any[], update: any): Promise<any> {
-    if (!Array.isArray(where) || where.length === 0) {
+  async betterAuthUpdateVerification(
+    where: unknown,
+    update: unknown,
+  ): Promise<BetterAuthRecord | null> {
+    const conditions = ensureWhereConditions(
+      where,
+      'BetterAuthRepository.betterAuthUpdateVerification where',
+    );
+    if (conditions.length === 0) {
       return null;
     }
 
-    // Find the verification first
-    const verification = await this.betterAuthFindOneVerification(where);
+    const verification = await this.betterAuthFindOneVerification(conditions);
     if (!verification) {
       return null;
     }
 
     try {
-      // Update the verification data
-      const updatedVerification = { ...verification, ...update, updatedAt: new Date() };
+      const updates = ensureRecord(
+        update,
+        'BetterAuthRepository.betterAuthUpdateVerification update',
+      );
 
-      // Calculate new TTL if expiresAt changed
+      const updatedVerification: BetterAuthRecord = { ...verification };
+      for (const [key, value] of Object.entries(updates)) {
+        updatedVerification[key] = value;
+      }
+      updatedVerification.updatedAt = new Date();
+
       let ttl = 3600;
-      if (updatedVerification.expiresAt) {
-        const expiresAtMs = new Date(updatedVerification.expiresAt).getTime();
-        const nowMs = Date.now();
-        const diffSeconds = Math.floor((expiresAtMs - nowMs) / 1000);
-        ttl = Math.max(1, Math.floor(diffSeconds)); // Ensure TTL is an integer
+      const expiresAtInput = readOptionalDateInput(updatedVerification, 'expiresAt');
+      if (expiresAtInput !== undefined) {
+        const expiresAtDate = normalizeDateInput(expiresAtInput, new Date());
+        updatedVerification.expiresAt = expiresAtDate;
+        const diffSeconds = Math.floor((expiresAtDate.getTime() - Date.now()) / 1000);
+        if (Number.isFinite(diffSeconds)) {
+          ttl = Math.max(1, diffSeconds);
+        }
       }
 
-      // Update in Redis
-      await this.set(`verification:${verification.id}`, updatedVerification, ttl);
-      if (verification.identifier) {
-        await this.set(
-          `verification:list:${verification.identifier}`,
-          (await this.get(`verification:list:${verification.identifier}`)) as any[],
+      const verificationId = readOptionalStringOrNumber(verification, 'id');
+      assertDefined(verificationId, 'Verification update requires id');
+
+      await this.set(`verification:${String(verificationId)}`, updatedVerification, ttl);
+
+      const identifier = readOptionalString(verification, 'identifier');
+      if (identifier) {
+        const listKey = `verification:list:${identifier}`;
+        const currentList = ensureOptionalStringArray(
+          await this.get(listKey),
+          'BetterAuthRepository.betterAuthUpdateVerification list',
         );
+        await this.set(listKey, currentList, ttl);
       }
 
-      // If the value (token) changed, update the value -> id mapping
-      if (verification.value && verification.value !== updatedVerification.value) {
-        await this.del(`verification:value:${verification.value}`);
+      const previousValue = readOptionalString(verification, 'value');
+      const nextValue = readOptionalString(updatedVerification, 'value');
+      if (previousValue && previousValue !== nextValue) {
+        await this.del(`verification:value:${previousValue}`);
       }
-      if (updatedVerification.value) {
-        await this.set(`verification:value:${updatedVerification.value}`, verification.id, ttl);
+      if (nextValue) {
+        await this.set(`verification:value:${nextValue}`, verificationId, ttl);
       }
 
       return updatedVerification;
@@ -1189,27 +1691,35 @@ export abstract class BetterAuthRepository extends BaseRepository {
     }
   }
 
-  async betterAuthDeleteVerification(where: any[]): Promise<any> {
-    if (!Array.isArray(where) || where.length === 0) {
+  async betterAuthDeleteVerification(where: unknown): Promise<BetterAuthRecord | null> {
+    const conditions = ensureWhereConditions(
+      where,
+      'BetterAuthRepository.betterAuthDeleteVerification where',
+    );
+    if (conditions.length === 0) {
       return null;
     }
 
-    // Find the verification first
-    const verification = await this.betterAuthFindOneVerification(where);
+    const verification = await this.betterAuthFindOneVerification(conditions);
     if (!verification) {
       return null;
     }
 
     try {
-      // Delete from Redis
-      await this.del(`verification:${verification.id}`);
+      const verificationIdValue = readOptionalStringOrNumber(verification, 'id');
+      assertDefined(verificationIdValue, 'Verification deletion requires id');
+      const verificationId = String(verificationIdValue);
 
-      // Remove from the list if identifier exists
-      if (verification.identifier) {
-        const listKey = `verification:list:${verification.identifier}`;
-        const verificationIds = ((await this.get(listKey)) as Array<any>) || [];
-        const updatedIds = verificationIds.filter((id: string) => id !== verification.id);
+      await this.del(`verification:${verificationId}`);
 
+      const identifier = readOptionalString(verification, 'identifier');
+      if (identifier) {
+        const listKey = `verification:list:${identifier}`;
+        const verificationIds = ensureOptionalStringArray(
+          await this.get(listKey),
+          'BetterAuthRepository.betterAuthDeleteVerification list',
+        );
+        const updatedIds = verificationIds.filter(id => id !== verificationId);
         if (updatedIds.length > 0) {
           await this.set(listKey, updatedIds);
         } else {
@@ -1217,9 +1727,9 @@ export abstract class BetterAuthRepository extends BaseRepository {
         }
       }
 
-      // Remove value -> id mapping if exists
-      if (verification.value) {
-        await this.del(`verification:value:${verification.value}`);
+      const value = readOptionalString(verification, 'value');
+      if (value) {
+        await this.del(`verification:value:${value}`);
       }
 
       return verification;
@@ -1229,48 +1739,52 @@ export abstract class BetterAuthRepository extends BaseRepository {
     }
   }
 
-  async betterAuthDeleteManyVerifications(where: any[]): Promise<any[]> {
-    if (!Array.isArray(where) || where.length === 0) {
+  async betterAuthDeleteManyVerifications(where: unknown): Promise<BetterAuthRecord[]> {
+    const conditions = ensureWhereConditions(
+      where,
+      'BetterAuthRepository.betterAuthDeleteManyVerifications where',
+    );
+
+    if (conditions.length === 0) {
       return [];
     }
 
-    // Handle lt operator for cleanup
-    const expiresAtCondition = where.find(w => w.field === 'expiresAt' && w.operator === 'lt');
+    const expiresAtCondition = conditions.find(
+      condition => condition.field === 'expiresAt' && condition.operator === 'lt',
+    );
     if (expiresAtCondition) {
-      // For cleanup, we need to scan all verification keys and check expiration
-      // This is a simplified implementation - in production you might want better indexing
-      const deletedVerifications: any[] = [];
-
-      // Get all verification keys (this is not efficient for large datasets)
-      // In a real implementation, you'd maintain a separate index for expiration times
-      const _currentTime = new Date(expiresAtCondition.value);
-
-      // Since Redis automatically expires keys, we can rely on natural expiration
-      // or implement a background cleanup job. For now, return empty array.
-      return deletedVerifications;
+      // Simplified cleanup: rely on natural expiration as per original implementation
+      return [];
     }
 
-    // For other cases, try to delete single verification
-    const verification = await this.betterAuthDeleteVerification(where);
+    const verification = await this.betterAuthDeleteVerification(conditions);
     return verification ? [verification] : [];
   }
 
   // TwoFactor methods for better-auth two-factor plugin
-  async betterAuthCreateTwoFactor(data: any): Promise<any> {
+  async betterAuthCreateTwoFactor(data: unknown): Promise<BetterAuthRecord> {
     const tx = await this.beginTransaction();
     try {
-      const { id, secret, backupCodes, userId } = data;
+      const payload = ensureRecord(data, 'BetterAuthRepository.betterAuthCreateTwoFactor payload');
 
-      const twoFactorId = id || v7();
+      const twoFactorId = readOptionalString(payload, 'id') ?? v7();
+      const secret = readOptionalString(payload, 'secret');
+      assertDefined(secret, 'Two-factor secret must be provided');
+      const backupCodes = readOptionalString(payload, 'backupCodes');
+      assertDefined(backupCodes, 'Two-factor backup codes must be provided');
+      const userIdValue = readOptionalStringOrNumber(payload, 'userId');
+      assertDefined(userIdValue, 'Two-factor userId must be provided');
 
       const rows = await tx.sql`
         INSERT INTO two_factor (id, secret, backup_codes, user_id)
-        VALUES (${String(twoFactorId)}, ${secret}, ${backupCodes}, ${userId})
+        VALUES (${String(twoFactorId)}, ${secret}, ${backupCodes}, ${String(userIdValue)})
         RETURNING id, secret, backup_codes as "backupCodes", user_id as "userId"
       `;
 
       const row = rows[0];
-      if (!row) return null;
+      if (!row) {
+        throw new Error('Failed to create two-factor record');
+      }
 
       assertDefined(row);
       assertProp(check(isString, isNumber), row, 'id');
@@ -1280,12 +1794,14 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       await tx.commitTransaction();
 
-      return {
-        id: row.id,
+      const result: BetterAuthRecord = {
+        id: String(row.id),
         secret: row.secret,
         backupCodes: row.backupCodes,
         userId: String(row.userId),
       };
+
+      return result;
     } catch (error) {
       console.error('BetterAuthRepository:betterAuthCreateTwoFactor', error);
       await tx.rollbackTransaction();
@@ -1293,27 +1809,34 @@ export abstract class BetterAuthRepository extends BaseRepository {
     }
   }
 
-  async betterAuthFindOneTwoFactor(where: any[]): Promise<any> {
+  async betterAuthFindOneTwoFactor(where: unknown): Promise<BetterAuthRecord | null> {
     try {
-      if (!Array.isArray(where) || where.length === 0) {
+      const conditions = ensureWhereConditions(
+        where,
+        'BetterAuthRepository.betterAuthFindOneTwoFactor where',
+      );
+
+      if (conditions.length === 0) {
         return null;
       }
 
-      const userIdCondition = where.find(w => w.field === 'userId');
-      const idCondition = where.find(w => w.field === 'id');
+      const userIdCondition = conditions.find(condition => condition.field === 'userId');
+      const idCondition = conditions.find(condition => condition.field === 'id');
 
       let rows: Array<unknown> = [];
-      if (idCondition) {
+      if (idCondition?.value !== undefined) {
+        assertStringOrNumber(idCondition.value, 'Two-factor id must be string or number');
         rows = await this.sql`
           SELECT id, secret, backup_codes as "backupCodes", user_id as "userId"
           FROM two_factor
-          WHERE id = ${idCondition.value}
+          WHERE id = ${String(idCondition.value)}
         `;
-      } else if (userIdCondition) {
+      } else if (userIdCondition?.value !== undefined) {
+        assertStringOrNumber(userIdCondition.value, 'Two-factor userId must be string or number');
         rows = await this.sql`
           SELECT id, secret, backup_codes as "backupCodes", user_id as "userId"
           FROM two_factor
-          WHERE user_id = ${userIdCondition.value}
+          WHERE user_id = ${String(userIdCondition.value)}
         `;
       } else {
         return null;
@@ -1328,12 +1851,14 @@ export abstract class BetterAuthRepository extends BaseRepository {
       assertPropString(row, 'backupCodes');
       assertProp(check(isString, isNumber), row, 'userId');
 
-      return {
-        id: row.id,
+      const result: BetterAuthRecord = {
+        id: String(row.id),
         secret: row.secret,
         backupCodes: row.backupCodes,
         userId: String(row.userId),
       };
+
+      return result;
     } catch (error) {
       console.error('BetterAuthRepository:betterAuthFindOneTwoFactor', error);
       throw error;
@@ -1341,18 +1866,28 @@ export abstract class BetterAuthRepository extends BaseRepository {
   }
 
   async betterAuthFindManyTwoFactor(
-    where?: any[],
+    where?: unknown,
     limit?: number,
     offset?: number,
-    sortBy?: any,
-  ): Promise<any[]> {
+    sortBy?: unknown,
+  ): Promise<BetterAuthRecord[]> {
     try {
-      if (!where || where.length === 0) {
+      void sortBy;
+
+      const limitValue = typeof limit === 'number' && Number.isFinite(limit) ? limit : 100;
+      const offsetValue = typeof offset === 'number' && Number.isFinite(offset) ? offset : 0;
+
+      const conditions = ensureWhereConditions(
+        where,
+        'BetterAuthRepository.betterAuthFindManyTwoFactor where',
+      );
+
+      if (conditions.length === 0) {
         const rows = await this.sql`
           SELECT id, secret, backup_codes as "backupCodes", user_id as "userId"
           FROM two_factor
-          LIMIT ${limit || 100}
-          OFFSET ${offset || 0}
+          LIMIT ${limitValue}
+          OFFSET ${offsetValue}
         `;
 
         return rows.map(row => {
@@ -1363,15 +1898,15 @@ export abstract class BetterAuthRepository extends BaseRepository {
           assertProp(check(isString, isNumber), row, 'userId');
 
           return {
-            id: row.id,
+            id: String(row.id),
             secret: row.secret,
             backupCodes: row.backupCodes,
             userId: String(row.userId),
-          };
+          } as BetterAuthRecord;
         });
       }
 
-      const twoFactor = await this.betterAuthFindOneTwoFactor(where);
+      const twoFactor = await this.betterAuthFindOneTwoFactor(conditions);
       return twoFactor ? [twoFactor] : [];
     } catch (error) {
       console.error('BetterAuthRepository:betterAuthFindManyTwoFactor', error);
@@ -1379,40 +1914,50 @@ export abstract class BetterAuthRepository extends BaseRepository {
     }
   }
 
-  async betterAuthUpdateTwoFactor(where: any[], update: any): Promise<any> {
+  async betterAuthUpdateTwoFactor(
+    where: unknown,
+    update: unknown,
+  ): Promise<BetterAuthRecord | null> {
     const tx = await this.beginTransaction();
     try {
-      if (!Array.isArray(where) || where.length === 0) {
+      const conditions = ensureWhereConditions(
+        where,
+        'BetterAuthRepository.betterAuthUpdateTwoFactor where',
+      );
+      if (conditions.length === 0) {
         await tx.rollbackTransaction();
         return null;
       }
 
-      const { secret, backupCodes } = update;
-      const userIdCondition = where.find(w => w.field === 'userId');
-      const idCondition = where.find(w => w.field === 'id');
+      const updates = ensureRecord(update, 'BetterAuthRepository.betterAuthUpdateTwoFactor update');
+      const secret = readOptionalString(updates, 'secret');
+      const backupCodes = readOptionalString(updates, 'backupCodes');
 
-      if (!userIdCondition && !idCondition) {
-        await tx.rollbackTransaction();
-        return null;
-      }
+      const userIdCondition = conditions.find(condition => condition.field === 'userId');
+      const idCondition = conditions.find(condition => condition.field === 'id');
 
       let rows: Array<unknown> = [];
-      if (idCondition) {
+      if (idCondition?.value !== undefined) {
+        assertStringOrNumber(idCondition.value, 'Two-factor id must be string or number');
         rows = await tx.sql`
           UPDATE two_factor
           SET secret = COALESCE(${secret}, secret),
               backup_codes = COALESCE(${backupCodes}, backup_codes)
-          WHERE id = ${idCondition.value}
+          WHERE id = ${String(idCondition.value)}
           RETURNING id, secret, backup_codes as "backupCodes", user_id as "userId"
         `;
-      } else if (userIdCondition) {
+      } else if (userIdCondition?.value !== undefined) {
+        assertStringOrNumber(userIdCondition.value, 'Two-factor userId must be string or number');
         rows = await tx.sql`
           UPDATE two_factor
           SET secret = COALESCE(${secret}, secret),
               backup_codes = COALESCE(${backupCodes}, backup_codes)
-          WHERE user_id = ${userIdCondition.value}
+          WHERE user_id = ${String(userIdCondition.value)}
           RETURNING id, secret, backup_codes as "backupCodes", user_id as "userId"
         `;
+      } else {
+        await tx.rollbackTransaction();
+        return null;
       }
 
       const row = rows.length > 0 ? rows[0] : null;
@@ -1429,12 +1974,14 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       await tx.commitTransaction();
 
-      return {
-        id: row.id,
+      const result: BetterAuthRecord = {
+        id: String(row.id),
         secret: row.secret,
         backupCodes: row.backupCodes,
         userId: String(row.userId),
       };
+
+      return result;
     } catch (error) {
       console.error('BetterAuthRepository:betterAuthUpdateTwoFactor', error);
       await tx.rollbackTransaction();
@@ -1442,40 +1989,47 @@ export abstract class BetterAuthRepository extends BaseRepository {
     }
   }
 
-  async betterAuthUpdateManyTwoFactor(where: any[], update: any): Promise<any[]> {
+  async betterAuthUpdateManyTwoFactor(
+    where: unknown,
+    update: unknown,
+  ): Promise<BetterAuthRecord[]> {
     const twoFactor = await this.betterAuthUpdateTwoFactor(where, update);
     return twoFactor ? [twoFactor] : [];
   }
 
-  async betterAuthDeleteTwoFactor(where: any[]): Promise<any> {
+  async betterAuthDeleteTwoFactor(where: unknown): Promise<BetterAuthRecord | null> {
     const tx = await this.beginTransaction();
     try {
-      if (!Array.isArray(where) || where.length === 0) {
+      const conditions = ensureWhereConditions(
+        where,
+        'BetterAuthRepository.betterAuthDeleteTwoFactor where',
+      );
+      if (conditions.length === 0) {
         await tx.rollbackTransaction();
         return null;
       }
 
-      const userIdCondition = where.find(w => w.field === 'userId');
-      const idCondition = where.find(w => w.field === 'id');
-
-      if (!userIdCondition && !idCondition) {
-        await tx.rollbackTransaction();
-        return null;
-      }
+      const userIdCondition = conditions.find(condition => condition.field === 'userId');
+      const idCondition = conditions.find(condition => condition.field === 'id');
 
       let rows: Array<unknown> = [];
-      if (idCondition) {
+      if (idCondition?.value !== undefined) {
+        assertStringOrNumber(idCondition.value, 'Two-factor id must be string or number');
         rows = await tx.sql`
           DELETE FROM two_factor
-          WHERE id = ${idCondition.value}
+          WHERE id = ${String(idCondition.value)}
           RETURNING id, secret, backup_codes as "backupCodes", user_id as "userId"
         `;
-      } else if (userIdCondition) {
+      } else if (userIdCondition?.value !== undefined) {
+        assertStringOrNumber(userIdCondition.value, 'Two-factor userId must be string or number');
         rows = await tx.sql`
           DELETE FROM two_factor
-          WHERE user_id = ${userIdCondition.value}
+          WHERE user_id = ${String(userIdCondition.value)}
           RETURNING id, secret, backup_codes as "backupCodes", user_id as "userId"
         `;
+      } else {
+        await tx.rollbackTransaction();
+        return null;
       }
 
       const row = rows.length > 0 ? rows[0] : null;
@@ -1492,12 +2046,14 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       await tx.commitTransaction();
 
-      return {
-        id: row.id,
+      const result: BetterAuthRecord = {
+        id: String(row.id),
         secret: row.secret,
         backupCodes: row.backupCodes,
         userId: String(row.userId),
       };
+
+      return result;
     } catch (error) {
       console.error('BetterAuthRepository:betterAuthDeleteTwoFactor', error);
       await tx.rollbackTransaction();
@@ -1505,7 +2061,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
     }
   }
 
-  async betterAuthDeleteManyTwoFactor(where: any[]): Promise<any[]> {
+  async betterAuthDeleteManyTwoFactor(where: unknown): Promise<BetterAuthRecord[]> {
     const twoFactor = await this.betterAuthDeleteTwoFactor(where);
     return twoFactor ? [twoFactor] : [];
   }

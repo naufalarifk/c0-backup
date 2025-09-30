@@ -1,129 +1,73 @@
-import { Injectable } from '@nestjs/common';
+import type { PriceData, PriceFeedRequest } from '../pricefeed-provider.types';
 
-import { PriceFeedSource } from '../pricefeed.types';
-import {
-  CurrencyPair,
-  ExchangeRateResponse,
-  PriceFeedProvider,
-  PriceFeedProviderConfig,
-} from '../pricefeed-provider.abstract';
+import { Injectable, Logger } from '@nestjs/common';
+
+import { AbstractPriceFeedProvider, PriceFeedProvider } from '../pricefeed-provider.abstract';
+
+interface CoinGeckoPriceResponse {
+  [key: string]: {
+    [currency: string]: number;
+  };
+}
 
 @Injectable()
-export class CoinGeckoProvider extends PriceFeedProvider {
-  private readonly supportedPairs: CurrencyPair[] = [
-    { base: 'BTC', quote: 'USDT', symbol: 'BTCUSDT' },
-    { base: 'ETH', quote: 'USDT', symbol: 'ETHUSDT' },
-    { base: 'BTC', quote: 'ETH', symbol: 'BTCETH' },
-    // Add more supported pairs as needed
-  ];
+@PriceFeedProvider('coingecko')
+export class CoinGeckoPriceFeedProvider extends AbstractPriceFeedProvider {
+  private readonly logger = new Logger(CoinGeckoPriceFeedProvider.name);
+  private readonly baseUrl = 'https://api.coingecko.com/api/v3';
 
-  constructor() {
-    const config: PriceFeedProviderConfig = {
-      baseUrl: 'https://api.coingecko.com/api/v3',
-      rateLimit: {
-        requestsPerSecond: 5,
-        requestsPerMinute: 100,
-      },
-      timeout: 10000,
+  private getCoinGeckoId(tokenId: string): string {
+    const mapping: Record<string, string> = {
+      BTC: 'bitcoin',
+      ETH: 'ethereum',
+      USDT: 'tether',
+      USDC: 'usd-coin',
+      BNB: 'binancecoin',
     };
 
-    super(config, PriceFeedSource.COINGECKO);
+    return mapping[tokenId.toUpperCase()] || tokenId.toLowerCase();
   }
 
-  async fetchExchangeRate(pair: CurrencyPair): Promise<ExchangeRateResponse> {
-    if (!this.supportsCurrencyPair(pair)) {
-      throw new Error(`Currency pair ${pair.symbol} not supported by CoinGecko provider`);
-    }
+  async fetchPrice(request: PriceFeedRequest): Promise<PriceData> {
+    const baseCoinId = this.getCoinGeckoId(request.baseCurrencyTokenId);
+    const quoteCoinId = this.getCoinGeckoId(request.quoteCurrencyTokenId);
 
-    await this.handleRateLimit();
+    this.logger.debug(`Fetching price from CoinGecko: ${baseCoinId} vs ${quoteCoinId}`);
 
     try {
-      // In a real implementation, you would make an HTTP request here
-      // For now, we'll simulate the response
-      const mockPrice = this.generateMockPrice(pair);
+      const response = await fetch(
+        `${this.baseUrl}/simple/price?ids=${baseCoinId}&vs_currencies=${quoteCoinId}&include_last_updated_at=true`,
+      );
 
-      const response: ExchangeRateResponse = {
-        symbol: pair.symbol,
-        bidPrice: (mockPrice * 0.999).toFixed(8), // Slightly lower bid
-        askPrice: (mockPrice * 1.001).toFixed(8), // Slightly higher ask
-        timestamp: new Date(),
-        source: this.source,
-      };
-
-      if (!this.validateExchangeRate(response)) {
-        throw new Error(`Invalid exchange rate data for ${pair.symbol}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      this.logger.log(`Fetched rate for ${pair.symbol}: ${response.bidPrice}/${response.askPrice}`);
-      return response;
+      const data = (await response.json()) as CoinGeckoPriceResponse;
+
+      if (!data[baseCoinId] || typeof data[baseCoinId][quoteCoinId] !== 'number') {
+        throw new Error('Invalid response from CoinGecko API: missing price data');
+      }
+
+      const price = data[baseCoinId][quoteCoinId];
+      const retrievalDate = new Date();
+
+      // CoinGecko simple price API doesn't provide bid/ask spread, so we use the same price
+      // For more accurate bid/ask, you'd need their pro API or tickers endpoint
+      const priceStr = price.toString();
+
+      return {
+        bidPrice: priceStr,
+        askPrice: priceStr,
+        sourceDate: retrievalDate, // CoinGecko simple API doesn't provide detailed timestamps
+        retrievalDate,
+      };
     } catch (error) {
-      this.logger.error(`Failed to fetch rate for ${pair.symbol} from CoinGecko:`, error);
+      this.logger.error(
+        `Failed to fetch price from CoinGecko for ${baseCoinId}/${quoteCoinId}:`,
+        error,
+      );
       throw error;
     }
-  }
-
-  supportsCurrencyPair(pair: CurrencyPair): boolean {
-    return this.supportedPairs.some(p => p.base === pair.base && p.quote === pair.quote);
-  }
-
-  getSupportedPairs(): CurrencyPair[] {
-    return [...this.supportedPairs];
-  }
-
-  private generateMockPrice(pair: CurrencyPair): number {
-    // Mock prices for different pairs
-    const mockPrices = {
-      BTCUSDT: 45000 + (Math.random() - 0.5) * 1000,
-      ETHUSDT: 3000 + (Math.random() - 0.5) * 200,
-      BTCETH: 15 + (Math.random() - 0.5) * 1,
-    };
-
-    return mockPrices[pair.symbol as keyof typeof mockPrices] || 1;
-  }
-
-  /**
-   * CoinGecko-specific method to get coin ID mapping
-   */
-  //   private getCoinId(symbol: string): string {
-  //     const coinIdMap: Record<string, string> = {
-  //       BTC: 'bitcoin',
-  //       ETH: 'ethereum',
-  //       USDT: 'tether',
-  //       // Add more mappings as needed
-  //     };
-
-  //     return coinIdMap[symbol] || symbol.toLowerCase();
-  //   }
-
-  /**
-   * Example of provider-specific functionality
-   */
-  async getHistoricalData(
-    pair: CurrencyPair,
-    days: number = 7,
-  ): Promise<
-    Array<{
-      timestamp: Date;
-      price: number;
-    }>
-  > {
-    this.logger.log(`Fetching ${days} days of historical data for ${pair.symbol}`);
-
-    // Mock historical data
-    const historicalData: Array<{
-      timestamp: Date;
-      price: number;
-    }> = [];
-    const now = Date.now();
-    const basePrice = this.generateMockPrice(pair);
-
-    for (let i = days; i >= 0; i--) {
-      historicalData.push({
-        timestamp: new Date(now - i * 24 * 60 * 60 * 1000),
-        price: basePrice * (1 + (Math.random() - 0.5) * 0.1), // ±5% variation
-      });
-    }
-
-    return historicalData;
   }
 }
