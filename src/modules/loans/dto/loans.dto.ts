@@ -293,8 +293,8 @@ export class LoanAgreementSignatureDto {
 
   @ApiProperty({
     description: 'Role of the signer',
-    enum: UserRole,
-    example: UserRole.BORROWER,
+    enum: ['borrower', 'lender'],
+    example: 'borrower',
   })
   @IsEnum(UserRole)
   userType: UserRole;
