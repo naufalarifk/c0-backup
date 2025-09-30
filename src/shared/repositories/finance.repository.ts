@@ -62,6 +62,8 @@ import {
   UserRetrievesPortfolioOverviewParams,
   UserViewsAccountTransactionHistoryParams,
   UserViewsAccountTransactionHistoryResult,
+  UserViewsBlockchainsParams,
+  UserViewsBlockchainsResult,
   UserViewsCurrenciesParams,
   UserViewsCurrenciesResult,
   UserViewsInvoiceDetailsParams,
@@ -1435,6 +1437,49 @@ export abstract class FinanceRepository extends UserRepository {
             shortName: currency.blockchain_short_name,
             image: currency.blockchain_image,
           },
+        };
+      }),
+    };
+  }
+
+  // Blockchain Management Methods
+  async userViewsBlockchains(
+    params: UserViewsBlockchainsParams,
+  ): Promise<UserViewsBlockchainsResult> {
+    const rows = await this.sql`
+      SELECT
+        key,
+        name,
+        short_name,
+        image
+      FROM blockchains
+      WHERE key != 'crosschain'  -- Filter out internal crosschain blockchain
+      ORDER BY
+        CASE key
+          WHEN 'bip122:000000000019d6689c085ae165831e93' THEN 1  -- Bitcoin first
+          WHEN 'eip155:1' THEN 2                                  -- Ethereum second
+          WHEN 'eip155:56' THEN 3                                 -- BSC third
+          WHEN 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' THEN 4  -- Solana fourth
+          ELSE 5                                                  -- Others last
+        END,
+        name
+    `;
+
+    const blockchains = rows;
+
+    return {
+      blockchains: blockchains.map(function (blockchain: unknown) {
+        assertDefined(blockchain, 'Blockchain record is undefined');
+        assertPropString(blockchain, 'key');
+        assertPropString(blockchain, 'name');
+        assertPropString(blockchain, 'short_name');
+        assertPropString(blockchain, 'image');
+
+        return {
+          key: blockchain.key,
+          name: blockchain.name,
+          shortName: blockchain.short_name,
+          image: blockchain.image,
         };
       }),
     };

@@ -623,3 +623,12 @@ export interface UpdateWithdrawalStatusResult {
   id: string;
   status: string;
 }
+
+// Finance Configuration Types
+export interface UserViewsBlockchainsParams {
+  // No parameters needed - returns all supported blockchains
+}
+
+export interface UserViewsBlockchainsResult {
+  blockchains: Blockchain[];
+}
