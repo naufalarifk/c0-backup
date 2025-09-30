@@ -252,11 +252,11 @@ export class TestController {
     assertProp(check(isString, isNumber), kyc, 'user_id');
 
     // Approve the KYC
-    await this.repo.sql`
-      UPDATE user_kycs
-      SET verified_date = NOW(), status = 'Verified'
-      WHERE id = ${kyc.id}
-    `;
+    await this.repo.adminApprovesKyc({
+      approvalDate: new Date(),
+      kycId: String(kyc.id),
+      verifierUserId: '1',
+    });
 
     this.#logger.debug(`Approved KYC ${kyc.id} for user ${kyc.user_id}`);
 
@@ -304,11 +304,12 @@ export class TestController {
     assertProp(check(isString, isNumber), kyc, 'user_id');
 
     // Reject the KYC
-    await this.repo.sql`
-      UPDATE user_kycs
-      SET rejected_date = NOW(), rejection_reason = ${reason}, status = 'Rejected'
-      WHERE id = ${kyc.id}
-    `;
+    await this.repo.adminRejectsKyc({
+      rejectionDate: new Date(),
+      rejectionReason: reason,
+      kycId: String(kyc.id),
+      verifierUserId: '1',
+    });
 
     this.#logger.debug(`Rejected KYC ${kyc.id} for user ${kyc.user_id} with reason: ${reason}`);
 
