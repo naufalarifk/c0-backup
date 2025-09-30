@@ -17,12 +17,12 @@ import { after, before, describe, it, suite } from './setup/test';
 suite('Better Auth', function () {
   let testId: string;
   let testSetup: Awaited<ReturnType<typeof setup>>;
-  let authClient: ReturnType<typeof setupBetterAuthClient>;
+  let testUser: ReturnType<typeof setupBetterAuthClient>;
 
   before(async function () {
     testId = Date.now().toString(36).toLowerCase();
     testSetup = await setup();
-    authClient = setupBetterAuthClient(testSetup.backendUrl);
+    testUser = setupBetterAuthClient(testSetup.backendUrl);
   });
 
   after(async function () {
@@ -35,7 +35,7 @@ suite('Better Auth', function () {
       const password = 'ValidPassword123!';
 
       await doesNotReject(
-        authClient.signUp
+        testUser.authClient.signUp
           .email({
             email: email,
             password: password,
@@ -68,7 +68,7 @@ suite('Better Auth', function () {
       const email = `signin_${testId}@test.com`;
       const password = 'ValidPassword123!';
 
-      await authClient.signUp.email({
+      await testUser.authClient.signUp.email({
         email,
         password,
         name: email,
@@ -77,7 +77,7 @@ suite('Better Auth', function () {
 
       await waitForEmailVerification(testSetup.mailpitUrl, email);
 
-      const { data, error } = await authClient.signIn.email({
+      const { data, error } = await testUser.authClient.signIn.email({
         email,
         password,
       });
@@ -95,7 +95,7 @@ suite('Better Auth', function () {
       const password = 'ValidPassword123!';
       const newPassword = 'NewPassword123!';
 
-      await authClient.signUp.email({
+      await testUser.authClient.signUp.email({
         email,
         password,
         name: email,
@@ -104,11 +104,11 @@ suite('Better Auth', function () {
 
       await waitForEmailVerification(testSetup.mailpitUrl, email);
 
-      await authClient.forgetPassword({ email });
+      await testUser.authClient.forgetPassword({ email });
 
       const { resetToken } = await waitForPasswordResetEmail(testSetup.mailpitUrl, email);
 
-      const { data, error } = await authClient.resetPassword({
+      const { data, error } = await testUser.authClient.resetPassword({
         newPassword,
         token: resetToken,
       });
@@ -116,7 +116,7 @@ suite('Better Auth', function () {
       ok(data, `Password reset failed: ${error?.message}`);
       ok(!error, 'Password reset should not have an error');
 
-      const signInResult = await authClient.signIn.email({
+      const signInResult = await testUser.authClient.signIn.email({
         email,
         password: newPassword,
       });

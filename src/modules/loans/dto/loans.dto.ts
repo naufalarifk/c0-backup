@@ -38,7 +38,7 @@ export class LoanBreakdownDto {
   })
   @IsString()
   @IsDecimalAmount()
-  provisionFeeAmount: string;
+  originationFeeAmount: string;
 
   @ApiProperty({
     description: 'Total amount to repay',
@@ -280,5 +280,49 @@ export class LoanValuationListResponseDto {
   data: {
     valuations: LoanValuationResponseDto[];
     pagination: PaginationMetaDto;
+  };
+}
+
+export class LoanAgreementSignatureDto {
+  @ApiProperty({
+    description: 'User ID who signed',
+    example: 67890,
+  })
+  @IsNumber()
+  userId: number;
+
+  @ApiProperty({
+    description: 'Role of the signer',
+    enum: UserRole,
+    example: UserRole.BORROWER,
+  })
+  @IsEnum(UserRole)
+  userType: UserRole;
+
+  @ApiProperty({
+    description: 'When the document was signed',
+    example: '2025-09-23T14:22:15Z',
+  })
+  @IsDateString()
+  signedAt: string;
+}
+
+export class LoanAgreementResponseDto {
+  @ApiProperty({
+    description: 'Request success status',
+    example: true,
+  })
+  @IsBoolean()
+  success: boolean;
+
+  @ApiProperty({
+    description: 'Agreement document data',
+  })
+  data: {
+    documentUrl?: string;
+    signatureRequired: boolean;
+    signedBy: LoanAgreementSignatureDto[];
+    generationStatus: string; // 'ready', 'generating', 'pending', 'Failed', 'regenerating'
+    requestId?: string;
   };
 }

@@ -8,6 +8,7 @@ import {
   JWTExpired,
   JWTInvalid,
 } from 'jose/errors';
+import { assertPropString } from 'typeshaper';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../shared/services/app-config.service';
@@ -254,6 +255,7 @@ export class BeneficiariesService {
     // Get user details for email
     const user = await this.repo.userViewsProfile({ userId });
     ensureExists(user, 'User not found');
+    assertPropString(user, 'email', 'User email must be a string');
 
     // Queue verification email notification
     const notificationData: BeneficiaryVerificationNotificationData = {

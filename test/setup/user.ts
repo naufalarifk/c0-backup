@@ -30,17 +30,20 @@ export interface TestUserOptions {
  */
 export async function createTestUser(options: TestUserOptions): Promise<TestUser> {
   const {
-    email = `test_user_${options.testId}_${Date.now()}@test.com`,
+    testId,
+    testSetup,
+    email: providedEmail,
     password = 'ValidPassword123!',
-    name = `Test User ${options.testId}`,
+    name: providedName,
     // Do NOT auto-select a user type by default. Tests that need a specific
     // initial userType should pass it explicitly to avoid accidental
     // pre-selection that interferes with type-selection tests.
     userType,
     role = 'user',
-    testId,
-    testSetup,
   } = options;
+
+  const email = providedEmail ?? `test_user_${testId}_${Date.now()}@test.com`;
+  const name = providedName ?? `Test User ${testId}`;
 
   // Setup better auth client
   const betterAuthClient = setupBetterAuthClient(testSetup.backendUrl);

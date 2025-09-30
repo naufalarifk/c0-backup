@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS accounts (
   currency_blockchain_key VARCHAR(64) NOT NULL,
   currency_token_id VARCHAR(64) NOT NULL,
   account_type VARCHAR(16) DEFAULT 'User',
-  balance BIGINT NOT NULL DEFAULT 0,
+  balance DECIMAL(78, 0) NOT NULL DEFAULT 0,
   FOREIGN KEY (currency_blockchain_key, currency_token_id) REFERENCES currencies (blockchain_key, token_id),
   UNIQUE (user_id, currency_blockchain_key, currency_token_id, account_type),
   CHECK (
@@ -57,8 +57,15 @@ CREATE TABLE IF NOT EXISTS account_mutations (
     'EmergencyUnfreeze', 'ComplianceHold', 'ComplianceRelease'
   )),
   mutation_date TIMESTAMP NOT NULL,
-  amount BIGINT NOT NULL
+  amount DECIMAL(78, 0) NOT NULL
 );
+
+ALTER TABLE accounts
+  ALTER COLUMN balance TYPE DECIMAL(78, 0) USING balance::DECIMAL(78, 0),
+  ALTER COLUMN balance SET DEFAULT 0;
+
+ALTER TABLE account_mutations
+  ALTER COLUMN amount TYPE DECIMAL(78, 0) USING amount::DECIMAL(78, 0);
 
 --- VIEW ---
 
@@ -125,8 +132,8 @@ EXECUTE FUNCTION validate_account_mutation();
 CREATE OR REPLACE FUNCTION apply_account_mutation()
 RETURNS TRIGGER AS $$
 DECLARE
-  new_balance BIGINT;
-  current_balance BIGINT;
+  new_balance NUMERIC;
+  current_balance NUMERIC;
 BEGIN
   SELECT balance INTO current_balance
   FROM accounts

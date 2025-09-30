@@ -50,8 +50,11 @@ CREATE TABLE IF NOT EXISTS invoice_payments (
   invoice_id BIGINT NOT NULL REFERENCES invoices (id),
   payment_date TIMESTAMP NOT NULL,
   payment_hash VARCHAR(64) NOT NULL UNIQUE,
-  amount BIGINT NOT NULL
+  amount DECIMAL(78, 0) NOT NULL
 );
+
+ALTER TABLE invoice_payments
+  ALTER COLUMN amount TYPE DECIMAL(78, 0) USING amount::DECIMAL(78, 0);
 
 --- DEPENDENCY ---
 

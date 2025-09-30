@@ -215,6 +215,8 @@ export abstract class LoanUserRepository extends LoanBorrowerRepository {
         l.mc_ltv_ratio,
         la.borrower_user_id,
         lo.lender_user_id,
+        lo.interest_rate,
+        la.term_in_months,
         pc.decimals as principal_decimals,
         pc.symbol as principal_symbol,
         pc.name as principal_name,
@@ -260,14 +262,14 @@ export abstract class LoanUserRepository extends LoanBorrowerRepository {
       assertProp(check(isString, isNumber), row, 'mc_ltv_ratio');
       assertProp(check(isString, isNumber), row, 'borrower_user_id');
       assertProp(check(isString, isNumber), row, 'lender_user_id');
+      assertProp(check(isString, isNumber), row, 'interest_rate');
+      assertProp(check(isString, isNumber), row, 'term_in_months');
       assertProp(check(isString, isNumber), row, 'principal_decimals');
       assertPropString(row, 'principal_symbol');
       assertPropString(row, 'principal_name');
       assertProp(check(isString, isNumber), row, 'collateral_decimals');
       assertPropString(row, 'collateral_symbol');
       assertPropString(row, 'collateral_name');
-      // TODO TAMBAH INTEREST RATE
-      // TODO TAMBAH TERM LOAN
       return {
         id: String(row.id),
         loanOfferId: String(row.loan_offer_id),
@@ -299,6 +301,8 @@ export abstract class LoanUserRepository extends LoanBorrowerRepository {
         concludedDate: row.concluded_date || undefined,
         currentLtvRatio: row.current_ltv_ratio ? Number(row.current_ltv_ratio) : undefined,
         mcLtvRatio: Number(row.mc_ltv_ratio),
+        interestRate: Number(row.interest_rate),
+        termInMonths: Number(row.term_in_months),
       };
     });
 

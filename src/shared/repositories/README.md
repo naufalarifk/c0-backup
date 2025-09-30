@@ -2,6 +2,11 @@
 
 This module focus on managing data access and storage through a structured repository with use-case based methods. Current repository implementation are combination of PostgreSQL and Redis.
 
+## Rules
+
+- Reponsibility of repository is to access and store data. All business logic calculations shall be done outside repository.
+- All monetary values in and out of repository shall be in smallest unit (Lamports, Satoshi, Wei, etc). The smallest unit is defined by `decimals` column in `currencies` table.
+
 ## Structure
 
 - Repositories are structured as linear dependencies, beginning from BaseRepository and ending with CryptogadaiRepository. The full chains is: CryptogadaiRepository <- LoanPlatformRepository <- LoanUserRepository <- LoanBorrowerRepository <- LoanLenderRepository <- LoanTestRepository <- FinanceRepository <- UserRepository <- DatabaseRepository
@@ -12,6 +17,8 @@ This module focus on managing data access and storage through a structured repos
 
 ## SQL Writings
 
+- All status MUST use CamelCase, example: `InProgress`, `Completed`, `Failed`.
+- All time-based MUST use `TIMESTAMPT` type with `_date` suffix.
 - Always write static query when using `sql` tagged function. Example:
   ```typescript
   const repo: CryptogadaiRepository;

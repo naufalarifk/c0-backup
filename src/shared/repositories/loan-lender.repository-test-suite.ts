@@ -1,11 +1,70 @@
+import type { AppConfigService } from '../services/app-config.service';
+import type { LenderCreatesLoanOfferParams } from './loan.types';
+
 import { deepEqual, equal, notEqual, ok, rejects } from 'node:assert/strict';
 import { describe, suite } from 'node:test';
 
 import { assertArrayMapOf, assertDefined } from 'typeshaper';
 
+import { InvoiceIdGenerator } from '../invoice/invoice-id.generator';
 import { createEarlyExitNodeTestIt } from '../utils/node-test';
 import { BorrowerCreatesLoanApplicationResult, LenderCreatesLoanOfferResult } from './loan.types';
 import { LoanLenderRepository } from './loan-lender.repository';
+
+const testInvoiceIdGenerator = new InvoiceIdGenerator({
+  invoiceConfig: {
+    epochMs: Date.UTC(2024, 0, 1),
+    workerId: 0,
+  },
+} as unknown as AppConfigService);
+
+async function createFundingInvoiceParams(
+  repo: LoanLenderRepository,
+  options: {
+    principalBlockchainKey: string;
+    principalTokenId: string;
+    invoiceDate: Date;
+    dueDate: Date;
+    expiredDate?: Date;
+  },
+) {
+  const invoiceId = testInvoiceIdGenerator.generate();
+  return {
+    fundingInvoiceId: invoiceId,
+    fundingInvoicePrepaidAmount: '0',
+    fundingAccountBlockchainKey: options.principalBlockchainKey,
+    fundingAccountTokenId: options.principalTokenId,
+    fundingInvoiceDate: options.invoiceDate,
+    fundingInvoiceDueDate: options.dueDate,
+    fundingInvoiceExpiredDate: options.expiredDate ?? options.dueDate,
+  };
+}
+
+async function lenderCreatesLoanOfferWithInvoice(
+  repo: LoanLenderRepository,
+  params: Omit<
+    LenderCreatesLoanOfferParams,
+    | 'fundingInvoiceId'
+    | 'fundingInvoicePrepaidAmount'
+    | 'fundingAccountBlockchainKey'
+    | 'fundingAccountTokenId'
+    | 'fundingInvoiceDate'
+    | 'fundingInvoiceDueDate'
+    | 'fundingInvoiceExpiredDate'
+  >,
+) {
+  const fundingInvoice = await createFundingInvoiceParams(repo, {
+    principalBlockchainKey: params.principalBlockchainKey,
+    principalTokenId: params.principalTokenId,
+    invoiceDate: params.createdDate,
+    dueDate: params.expirationDate,
+  });
+
+  return repo.lenderCreatesLoanOffer({
+    ...params,
+    ...fundingInvoice,
+  });
+}
 
 export async function runLoanLenderRepositoryTestSuite(
   createRepo: () => Promise<LoanLenderRepository>,
@@ -55,8 +114,8 @@ export async function runLoanLenderRepositoryTestSuite(
           const createDate = new Date('2024-01-01T00:00:00Z');
           const expirationDate = new Date('2024-02-01T00:00:00Z');
 
-          const result = await repo.lenderCreatesLoanOffer({
-            lenderUserId: lender.id,
+          const result = await lenderCreatesLoanOfferWithInvoice(repo, {
+            lenderUserId: String(lender.id),
             principalBlockchainKey: 'eip155:56',
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
             offeredPrincipalAmount: '10000000000', // 10 USDC (18 decimals)
@@ -114,8 +173,8 @@ export async function runLoanLenderRepositoryTestSuite(
           const expirationDate = new Date('2024-02-01T00:00:00Z');
 
           await rejects(
-            repo.lenderCreatesLoanOffer({
-              lenderUserId: lender.id,
+            lenderCreatesLoanOfferWithInvoice(repo, {
+              lenderUserId: String(lender.id),
               principalBlockchainKey: 'invalid',
               principalTokenId: 'INVALID',
               offeredPrincipalAmount: '10000000000',
@@ -161,8 +220,8 @@ export async function runLoanLenderRepositoryTestSuite(
           const createDate = new Date('2024-01-01T00:00:00Z');
 
           // Create first offer
-          const offer1 = await repo.lenderCreatesLoanOffer({
-            lenderUserId: lender.id,
+          const offer1 = await lenderCreatesLoanOfferWithInvoice(repo, {
+            lenderUserId: String(lender.id),
             principalBlockchainKey: 'eip155:56',
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
             offeredPrincipalAmount: '5000000000',
@@ -177,8 +236,8 @@ export async function runLoanLenderRepositoryTestSuite(
           });
 
           // Create second offer
-          const offer2 = await repo.lenderCreatesLoanOffer({
-            lenderUserId: lender.id,
+          const offer2 = await lenderCreatesLoanOfferWithInvoice(repo, {
+            lenderUserId: String(lender.id),
             principalBlockchainKey: 'eip155:56',
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
             offeredPrincipalAmount: '15000000000',
@@ -227,8 +286,8 @@ export async function runLoanLenderRepositoryTestSuite(
           });
 
           // Create loan offer
-          const offer = await repo.lenderCreatesLoanOffer({
-            lenderUserId: lender.id,
+          const offer = await lenderCreatesLoanOfferWithInvoice(repo, {
+            lenderUserId: String(lender.id),
             principalBlockchainKey: 'eip155:56',
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
             offeredPrincipalAmount: '10000000000',
@@ -253,7 +312,7 @@ export async function runLoanLenderRepositoryTestSuite(
           const closedDate = new Date('2024-01-01T02:00:00Z');
           const result = await repo.lenderClosesLoanOffer({
             loanOfferId: offer.id,
-            lenderUserId: lender.id,
+            lenderUserId: String(lender.id),
             closedDate: closedDate,
             closureReason: 'Colse for some reason',
           });
@@ -290,8 +349,8 @@ export async function runLoanLenderRepositoryTestSuite(
             ],
           });
 
-          const offer = await repo.lenderCreatesLoanOffer({
-            lenderUserId: lender.id,
+          const offer = await lenderCreatesLoanOfferWithInvoice(repo, {
+            lenderUserId: String(lender.id),
             principalBlockchainKey: 'eip155:56',
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
             offeredPrincipalAmount: '10000000000',
@@ -308,7 +367,7 @@ export async function runLoanLenderRepositoryTestSuite(
           const updateDate = new Date('2024-01-01T02:00:00Z');
           const result = await repo.lenderClosesLoanOffer({
             loanOfferId: offer.id,
-            lenderUserId: lender.id,
+            lenderUserId: String(lender.id),
             closedDate: updateDate,
             closureReason: 'Changed investment strategy',
           });
@@ -345,8 +404,8 @@ export async function runLoanLenderRepositoryTestSuite(
             ],
           });
 
-          await repo.lenderCreatesLoanOffer({
-            lenderUserId: lender.id,
+          await lenderCreatesLoanOfferWithInvoice(repo, {
+            lenderUserId: String(lender.id),
             principalBlockchainKey: 'eip155:56',
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
             offeredPrincipalAmount: '10000000000',
@@ -372,7 +431,7 @@ export async function runLoanLenderRepositoryTestSuite(
           await rejects(
             repo.lenderClosesLoanOffer({
               loanOfferId: '999999',
-              lenderUserId: lender.id,
+              lenderUserId: String(lender.id),
               closedDate: new Date('2024-01-01T02:00:00Z'),
             }),
             (error: Error) => error.message.includes('Loan offer not found or access denied'),
@@ -413,8 +472,8 @@ export async function runLoanLenderRepositoryTestSuite(
 
           for (let i = 0; i < 3; i++) {
             const offerDate = new Date(baseDate.getTime() + i * 24 * 60 * 60 * 1000);
-            const offer = await repo.lenderCreatesLoanOffer({
-              lenderUserId: lender.id,
+            const offer = await lenderCreatesLoanOfferWithInvoice(repo, {
+              lenderUserId: String(lender.id),
               principalBlockchainKey: 'eip155:56',
               principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
               offeredPrincipalAmount: `${(i + 1) * 5000}000000`, // 5k, 10k, 15k USDT
@@ -432,7 +491,7 @@ export async function runLoanLenderRepositoryTestSuite(
 
           // Test getting all offers
           const result = await repo.lenderViewsMyLoanOffers({
-            lenderUserId: lender.id,
+            lenderUserId: String(lender.id),
             page: 1,
             limit: 10,
           });
@@ -449,7 +508,7 @@ export async function runLoanLenderRepositoryTestSuite(
 
           // Test pagination
           const page1 = await repo.lenderViewsMyLoanOffers({
-            lenderUserId: lender.id,
+            lenderUserId: String(lender.id),
             page: 1,
             limit: 2,
           });
@@ -461,7 +520,7 @@ export async function runLoanLenderRepositoryTestSuite(
           equal(page1.pagination.hasPrev, false);
 
           const page2 = await repo.lenderViewsMyLoanOffers({
-            lenderUserId: lender.id,
+            lenderUserId: String(lender.id),
             page: 2,
             limit: 2,
           });
@@ -500,8 +559,8 @@ export async function runLoanLenderRepositoryTestSuite(
           });
 
           // Create offers with different statuses
-          const offer1 = await repo.lenderCreatesLoanOffer({
-            lenderUserId: lender.id,
+          const offer1 = await lenderCreatesLoanOfferWithInvoice(repo, {
+            lenderUserId: String(lender.id),
             principalBlockchainKey: 'eip155:56',
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
             offeredPrincipalAmount: '10000000000',
@@ -515,8 +574,8 @@ export async function runLoanLenderRepositoryTestSuite(
             fundingWalletAddress: 'test-funding-wallet-address-11',
           });
 
-          const offer2 = await repo.lenderCreatesLoanOffer({
-            lenderUserId: lender.id,
+          const offer2 = await lenderCreatesLoanOfferWithInvoice(repo, {
+            lenderUserId: String(lender.id),
             principalBlockchainKey: 'eip155:56',
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
             offeredPrincipalAmount: '15000000000',
@@ -539,7 +598,7 @@ export async function runLoanLenderRepositoryTestSuite(
 
           // Test filtering by Funding status
           const fundingOffers = await repo.lenderViewsMyLoanOffers({
-            lenderUserId: lender.id,
+            lenderUserId: String(lender.id),
             status: 'Funding',
           });
 
@@ -549,7 +608,7 @@ export async function runLoanLenderRepositoryTestSuite(
 
           // Test filtering by Published status
           const publishedOffers = await repo.lenderViewsMyLoanOffers({
-            lenderUserId: lender.id,
+            lenderUserId: String(lender.id),
             status: 'Published',
           });
 
@@ -559,7 +618,7 @@ export async function runLoanLenderRepositoryTestSuite(
 
           // Test filtering by non-existent status
           const closedOffers = await repo.lenderViewsMyLoanOffers({
-            lenderUserId: lender.id,
+            lenderUserId: String(lender.id),
             status: 'Closed',
           });
 
@@ -574,7 +633,7 @@ export async function runLoanLenderRepositoryTestSuite(
           });
 
           const result = await repo.lenderViewsMyLoanOffers({
-            lenderUserId: lender.id,
+            lenderUserId: String(lender.id),
           });
 
           equal(result.loanOffers.length, 0);
@@ -593,7 +652,7 @@ export async function runLoanLenderRepositoryTestSuite(
 
           // Test with invalid page (should default to 1)
           const result1 = await repo.lenderViewsMyLoanOffers({
-            lenderUserId: lender.id,
+            lenderUserId: String(lender.id),
             page: -1,
             limit: 10,
           });
@@ -602,7 +661,7 @@ export async function runLoanLenderRepositoryTestSuite(
 
           // Test with invalid limit (should cap at 100)
           const result2 = await repo.lenderViewsMyLoanOffers({
-            lenderUserId: lender.id,
+            lenderUserId: String(lender.id),
             page: 1,
             limit: 150,
           });
@@ -611,7 +670,7 @@ export async function runLoanLenderRepositoryTestSuite(
 
           // Test with zero limit (should default to 1)
           const result3 = await repo.lenderViewsMyLoanOffers({
-            lenderUserId: lender.id,
+            lenderUserId: String(lender.id),
             page: 1,
             limit: 0,
           });
@@ -645,8 +704,8 @@ export async function runLoanLenderRepositoryTestSuite(
             ],
           });
 
-          const offer = await repo.lenderCreatesLoanOffer({
-            lenderUserId: lender.id,
+          const offer = await lenderCreatesLoanOfferWithInvoice(repo, {
+            lenderUserId: String(lender.id),
             principalBlockchainKey: 'eip155:56',
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
             offeredPrincipalAmount: '10000000000',
@@ -661,7 +720,7 @@ export async function runLoanLenderRepositoryTestSuite(
           });
 
           const result = await repo.lenderViewsMyLoanOffers({
-            lenderUserId: lender.id,
+            lenderUserId: String(lender.id),
           });
 
           equal(result.loanOffers.length, 1);

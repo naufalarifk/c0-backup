@@ -34,7 +34,9 @@ export class InMemoryCryptogadaiRepository extends CryptogadaiRepository {
       join(__dirname, './postgres/0009-price-feed.sql'),
       join(__dirname, './postgres/0010-invoice.sql'),
       join(__dirname, './postgres/0011-loan.sql'),
+      join(__dirname, './postgres/0012-loan-documents.sql'),
       join(__dirname, './postgres/0012-withdrawal.sql'),
+      join(__dirname, './postgres/0013-loan-agreement-signatures.sql'),
     ];
 
     // this.#logger(`Found schema files: ${schemaPaths.map(file => file.name).join('\n')}`);
@@ -62,7 +64,7 @@ export class InMemoryCryptogadaiRepository extends CryptogadaiRepository {
    * Convert PostgreSQL timestamp columns to proper Date objects
    * Handles timezone conversion consistently - treats all timestamps as UTC
    */
-  private convertTimestampsToDate(obj: any): any {
+  private convertTimestampsToDate(obj: unknown): unknown {
     if (obj === null || obj === undefined) return obj;
 
     if (Array.isArray(obj)) {
@@ -70,7 +72,7 @@ export class InMemoryCryptogadaiRepository extends CryptogadaiRepository {
     }
 
     if (typeof obj === 'object' && obj.constructor === Object) {
-      const converted: any = {};
+      const converted: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(obj)) {
         // Convert timestamp columns to Date objects
         // Common timestamp column patterns in our schema

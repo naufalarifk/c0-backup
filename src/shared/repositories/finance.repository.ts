@@ -1,4 +1,5 @@
 import {
+  assertArrayMapOf,
   assertDefined,
   assertProp,
   assertPropNullableString,
@@ -11,6 +12,7 @@ import {
 } from 'typeshaper';
 
 import {
+  ActiveInvoiceRecord,
   AdminApprovesWithdrawalRefundParams,
   AdminApprovesWithdrawalRefundResult,
   AdminRejectsWithdrawalRefundParams,
@@ -42,6 +44,7 @@ import {
   PlatformUpdatesInvoiceStatusResult,
   PlatformViewsActiveButExpiredInvoicesParams,
   PlatformViewsActiveButExpiredInvoicesResult,
+  PlatformViewsActiveInvoicesParams,
   UpdateWithdrawalStatusParams,
   UpdateWithdrawalStatusResult,
   UserRegistersWithdrawalBeneficiaryParams,
@@ -240,7 +243,6 @@ export abstract class FinanceRepository extends UserRepository {
     }
   }
 
-  // Invoice Management Methods
   async testCreatesInvoice(
     params: PlatformCreatesInvoiceParams,
   ): Promise<PlatformCreatesInvoiceResult> {
@@ -315,6 +317,101 @@ export abstract class FinanceRepository extends UserRepository {
       await tx.rollbackTransaction();
       throw error;
     }
+  }
+
+  async platformViewsActiveInvoices(
+    params: PlatformViewsActiveInvoicesParams = {},
+  ): Promise<ActiveInvoiceRecord[]> {
+    const { blockchainKey, limit = 1000, offset = 0 } = params;
+
+    if (limit <= 0) {
+      throw new Error('limit must be greater than zero');
+    }
+
+    if (offset < 0) {
+      throw new Error('offset cannot be negative');
+    }
+
+    const queryFragments: string[] = [
+      `SELECT
+        id,
+        user_id,
+        wallet_address,
+        currency_blockchain_key,
+        currency_token_id,
+        account_blockchain_key,
+        account_token_id,
+        invoice_type,
+        status,
+        invoiced_amount,
+        prepaid_amount,
+        paid_amount,
+        due_date,
+        expired_date
+      FROM invoices
+      WHERE (
+        status IN ('Pending', 'PartiallyPaid', 'Overdue')
+        OR (status = 'Expired' AND paid_amount < invoiced_amount)
+      )
+      AND wallet_address IS NOT NULL`,
+    ];
+
+    const sqlParams: Array<string | number> = [];
+
+    if (blockchainKey) {
+      sqlParams.push(blockchainKey);
+      queryFragments.push(`AND currency_blockchain_key = $${sqlParams.length}`);
+    }
+
+    sqlParams.push(limit);
+    queryFragments.push(`ORDER BY id ASC LIMIT $${sqlParams.length}`);
+
+    sqlParams.push(offset);
+    queryFragments.push(`OFFSET $${sqlParams.length}`);
+
+    const query = queryFragments.join('\n');
+
+    const rows = await this.rawQuery(query, sqlParams);
+    const activeInvoices: ActiveInvoiceRecord[] = [];
+
+    assertArrayMapOf(rows, row => {
+      assertDefined(row, 'Active invoice row is undefined');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'user_id');
+      assertPropString(row, 'wallet_address');
+      assertPropString(row, 'currency_blockchain_key');
+      assertPropString(row, 'currency_token_id');
+      assertPropNullableString(row, 'account_blockchain_key');
+      assertPropNullableString(row, 'account_token_id');
+      assertPropString(row, 'invoice_type');
+      assertPropString(row, 'status');
+      assertProp(check(isString, isNumber), row, 'invoiced_amount');
+      assertProp(check(isString, isNumber), row, 'prepaid_amount');
+      assertProp(check(isString, isNumber), row, 'paid_amount');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'due_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'expired_date');
+
+      activeInvoices.push({
+        id: String(row.id),
+        userId: String(row.user_id),
+        walletAddress: row.wallet_address as string,
+        currencyBlockchainKey: row.currency_blockchain_key as string,
+        currencyTokenId: row.currency_token_id as string,
+        accountBlockchainKey: (row.account_blockchain_key as string | null) ?? null,
+        accountTokenId: (row.account_token_id as string | null) ?? null,
+        invoiceType: row.invoice_type as string,
+        status: row.status as string,
+        invoicedAmount: String(row.invoiced_amount),
+        prepaidAmount: String(row.prepaid_amount),
+        paidAmount: String(row.paid_amount),
+        dueDate: row.due_date as Date | null,
+        expiredDate: row.expired_date as Date | null,
+      });
+
+      return row;
+    });
+
+    return activeInvoices;
   }
 
   async blockchainDetectsInvoicePayment(

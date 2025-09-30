@@ -1,18 +1,16 @@
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
-
-import { HDKey } from '@scure/bip32';
-import { generateMnemonic, mnemonicToSeed } from '@scure/bip39';
-import { wordlist } from '@scure/bip39/wordlists/english';
-
-import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
-import { WalletFactory } from '../../../shared/wallets/Iwallet.service';
 import {
-  CurrencyDto,
-  InvoiceDto,
-  LiquidationMode,
-  LoanApplicationStatus,
-  PaginationMetaDto,
-} from '../dto/common.dto';
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+
+import { InvoiceService } from '../../../shared/invoice/invoice.service';
+import { InvoiceError } from '../../../shared/invoice/invoice.types';
+import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { LiquidationMode, LoanApplicationStatus, PaginationMetaDto } from '../dto/common.dto';
 import {
   CreateLoanApplicationDto,
   LoanApplicationListResponseDto,
@@ -21,6 +19,12 @@ import {
   LoanCalculationResponseDto,
   UpdateLoanApplicationDto,
 } from '../dto/loan-applications.dto';
+import {
+  AmountOutOfBoundsException,
+  CurrencyNotSupportedException,
+  InterestRateInvalidException,
+} from '../exceptions/loan-exceptions';
+import { LoanCalculationService } from './loan-calculation.service';
 
 @Injectable()
 export class LoanApplicationsService {
@@ -29,7 +33,8 @@ export class LoanApplicationsService {
   constructor(
     @Inject(CryptogadaiRepository)
     private readonly cryptogadaiRepository: CryptogadaiRepository,
-    private readonly walletFactory: WalletFactory,
+    private readonly invoiceService: InvoiceService,
+    private readonly loanCalculationService: LoanCalculationService,
   ) {}
 
   async calculateLoanRequirements(
@@ -44,56 +49,117 @@ export class LoanApplicationsService {
         throw new BadRequestException('Principal amount must be greater than zero');
       }
 
+      // Validate loan amount limits per SRS BR-005
+      if (principalAmount < 50) {
+        throw new AmountOutOfBoundsException(principalAmount.toString(), '50', '20000');
+      }
+      if (principalAmount > 20000) {
+        throw new AmountOutOfBoundsException(principalAmount.toString(), '50', '20000');
+      }
+
       // Validate term in months (support both field names)
       const termInMonths = calculationRequest.termInMonths || calculationRequest.loanTerm || 6;
       if (termInMonths < 1 || termInMonths > 60) {
         throw new BadRequestException('Term in months must be between 1 and 60');
       }
 
-      const result = await this.cryptogadaiRepository.borrowerCalculatesLoanRequirements({
+      const calculationDate = new Date();
+
+      // Get data from repository (no calculations)
+      const currencies = await this.cryptogadaiRepository.borrowerGetsCurrencyPair({
         collateralBlockchainKey: calculationRequest.collateralBlockchainKey,
         collateralTokenId: calculationRequest.collateralTokenId,
         principalBlockchainKey: calculationRequest.principalBlockchainKey,
         principalTokenId: calculationRequest.principalTokenId,
-        principalAmount: calculationRequest.principalAmount,
-        termInMonths: termInMonths,
-        calculationDate: new Date(),
       });
 
-      if (!result.success) {
-        throw new BadRequestException('Failed to calculate loan requirements');
+      const platformConfig = await this.cryptogadaiRepository.borrowerGetsPlatformConfig({
+        effectiveDate: calculationDate,
+      });
+
+      let exchangeRate;
+      try {
+        exchangeRate = await this.cryptogadaiRepository.borrowerGetsExchangeRate({
+          collateralTokenId: calculationRequest.collateralTokenId,
+        });
+      } catch (error) {
+        if (error.message?.includes('Exchange rate not found')) {
+          throw new BadRequestException(
+            `Exchange rate not available for ${currencies.collateralCurrency.symbol}. Please try again later.`,
+          );
+        } else {
+          throw error;
+        }
       }
 
+      // Convert principal amount to smallest units for calculation service
+      const principalAmountInSmallestUnits = this.loanCalculationService.toSmallestUnit(
+        calculationRequest.principalAmount,
+        currencies.principalCurrency.decimals,
+      );
+
+      // Perform calculations using the calculation service
+      const calculationResult = this.loanCalculationService.calculateLoanRequirements({
+        principalAmount: principalAmountInSmallestUnits,
+        principalCurrency: currencies.principalCurrency,
+        collateralCurrency: currencies.collateralCurrency,
+        platformConfig: {
+          loanProvisionRate: platformConfig.loanProvisionRate,
+          loanMinLtvRatio: platformConfig.loanMinLtvRatio,
+          loanMaxLtvRatio: platformConfig.loanMaxLtvRatio,
+        },
+        exchangeRate: {
+          id: exchangeRate.id,
+          bidPrice: exchangeRate.bidPrice,
+          askPrice: exchangeRate.askPrice,
+          sourceDate: exchangeRate.sourceDate,
+        },
+        termInMonths,
+        calculationDate,
+      });
+
       return {
-        success: result.success,
+        success: true,
         data: {
-          requiredCollateralAmount: result.data.requiredCollateralAmount,
-          exchangeRate: result.data.exchangeRate.rate,
+          requiredCollateralAmount: this.loanCalculationService.fromSmallestUnit(
+            calculationResult.requiredCollateralAmount,
+            calculationResult.collateralCurrency.decimals,
+          ),
+          exchangeRate: calculationResult.exchangeRate.rate,
           collateralCurrency: {
-            blockchainKey: result.data.collateralCurrency.blockchainKey,
-            tokenId: result.data.collateralCurrency.tokenId,
-            symbol: result.data.collateralCurrency.symbol,
-            name: result.data.collateralCurrency.name,
-            decimals: result.data.collateralCurrency.decimals,
-            logoUrl: `https://assets.cryptogadai.com/currencies/${result.data.collateralCurrency.symbol.toLowerCase()}.png`,
+            blockchainKey: calculationResult.collateralCurrency.blockchainKey,
+            tokenId: calculationResult.collateralCurrency.tokenId,
+            symbol: calculationResult.collateralCurrency.symbol,
+            name: calculationResult.collateralCurrency.name,
+            decimals: calculationResult.collateralCurrency.decimals,
+            logoUrl: `https://assets.cryptogadai.com/currencies/${calculationResult.collateralCurrency.symbol.toLowerCase()}.png`,
           },
           principalCurrency: {
-            blockchainKey: result.data.principalCurrency.blockchainKey,
-            tokenId: result.data.principalCurrency.tokenId,
-            symbol: result.data.principalCurrency.symbol,
-            name: result.data.principalCurrency.name,
-            decimals: result.data.principalCurrency.decimals,
-            logoUrl: `https://assets.cryptogadai.com/currencies/${result.data.principalCurrency.symbol.toLowerCase()}.png`,
+            blockchainKey: calculationResult.principalCurrency.blockchainKey,
+            tokenId: calculationResult.principalCurrency.tokenId,
+            symbol: calculationResult.principalCurrency.symbol,
+            name: calculationResult.principalCurrency.name,
+            decimals: calculationResult.principalCurrency.decimals,
+            logoUrl: `https://assets.cryptogadai.com/currencies/${calculationResult.principalCurrency.symbol.toLowerCase()}.png`,
           },
-          maxLtvRatio: result.data.maxLtvRatio,
+          maxLtvRatio: calculationResult.maxLtvRatio,
           safetyBuffer: 10, // Static value for now
           calculationDetails: {
-            baseLoanAmount: result.data.principalAmount,
-            baseCollateralValue: result.data.requiredCollateralAmount,
-            withSafetyBuffer: result.data.requiredCollateralAmount,
-            currentExchangeRate: result.data.exchangeRate.rate,
+            baseLoanAmount: this.loanCalculationService.fromSmallestUnit(
+              calculationResult.principalAmount,
+              calculationResult.principalCurrency.decimals,
+            ),
+            baseCollateralValue: this.loanCalculationService.fromSmallestUnit(
+              calculationResult.requiredCollateralAmount,
+              calculationResult.collateralCurrency.decimals,
+            ),
+            withSafetyBuffer: this.loanCalculationService.fromSmallestUnit(
+              calculationResult.requiredCollateralAmount,
+              calculationResult.collateralCurrency.decimals,
+            ),
+            currentExchangeRate: calculationResult.exchangeRate.rate,
             rateSource: 'platform',
-            rateTimestamp: result.data.exchangeRate.timestamp.toISOString(),
+            rateTimestamp: calculationResult.exchangeRate.timestamp.toISOString(),
           },
         },
       };
@@ -104,13 +170,19 @@ export class LoanApplicationsService {
       }
       // Handle specific repository errors
       if (error.message?.includes('Exchange rate not found')) {
-        throw new BadRequestException('Exchange rate not available for the selected currency pair');
+        throw new BadRequestException(
+          'Exchange rate not available for the selected currency pair. Please ensure price feeds are configured.',
+        );
       }
       if (
         error.message?.includes('Currency not found') ||
-        error.message?.includes('not supported')
+        error.message?.includes('not supported') ||
+        error.message?.includes('does not exist')
       ) {
-        throw new BadRequestException('One or more currencies are not supported');
+        throw new CurrencyNotSupportedException(
+          calculationRequest.collateralBlockchainKey,
+          calculationRequest.collateralTokenId,
+        );
       }
       throw new BadRequestException(
         'Failed to calculate loan requirements. Please check your input parameters.',
@@ -125,57 +197,154 @@ export class LoanApplicationsService {
     this.logger.log(`Creating loan application for borrower: ${borrowerId}`);
 
     try {
-      // Generate wallet information for collateral deposit
-      const mnemonic = generateMnemonic(wordlist, 256);
-      const seed = await mnemonicToSeed(mnemonic);
-      const masterKey = HDKey.fromMasterSeed(seed);
-
-      // Get wallet service for collateral blockchain
-      let walletService;
-      try {
-        walletService = this.walletFactory.getWalletService(
-          createLoanApplicationDto.collateralBlockchainKey,
-        );
-      } catch (error) {
-        throw new BadRequestException(
-          `Unsupported collateral blockchain: ${createLoanApplicationDto.collateralBlockchainKey}`,
-        );
+      // Validate principal amount is positive and within limits per SRS BR-005
+      const principalAmount = parseFloat(createLoanApplicationDto.principalAmount);
+      if (principalAmount <= 0) {
+        throw new BadRequestException('Principal amount must be greater than zero');
+      }
+      if (principalAmount < 50) {
+        throw new AmountOutOfBoundsException(principalAmount.toString(), '50', '20000');
+      }
+      if (principalAmount > 20000) {
+        throw new AmountOutOfBoundsException(principalAmount.toString(), '50', '20000');
       }
 
-      if (!walletService) {
-        throw new BadRequestException(
-          `Unsupported collateral blockchain: ${createLoanApplicationDto.collateralBlockchainKey}`,
-        );
+      // Validate LTV ratio bounds per SRS CONF-002 (Fixed max LTV of 70%)
+      if (createLoanApplicationDto.minLtvRatio !== undefined) {
+        if (
+          createLoanApplicationDto.minLtvRatio < 0 ||
+          createLoanApplicationDto.minLtvRatio > 0.7
+        ) {
+          throw new UnprocessableEntityException('LTV ratio must be between 0 and 0.7 (70%)');
+        }
       }
 
-      // Generate unique derivation path for this loan application
-      const applicationTimestamp = Date.now();
-      const derivationPath = `m/44'/${walletService.bip44CoinType}'/1200'/0/${applicationTimestamp % 2147483647}`;
+      // Validate interest rate bounds per SRS CONF-001
+      if (
+        createLoanApplicationDto.maxInterestRate < 0.1 ||
+        createLoanApplicationDto.maxInterestRate > 50
+      ) {
+        throw new InterestRateInvalidException(createLoanApplicationDto.maxInterestRate);
+      }
 
-      // Create wallet and get address
-      const wallet = await walletService.derivedPathToWallet({
-        masterKey,
-        derivationPath,
+      const appliedDate = new Date();
+      const expirationDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+
+      // Get data from repository (no calculations)
+      const currencies = await this.cryptogadaiRepository.borrowerGetsCurrencyPair({
+        collateralBlockchainKey: createLoanApplicationDto.collateralBlockchainKey,
+        collateralTokenId: createLoanApplicationDto.collateralTokenId,
+        principalBlockchainKey: createLoanApplicationDto.principalBlockchainKey,
+        principalTokenId: createLoanApplicationDto.principalTokenId,
       });
-      const walletAddress = await wallet.getAddress();
 
+      const platformConfig = await this.cryptogadaiRepository.borrowerGetsPlatformConfig({
+        effectiveDate: appliedDate,
+      });
+
+      let exchangeRate;
+      try {
+        exchangeRate = await this.cryptogadaiRepository.borrowerGetsExchangeRate({
+          collateralTokenId: createLoanApplicationDto.collateralTokenId,
+        });
+      } catch (error) {
+        if (error.message?.includes('Exchange rate not found')) {
+          throw new BadRequestException(
+            `Exchange rate not available for ${currencies.collateralCurrency.symbol}. Please try again later.`,
+          );
+        } else {
+          throw error;
+        }
+      }
+
+      // Convert principal amount to smallest units for calculation service
+      const principalAmountInSmallestUnits = this.loanCalculationService.toSmallestUnit(
+        createLoanApplicationDto.principalAmount,
+        currencies.principalCurrency.decimals,
+      );
+
+      // Perform calculations using the calculation service
+      const calculationResult = this.loanCalculationService.calculateLoanApplicationParams({
+        principalAmount: principalAmountInSmallestUnits,
+        principalCurrency: currencies.principalCurrency,
+        collateralCurrency: currencies.collateralCurrency,
+        platformConfig: {
+          loanProvisionRate: platformConfig.loanProvisionRate,
+          loanMinLtvRatio: platformConfig.loanMinLtvRatio,
+          loanMaxLtvRatio: platformConfig.loanMaxLtvRatio,
+        },
+        exchangeRate: {
+          id: exchangeRate.id,
+          bidPrice: exchangeRate.bidPrice,
+          askPrice: exchangeRate.askPrice,
+          sourceDate: exchangeRate.sourceDate,
+        },
+        appliedDate,
+      });
+
+      let invoiceDraft;
+      try {
+        invoiceDraft = await this.invoiceService.prepareInvoice({
+          userId: borrowerId,
+          currencyBlockchainKey: createLoanApplicationDto.collateralBlockchainKey,
+          currencyTokenId: createLoanApplicationDto.collateralTokenId,
+          accountBlockchainKey: createLoanApplicationDto.collateralBlockchainKey,
+          accountTokenId: createLoanApplicationDto.collateralTokenId,
+          invoiceType: 'LoanCollateral',
+          invoicedAmount: calculationResult.collateralDepositAmount,
+          prepaidAmount: '0',
+          invoiceDate: appliedDate,
+          dueDate: expirationDate,
+          expiredDate: expirationDate,
+        });
+      } catch (error) {
+        if (error instanceof InvoiceError) {
+          throw new BadRequestException(error.message);
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        if (
+          message.includes('Wallet service not found') ||
+          message.includes('Unsupported blockchain key')
+        ) {
+          throw new CurrencyNotSupportedException(
+            createLoanApplicationDto.collateralBlockchainKey,
+            createLoanApplicationDto.collateralTokenId,
+          );
+        }
+        throw error;
+      }
+
+      const walletAddress = invoiceDraft.walletAddress;
       if (!walletAddress) {
         throw new BadRequestException('Failed to generate wallet address for collateral deposit');
       }
 
+      // Create loan application with calculated values using the data-only method
       const result = await this.cryptogadaiRepository.borrowerCreatesLoanApplication({
         borrowerUserId: borrowerId,
         collateralBlockchainKey: createLoanApplicationDto.collateralBlockchainKey,
         collateralTokenId: createLoanApplicationDto.collateralTokenId,
         principalBlockchainKey: createLoanApplicationDto.principalBlockchainKey,
         principalTokenId: createLoanApplicationDto.principalTokenId,
-        principalAmount: createLoanApplicationDto.principalAmount,
+        principalAmount: principalAmountInSmallestUnits,
+        provisionAmount: calculationResult.provisionAmount,
         maxInterestRate: createLoanApplicationDto.maxInterestRate,
+        minLtvRatio: calculationResult.minLtvRatio,
+        maxLtvRatio: calculationResult.maxLtvRatio,
         termInMonths: createLoanApplicationDto.termMonths,
         liquidationMode: createLoanApplicationDto.liquidationMode,
-        appliedDate: new Date(),
-        expirationDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
-        collateralWalletDerivationPath: derivationPath,
+        collateralDepositAmount: calculationResult.collateralDepositAmount,
+        collateralDepositExchangeRateId: exchangeRate.id,
+        appliedDate,
+        expirationDate,
+        collateralInvoiceId: invoiceDraft.invoiceId,
+        collateralInvoicePrepaidAmount: invoiceDraft.prepaidAmount,
+        collateralAccountBlockchainKey: invoiceDraft.accountBlockchainKey,
+        collateralAccountTokenId: invoiceDraft.accountTokenId,
+        collateralInvoiceDate: invoiceDraft.invoiceDate,
+        collateralInvoiceDueDate: invoiceDraft.dueDate ?? expirationDate,
+        collateralInvoiceExpiredDate: invoiceDraft.expiredDate ?? expirationDate,
+        collateralWalletDerivationPath: invoiceDraft.walletDerivationPath,
         collateralWalletAddress: walletAddress,
       });
 
@@ -191,6 +360,9 @@ export class LoanApplicationsService {
           break;
         case 'Matched':
           dtoStatus = LoanApplicationStatus.MATCHED;
+          break;
+        case 'Cancelled':
+          dtoStatus = LoanApplicationStatus.CANCELLED;
           break;
         case 'Closed':
           dtoStatus = LoanApplicationStatus.CLOSED;
@@ -213,14 +385,20 @@ export class LoanApplicationsService {
           decimals: result.collateralCurrency.decimals,
           logoUrl: `https://assets.cryptogadai.com/currencies/${result.collateralCurrency.symbol.toLowerCase()}.png`,
         },
-        principalAmount: result.principalAmount,
+        principalAmount: this.loanCalculationService.fromSmallestUnit(
+          result.principalAmount,
+          result.principalCurrency.decimals,
+        ),
         status: dtoStatus,
         createdDate: result.appliedDate.toISOString(),
         publishedDate: undefined, // Applications start in draft status
         expiryDate: result.expirationDate.toISOString(),
         collateralInvoice: {
           id: result.collateralDepositInvoice.id,
-          amount: result.collateralDepositAmount,
+          amount: this.loanCalculationService.fromSmallestUnit(
+            result.collateralDepositAmount,
+            result.collateralCurrency.decimals,
+          ),
           currency: {
             blockchainKey: result.collateralCurrency.blockchainKey,
             tokenId: result.collateralCurrency.tokenId,
@@ -235,20 +413,36 @@ export class LoanApplicationsService {
       };
     } catch (error) {
       this.logger.error(`Failed to create loan application: ${error.message}`, error.stack);
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException ||
+        error instanceof UnprocessableEntityException
+      ) {
         throw error;
       }
       // Handle specific repository/wallet errors
-      if (error.message?.includes('WalletService not supported')) {
-        throw new BadRequestException(
-          `Unsupported blockchain: ${createLoanApplicationDto.collateralBlockchainKey}`,
+      if (
+        error.message?.includes('WalletService not supported') ||
+        error.message?.includes('Wallet service not found')
+      ) {
+        throw new CurrencyNotSupportedException(
+          createLoanApplicationDto.collateralBlockchainKey,
+          createLoanApplicationDto.collateralTokenId,
         );
       }
       if (error.message?.includes('Exchange rate not found')) {
-        throw new BadRequestException('Exchange rate not available for the selected currency pair');
+        throw new BadRequestException(
+          'Exchange rate not available for the selected currency pair. Please ensure price feeds are configured.',
+        );
       }
-      if (error.message?.includes('Currency not found')) {
-        throw new BadRequestException('One or more currencies are not supported');
+      if (
+        error.message?.includes('Currency not found') ||
+        error.message?.includes('does not exist')
+      ) {
+        throw new CurrencyNotSupportedException(
+          createLoanApplicationDto.collateralBlockchainKey,
+          createLoanApplicationDto.collateralTokenId,
+        );
       }
       if (error.message?.includes('Insufficient balance') || error.message?.includes('balance')) {
         throw new BadRequestException('Insufficient balance to create loan application');
@@ -279,17 +473,81 @@ export class LoanApplicationsService {
         throw new BadRequestException('Limit must be between 1 and 100');
       }
 
-      // TODO: Implement platformListsAvailableLoanApplications repository method
-      // For now, return empty list to allow other tests to pass
-      const applications: LoanApplicationResponseDto[] = [];
-
-      const paginationMeta: PaginationMetaDto = {
+      const result = await this.cryptogadaiRepository.platformListsAvailableLoanApplications({
+        collateralBlockchainKey: params.collateralBlockchainKey,
+        collateralTokenId: params.collateralTokenId,
+        principalBlockchainKey: params.principalBlockchainKey,
+        principalTokenId: params.principalTokenId,
+        minPrincipalAmount: params.minPrincipalAmount,
+        maxPrincipalAmount: params.maxPrincipalAmount,
+        liquidationMode: params.liquidationMode,
         page: params.page,
         limit: params.limit,
-        total: 0,
-        totalPages: 0,
-        hasNext: false,
-        hasPrev: false,
+      });
+
+      // Map repository applications to DTO format
+      const applications: LoanApplicationResponseDto[] = result.loanApplications.map(app => {
+        return {
+          id: app.id,
+          borrowerId: app.borrowerUserId,
+          borrower: {
+            id: app.borrower.id,
+            type: app.borrower.type,
+            name: app.borrower.name,
+            verified: true,
+          },
+          collateralCurrency: {
+            blockchainKey: app.collateralCurrency.blockchainKey,
+            tokenId: app.collateralCurrency.tokenId,
+            symbol: app.collateralCurrency.symbol,
+            name: app.collateralCurrency.name,
+            decimals: app.collateralCurrency.decimals,
+            logoUrl: `https://assets.cryptogadai.com/currencies/${app.collateralCurrency.symbol.toLowerCase()}.png`,
+          },
+          principalCurrency: {
+            blockchainKey: app.principalCurrency.blockchainKey,
+            tokenId: app.principalCurrency.tokenId,
+            symbol: app.principalCurrency.symbol,
+            name: app.principalCurrency.name,
+            decimals: app.principalCurrency.decimals,
+            logoUrl: `https://assets.cryptogadai.com/currencies/${app.principalCurrency.symbol.toLowerCase()}.png`,
+          },
+          principalAmount: this.loanCalculationService.fromSmallestUnit(
+            app.principalAmount,
+            app.principalCurrency.decimals,
+          ),
+          maxInterestRate: app.maxInterestRate,
+          termMonths: app.termInMonths,
+          liquidationMode:
+            app.liquidationMode === 'Partial' ? LiquidationMode.PARTIAL : LiquidationMode.FULL,
+          status: LoanApplicationStatus.PUBLISHED, // Only published apps are listed by platform
+          createdDate: app.appliedDate.toISOString(),
+          publishedDate: app.publishedDate?.toISOString(),
+          expiryDate: app.expirationDate.toISOString(),
+          collateralInvoice: {
+            id: `inv_${app.id}`,
+            amount: '0.000000000000000000', // Not available in list view
+            currency: {
+              blockchainKey: app.collateralCurrency.blockchainKey,
+              tokenId: app.collateralCurrency.tokenId,
+              symbol: app.collateralCurrency.symbol,
+              name: app.collateralCurrency.name,
+              decimals: app.collateralCurrency.decimals,
+              logoUrl: `https://assets.cryptogadai.com/currencies/${app.collateralCurrency.symbol.toLowerCase()}.png`,
+            },
+            walletAddress: 'Available via application details',
+            expiryDate: app.expirationDate.toISOString(),
+          },
+        };
+      });
+
+      const paginationMeta: PaginationMetaDto = {
+        page: result.pagination.page,
+        limit: result.pagination.limit,
+        total: result.pagination.total,
+        totalPages: result.pagination.totalPages,
+        hasNext: result.pagination.hasNext,
+        hasPrev: result.pagination.hasPrev,
       };
 
       return {
@@ -364,14 +622,20 @@ export class LoanApplicationsService {
             decimals: app.collateralCurrency.decimals,
             logoUrl: `https://assets.cryptogadai.com/currencies/${app.collateralCurrency.symbol.toLowerCase()}.png`,
           },
-          principalAmount: app.principalAmount,
+          principalAmount: this.loanCalculationService.fromSmallestUnit(
+            app.principalAmount,
+            app.principalCurrency.decimals,
+          ),
           status: dtoStatus,
           createdDate: app.appliedDate.toISOString(),
           publishedDate: app.publishedDate?.toISOString(),
           expiryDate: app.expirationDate.toISOString(),
           collateralInvoice: {
             id: `inv_${app.id}`, // Generated invoice ID from application ID
-            amount: app.collateralDepositAmount,
+            amount: this.loanCalculationService.fromSmallestUnit(
+              app.collateralDepositAmount,
+              app.collateralCurrency.decimals,
+            ),
             currency: {
               blockchainKey: app.collateralCurrency.blockchainKey,
               tokenId: app.collateralCurrency.tokenId,
@@ -476,6 +740,9 @@ export class LoanApplicationsService {
         case 'Matched':
           dtoStatus = LoanApplicationStatus.MATCHED;
           break;
+        case 'Cancelled':
+          dtoStatus = LoanApplicationStatus.CANCELLED;
+          break;
         case 'Closed':
           dtoStatus = LoanApplicationStatus.CLOSED;
           break;
@@ -498,14 +765,20 @@ export class LoanApplicationsService {
           decimals: updatedApplication.collateralCurrency.decimals,
           logoUrl: `https://assets.cryptogadai.com/currencies/${updatedApplication.collateralCurrency.symbol.toLowerCase()}.png`,
         },
-        principalAmount: updatedApplication.principalAmount,
+        principalAmount: this.loanCalculationService.fromSmallestUnit(
+          updatedApplication.principalAmount,
+          updatedApplication.principalCurrency.decimals,
+        ),
         status: dtoStatus,
         createdDate: updatedApplication.appliedDate.toISOString(),
         publishedDate: updatedApplication.publishedDate?.toISOString(),
         expiryDate: updatedApplication.expirationDate.toISOString(),
         collateralInvoice: {
           id: `inv_${updatedApplication.id}`, // Generated invoice ID from application ID for list view
-          amount: updatedApplication.collateralDepositAmount,
+          amount: this.loanCalculationService.fromSmallestUnit(
+            updatedApplication.collateralDepositAmount,
+            updatedApplication.collateralCurrency.decimals,
+          ),
           currency: {
             blockchainKey: updatedApplication.collateralCurrency.blockchainKey,
             tokenId: updatedApplication.collateralCurrency.tokenId,

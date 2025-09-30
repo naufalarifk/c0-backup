@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS loan_applications (
   collateral_deposit_amount DECIMAL(78, 0) NOT NULL CHECK (collateral_deposit_amount > 0), -- calculated from principal_amount / min_ltv_ratio
   collateral_deposit_exchange_rate_id BIGINT NOT NULL REFERENCES exchange_rates (id), -- collateral valuation on applied_date
 
-  status VARCHAR(32) NOT NULL DEFAULT 'PendingCollateral' CHECK (status IN ('PendingCollateral', 'Published', 'Matched', 'Closed', 'Expired')),
+  status VARCHAR(32) NOT NULL DEFAULT 'PendingCollateral' CHECK (status IN ('PendingCollateral', 'Published', 'Matched', 'Cancelled', 'Closed', 'Expired')),
 
   applied_date TIMESTAMP NOT NULL,
   expired_date TIMESTAMP NOT NULL, -- loan application expires after this date, configured by borrower_user_id
@@ -150,16 +150,19 @@ CREATE TABLE IF NOT EXISTS loan_valuations (
 );
 
 -- Repayment tracking (one-to-one with loans)
+-- Note: acknowledgment field stores boolean API input converted to string ('true'/'false') for audit purposes
 CREATE TABLE IF NOT EXISTS loan_repayments (
   loan_id BIGINT PRIMARY KEY REFERENCES loans (id),
   repayment_initiator VARCHAR(32) CHECK (repayment_initiator IN ('Borrower', 'Platform')),
   repayment_invoice_id BIGINT NOT NULL REFERENCES invoices (id),
-  repayment_invoice_date TIMESTAMP NOT NULL
+  repayment_invoice_date TIMESTAMP NOT NULL,
+  acknowledgment TEXT -- Store borrower's acknowledgment (converted from API boolean to string for audit trail)
 );
 
 COMMENT ON COLUMN loan_repayments.repayment_initiator IS 'Borrower can request for early repayment, Platform initiates repayment on maturity - platform_configs.loan_repayment_duration_in_days';
 
 -- Liquidation management (one-to-one with loans)
+-- Note: acknowledgment field stores boolean API input converted to string ('true'/'false') for audit purposes
 CREATE TABLE IF NOT EXISTS loan_liquidations (
   loan_id BIGINT PRIMARY KEY REFERENCES loans (id),
   liquidation_initiator VARCHAR(32) CHECK (liquidation_initiator IN ('Borrower', 'Platform')),
@@ -175,6 +178,7 @@ CREATE TABLE IF NOT EXISTS loan_liquidations (
   fulfilled_amount DECIMAL(78, 0),
   failure_date TIMESTAMP,
   failure_reason TEXT,
+  acknowledgment TEXT, -- Store borrower's acknowledgment (converted from API boolean to string for audit trail)
   -- BUFFER HARGA DIATAS EXPECTED HARGA LIKUIDASI
   returned_premi_amount DECIMAL(78, 0) -- calculated from MAX(loans.premi_amount, liquidation_target_amount - fulfilled_amount)
 );
@@ -289,9 +293,10 @@ BEGIN
   END IF;
 
   IF OLD IS NOT NULL AND OLD.status != NEW.status THEN
-    IF (OLD.status = 'PendingCollateral' AND NEW.status NOT IN ('Published', 'Closed', 'Expired')) OR
-       (OLD.status = 'Published' AND NEW.status NOT IN ('Matched', 'Closed', 'Expired')) OR
+    IF (OLD.status = 'PendingCollateral' AND NEW.status NOT IN ('Published', 'Cancelled', 'Closed', 'Expired')) OR
+       (OLD.status = 'Published' AND NEW.status NOT IN ('Matched', 'Cancelled', 'Closed', 'Expired')) OR
        (OLD.status = 'Matched' AND NEW.status NOT IN ('Closed')) OR
+       (OLD.status = 'Cancelled' AND NEW.status NOT IN ('Cancelled')) OR
        (OLD.status = 'Closed' AND NEW.status NOT IN ('Closed')) OR
        (OLD.status = 'Expired' AND NEW.status NOT IN ('Expired')) THEN
       RAISE EXCEPTION 'Invalid status transition from % to %', OLD.status, NEW.status;

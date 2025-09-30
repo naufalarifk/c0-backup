@@ -1,160 +1,94 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
-import { PricefeedRepository } from '../../shared/repositories/pricefeed.repository';
-import { AnyPriceFeedWorkerData, PriceFeedSource, PriceFeedWorkerType } from './pricefeed.types';
-import { PriceFeedQueueService } from './pricefeed-queue.service';
-import { PriceFeedWorkerFactory } from './pricefeed-worker.factory';
+import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { toLowestDenomination } from '../../shared/utils/decimal';
+import { defaultPricefeedConfig } from './pricefeed.config';
+import { PriceFeedProviderFactory } from './pricefeed-provider.factory';
+import { assertPriceFeedSource, type PriceFeedRequest } from './pricefeed-provider.types';
 
 @Injectable()
-export class PriceFeedService {
-  private readonly logger = new Logger(PriceFeedService.name);
+export class PricefeedService {
+  private readonly logger = new Logger(PricefeedService.name);
 
   constructor(
-    @Inject(PricefeedRepository)
-    private readonly repository: PricefeedRepository,
-    private readonly workerFactory: PriceFeedWorkerFactory,
-    private readonly queueService: PriceFeedQueueService,
+    private readonly repository: CryptogadaiRepository,
+    private readonly providerFactory: PriceFeedProviderFactory,
+    private readonly configService: ConfigService,
   ) {}
 
-  /**
-   * Get a worker by type
-   */
-  getWorkerByType(type: PriceFeedWorkerType) {
-    const worker = this.workerFactory.getWorker(type);
-    if (!worker) {
-      throw new Error(`No worker found for type: ${type}`);
-    }
-    return worker;
-  }
+  async fetchAndStorePrices(): Promise<void> {
+    this.logger.log('Starting price feed fetch cycle');
 
-  /**
-   * Get a worker that can process the given data
-   */
-  getWorkerByData(data: AnyPriceFeedWorkerData) {
-    const worker = this.workerFactory.getWorkerByData(data);
-    if (!worker) {
-      throw new Error(`No worker found for data type: ${data.type}`);
-    }
-    return worker;
-  }
-
-  /**
-   * Process work data directly (synchronous processing)
-   */
-  async processWork(data: AnyPriceFeedWorkerData): Promise<void> {
     try {
-      const worker = this.getWorkerByData(data);
-      await worker.processWork(data);
-      this.logger.log(`Successfully processed work: ${data.type}`);
+      const { priceFeeds } = await this.repository.platformRetrievesActivePriceFeeds();
+      this.logger.log(`Found ${priceFeeds.length} active price feeds`);
+
+      const fetchTimeout = this.configService.get<number>(
+        'PRICEFEED_FETCH_TIMEOUT',
+        defaultPricefeedConfig.fetchTimeout,
+      );
+
+      const results = await Promise.allSettled(
+        priceFeeds.map(async priceFeed => {
+          try {
+            assertPriceFeedSource(priceFeed.source);
+
+            const provider = this.providerFactory.getProvider(priceFeed.source);
+
+            if (!provider) {
+              this.logger.warn(`No provider found for source: ${priceFeed.source}`);
+              return;
+            }
+
+            const request: PriceFeedRequest = {
+              priceFeedId: priceFeed.id,
+              blockchainKey: priceFeed.blockchainKey,
+              baseCurrencyTokenId: priceFeed.baseCurrencyTokenId,
+              quoteCurrencyTokenId: priceFeed.quoteCurrencyTokenId,
+              source: priceFeed.source,
+            };
+
+            const priceData = await Promise.race([
+              provider.fetchPrice(request),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('Fetch timeout')), fetchTimeout),
+              ),
+            ]);
+
+            const bidPriceLowest = toLowestDenomination(
+              priceData.bidPrice,
+              priceFeed.quoteCurrencyDecimals,
+            );
+            const askPriceLowest = toLowestDenomination(
+              priceData.askPrice,
+              priceFeed.quoteCurrencyDecimals,
+            );
+
+            await this.repository.platformFeedsExchangeRate({
+              priceFeedId: priceFeed.id,
+              bidPrice: bidPriceLowest,
+              askPrice: askPriceLowest,
+              retrievalDate: priceData.retrievalDate,
+              sourceDate: priceData.sourceDate,
+            });
+
+            this.logger.debug(
+              `Successfully fetched and stored price for ${priceFeed.baseCurrencyTokenId}/${priceFeed.quoteCurrencyTokenId} from ${priceFeed.source}`,
+            );
+          } catch (error) {
+            this.logger.error(`Failed to fetch price for feed ${priceFeed.id}:`, error);
+          }
+        }),
+      );
+
+      const successful = results.filter(result => result.status === 'fulfilled').length;
+      const failed = results.filter(result => result.status === 'rejected').length;
+
+      this.logger.log(`Price fetch cycle completed: ${successful} successful, ${failed} failed`);
     } catch (error) {
-      this.logger.error(`Failed to process work ${data.type}:`, error);
+      this.logger.error('Error during price feed fetch cycle:', error);
       throw error;
     }
-  }
-
-  /**
-   * Queue work for asynchronous processing
-   */
-  async queueWork(data: AnyPriceFeedWorkerData, delay?: number): Promise<void> {
-    await this.queueService.queueWork(data, { delay });
-  }
-
-  /**
-   * Retrieve exchange rates from repository
-   */
-  async getExchangeRates(params: {
-    blockchainKey?: string;
-    baseCurrencyTokenId?: string;
-    quoteCurrencyTokenId?: string;
-  }) {
-    return await this.repository.platformRetrievesExchangeRates(params);
-  }
-
-  /**
-   * Update exchange rate in repository
-   */
-  async updateExchangeRate(params: {
-    priceFeedId: string;
-    bidPrice: string;
-    askPrice: string;
-    retrievalDate: Date;
-    sourceDate: Date;
-  }) {
-    return await this.repository.platformFeedsExchangeRate(params);
-  }
-
-  /**
-   * Queue exchange rate fetch for specific currency pair
-   */
-  async queueExchangeRateFetch(params: {
-    blockchainKey: string;
-    baseCurrencyTokenId: string;
-    quoteCurrencyTokenId: string;
-    sources?: PriceFeedSource[];
-    delay?: number;
-  }): Promise<void> {
-    const sources = params.sources ?? [PriceFeedSource.COINMARKETCAP];
-
-    await this.queueService.queueExchangeRateFetch({
-      blockchainKey: params.blockchainKey,
-      baseCurrencyTokenId: params.baseCurrencyTokenId,
-      quoteCurrencyTokenId: params.quoteCurrencyTokenId,
-      sources,
-      delay: params.delay,
-    });
-  }
-
-  /**
-   * Queue exchange rate update
-   */
-  async queueExchangeRateUpdate(data: {
-    priceFeedId: string;
-    bidPrice: string;
-    askPrice: string;
-    source: PriceFeedSource;
-    sourceDate: Date;
-    retrievalDate: Date;
-  }): Promise<void> {
-    await this.queueService.queueExchangeRateUpdate({
-      priceFeedId: data.priceFeedId,
-      bidPrice: data.bidPrice,
-      askPrice: data.askPrice,
-      source: data.source,
-      sourceDate: data.sourceDate,
-      retrievalDate: data.retrievalDate,
-    });
-  }
-
-  /**
-   * Get queue status for monitoring
-   */
-  async getQueueStatus() {
-    return await this.queueService.getQueueStatus();
-  }
-
-  /**
-   * Find price feed ID for testing
-   */
-  async findTestPriceFeedId(params: {
-    blockchainKey: string;
-    baseCurrencyTokenId: string;
-    quoteCurrencyTokenId: string;
-    source?: string;
-  }) {
-    return await this.repository.systemFindsTestPriceFeedId(params);
-  }
-
-  /**
-   * Create test price feeds
-   */
-  async createTestPriceFeeds(
-    priceFeeds: Array<{
-      blockchainKey: string;
-      baseCurrencyTokenId: string;
-      quoteCurrencyTokenId: string;
-      source: string;
-    }>,
-  ) {
-    return await this.repository.systemCreatesTestPriceFeeds({ priceFeeds });
   }
 }

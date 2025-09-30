@@ -40,6 +40,13 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
       termInMonthsOptions,
       expirationDate,
       createdDate,
+      fundingInvoiceId,
+      fundingInvoicePrepaidAmount,
+      fundingAccountBlockchainKey,
+      fundingAccountTokenId,
+      fundingInvoiceDate,
+      fundingInvoiceDueDate,
+      fundingInvoiceExpiredDate,
       fundingWalletDerivationPath,
       fundingWalletAddress,
     } = params;
@@ -132,10 +139,14 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
       // Create funding invoice
       const invoiceRows = await tx.sql`
         INSERT INTO invoices (
+          id,
           user_id,
           currency_blockchain_key,
           currency_token_id,
+          account_blockchain_key,
+          account_token_id,
           invoiced_amount,
+          prepaid_amount,
           wallet_derivation_path,
           wallet_address,
           invoice_type,
@@ -143,25 +154,32 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
           draft_date,
           invoice_date,
           due_date,
+          expired_date,
           loan_offer_id
         )
         VALUES (
+          ${fundingInvoiceId},
           ${lenderUserId},
           ${principalBlockchainKey},
           ${principalTokenId},
+          ${fundingAccountBlockchainKey ?? null},
+          ${fundingAccountTokenId ?? null},
           ${offeredPrincipalAmount},
+          ${fundingInvoicePrepaidAmount},
           ${fundingWalletDerivationPath},
           ${fundingWalletAddress},
           'LoanPrincipal',
           'Pending',
-          ${createdDate.toISOString()},
-          ${createdDate.toISOString()},
-          ${expirationDate.toISOString()},
+          ${fundingInvoiceDate.toISOString()},
+          ${fundingInvoiceDate.toISOString()},
+          ${fundingInvoiceDueDate.toISOString()},
+          ${fundingInvoiceExpiredDate.toISOString()},
           ${loanOffer.id}
         )
         RETURNING 
           id,
           invoiced_amount,
+          prepaid_amount,
           status,
           invoice_date,
           due_date,
@@ -173,6 +191,7 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
       assertDefined(invoice, 'Funding invoice creation failed');
       assertProp(check(isString, isNumber), invoice, 'id');
       assertProp(check(isString, isNumber), invoice, 'invoiced_amount');
+      assertProp(check(isString, isNumber), invoice, 'prepaid_amount');
       assertPropString(invoice, 'status');
       assertProp(isInstanceOf(Date), invoice, 'invoice_date');
       assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'due_date');
@@ -214,6 +233,7 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
             symbol: currencyUser.symbol,
             name: currencyUser.name,
           },
+          // Prepaid amount will reduce payable amount but repository currently exposes invoiced total
           status: invoice.status as 'Pending' | 'Paid' | 'Expired' | 'Cancelled',
           createdDate: invoice.invoice_date,
           expiryDate: invoice.due_date || invoice.expired_date || expirationDate,

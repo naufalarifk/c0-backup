@@ -1,5 +1,4 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: Global exception filter needs flexible typing for error objects
-import { STATUS_CODES } from 'node:http';
 
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
 
@@ -29,6 +28,22 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     // Handle validation errors (422 status code)
     if (status === HttpStatus.UNPROCESSABLE_ENTITY) {
+      // Check if this is a custom exception with its own error structure
+      if (typeof payload === 'object' && payload !== null) {
+        const p = payload as any;
+        if (p.error && p.error.code && p.error.code !== 'VALIDATION_ERROR') {
+          // This is a custom exception like InterestRateInvalidException
+          // Use the custom error structure as-is
+          return res.status(status).json({
+            success: false,
+            timestamp,
+            requestId,
+            error: p.error,
+          });
+        }
+      }
+
+      // Default validation error handling
       const validationDetails = this.extractValidationDetails(payload);
 
       return res.status(status).json({
@@ -128,6 +143,34 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   private extractValidationDetails(payload: unknown): Record<string, string> {
     if (typeof payload === 'object' && payload !== null) {
       const p = payload as any;
+
+      // NEW: Handle nested validation error structure produced by custom ValidationPipe
+      // The validationOptions.exceptionFactory wraps errors under payload.error.details
+      // e.g. { success:false, error:{ code:'VALIDATION_ERROR', message:'...', details:{ nik:["msg"] } } }
+      // Previously this branch was ignored causing empty details {} in responses.
+      if (p.error && typeof p.error === 'object' && p.error.details) {
+        const nestedDetails = p.error.details as Record<string, unknown>;
+        const flattened: Record<string, string> = {};
+        for (const [field, messages] of Object.entries(nestedDetails)) {
+          if (Array.isArray(messages) && messages.length > 0) {
+            // take first validation message for field (aligns with other branches)
+            flattened[field] = String(messages[0]);
+          } else if (typeof messages === 'string') {
+            flattened[field] = messages;
+          } else if (messages && typeof messages === 'object') {
+            // Nested child validation errors (recursive arrays) – pick first string we can find
+            const first = Object.values(messages)
+              .flat()
+              .find(v => typeof v === 'string');
+            if (typeof first === 'string') {
+              flattened[field] = first;
+            }
+          }
+        }
+        if (Object.keys(flattened).length > 0) {
+          return flattened;
+        }
+      }
 
       // Handle custom errors structure from validation pipe
       if (p.errors && typeof p.errors === 'object') {

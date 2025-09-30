@@ -1,8 +1,9 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
+import { DiscoveryService } from '@nestjs/core';
 
 import { CryptographyModule } from '../../shared/cryptography/cryptography.module';
-import { WalletFactory } from '../../shared/wallets/Iwallet.types';
+import { WalletFactory } from '../../shared/wallets/Iwallet.service';
 import { AdminWithdrawalModule } from '../admin/withdrawals/admin-withdrawal.module';
 import { NotificationModule } from '../notifications/notification.module';
 import { BlockchainService } from './blockchain.service';
@@ -27,6 +28,7 @@ import { WithdrawalsQueueService } from './withdrawals-queue.service';
     WithdrawalsProcessor,
     BlockchainService,
     WalletFactory,
+    DiscoveryService,
   ],
 })
 export class WithdrawalsModule {}

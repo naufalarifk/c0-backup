@@ -25,6 +25,7 @@ export enum LoanApplicationStatus {
   PUBLISHED = 'Published',
   MATCHED = 'Matched',
   EXPIRED = 'Expired',
+  CANCELLED = 'Cancelled',
   CLOSED = 'Closed',
 }
 

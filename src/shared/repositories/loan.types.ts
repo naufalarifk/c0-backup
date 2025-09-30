@@ -10,6 +10,93 @@ export type Currency = {
   name: string;
 };
 
+// Data-only repository operation types (without business logic)
+export type BorrowerGetsCurrencyPairParams = {
+  collateralBlockchainKey: string;
+  collateralTokenId: string;
+  principalBlockchainKey: string;
+  principalTokenId: string;
+};
+
+export type BorrowerGetsCurrencyPairResult = {
+  principalCurrency: Currency;
+  collateralCurrency: Currency;
+};
+
+export type BorrowerGetsPlatformConfigParams = {
+  effectiveDate: Date;
+};
+
+export type BorrowerGetsPlatformConfigResult = {
+  loanProvisionRate: string | number;
+  loanMinLtvRatio: string | number;
+  loanMaxLtvRatio: string | number;
+};
+
+export type BorrowerGetsExchangeRateParams = {
+  collateralTokenId: string;
+  asOfDate?: Date;
+};
+
+export type BorrowerGetsExchangeRateResult = {
+  id: string | number;
+  bidPrice: string;
+  askPrice: string;
+  sourceDate: Date;
+};
+
+export type BorrowerCreatesLoanApplicationParams = {
+  borrowerUserId: string;
+  loanOfferId?: string;
+  collateralBlockchainKey: string;
+  collateralTokenId: string;
+  principalBlockchainKey: string;
+  principalTokenId: string;
+  principalAmount: string; // In smallest units
+  provisionAmount: string; // Pre-calculated in smallest units
+  maxInterestRate: number;
+  minLtvRatio: number; // Pre-calculated decimal
+  maxLtvRatio: number; // Pre-calculated decimal
+  termInMonths: number;
+  liquidationMode: LiquidationMode;
+  collateralDepositAmount: string; // Pre-calculated in smallest units
+  collateralDepositExchangeRateId: string | number;
+  appliedDate: Date;
+  expirationDate: Date;
+  collateralInvoiceId: number;
+  collateralInvoicePrepaidAmount: string;
+  collateralAccountBlockchainKey?: string;
+  collateralAccountTokenId?: string;
+  collateralInvoiceDate: Date;
+  collateralInvoiceDueDate: Date;
+  collateralInvoiceExpiredDate: Date;
+  collateralWalletDerivationPath: string;
+  collateralWalletAddress: string;
+};
+
+export type BorrowerCreatesLoanApplicationResult = {
+  id: string;
+  borrowerUserId: string;
+  loanOfferId?: string;
+  principalCurrency: Currency;
+  principalAmount: string;
+  provisionAmount: string;
+  maxInterestRate: number;
+  minLtvRatio: number;
+  maxLtvRatio: number;
+  termInMonths: number;
+  liquidationMode: LiquidationMode;
+  collateralCurrency: Currency;
+  collateralDepositAmount: string;
+  collateralDepositExchangeRateId: string | number;
+  appliedDate: Date;
+  expirationDate: Date;
+  collateralInvoice: Invoice;
+  collateralDepositInvoice: Invoice; // Alias for backward compatibility
+  status: LoanApplicationStatus;
+  loanApplicationStatus: LoanApplicationStatus; // Keep both for compatibility
+};
+
 export type Invoice = {
   id: string;
   amount: string;
@@ -25,6 +112,7 @@ export type LoanApplicationStatus =
   | 'PendingCollateral'
   | 'Published'
   | 'Matched'
+  | 'Cancelled'
   | 'Closed'
   | 'Expired';
 export type LoanStatus = 'Originated' | 'Active' | 'Liquidated' | 'Repaid' | 'Defaulted';
@@ -45,6 +133,13 @@ export type LenderCreatesLoanOfferParams = {
   termInMonthsOptions: number[];
   expirationDate: Date;
   createdDate: Date;
+  fundingInvoiceId: number;
+  fundingInvoicePrepaidAmount: string;
+  fundingAccountBlockchainKey?: string;
+  fundingAccountTokenId?: string;
+  fundingInvoiceDate: Date;
+  fundingInvoiceDueDate: Date;
+  fundingInvoiceExpiredDate: Date;
   fundingWalletDerivationPath: string;
   fundingWalletAddress: string;
 };
@@ -135,6 +230,45 @@ export type PlatformListsAvailableLoanOffersResult = {
   pagination: PaginationMeta;
 };
 
+export type PlatformListsAvailableLoanApplicationsParams = {
+  collateralBlockchainKey?: string;
+  collateralTokenId?: string;
+  principalBlockchainKey?: string;
+  principalTokenId?: string;
+  minPrincipalAmount?: number;
+  maxPrincipalAmount?: number;
+  liquidationMode?: string;
+  page?: number;
+  limit?: number;
+};
+
+export type PlatformListsMatchableLoanApplicationsParams = {
+  page?: number;
+  limit?: number;
+};
+
+export type PlatformListsMatchableLoanApplicationsResult = {
+  loanApplications: Array<{
+    id: string;
+    borrowerUserId: string;
+    loanOfferId?: string;
+    principalCurrency: Currency;
+    principalAmount: string;
+    maxInterestRate: number;
+    termInMonths: number;
+    collateralBlockchainKey: string;
+    collateralTokenId: string;
+    collateralDepositAmount: string;
+    principalBlockchainKey: string;
+    principalTokenId: string;
+    status: LoanApplicationStatus;
+    appliedDate: Date;
+    expirationDate: Date;
+    matchedLoanOfferId?: string;
+  }>;
+  pagination: PaginationMeta;
+};
+
 // Loan Application Types
 export type BorrowerCalculatesLoanRequirementsParams = {
   collateralBlockchainKey: string;
@@ -146,63 +280,30 @@ export type BorrowerCalculatesLoanRequirementsParams = {
   calculationDate: Date;
 };
 
-export type BorrowerCalculatesLoanRequirementsResult = {
-  success: boolean;
-  data: {
-    principalAmount: string;
-    principalCurrency: Currency;
-    collateralCurrency: Currency;
-    requiredCollateralAmount: string;
-    minLtvRatio: number;
-    maxLtvRatio: number;
-    provisionAmount: string;
-    provisionRate: number;
-    exchangeRate: {
+export type PlatformListsAvailableLoanApplicationsResult = {
+  loanApplications: Array<{
+    id: string;
+    borrowerUserId: string;
+    borrower: {
       id: string;
-      rate: string;
-      timestamp: Date;
+      type: 'Individual' | 'Institution';
+      name: string;
     };
+    collateralCurrency: Currency;
+    principalCurrency: Currency;
+    principalAmount: string;
+    maxInterestRate: number;
     termInMonths: number;
+    liquidationMode: LiquidationMode;
+    status: LoanApplicationStatus;
+    appliedDate: Date;
+    publishedDate?: Date;
     expirationDate: Date;
-  };
+  }>;
+  pagination: PaginationMeta;
 };
 
-export type BorrowerCreatesLoanApplicationParams = {
-  borrowerUserId: string;
-  loanOfferId?: string; // Optional - specific loan offer targeting
-  collateralBlockchainKey: string;
-  collateralTokenId: string;
-  principalBlockchainKey: string;
-  principalTokenId: string;
-  principalAmount: string;
-  maxInterestRate: number;
-  termInMonths: number;
-  liquidationMode: LiquidationMode;
-  appliedDate: Date;
-  expirationDate: Date;
-  collateralWalletDerivationPath: string;
-  collateralWalletAddress: string;
-};
-
-export type BorrowerCreatesLoanApplicationResult = {
-  id: string;
-  borrowerUserId: string;
-  loanOfferId?: string;
-  principalCurrency: Currency;
-  principalAmount: string;
-  provisionAmount: string;
-  maxInterestRate: number;
-  minLtvRatio: number;
-  maxLtvRatio: number;
-  termInMonths: number;
-  liquidationMode: LiquidationMode;
-  collateralCurrency: Currency;
-  collateralDepositAmount: string;
-  status: LoanApplicationStatus;
-  appliedDate: Date;
-  expirationDate: Date;
-  collateralDepositInvoice: Invoice;
-};
+// Loan Application Types (legacy definitions now moved above)
 
 export type BorrowerUpdatesLoanApplicationParams = {
   loanApplicationId: string;
@@ -347,6 +448,8 @@ export type UserViewsLoansResult = {
     concludedDate?: Date;
     currentLtvRatio?: number;
     mcLtvRatio: number;
+    interestRate: number;
+    termInMonths: number;
   }>;
   pagination: PaginationMeta;
 };
@@ -462,7 +565,7 @@ export type BorrowerRepaysLoanResult = {
 export type BorrowerRequestsEarlyRepaymentParams = {
   loanId: string;
   borrowerUserId: string;
-  acknowledgment: string;
+  acknowledgment: string | boolean;
   requestDate: Date;
   repaymentWalletDerivationPath: string;
   repaymentWalletAddress: string;
@@ -531,7 +634,7 @@ export type BorrowerRequestsEarlyLiquidationEstimateResult = {
 export type BorrowerRequestsEarlyLiquidationParams = {
   loanId: string;
   borrowerUserId: string;
-  acknowledgment: string;
+  acknowledgment: boolean | string;
   requestDate: Date;
 };
 
@@ -543,6 +646,31 @@ export type BorrowerRequestsEarlyLiquidationResult = {
     liquidationRequestDate: Date;
     liquidationStatus: LiquidationStatus;
   };
+};
+
+export type SystemUpdatesLiquidationTargetAmountParams = {
+  loanId: string;
+  liquidationTargetAmount: string; // Pre-calculated in smallest units by service layer
+};
+
+export type SystemUpdatesLiquidationTargetAmountResult = {
+  loanId: string;
+  liquidationTargetAmount: string;
+};
+
+export type BorrowerGetsLoanAmountsParams = {
+  loanId: string;
+  borrowerUserId: string;
+};
+
+export type BorrowerGetsLoanAmountsResult = {
+  loanId: string;
+  repaymentAmount: string;
+  premiAmount: string;
+  liquidationFeeAmount: string;
+  principalAmount: string;
+  interestAmount: string;
+  status: string;
 };
 
 // Platform Liquidation Types

@@ -111,7 +111,9 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
       join(__dirname, './postgres/0009-price-feed.sql'),
       join(__dirname, './postgres/0010-invoice.sql'),
       join(__dirname, './postgres/0011-loan.sql'),
+      join(__dirname, './postgres/0012-loan-documents.sql'),
       join(__dirname, './postgres/0012-withdrawal.sql'),
+      join(__dirname, './postgres/0013-loan-agreement-signatures.sql'),
     ];
 
     const client = await this.#pool.connect();

@@ -15,7 +15,8 @@ import {
   assertPropDefined,
   assertPropString,
   assertString,
-} from './setup/assertions';
+} from 'typeshaper';
+
 import { setupBetterAuthClient } from './setup/better-auth';
 import { waitForEmailVerification, waitForPasswordResetEmail } from './setup/mailpit';
 import { setup } from './setup/setup';
@@ -24,16 +25,16 @@ import { after, before, describe, it, suite } from './setup/test';
 suite('Guest Password Reset UI Flow', function () {
   let testId: string;
   let testSetup: Awaited<ReturnType<typeof setup>>;
-  let authClient: ReturnType<typeof setupBetterAuthClient>;
+  let testUser: ReturnType<typeof setupBetterAuthClient>;
 
   before(async function () {
     testId = Date.now().toString(36).toLowerCase();
     testSetup = await setup();
-    authClient = setupBetterAuthClient(testSetup.backendUrl);
+    testUser = setupBetterAuthClient(testSetup.backendUrl);
   });
 
   after(async function () {
-    await testSetup?.teardown();
+    await testSetup.teardown();
   });
 
   describe('Password Reset Request Page (Initial State)', function () {
@@ -41,7 +42,7 @@ suite('Guest Password Reset UI Flow', function () {
       const email = `reset_request_${testId}@test.com`;
       const password = 'ValidPassword123!';
 
-      await authClient.signUp.email({
+      await testUser.authClient.signUp.email({
         email,
         password,
         name: email,
@@ -50,7 +51,7 @@ suite('Guest Password Reset UI Flow', function () {
 
       await waitForEmailVerification(testSetup.mailpitUrl, email);
 
-      const { data, error } = await authClient.forgetPassword({ email });
+      const { data, error } = await testUser.authClient.forgetPassword({ email });
 
       ok(!error, `Password reset request failed: ${error?.message}`);
       ok(data !== null, 'Password reset request should return data');
@@ -59,7 +60,7 @@ suite('Guest Password Reset UI Flow', function () {
     it('shall handle non-existent email addresses gracefully', async function () {
       const nonExistentEmail = `nonexistent_${testId}@test.com`;
 
-      const { data, error } = await authClient.forgetPassword({ email: nonExistentEmail });
+      const { error } = await testUser.authClient.forgetPassword({ email: nonExistentEmail });
 
       ok(!error, 'Password reset request should not error for non-existent emails (privacy)');
     });
@@ -67,7 +68,7 @@ suite('Guest Password Reset UI Flow', function () {
     it('shall handle invalid email format gracefully', async function () {
       const invalidEmail = 'invalid-email-format';
 
-      const { data, error } = await authClient.forgetPassword({ email: invalidEmail });
+      const { error } = await testUser.authClient.forgetPassword({ email: invalidEmail });
 
       ok(error, 'Password reset request should return error for invalid email format');
       assertString(error.message);
@@ -77,7 +78,7 @@ suite('Guest Password Reset UI Flow', function () {
     it('shall handle empty email field gracefully', async function () {
       const emptyEmail = '';
 
-      const { data, error } = await authClient.forgetPassword({ email: emptyEmail });
+      const { error } = await testUser.authClient.forgetPassword({ email: emptyEmail });
 
       ok(error, 'Password reset request should return error for empty email');
       assertString(error.message);
@@ -93,7 +94,7 @@ suite('Guest Password Reset UI Flow', function () {
       validEmail = `error_states_${testId}@test.com`;
       const password = 'ValidPassword123!';
 
-      await authClient.signUp.email({
+      await testUser.authClient.signUp.email({
         email: validEmail,
         password,
         name: validEmail,
@@ -101,7 +102,7 @@ suite('Guest Password Reset UI Flow', function () {
       });
 
       await waitForEmailVerification(testSetup.mailpitUrl, validEmail);
-      await authClient.forgetPassword({ email: validEmail });
+      await testUser.authClient.forgetPassword({ email: validEmail });
 
       const { resetToken } = await waitForPasswordResetEmail(testSetup.mailpitUrl, validEmail);
       validResetToken = resetToken;
@@ -111,7 +112,7 @@ suite('Guest Password Reset UI Flow', function () {
       const invalidToken = 'invalid-token-xyz';
       const newPassword = 'NewPassword123!';
 
-      const { data, error } = await authClient.resetPassword({
+      const { data, error } = await testUser.authClient.resetPassword({
         newPassword,
         token: invalidToken,
       });
@@ -126,12 +127,12 @@ suite('Guest Password Reset UI Flow', function () {
       const expiredToken = validResetToken;
       const newPassword = 'NewPassword123!';
 
-      await authClient.resetPassword({
+      await testUser.authClient.resetPassword({
         newPassword,
         token: expiredToken,
       });
 
-      const { data, error } = await authClient.resetPassword({
+      const { data, error } = await testUser.authClient.resetPassword({
         newPassword: 'AnotherPassword123!',
         token: expiredToken,
       });
@@ -145,7 +146,7 @@ suite('Guest Password Reset UI Flow', function () {
       const malformedToken = 'malformed.token.structure';
       const newPassword = 'NewPassword123!';
 
-      const { data, error } = await authClient.resetPassword({
+      const { data, error } = await testUser.authClient.resetPassword({
         newPassword,
         token: malformedToken,
       });
@@ -163,7 +164,7 @@ suite('Guest Password Reset UI Flow', function () {
       resetEmail = `new_password_${testId}@test.com`;
       const password = 'ValidPassword123!';
 
-      await authClient.signUp.email({
+      await testUser.authClient.signUp.email({
         email: resetEmail,
         password,
         name: resetEmail,
@@ -171,7 +172,7 @@ suite('Guest Password Reset UI Flow', function () {
       });
 
       await waitForEmailVerification(testSetup.mailpitUrl, resetEmail);
-      await authClient.forgetPassword({ email: resetEmail });
+      await testUser.authClient.forgetPassword({ email: resetEmail });
 
       const result = await waitForPasswordResetEmail(testSetup.mailpitUrl, resetEmail);
       resetToken = result.resetToken;
@@ -180,7 +181,7 @@ suite('Guest Password Reset UI Flow', function () {
     it('shall accept valid new password', async function () {
       const newPassword = 'ValidNewPassword123!';
 
-      const { data, error } = await authClient.resetPassword({
+      const { data, error } = await testUser.authClient.resetPassword({
         newPassword,
         token: resetToken,
       });
@@ -192,7 +193,7 @@ suite('Guest Password Reset UI Flow', function () {
     it('shall validate password strength requirements', async function () {
       const weakPassword = '123';
 
-      const { data, error } = await authClient.resetPassword({
+      const { data, error } = await testUser.authClient.resetPassword({
         newPassword: weakPassword,
         token: resetToken,
       });
@@ -204,7 +205,7 @@ suite('Guest Password Reset UI Flow', function () {
     it('shall reject passwords that are too short', async function () {
       const shortPassword = 'Aa1!';
 
-      const { data, error } = await authClient.resetPassword({
+      const { data, error } = await testUser.authClient.resetPassword({
         newPassword: shortPassword,
         token: resetToken,
       });
@@ -227,7 +228,7 @@ suite('Guest Password Reset UI Flow', function () {
       ];
 
       for (const testCase of testCases) {
-        const { data, error } = await authClient.resetPassword({
+        const { data, error } = await testUser.authClient.resetPassword({
           newPassword: testCase.password,
           token: resetToken,
         });
@@ -249,7 +250,7 @@ suite('Guest Password Reset UI Flow', function () {
       const originalPassword = 'OriginalPassword123!';
       const newPassword = 'NewPassword123!';
 
-      await authClient.signUp.email({
+      await testUser.authClient.signUp.email({
         email: successEmail,
         password: originalPassword,
         name: successEmail,
@@ -258,11 +259,11 @@ suite('Guest Password Reset UI Flow', function () {
 
       await waitForEmailVerification(testSetup.mailpitUrl, successEmail);
 
-      await authClient.forgetPassword({ email: successEmail });
+      await testUser.authClient.forgetPassword({ email: successEmail });
 
       const { resetToken } = await waitForPasswordResetEmail(testSetup.mailpitUrl, successEmail);
 
-      const resetResult = await authClient.resetPassword({
+      const resetResult = await testUser.authClient.resetPassword({
         newPassword,
         token: resetToken,
       });
@@ -270,7 +271,7 @@ suite('Guest Password Reset UI Flow', function () {
       ok(resetResult.data, `Password reset failed: ${resetResult.error?.message}`);
       ok(!resetResult.error, 'Password reset should not have an error');
 
-      const signInResult = await authClient.signIn.email({
+      const signInResult = await testUser.authClient.signIn.email({
         email: successEmail,
         password: newPassword,
       });
@@ -289,7 +290,7 @@ suite('Guest Password Reset UI Flow', function () {
       const originalPassword = 'OriginalPassword123!';
       const newPassword = 'NewPassword123!';
 
-      await authClient.signUp.email({
+      await testUser.authClient.signUp.email({
         email: oldPasswordEmail,
         password: originalPassword,
         name: oldPasswordEmail,
@@ -298,25 +299,28 @@ suite('Guest Password Reset UI Flow', function () {
 
       await waitForEmailVerification(testSetup.mailpitUrl, oldPasswordEmail);
 
-      await authClient.forgetPassword({ email: oldPasswordEmail });
+      await testUser.authClient.forgetPassword({ email: oldPasswordEmail });
 
       const { resetToken } = await waitForPasswordResetEmail(
         testSetup.mailpitUrl,
         oldPasswordEmail,
       );
 
-      await authClient.resetPassword({
+      await testUser.authClient.resetPassword({
         newPassword,
         token: resetToken,
       });
 
-      const oldPasswordSignIn = await authClient.signIn.email({
+      const oldPasswordSignIn = await testUser.authClient.signIn.email({
         email: oldPasswordEmail,
         password: originalPassword,
       });
 
       ok(oldPasswordSignIn.error, 'Sign in with old password should fail');
-      ok('user' in (oldPasswordSignIn.data ?? {}), 'Should not return user data for old password');
+      ok(
+        !('user' in (oldPasswordSignIn.data ?? {})),
+        'Should not return user data for old password',
+      );
     });
   });
 
@@ -326,7 +330,7 @@ suite('Guest Password Reset UI Flow', function () {
       const originalPassword = 'OriginalPassword123!';
       const newPassword = 'NewPassword123!';
 
-      await authClient.signUp.email({
+      await testUser.authClient.signUp.email({
         email: mobileEmail,
         password: originalPassword,
         name: mobileEmail,
@@ -335,11 +339,11 @@ suite('Guest Password Reset UI Flow', function () {
 
       await waitForEmailVerification(testSetup.mailpitUrl, mobileEmail);
 
-      await authClient.forgetPassword({ email: mobileEmail });
+      await testUser.authClient.forgetPassword({ email: mobileEmail });
 
       const { resetToken } = await waitForPasswordResetEmail(testSetup.mailpitUrl, mobileEmail);
 
-      const resetResult = await authClient.resetPassword({
+      const resetResult = await testUser.authClient.resetPassword({
         newPassword,
         token: resetToken,
       });
@@ -347,7 +351,7 @@ suite('Guest Password Reset UI Flow', function () {
       ok(resetResult.data, `Mobile password reset failed: ${resetResult.error?.message}`);
       ok(!resetResult.error, 'Mobile password reset should not have an error');
 
-      const signInResult = await authClient.signIn.email({
+      const signInResult = await testUser.authClient.signIn.email({
         email: mobileEmail,
         password: newPassword,
       });
@@ -365,7 +369,7 @@ suite('Guest Password Reset UI Flow', function () {
       const originalPassword = 'OriginalPassword123!';
       const newPassword = 'NewPassword123!';
 
-      await authClient.signUp.email({
+      await testUser.authClient.signUp.email({
         email: journeyEmail,
         password: originalPassword,
         name: journeyEmail,
@@ -374,21 +378,21 @@ suite('Guest Password Reset UI Flow', function () {
 
       await waitForEmailVerification(testSetup.mailpitUrl, journeyEmail);
 
-      const resetRequestResult = await authClient.forgetPassword({ email: journeyEmail });
+      const resetRequestResult = await testUser.authClient.forgetPassword({ email: journeyEmail });
       ok(!resetRequestResult.error, 'Step 1: Password reset request should succeed');
 
       const { resetToken } = await waitForPasswordResetEmail(testSetup.mailpitUrl, journeyEmail);
       assertString(resetToken);
       ok(resetToken.length > 0, 'Step 2: Should receive valid reset token');
 
-      const passwordResetResult = await authClient.resetPassword({
+      const passwordResetResult = await testUser.authClient.resetPassword({
         newPassword,
         token: resetToken,
       });
       ok(passwordResetResult.data, 'Step 3: Password reset should succeed');
       ok(!passwordResetResult.error, 'Step 3: Password reset should not have errors');
 
-      const signInResult = await authClient.signIn.email({
+      const signInResult = await testUser.authClient.signIn.email({
         email: journeyEmail,
         password: newPassword,
       });
@@ -402,16 +406,16 @@ suite('Guest Password Reset UI Flow', function () {
       const invalidToken = 'invalid-token';
       const weakPassword = '123';
 
-      const emailResult = await authClient.forgetPassword({ email: invalidEmail });
+      const emailResult = await testUser.authClient.forgetPassword({ email: invalidEmail });
       ok(emailResult.error, 'Should handle invalid email with proper error response');
 
-      const tokenResult = await authClient.resetPassword({
+      const tokenResult = await testUser.authClient.resetPassword({
         newPassword: 'ValidPassword123!',
         token: invalidToken,
       });
       ok(tokenResult.error, 'Should handle invalid token consistently');
 
-      const passwordResult = await authClient.resetPassword({
+      const passwordResult = await testUser.authClient.resetPassword({
         newPassword: weakPassword,
         token: 'some-token',
       });
@@ -422,7 +426,7 @@ suite('Guest Password Reset UI Flow', function () {
       const securityEmail = `security_test_${testId}@test.com`;
       const password = 'ValidPassword123!';
 
-      await authClient.signUp.email({
+      await testUser.authClient.signUp.email({
         email: securityEmail,
         password,
         name: securityEmail,
@@ -431,17 +435,17 @@ suite('Guest Password Reset UI Flow', function () {
 
       await waitForEmailVerification(testSetup.mailpitUrl, securityEmail);
 
-      await authClient.forgetPassword({ email: securityEmail });
+      await testUser.authClient.forgetPassword({ email: securityEmail });
 
       const { resetToken } = await waitForPasswordResetEmail(testSetup.mailpitUrl, securityEmail);
 
-      const usedTokenResult = await authClient.resetPassword({
+      const usedTokenResult = await testUser.authClient.resetPassword({
         newPassword: 'FirstNewPassword123!',
         token: resetToken,
       });
       ok(usedTokenResult.data, 'First use of token should succeed');
 
-      const reuseTokenResult = await authClient.resetPassword({
+      const reuseTokenResult = await testUser.authClient.resetPassword({
         newPassword: 'SecondNewPassword123!',
         token: resetToken,
       });

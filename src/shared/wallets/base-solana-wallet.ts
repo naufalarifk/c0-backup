@@ -18,15 +18,27 @@ export abstract class BaseSolanaWallet extends IWallet {
   }
 
   async getAddress(): Promise<string> {
-    const privateKeyArray = Array.from(this.privateKey);
-    const keypair = Keypair.fromSecretKey(Uint8Array.from(privateKeyArray));
+    const keypair = this.createKeypair();
     return keypair.publicKey.toBase58();
+  }
+
+  private createKeypair(): Keypair {
+    // Solana expects a 64-byte secret key, but HDKey provides 32 bytes
+    // For Solana, we use the 32-byte private key as seed to generate the keypair
+    if (this.privateKey.length === 32) {
+      return Keypair.fromSeed(new Uint8Array(this.privateKey));
+    } else if (this.privateKey.length === 64) {
+      return Keypair.fromSecretKey(new Uint8Array(this.privateKey));
+    } else {
+      throw new Error(
+        `Invalid private key length: ${this.privateKey.length}. Expected 32 or 64 bytes.`,
+      );
+    }
   }
 
   async transfer(params: WalletTransferParams): Promise<{ txHash: string }> {
     try {
-      const privateKeyArray = Array.from(this.privateKey);
-      const keypair = Keypair.fromSecretKey(Uint8Array.from(privateKeyArray));
+      const keypair = this.createKeypair();
       const toPubkey = new PublicKey(params.to);
       const amountLamports = Math.floor(parseFloat(params.value) * LAMPORTS_PER_SOL);
 

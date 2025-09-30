@@ -1,6 +1,8 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: Allow any */
 import { Injectable } from '@nestjs/common';
 
+import { assertDefined, assertPropString } from 'typeshaper';
+
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { ensureExists, ensureValid } from '../../../shared/utils/ensures.js';
@@ -259,7 +261,7 @@ export class AdminWithdrawalsService {
       priority: notification.priority,
       requiresAction: true,
       reviewLink: notification.reviewLink,
-    } as any);
+    });
 
     this.logger.log(`[WM-004] Admin notification queued for withdrawal ${withdrawalId}`);
   }
@@ -270,9 +272,19 @@ export class AdminWithdrawalsService {
     withdrawalId: string,
     adminUserId: string,
     decision: AdminRefundDecisionDto,
-    withdrawal: any,
+    withdrawal: unknown,
     processedAt: Date,
   ): Promise<RefundProcessResponseDto> {
+    assertDefined(withdrawal);
+    assertPropString(withdrawal, 'userId');
+    assertPropString(withdrawal, 'amount');
+    const w = withdrawal as {
+      userId: string;
+      amount: string;
+      currencyBlockchainKey?: string;
+      currencyTokenId?: string;
+    };
+
     this.logger.log(`[WM-004] Processing refund approval for withdrawal: ${withdrawalId}`);
 
     // Approve refund in database
@@ -287,13 +299,13 @@ export class AdminWithdrawalsService {
     try {
       // First, get the user's account for this currency
       const accounts = await this.repo.userRetrievesAccountBalances({
-        userId: withdrawal.userId,
+        userId: w.userId,
       });
 
       const account = accounts.accounts.find(
         acc =>
-          acc.currencyBlockchainKey === withdrawal.currencyBlockchainKey &&
-          acc.currencyTokenId === withdrawal.currencyTokenId,
+          acc.currencyBlockchainKey === w.currencyBlockchainKey &&
+          acc.currencyTokenId === w.currencyTokenId,
       );
 
       if (account) {
@@ -304,13 +316,13 @@ export class AdminWithdrawalsService {
             {
               mutationType: 'WithdrawalRefunded',
               mutationDate: processedAt.toISOString(),
-              amount: withdrawal.amount,
+              amount: w.amount,
             },
           ],
         });
 
         this.logger.log(
-          `[WM-004] Refund account mutation created for withdrawal ${withdrawalId}, amount: ${withdrawal.amount}`,
+          `[WM-004] Refund account mutation created for withdrawal ${withdrawalId}, amount: ${w.amount}`,
         );
       } else {
         this.logger.warn(`[WM-004] Could not find account for refund mutation: ${withdrawalId}`);
@@ -328,11 +340,11 @@ export class AdminWithdrawalsService {
       type: 'WithdrawalRefunded',
       name: 'Withdrawal Refunded',
       withdrawalId,
-      refundAmount: withdrawal.amount,
+      refundAmount: w.amount,
       refundReason: decision.reason,
       adminNotes: decision.adminNotes,
       nextSteps: 'You can now initiate a new withdrawal request if needed.',
-    } as any);
+    });
 
     // Send admin confirmation
     await this.notificationQueueService.queueNotification({
@@ -341,16 +353,16 @@ export class AdminWithdrawalsService {
       withdrawalId,
       adminUserId,
       decision: decision.decision,
-      refundAmount: withdrawal.amount,
+      refundAmount: w.amount,
       processedAt: processedAt.toISOString(),
-    } as any);
+    });
 
     return {
       success: true,
       message: 'Refund approved and processed successfully',
       withdrawalId,
       decision: RefundDecision.APPROVE,
-      refundedAmount: withdrawal.amount,
+      refundedAmount: w.amount,
       refundTransactionId: `refund_${withdrawalId}`,
       processedAt: processedAt.toISOString(),
     };
@@ -380,7 +392,7 @@ export class AdminWithdrawalsService {
       rejectionReason: decision.reason,
       adminNotes: decision.adminNotes,
       nextSteps: 'Please contact support if you believe this decision was made in error.',
-    } as any);
+    });
 
     // Send admin confirmation
     await this.notificationQueueService.queueNotification({
@@ -391,7 +403,7 @@ export class AdminWithdrawalsService {
       decision: decision.decision,
       rejectionReason: decision.reason,
       processedAt: processedAt.toISOString(),
-    } as any);
+    });
 
     return {
       success: true,
@@ -406,7 +418,7 @@ export class AdminWithdrawalsService {
     withdrawalId: string,
     adminUserId: string,
     decision: AdminRefundDecisionDto,
-    withdrawal: any,
+    withdrawal: unknown,
     processedAt: Date,
   ): Promise<RefundProcessResponseDto> {
     this.logger.log(`[WM-004] Processing info request for withdrawal: ${withdrawalId}`);
@@ -419,7 +431,7 @@ export class AdminWithdrawalsService {
       infoRequest: decision.reason,
       adminNotes: decision.adminNotes,
       nextSteps: 'Please provide the requested information to proceed with your refund request.',
-    } as any);
+    });
 
     // Send admin confirmation
     await this.notificationQueueService.queueNotification({
@@ -430,7 +442,7 @@ export class AdminWithdrawalsService {
       decision: decision.decision,
       infoRequest: decision.reason,
       processedAt: processedAt.toISOString(),
-    } as any);
+    });
 
     return {
       success: true,

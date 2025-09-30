@@ -75,6 +75,29 @@ export interface PlatformCreatesInvoiceResult {
   dueDate?: Date | null;
 }
 
+export interface ActiveInvoiceRecord {
+  id: string;
+  userId: string;
+  walletAddress: string;
+  currencyBlockchainKey: string;
+  currencyTokenId: string;
+  accountBlockchainKey?: string | null;
+  accountTokenId?: string | null;
+  invoiceType: string;
+  status: string;
+  invoicedAmount: string;
+  prepaidAmount: string;
+  paidAmount: string;
+  dueDate?: Date | null;
+  expiredDate?: Date | null;
+}
+
+export interface PlatformViewsActiveInvoicesParams {
+  blockchainKey?: string;
+  limit?: number;
+  offset?: number;
+}
+
 export interface BlockchainDetectsInvoicePaymentParams {
   invoiceId: string;
   paymentHash: string;

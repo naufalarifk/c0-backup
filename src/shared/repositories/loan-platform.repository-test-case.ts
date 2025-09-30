@@ -198,9 +198,9 @@ export async function runLoanPlatformRepositoryTestSuite(
               lenderUserId: lender.id,
               principalBlockchainKey: 'eip155:56',
               principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-              offeredPrincipalAmount: '1000000000', // 1000 USDT
-              minLoanPrincipalAmount: '100000000', // 100 USDT
-              maxLoanPrincipalAmount: '500000000', // 500 USDT
+              offeredPrincipalAmount: '1000', // 1000 USDT (human-readable format)
+              minLoanPrincipalAmount: '100', // 100 USDT (human-readable format)
+              maxLoanPrincipalAmount: '500', // 500 USDT (human-readable format)
               interestRate: 15.5,
               termInMonthsOptions: [3, 6, 12],
               expirationDate,
@@ -248,6 +248,7 @@ export async function runLoanPlatformRepositoryTestSuite(
             await repo.systemCreatesTestBlockchains({
               blockchains: [
                 { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
+                { key: 'bitcoin', name: 'Bitcoin', shortName: 'BTC', image: 'btc.png' },
               ],
             });
 
@@ -268,8 +269,8 @@ export async function runLoanPlatformRepositoryTestSuite(
               baseCurrencyTokenId: 'slip44:714',
               quoteCurrencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
               source: 'test',
-              bidPrice: 2000,
-              askPrice: 2010,
+              bidPrice: 100000,
+              askPrice: 100000,
               sourceDate: new Date('2024-01-01T10:00:00.000Z'),
             });
 
@@ -283,10 +284,15 @@ export async function runLoanPlatformRepositoryTestSuite(
               collateralTokenId: 'slip44:714',
               principalBlockchainKey: 'eip155:56',
               principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-              principalAmount: '1000000000', // 1000 USDT
+              principalAmount: '10000000000000000000', // 10 USDT in smallest units (18 decimals)
+              provisionAmount: '250000000000000000', // 2.5% provision
               maxInterestRate: 20.0,
+              minLtvRatio: 0.5,
+              maxLtvRatio: 0.75,
               termInMonths: 6,
               liquidationMode: 'Partial',
+              collateralDepositAmount: '500000000000000', // 0.0005 BNB (18 decimals)
+              collateralDepositExchangeRateId: '1',
               appliedDate,
               expirationDate,
               collateralWalletDerivationPath: "m/44'/0'/0'/0/88800",
@@ -529,9 +535,9 @@ export async function runLoanPlatformRepositoryTestSuite(
           lenderUserId: lender.id,
           principalBlockchainKey: 'eip155:56',
           principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-          offeredPrincipalAmount: '1000000000', // 1000 USDT
-          minLoanPrincipalAmount: '100000000', // 100 USDT
-          maxLoanPrincipalAmount: '500000000', // 500 USDT
+          offeredPrincipalAmount: '2000000000000000000', // 2 USDT in smallest units (18 decimals)
+          minLoanPrincipalAmount: '100000000000000000', // 0.1 USDT in smallest units
+          maxLoanPrincipalAmount: '1500000000000000000', // 1.5 USDT in smallest units (enough for 1 USDT loan application)
           interestRate: 15.5,
           termInMonthsOptions: [3, 6, 12],
           expirationDate,
@@ -553,10 +559,15 @@ export async function runLoanPlatformRepositoryTestSuite(
           collateralTokenId: 'slip44:714',
           principalBlockchainKey: 'eip155:56',
           principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-          principalAmount: '500000000', // 500 USDT (within range)
+          principalAmount: '1000000000000000000', // 1 USDT in smallest units
+          provisionAmount: '25000000000000000', // 2.5% provision
           maxInterestRate: 20.0,
+          minLtvRatio: 0.5,
+          maxLtvRatio: 0.75,
           termInMonths: 6,
           liquidationMode: 'Partial',
+          collateralDepositAmount: '250000000000000', // 0.00025 BNB in smallest units
+          collateralDepositExchangeRateId: '1',
           appliedDate: createdDate,
           expirationDate,
           collateralWalletDerivationPath: "m/44'/0'/0'/0/88890",
@@ -574,7 +585,7 @@ export async function runLoanPlatformRepositoryTestSuite(
         it('should match loan offer and application successfully', async function () {
           const matchedDate = new Date('2024-01-03T10:00:00.000Z');
           const matchedLtvRatio = 0.65; // 65%
-          const matchedCollateralValuationAmount = '769230769'; // 500 USDT / 65% = ~769 USDT
+          const matchedCollateralValuationAmount = '1538462'; // 1 USDT / 65% = ~1.54 USDT
 
           const matchResult = await repo.platformMatchesLoanOffers({
             loanApplicationId: loanApplication.id,
@@ -599,7 +610,7 @@ export async function runLoanPlatformRepositoryTestSuite(
                 loanOfferId: loanOffer.id,
                 matchedDate: new Date('2024-01-03T10:00:00.000Z'),
                 matchedLtvRatio: 0.65,
-                matchedCollateralValuationAmount: '769230769',
+                matchedCollateralValuationAmount: '1538462',
               });
             },
             { message: 'Loan application not found or not in Published status' },
@@ -614,10 +625,15 @@ export async function runLoanPlatformRepositoryTestSuite(
             collateralTokenId: 'slip44:714',
             principalBlockchainKey: 'eip155:56',
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-            principalAmount: '300000000',
+            principalAmount: '1000000000000000000', // 1 USDT in smallest units
+            provisionAmount: '25000000000000000', // 2.5% provision
             maxInterestRate: 20.0,
+            minLtvRatio: 0.5,
+            maxLtvRatio: 0.75,
             termInMonths: 6,
             liquidationMode: 'Partial',
+            collateralDepositAmount: '75000000000000000', // 0.075 BNB in smallest units
+            collateralDepositExchangeRateId: '1',
             appliedDate: new Date('2024-01-01T10:00:00.000Z'),
             expirationDate: new Date('2024-01-31T23:59:59.999Z'),
             collateralWalletDerivationPath: "m/44'/0'/0'/0/88891",
@@ -637,7 +653,7 @@ export async function runLoanPlatformRepositoryTestSuite(
                 loanOfferId: loanOffer.id,
                 matchedDate: new Date('2024-01-03T10:00:00.000Z'),
                 matchedLtvRatio: 0.65,
-                matchedCollateralValuationAmount: '461538461',
+                matchedCollateralValuationAmount: '1538461',
               });
             },
             { message: 'Borrower and lender cannot be the same user' },
@@ -671,17 +687,17 @@ export async function runLoanPlatformRepositoryTestSuite(
           const originationDate = new Date('2024-01-04T10:00:00.000Z');
           const maturityDate = new Date('2024-07-04T10:00:00.000Z'); // 6 months later
 
-          const principalAmount = '500000000'; // 500 USDT
-          const interestAmount = '38750000'; // 15.5% * 500 USDT * (6/12) = 38.75 USDT
-          const _provisionAmount = '12500000'; // 2.5% * 500 USDT = 12.5 USDT
-          const repaymentAmount = '551250000'; // principal + interest + provision
-          const redeliveryFeeAmount = '387500'; // 1% * interestAmount
-          const redeliveryAmount = '538362500'; // principal + interest - redelivery fee
-          const premiAmount = '5000000'; // Example premi amount
-          const liquidationFeeAmount = '10000000'; // Example liquidation fee
-          const minCollateralValuation = '566250000'; // repayment + premi + liquidation fee
+          const principalAmount = '1000000'; // 1 USDT
+          const interestAmount = '77500'; // 15.5% * 1 USDT * (6/12) = 0.0775 USDT
+          const _provisionAmount = '25000'; // 2.5% * 1 USDT = 0.025 USDT
+          const repaymentAmount = '1102500'; // principal + interest + provision
+          const redeliveryFeeAmount = '775'; // 1% * interestAmount
+          const redeliveryAmount = '1076725'; // principal + interest - redelivery fee
+          const premiAmount = '10000'; // Example premi amount
+          const liquidationFeeAmount = '20000'; // Example liquidation fee
+          const minCollateralValuation = '1132500'; // repayment + premi + liquidation fee
           const mcLtvRatio = 0.88; // principal / min collateral valuation
-          const collateralAmount = '385000000000000000'; // ~0.385 ETH at 2000 USDT/ETH
+          const collateralAmount = '770000000000000'; // ~0.00077 ETH at 2000 USDT/ETH
 
           const originationResult = await repo.platformOriginatesLoan({
             loanOfferId: matchedLoanOffer,
@@ -724,10 +740,15 @@ export async function runLoanPlatformRepositoryTestSuite(
             collateralTokenId: 'slip44:714',
             principalBlockchainKey: 'eip155:56',
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-            principalAmount: '300000000',
+            principalAmount: '300000000000000000000', // 300 USDT in smallest units
+            provisionAmount: '7500000000000000000', // 2.5% provision
             maxInterestRate: 20.0,
+            minLtvRatio: 0.5,
+            maxLtvRatio: 0.75,
             termInMonths: 6,
             liquidationMode: 'Partial',
+            collateralDepositAmount: '75000000000000000', // 0.075 BNB in smallest units
+            collateralDepositExchangeRateId: '1',
             appliedDate: new Date('2024-01-01T10:00:00.000Z'),
             expirationDate: new Date('2024-01-31T23:59:59.999Z'),
             collateralWalletDerivationPath: "m/44'/0'/0'/0/88892",
@@ -817,9 +838,9 @@ export async function runLoanPlatformRepositoryTestSuite(
           lenderUserId: lender.id,
           principalBlockchainKey: 'eip155:56',
           principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-          offeredPrincipalAmount: '1000000000',
-          minLoanPrincipalAmount: '100000000',
-          maxLoanPrincipalAmount: '500000000',
+          offeredPrincipalAmount: '10000000000000000',
+          minLoanPrincipalAmount: '1000000000000000',
+          maxLoanPrincipalAmount: '5000000000000000',
           interestRate: 15.5,
           termInMonthsOptions: [3, 6, 12],
           expirationDate: new Date('2024-01-31T23:59:59.999Z'),
@@ -841,10 +862,15 @@ export async function runLoanPlatformRepositoryTestSuite(
           collateralTokenId: 'slip44:714',
           principalBlockchainKey: 'eip155:56',
           principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-          principalAmount: '500000000',
+          principalAmount: '1000000000000000', // 1 USDT in smallest units
+          provisionAmount: '25000000000000', // 2.5% provision
           maxInterestRate: 20.0,
+          minLtvRatio: 0.5,
+          maxLtvRatio: 0.75,
           termInMonths: 6,
           liquidationMode: 'Partial',
+          collateralDepositAmount: '250000000000000', // 0.00025 BNB in smallest units
+          collateralDepositExchangeRateId: '1',
           appliedDate: new Date('2024-01-01T10:00:00.000Z'),
           expirationDate: new Date('2024-01-31T23:59:59.999Z'),
           collateralWalletDerivationPath: "m/44'/0'/0'/0/88893",
@@ -863,23 +889,23 @@ export async function runLoanPlatformRepositoryTestSuite(
           loanOfferId: loanOffer.id,
           matchedDate: new Date('2024-01-03T10:00:00.000Z'),
           matchedLtvRatio: 0.65,
-          matchedCollateralValuationAmount: '769230769',
+          matchedCollateralValuationAmount: '1538462',
         });
 
         // Originate loan
         originatedLoan = await repo.platformOriginatesLoan({
           loanOfferId: loanOffer.id,
           loanApplicationId: loanApplication.id,
-          principalAmount: '500000000',
-          interestAmount: '38750000',
-          repaymentAmount: '551250000',
-          redeliveryFeeAmount: '387500',
-          redeliveryAmount: '538362500',
-          premiAmount: '5000000',
-          liquidationFeeAmount: '10000000',
-          minCollateralValuation: '566250000',
+          principalAmount: '1000000000000000',
+          interestAmount: '77500000000000',
+          repaymentAmount: '1102500000000000',
+          redeliveryFeeAmount: '775000000000',
+          redeliveryAmount: '1076725000000000',
+          premiAmount: '10000000000000',
+          liquidationFeeAmount: '20000000000000',
+          minCollateralValuation: '1132500000000000',
           mcLtvRatio: 0.88,
-          collateralAmount: '385000000000000000',
+          collateralAmount: '770000000000000',
           originationDate: new Date('2024-01-04T10:00:00.000Z'),
           maturityDate: new Date('2024-07-04T10:00:00.000Z'),
         });

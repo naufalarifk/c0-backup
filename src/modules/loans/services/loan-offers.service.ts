@@ -1,11 +1,8 @@
 import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 
-import { HDKey } from '@scure/bip32';
-import { generateMnemonic, mnemonicToSeed } from '@scure/bip39';
-import { wordlist } from '@scure/bip39/wordlists/english';
-
+import { InvoiceService } from '../../../shared/invoice/invoice.service';
+import { InvoiceError } from '../../../shared/invoice/invoice.types';
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
-import { WalletFactory } from '../../../shared/wallets/Iwallet.service';
 import { LenderType, LoanOfferStatus, PaginationMetaDto } from '../dto/common.dto';
 import {
   CreateLoanOfferDto,
@@ -15,6 +12,7 @@ import {
 } from '../dto/loan-offers.dto';
 import {
   CurrencyNotSupportedException,
+  InterestRateInvalidException,
   ValidationErrorException,
 } from '../exceptions/loan-exceptions';
 
@@ -39,7 +37,7 @@ export class LoanOffersService {
   constructor(
     @Inject(CryptogadaiRepository)
     private readonly repository: CryptogadaiRepository,
-    private readonly walletFactory: WalletFactory,
+    private readonly invoiceService: InvoiceService,
   ) {}
 
   /**
@@ -77,40 +75,34 @@ export class LoanOffersService {
         ? new Date(createLoanOfferDto.expirationDate)
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-      // Generate wallet for funding
-      const mnemonic = generateMnemonic(wordlist);
-      const seed = await mnemonicToSeed(mnemonic);
-      const masterKey = HDKey.fromMasterSeed(seed);
-
-      let walletService;
+      let invoiceDraft;
       try {
-        walletService = this.walletFactory.getWalletService(
-          createLoanOfferDto.principalBlockchainKey,
-        );
+        invoiceDraft = await this.invoiceService.prepareInvoice({
+          userId: lenderId,
+          currencyBlockchainKey: createLoanOfferDto.principalBlockchainKey,
+          currencyTokenId: createLoanOfferDto.principalTokenId,
+          accountBlockchainKey: createLoanOfferDto.principalBlockchainKey,
+          accountTokenId: createLoanOfferDto.principalTokenId,
+          invoiceType: 'LoanPrincipal',
+          invoicedAmount: createLoanOfferDto.totalAmount,
+          prepaidAmount: '0',
+          invoiceDate: createdDate,
+          dueDate: expirationDate,
+          expiredDate: expirationDate,
+        });
       } catch (error) {
-        throw new CurrencyNotSupportedException(
-          createLoanOfferDto.principalBlockchainKey,
-          createLoanOfferDto.principalTokenId,
-        );
+        if (
+          error instanceof InvoiceError ||
+          error.message?.includes('Wallet service not found') ||
+          error.message?.includes('Unsupported blockchain key')
+        ) {
+          throw new CurrencyNotSupportedException(
+            createLoanOfferDto.principalBlockchainKey,
+            createLoanOfferDto.principalTokenId,
+          );
+        }
+        throw error;
       }
-
-      if (!walletService) {
-        throw new CurrencyNotSupportedException(
-          createLoanOfferDto.principalBlockchainKey,
-          createLoanOfferDto.principalTokenId,
-        );
-      }
-
-      // Generate unique derivation path for this loan offer
-      const offerTimestamp = Date.now();
-      const derivationPath = `m/44'/${walletService.bip44CoinType}'/1100'/0/${offerTimestamp % 2147483647}`;
-
-      // Create wallet and get address
-      const wallet = await walletService.derivedPathToWallet({
-        masterKey,
-        derivationPath,
-      });
-      const walletAddress = await wallet.getAddress();
 
       const result = await this.repository.lenderCreatesLoanOffer({
         lenderUserId: lenderId,
@@ -123,8 +115,15 @@ export class LoanOffersService {
         termInMonthsOptions: createLoanOfferDto.termOptions,
         expirationDate,
         createdDate,
-        fundingWalletAddress: walletAddress,
-        fundingWalletDerivationPath: derivationPath,
+        fundingInvoiceId: invoiceDraft.invoiceId,
+        fundingInvoicePrepaidAmount: invoiceDraft.prepaidAmount,
+        fundingAccountBlockchainKey: invoiceDraft.accountBlockchainKey,
+        fundingAccountTokenId: invoiceDraft.accountTokenId,
+        fundingInvoiceDate: invoiceDraft.invoiceDate,
+        fundingInvoiceDueDate: invoiceDraft.dueDate ?? expirationDate,
+        fundingInvoiceExpiredDate: invoiceDraft.expiredDate ?? expirationDate,
+        fundingWalletDerivationPath: invoiceDraft.walletDerivationPath,
+        fundingWalletAddress: invoiceDraft.walletAddress,
       });
 
       return {
@@ -187,6 +186,7 @@ export class LoanOffersService {
       // If it's already a known exception, re-throw it
       if (
         error instanceof CurrencyNotSupportedException ||
+        error instanceof InterestRateInvalidException ||
         error instanceof ValidationErrorException
       ) {
         throw error;

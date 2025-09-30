@@ -6,6 +6,7 @@ export async function setup() {
   const mailpitSmtpPort = String(25000 + Math.floor(Math.random() * 5000));
   const mailpitApiPort = String(30000 + Math.floor(Math.random() * 5000));
   const mailpitApiAddr = `localhost:${mailpitApiPort}`;
+  const cgBackendPath = join(__dirname, '../..');
 
   const [redis, mailpit] = await Promise.all([
     new Promise<{
@@ -97,18 +98,34 @@ export async function setup() {
   const backendPort = String(20000 + Math.floor(Math.random() * 10000));
   const backendAddr = `localhost:${backendPort}`;
 
+  await new Promise<void>(function (resolve, reject) {
+    const build = spawn('pnpm', ['build'], {
+      cwd: cgBackendPath,
+      stdio: 'inherit',
+    });
+    build.on('error', function (error) {
+      reject(new Error(`Failed to build CG Backend: ${error.message}`));
+    });
+    build.on('exit', function (code) {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`CG Backend build exited with code ${code}`));
+      }
+    });
+  });
+
   const [backend] = await Promise.all([
     new Promise<{
       teardown: () => Promise<void>;
     }>(async function (resolve, reject) {
-      const cgBackendPath = join(__dirname, '../..');
       let resolvable = true;
       const cgBackendProcess = spawn('node', ['dist/main.js', 'api', 'notification'], {
         cwd: cgBackendPath,
         env: {
           ...process.env,
           NODE_ENV: 'development',
-          ALLOWED_ORIGINS: `http://localhost,crypto-gadai://*`,
+          ALLOWED_ORIGINS: `http://localhost,http://localhost:3000,crypto-gadai://`,
           APP_EXPO_URL: `exp://localhost/--`,
           APP_SCHEME: 'crypto-gadai://',
           BETTER_AUTH_COOKIE_PREFIX: 'cg',
@@ -119,6 +136,9 @@ export async function setup() {
           BETTER_AUTH_TELEMETRY: '1',
           BETTER_AUTH_URL: `http://localhost:${backendPort}/api/auth`,
           CRYPTOGRAPHY_ENGINE: 'local',
+          WALLET_TEST_MODE: 'true',
+          PLATFORM_MASTER_MNEMONIC:
+            'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
           DATABASE_URL: ':inmemory:',
           DATABASE_LOGGER: 'false',
           GOOGLE_CLIENT_ID:
@@ -132,6 +152,8 @@ export async function setup() {
           REDIS_PORT: redisPort,
           THROTTLER_LIMIT: '10000',
           THROTTLER_TTL: '1m',
+          PRICEFEED_SCHEDULER_ENABLED: 'true',
+          DOCUMENT_OUTPUT_DIR: '/tmp/claude/documents',
         },
       });
       cgBackendProcess.stdout?.on('data', function (data) {
@@ -166,7 +188,7 @@ export async function setup() {
     }),
   ]);
 
-  console.info('CryptoGadai Backend server started at ', backendAddr);
+  console.info('CryptoGadai Backend server started at', backendAddr);
 
   return {
     mailpitUrl: `http://${mailpitApiAddr}`,

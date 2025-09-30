@@ -13,9 +13,9 @@
 - Tests are located in the `test/*.test.ts` directory.
 - Test shall use wrapped `node:test` functions to provide early exit functionality on failed assertions described in `test/setup/test.ts`.
 - Test shall use `node:assert/strict` for assertions.
-- Test shall use `test/setup/assertions.ts` for type shapping/narrowing assertions. Example:
+- Test shall use `typeshaper` for type shapping/narrowing assertions. Example:
   ```ts
-  import { assertDefined, assertPropString, assertPropArrayOf } from './setup/assertions';
+  import { assertDefined, assertPropString, assertPropArrayOf } from 'typeshaper';
   const value: unknown = getValue();
   /** the type of value is detetected as unknown */
   assertDefined(value);

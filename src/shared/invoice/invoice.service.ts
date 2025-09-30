@@ -1,50 +1,80 @@
-import { HDKey } from '@scure/bip32';
-import { generateMnemonic as _generateMnemonic, mnemonicToSeed } from '@scure/bip39';
-import { wordlist } from '@scure/bip39/wordlists/english';
-import { WalletFactory } from 'src/shared/wallets/Iwallet.service';
+import { Injectable, Logger } from '@nestjs/common';
 
+import { PlatformWalletService } from '../wallets/platform-wallet.service';
 import {
   IInvoiceService,
-  PlatformCreateLoanOfferPrincipalInvoiceParams,
-  PlatformCreateLoanOfferPrincipalInvoiceResult,
+  InvoiceCreateParams,
+  InvoiceError,
+  InvoicePreparationResult,
 } from './invoice.types';
+import { InvoiceIdGenerator } from './invoice-id.generator';
 
-type AllowedKeyEntropyBits = 128 | 256;
-
+@Injectable()
 export class InvoiceService implements IInvoiceService {
-  private readonly walletFactory: WalletFactory;
-  async platformCreateLoanOfferPrincipalInvoice(
-    params: PlatformCreateLoanOfferPrincipalInvoiceParams,
-  ): Promise<PlatformCreateLoanOfferPrincipalInvoiceResult> {
-    const { principalAmount, principalBlockchainKey } = params;
+  private readonly logger = new Logger(InvoiceService.name);
 
-    function generateAddressFromSecure(entropy: AllowedKeyEntropyBits = 256): string {
-      if (entropy !== 128 && entropy !== 256) {
-        throw new Error(
-          `Invalid entropy. Allowed values are 128 or 256 bits. got: ${String(entropy)}`,
-        );
-      }
+  constructor(
+    private readonly platformWalletService: PlatformWalletService,
+    private readonly invoiceIdGenerator: InvoiceIdGenerator,
+  ) {}
 
-      return _generateMnemonic(wordlist, entropy);
-    }
+  async prepareInvoice(params: InvoiceCreateParams): Promise<InvoicePreparationResult> {
+    this.logger.debug(
+      `Preparing invoice for user ${params.userId} on ${params.currencyBlockchainKey}:${params.currencyTokenId}`,
+    );
 
-    const mnemonic = generateAddressFromSecure();
-    const seed = await mnemonicToSeed(mnemonic);
-    const masterKey = HDKey.fromMasterSeed(seed);
+    const prepaidAmount = params.prepaidAmount ?? '0';
+    const payableAmount = this.calculatePayableAmount(params.invoicedAmount, prepaidAmount);
+    const accountBlockchainKey = params.accountBlockchainKey ?? params.currencyBlockchainKey;
+    const accountTokenId = params.accountTokenId ?? params.currencyTokenId;
 
-    const walletService = this.walletFactory.getWalletService(principalBlockchainKey);
-    if (!walletService) {
-      throw new Error(`Unsupported blockchain key: ${principalBlockchainKey}`);
-    }
-    const generateWallet = walletService.derivedPathToWallet({
-      masterKey,
-      derivationPath: `m/44'/0'/0'/0/0`,
-    });
-    console.log('generateWallet', generateWallet);
+    const invoiceId = this.invoiceIdGenerator.generate();
+    const { address, derivationPath } = await this.platformWalletService.deriveInvoiceWallet(
+      params.currencyBlockchainKey,
+      invoiceId,
+    );
+
+    const invoiceDate = params.invoiceDate;
+    const dueDate = params.dueDate ?? params.expiredDate ?? invoiceDate;
+    const expiredDate = params.expiredDate ?? dueDate;
+
     return {
-      //asked to change to object below
-      principalBlockchainKey: principalBlockchainKey,
-      principalAmount,
+      ...params,
+      accountBlockchainKey,
+      accountTokenId,
+      prepaidAmount,
+      payableAmount,
+      invoiceId,
+      walletAddress: address,
+      walletDerivationPath: derivationPath,
+      invoiceDate,
+      dueDate,
+      expiredDate,
     };
+  }
+
+  private calculatePayableAmount(invoicedAmount: string, prepaidAmount: string): string {
+    const invoiceTotal = this.parseAmount(invoicedAmount, 'invoicedAmount');
+    const prepaid = this.parseAmount(prepaidAmount, 'prepaidAmount');
+
+    if (prepaid < 0) {
+      throw new InvoiceError('Prepaid amount cannot be negative');
+    }
+
+    if (prepaid > invoiceTotal) {
+      throw new InvoiceError('Prepaid amount cannot exceed invoiced amount');
+    }
+
+    return (invoiceTotal - prepaid).toString();
+  }
+
+  private parseAmount(amount: string, field: string): bigint {
+    try {
+      return BigInt(amount);
+    } catch (error) {
+      throw new InvoiceError(`Invalid ${field} value: ${amount}`, {
+        cause: error instanceof Error ? error : undefined,
+      });
+    }
   }
 }
