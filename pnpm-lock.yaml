@@ -234,9 +234,6 @@ importers:
       '@testcontainers/redis':
         specifier: ^11.6.0
         version: 11.6.0
-      '@types/bignumber.js':
-        specifier: ^5.0.4
-        version: 5.0.4
       '@types/compression':
         specifier: ^1.8.1
         version: 1.8.1
@@ -2788,10 +2785,6 @@ packages:
 
   '@types/babel__traverse@7.28.0':
     resolution: {integrity: sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q==}
-
-  '@types/bignumber.js@5.0.4':
-    resolution: {integrity: sha512-y/nRKmgKRakrBZ4B3/1mhZOEHrKcf6BniqxVlsVrmaG6fN6WzzUlXfsD+KX+Ii4C+093A7h1p6LkOsXktOfQnQ==}
-    deprecated: This is a stub types definition. bignumber.js provides its own type definitions, so you do not need this installed.
 
   '@types/body-parser@1.19.6':
     resolution: {integrity: sha512-HLFeCYgz89uk22N5Qg3dvGvsv46B8GLvKKo1zKG4NybA8U2DiEO3w9lqGg29t/tfLRJpJ6iQxnVw4OnB7MoM9g==}
@@ -10562,10 +10555,6 @@ snapshots:
   '@types/babel__traverse@7.28.0':
     dependencies:
       '@babel/types': 7.28.4
-
-  '@types/bignumber.js@5.0.4':
-    dependencies:
-      bignumber.js: 9.3.1
 
   '@types/body-parser@1.19.6':
     dependencies:

@@ -333,11 +333,17 @@ export const notificationTypes = [
   'WithdrawalRefundApproved',
   'WithdrawalRefundRejected',
   'WithdrawalFailed',
+  'WithdrawalConfirmed',
+  'WithdrawalInfoRequested',
+  'WithdrawalTimeout',
   // Admin notifications
   'AdminInvitationSent',
   'AdminInvitationAccepted',
   'AdminInvitationRejected',
   'AdminInvitationExpired',
+  'AdminWithdrawalFailure',
+  'AdminRefundProcessed',
+  'AdminMonitoringFailure',
   // Enhanced loan notifications
   'LiquidationWarning',
   'LiquidationCompleted',

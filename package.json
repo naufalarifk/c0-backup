@@ -111,7 +111,6 @@
     "@nestjs/testing": "^11.1.6",
     "@testcontainers/postgresql": "^11.6.0",
     "@testcontainers/redis": "^11.6.0",
-    "@types/bignumber.js": "^5.0.4",
     "@types/compression": "^1.8.1",
     "@types/express": "^5.0.3",
     "@types/lodash": "^4.17.20",
