@@ -1,44 +1,20 @@
-import type { Request } from 'express';
-import type {} from 'multer';
-import type { UserViewsProfileResult } from '../../shared/types';
 import type { UserSession } from '../auth/types';
 
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpException,
-  HttpStatus,
-  Patch,
-  Post,
-  Put,
-  Req,
-  UploadedFile,
-  UseGuards,
-  UseInterceptors,
-} from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { Session } from '../auth/auth.decorator';
 import { AuthGuard } from '../auth/auth.guard';
 import { CreateCredentialProviderDto } from './dto/create-credential-provider.dto';
 import { UpdatePushTokenDto } from './dto/push-token.dto';
 import { SelectUserTypeDto } from './dto/select-user-type.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
-import { UserPreferencesDto } from './preferences/dto/user-preferences.dto';
-import { PreferencesService } from './preferences/preferences.service';
 import { UsersService } from './users.service';
 
 @Controller()
 @UseGuards(AuthGuard)
 @ApiTags('Users')
 export class UsersController {
-  constructor(
-    private readonly usersService: UsersService,
-    private readonly preferencesService: PreferencesService,
-  ) {}
+  constructor(private readonly usersService: UsersService) {}
 
   @Post('type-selection')
   @HttpCode(HttpStatus.OK)
@@ -127,101 +103,6 @@ export class UsersController {
     return {
       memberships: [],
     };
-  }
-
-  @Get('preferences')
-  @ApiOperation({
-    summary: 'Get user preferences',
-    description: "Retrieves the authenticated user's preferences",
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Preferences retrieved successfully',
-  })
-  async getPreferences(@Session() session: UserSession) {
-    return this.preferencesService.getPreferences(session.user.id);
-  }
-
-  @Put('preferences')
-  @ApiOperation({
-    summary: 'Update user preferences',
-    description: "Updates the authenticated user's preferences",
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Preferences updated successfully',
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Invalid preference values',
-  })
-  async updatePreferences(
-    @Session() session: UserSession,
-    @Body() preferences: UserPreferencesDto,
-  ) {
-    // Manual validation for theme
-    if (preferences.display?.theme && !['light', 'dark'].includes(preferences.display.theme)) {
-      throw new HttpException(
-        {
-          success: false,
-          error: {
-            message: 'Invalid theme value',
-          },
-          errors: {}, // This triggers the direct return path in GlobalExceptionFilter
-        },
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
-    }
-
-    // Manual validation for language
-    if (preferences.display?.language && !['en', 'id'].includes(preferences.display.language)) {
-      throw new HttpException(
-        {
-          success: false,
-          error: {
-            message: 'Unsupported language',
-          },
-          errors: {}, // This triggers the direct return path in GlobalExceptionFilter
-        },
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
-    }
-
-    // Manual validation for currency
-    if (
-      preferences.display?.currency &&
-      !['USD', 'IDR', 'EUR', 'BTC', 'ETH'].includes(preferences.display.currency)
-    ) {
-      throw new HttpException(
-        {
-          success: false,
-          error: {
-            message: 'Invalid currency',
-          },
-          errors: {}, // This triggers the direct return path in GlobalExceptionFilter
-        },
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
-    }
-
-    // Manual validation for profile visibility
-    if (
-      preferences.privacy?.profileVisibility &&
-      !['private', 'public'].includes(preferences.privacy.profileVisibility)
-    ) {
-      throw new HttpException(
-        {
-          success: false,
-          error: {
-            message: 'Invalid profile visibility',
-          },
-          errors: {}, // This triggers the direct return path in GlobalExceptionFilter
-        },
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
-    }
-
-    return await this.preferencesService.updatePreferences(session.user.id, preferences);
   }
 
   @Post('push-token')
