@@ -6,7 +6,6 @@ import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.rep
 import { UserDecidesUserTypeParams } from '../../shared/types';
 import { ensureExists, ensurePrecondition, ensureUnique, ResponseHelper } from '../../shared/utils';
 import { UpdatePushTokenDto } from './dto/push-token.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class UsersService {
@@ -83,86 +82,6 @@ export class UsersService {
     const accounts = raw as { provider_id: string }[];
 
     return accounts.map(account => account.provider_id);
-  }
-
-  async getUserProfile(userId: string) {
-    const user = await this.repo.userViewsProfile({ userId });
-    ensureExists(user, 'User not found');
-
-    // Transform user profile to match the expected API response format
-    return {
-      user: {
-        id: Number(user.id),
-        role: user.role,
-        email: user.email,
-        name: user.name,
-        profilePictureUrl: user.profilePicture || null,
-        googleId: user.googleId || null,
-        createdDate: user.createdAt?.toISOString() || new Date().toISOString(),
-        emailVerifiedDate: user.emailVerifiedDate?.toISOString() || null,
-        lastLoginDate: user.lastLoginDate?.toISOString() || null,
-        userType: user.userType === 'Undecided' ? null : user.userType,
-        kycId: user.kycId,
-        institutionId: user.institutionUserId ? Number(user.institutionUserId) : null,
-        institutionRole: user.institutionRole,
-        twoFaEnabled: user.twoFactorEnabled,
-        isVerified: user.kycStatus === 'verified',
-        verificationLevel: user.kycStatus === 'verified' ? 'verified' : 'unverified',
-        kycStatus: user.kycStatus,
-        phoneNumberVerified: user.phoneNumberVerified,
-        featureUnlockStatus: {
-          tradingEnabled: user.kycStatus === 'verified',
-          withdrawalEnabled: user.kycStatus === 'verified',
-          loanBorrowingEnabled: user.kycStatus === 'verified',
-          loanLendingEnabled: user.kycStatus === 'verified',
-          institutionalFeaturesEnabled:
-            user.userType === 'Institution' && user.kycStatus === 'verified',
-        },
-        requiredVerifications:
-          user.kycStatus === 'verified'
-            ? []
-            : [
-                {
-                  type: 'kyc',
-                  title: 'Complete KYC Verification',
-                  description: 'Please complete your KYC verification to unlock all features',
-                  actionText: 'Complete KYC',
-                  priority: 'high' as const,
-                },
-              ],
-      },
-    };
-  }
-
-  async updateUserProfile(
-    userId: string,
-    updateData: UpdateProfileDto,
-    profilePictureUrl?: string,
-  ) {
-    const profileData: { name?: string; profilePictureUrl?: string } = {};
-
-    if (updateData.name !== undefined) {
-      profileData.name = updateData.name;
-    }
-
-    if (profilePictureUrl !== undefined) {
-      profileData.profilePictureUrl = profilePictureUrl;
-    }
-
-    const updatedProfile = await this.repo.userUpdatesProfile({
-      id: userId,
-      ...profileData,
-      updateDate: new Date(),
-    });
-
-    return {
-      user: {
-        id: Number(updatedProfile.id),
-        name: updatedProfile.name,
-        profilePictureUrl: updatedProfile.profilePictureUrl,
-      },
-      message: 'Profile updated successfully',
-    };
   }
 
   async updatePushToken(userId: string, updateData: UpdatePushTokenDto) {
