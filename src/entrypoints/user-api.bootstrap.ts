@@ -78,10 +78,9 @@ export async function bootstrapUserApi(app: NestExpressApplication) {
 
   app.useGlobalPipes(new ValidationPipe(validationOptions));
 
-  // Temporarily disabled due to circular dependency in Swagger schema
-  // if (configService.documentationEnabled) {
-  //   await docs(app, configService.authConfig.url);
-  // }
+  if (configService.documentationEnabled) {
+    await docs(app, configService.authConfig.url);
+  }
 
   if (!configService.isDevelopment) {
     app.enableShutdownHooks();

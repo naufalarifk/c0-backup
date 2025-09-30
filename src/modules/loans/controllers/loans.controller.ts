@@ -51,6 +51,20 @@ export class LoansController {
   /**
    * Convert string status to LoanStatus enum
    */
+  private convertStringToUserRole(role?: string): UserRole | undefined {
+    if (!role) return undefined;
+
+    // Map common string values to enum values
+    switch (role.toLowerCase()) {
+      case 'borrower':
+        return UserRole.BORROWER;
+      case 'lender':
+        return UserRole.LENDER;
+      default:
+        return undefined;
+    }
+  }
+
   private convertStringToLoanStatus(status?: string): LoanStatus | undefined {
     if (!status) return undefined;
 
@@ -114,14 +128,14 @@ export class LoansController {
     @Session() session: UserSession,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
-    @Query('role') role?: UserRole,
+    @Query('role') role?: string,
     @Query('status') status?: string,
   ): Promise<LoanListResponseDto> {
     this.logger.log(`Listing loans for user: ${session.user.id}`);
     return await this.loansService.listLoans(session.user.id, {
       page: page || 1,
       limit: limit || 20,
-      role,
+      role: this.convertStringToUserRole(role),
       status: this.convertStringToLoanStatus(status),
     });
   }
