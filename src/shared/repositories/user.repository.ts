@@ -158,7 +158,7 @@ export abstract class UserRepository extends BetterAuthRepository {
         if (application && application.status) {
           // Map institution application status to kycStatus
           if (application.status === 'Verified') {
-            kycStatus = 'approved';
+            kycStatus = 'verified';
           } else if (application.status === 'Rejected') {
             kycStatus = 'rejected';
           } else if (application.status === 'Submitted') {

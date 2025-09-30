@@ -85,7 +85,7 @@ export class ProfileService {
     assertDefined(profile);
     assertPropNullableString(profile, 'kycStatus');
     assertPropNullableBoolean(profile, 'phoneNumberVerified');
-    assertPropNullableString(profile, 'emailVerified');
+    assertPropNullableBoolean(profile, 'emailVerified');
     assertPropNullableString(profile, 'userType');
 
     const isKycVerified = profile.kycStatus === 'verified';
@@ -121,7 +121,7 @@ export class ProfileService {
 
   private getRequiredVerifications(profile) {
     assertDefined(profile);
-    assertPropNullableString(profile, 'emailVerified');
+    assertPropNullableBoolean(profile, 'emailVerified');
     assertPropNullableBoolean(profile, 'phoneNumberVerified');
     assertPropNullableString(profile, 'userType');
     assertPropNullableString(profile, 'kycStatus');
