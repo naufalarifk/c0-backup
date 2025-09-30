@@ -96,7 +96,7 @@ export class LoansController {
   @ApiQuery({
     name: 'role',
     required: false,
-    enum: UserRole,
+    enum: ['borrower', 'lender'],
     description: 'Filter by user role',
   })
   @ApiQuery({

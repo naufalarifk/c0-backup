@@ -7,7 +7,7 @@ import { FileValidatorService } from '../../../shared/services/file-validator.se
 import { MinioService } from '../../../shared/services/minio.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { File } from '../../../shared/types';
-import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateUserProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class ProfileService {
@@ -194,7 +194,7 @@ export class ProfileService {
    */
   async processProfileUpdate(
     userId: string,
-    updateProfileDto: UpdateProfileDto,
+    updateProfileDto: UpdateUserProfileDto,
     profilePicture?: File,
   ): Promise<{ name?: string; image?: string }> {
     let profilePictureUrl: string | undefined;
