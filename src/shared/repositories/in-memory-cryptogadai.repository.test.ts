@@ -5,6 +5,7 @@ runBaseRepositoryTestSuite(
   async function createRepo() {
     const repo = new InMemoryCryptogadaiRepository();
     await repo.connect();
+    await repo.migrate();
     return repo;
   },
   async function teardownRepo(repo) {

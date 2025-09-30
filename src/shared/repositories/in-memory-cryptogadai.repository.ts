@@ -17,7 +17,9 @@ export class InMemoryCryptogadaiRepository extends CryptogadaiRepository {
   async connect(): Promise<void> {
     // Configure the database to interpret timestamps consistently as UTC
     await this.#pgLite.exec(`SET TIME ZONE 'UTC';`);
+  }
 
+  async migrate(): Promise<void> {
     /**
      * use __dirname to get relative path of current file
      */

@@ -5,6 +5,7 @@ runFinanceRepositoryTestSuite(
   async function () {
     const repo = new InMemoryCryptogadaiRepository();
     await repo.connect();
+    await repo.migrate();
     return repo;
   },
   async function (repo) {

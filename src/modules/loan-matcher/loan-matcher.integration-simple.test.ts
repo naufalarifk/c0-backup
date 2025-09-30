@@ -29,6 +29,7 @@ describe('LoanMatcherService - Real Database Integration', () => {
     // Create the testing module with real in-memory database
     const repositoryInstance = new InMemoryCryptogadaiRepository();
     await repositoryInstance.connect(); // Initialize the database
+    await repositoryInstance.migrate(); // Apply migrations
 
     // Setup required currencies for testing
     try {

@@ -28,6 +28,7 @@ describe('PriceFeed Integration Tests', () => {
     // Create in-memory repository
     repository = new InMemoryCryptogadaiRepository();
     await repository.connect();
+    await repository.migrate();
 
     // Create NestJS testing module manually with all required providers
     const configService = {

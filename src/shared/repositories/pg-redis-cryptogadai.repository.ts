@@ -96,6 +96,12 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
   }
 
   async connect(): Promise<void> {
+    const connection = await this.#pool.connect();
+    await this.#redis.ping();
+    connection.release();
+  }
+
+  async migrate(): Promise<void> {
     /**
      * use __dirname to get relative path of current file
      */
