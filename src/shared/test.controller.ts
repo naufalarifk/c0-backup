@@ -219,6 +219,22 @@ export class TestController {
     };
   }
 
+  @Get('test-admin-view-pending-kycs')
+  async viewPendingKycs() {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Test endpoints are not available in production');
+    }
+
+    const pendingKycs = await this.repo.adminViewsPendingKYCs();
+
+    this.#logger.debug(`Pending KYCs:`, pendingKycs);
+
+    return {
+      success: true,
+      pendingKycs,
+    };
+  }
+
   @Post('test-admin-kyc-approve-by-email')
   async approveKycByEmail(@Body() body: { email: string }) {
     if (process.env.NODE_ENV === 'production') {
