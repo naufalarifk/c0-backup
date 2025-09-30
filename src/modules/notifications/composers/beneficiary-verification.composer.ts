@@ -1,53 +1,95 @@
 import type {
   AnyNotificationPayload,
   EmailNotificationPayload,
+  ExpoNotificationPayload,
   NotificationData,
+  SMSNotificationPayload,
 } from '../notification.types';
 
 import { Injectable } from '@nestjs/common';
 
-import { assertDefined, assertPropNullableString, assertPropString } from 'typeshaper';
+import { assertDefined, assertPropString } from 'typeshaper';
 
+import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { NotificationChannelEnum } from '../notification.types';
-import { Composer, NotificationComposer } from '../notification-composer.abstract';
+import {
+  Composer,
+  NotificationComposer,
+  type UserNotificationData,
+} from '../notification-composer.abstract';
 
 export type BeneficiaryVerificationNotificationData = NotificationData & {
-  email: string;
+  type: 'BeneficiaryVerification';
+  userId: string;
   url: string;
   blockchain: string;
   address: string;
-  label?: string;
-};
+} & Partial<UserNotificationData>;
 
 function assertBeneficiaryVerificationNotificationData(
   data: unknown,
 ): asserts data is BeneficiaryVerificationNotificationData {
   assertDefined(data, 'Notification data is required');
-  assertPropString(data, 'email', 'Email is required');
+  assertPropString(data, 'type');
   assertPropString(data, 'url', 'Verification URL is required');
   assertPropString(data, 'blockchain', 'Blockchain is required');
   assertPropString(data, 'address', 'Wallet address is required');
-  // label and name are optional, so only validate if present
-  if (typeof data === 'object' && data !== null && 'label' in data) {
-    assertPropNullableString(data, 'label');
-  }
+  // email is optional now - will be fetched from user data if not provided
 }
 
 @Injectable()
 @Composer('BeneficiaryVerification')
 export class BeneficiaryVerificationNotificationComposer extends NotificationComposer<BeneficiaryVerificationNotificationData> {
-  composePayloads(data: unknown): Promise<AnyNotificationPayload[]> {
+  constructor(repository: CryptogadaiRepository) {
+    super(repository);
+  }
+
+  async composePayloads(data: unknown): Promise<AnyNotificationPayload[]> {
     assertBeneficiaryVerificationNotificationData(data);
 
-    const payloadEmail: EmailNotificationPayload = {
-      channel: NotificationChannelEnum.Email,
-      to: data.email,
-      subject: 'Please verify your withdrawal address',
-      htmlBody: this.renderEmailHtmlBody(data),
-      textBody: this.renderEmailTextBody(data),
-    };
+    // ✨ Smart enrichment: Auto-fetch and merge user contact data
+    const enrichedData = await this.enrichWithUserData(data);
 
-    return Promise.resolve([payloadEmail]);
+    const payloads: AnyNotificationPayload[] = [];
+
+    // Email notification (always send if available)
+    if (enrichedData.email) {
+      payloads.push({
+        channel: NotificationChannelEnum.Email,
+        to: enrichedData.email,
+        subject: 'Please verify your withdrawal address',
+        htmlBody: this.renderEmailHtmlBody(enrichedData),
+        textBody: this.renderEmailTextBody(enrichedData),
+      } as EmailNotificationPayload);
+    }
+
+    // SMS notification for important security action
+    if (enrichedData.phoneNumber) {
+      payloads.push({
+        channel: NotificationChannelEnum.SMS,
+        to: enrichedData.phoneNumber,
+        message: `CryptoGadai Security: New withdrawal address added for ${enrichedData.blockchain}. Verify: ${enrichedData.url}`,
+      } as SMSNotificationPayload);
+    }
+
+    // Push notification for mobile app users
+    if (enrichedData.expoPushToken) {
+      payloads.push({
+        channel: NotificationChannelEnum.Expo,
+        to: enrichedData.expoPushToken,
+        title: 'Address Verification Required',
+        body: `Verify your new ${enrichedData.blockchain} withdrawal address`,
+        priority: 'high',
+        data: {
+          type: 'BeneficiaryVerification',
+          blockchain: enrichedData.blockchain,
+          address: enrichedData.address,
+          url: enrichedData.url,
+        },
+      } as ExpoNotificationPayload);
+    }
+
+    return payloads;
   }
 
   private renderEmailHtmlBody(data: BeneficiaryVerificationNotificationData): string {
@@ -72,7 +114,7 @@ export class BeneficiaryVerificationNotificationComposer extends NotificationCom
         <!-- Content -->
         <div class="content">
             <div class="greeting">
-                Hi ${data.name || 'there'}! 👋
+                Hi there! 👋
             </div>
 
             <div class="message">
@@ -81,7 +123,6 @@ export class BeneficiaryVerificationNotificationComposer extends NotificationCom
             </div>
 
             <div class="address-details">
-                ${data.label ? `<p><strong>Address Label:</strong> ${data.label}</p>` : ''}
                 <p><strong>Blockchain:</strong> ${data.blockchain}</p>
                 <p><strong>Address:</strong> <code class="address">${data.address}</code></p>
             </div>
@@ -292,17 +333,12 @@ export class BeneficiaryVerificationNotificationComposer extends NotificationCom
 
   private renderEmailTextBody(data: BeneficiaryVerificationNotificationData): string {
     return `
-Hi ${data.name || 'there'}!
+Hi there!
 
 You've added a new withdrawal address to your CryptoGadai account.
 For your security, please verify this address before it can be used for withdrawals.
 
-Address Details:${
-      data.label
-        ? `
-- Label: ${data.label}`
-        : ''
-    }
+Address Details:
 - Blockchain: ${data.blockchain}
 - Address: ${data.address}
 

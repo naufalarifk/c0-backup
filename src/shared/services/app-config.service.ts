@@ -196,6 +196,10 @@ export class AppConfigService {
         production: this.getBoolean('APNS_PRODUCTION', false),
         enabled: this.getBoolean('APNS_ENABLED', false),
       },
+      expo: {
+        accessToken: this.getString('EXPO_ACCESS_TOKEN', ''),
+        enabled: this.getBoolean('EXPO_ENABLED', true),
+      },
     };
   }
 

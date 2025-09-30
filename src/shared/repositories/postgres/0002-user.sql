@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number_verified BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS expo_push_token TEXT;
 
 -- Add self-referencing foreign key for institution hierarchy
 -- DROP CONSTRAINT fk_users_institution_user;

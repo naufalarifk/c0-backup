@@ -2,6 +2,7 @@ import type {
   AnyNotificationPayload,
   APNSNotificationPayload,
   EmailNotificationPayload,
+  ExpoNotificationPayload,
   FCMNotificationPayload,
   NotificationData,
   SMSNotificationPayload,
@@ -9,24 +10,24 @@ import type {
 
 import { Injectable } from '@nestjs/common';
 
-import { assertDefined, assertPropString, hasProp, hasPropDefined } from 'typeshaper';
+import { assertDefined, assertPropString, hasPropDefined } from 'typeshaper';
 
+import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { NotificationChannelEnum } from '../notification.types';
-import { Composer, NotificationComposer } from '../notification-composer.abstract';
+import {
+  Composer,
+  NotificationComposer,
+  type UserNotificationData,
+} from '../notification-composer.abstract';
 
 export type LoanRepaymentDueNotificationData = NotificationData & {
   type: 'LoanRepaymentDue';
   userId: string;
-  deviceToken?: string;
-  fcmToken?: string;
-  apnsToken?: string;
-  email?: string;
-  phoneNumber?: string;
   loanId: string;
   amount?: string;
   currency?: string;
   dueDate: string;
-};
+} & Partial<UserNotificationData>;
 
 function assertLoanRepaymentDueNotificationData(
   data: unknown,
@@ -43,22 +44,29 @@ function assertLoanRepaymentDueNotificationData(
 @Injectable()
 @Composer('LoanRepaymentDue')
 export class LoanRepaymentDueNotificationComposer extends NotificationComposer<LoanRepaymentDueNotificationData> {
+  constructor(repository: CryptogadaiRepository) {
+    super(repository);
+  }
+
   async composePayloads(data: unknown): Promise<AnyNotificationPayload[]> {
     assertLoanRepaymentDueNotificationData(data);
 
+    // ✨ ONE LINE: Auto-fetch and merge user contact data - now even cleaner!
+    const enrichedData = await this.enrichWithUserData(data);
+
     const payloads: AnyNotificationPayload[] = [];
-    const formattedAmount = data.amount
-      ? data.currency
-        ? `${data.amount} ${data.currency}`
-        : data.amount
+    const formattedAmount = enrichedData.amount
+      ? enrichedData.currency
+        ? `${enrichedData.amount} ${enrichedData.currency}`
+        : enrichedData.amount
       : 'your payment';
-    const formattedDate = new Date(data.dueDate).toLocaleDateString();
+    const formattedDate = new Date(enrichedData.dueDate).toLocaleDateString();
 
     // Email notification
-    if (data.email) {
+    if (enrichedData.email) {
       payloads.push({
         channel: NotificationChannelEnum.Email,
-        to: data.email,
+        to: enrichedData.email,
         subject: 'Loan Payment Due - Action Required',
         htmlBody: this.renderEmailHtmlBody(formattedAmount, formattedDate),
         textBody: this.renderEmailTextBody(formattedAmount, formattedDate),
@@ -66,39 +74,56 @@ export class LoanRepaymentDueNotificationComposer extends NotificationComposer<L
     }
 
     // SMS notification
-    if (data.phoneNumber) {
+    if (enrichedData.phoneNumber) {
       payloads.push({
         channel: NotificationChannelEnum.SMS,
-        to: data.phoneNumber,
+        to: enrichedData.phoneNumber,
         message: `Payment reminder: Your loan repayment of ${formattedAmount} is due on ${formattedDate}. Pay now to avoid late fees. - CryptoGadai`,
       } as SMSNotificationPayload);
     }
 
     // FCM notification
-    if (data.deviceToken || data.fcmToken) {
+    if (enrichedData.deviceToken || enrichedData.fcmToken) {
       payloads.push({
         channel: NotificationChannelEnum.FCM,
-        to: data.deviceToken || data.fcmToken!,
+        to: enrichedData.deviceToken || enrichedData.fcmToken!,
         title: 'Payment Due',
         body: `Your loan repayment of ${formattedAmount} is due on ${formattedDate}`,
         data: {
           type: 'LoanRepaymentDue',
-          loanId: data.loanId,
-          amount: data.amount,
-          dueDate: data.dueDate,
+          loanId: enrichedData.loanId,
+          amount: enrichedData.amount,
+          dueDate: enrichedData.dueDate,
         },
       } as FCMNotificationPayload);
     }
 
     // APNS notification
-    if (data.apnsToken) {
+    if (enrichedData.apnsToken) {
       payloads.push({
         channel: NotificationChannelEnum.APN,
-        to: data.apnsToken,
+        to: enrichedData.apnsToken,
         title: 'Payment Due',
         body: `Your loan repayment of ${formattedAmount} is due on ${formattedDate}`,
         badge: 1,
       } as APNSNotificationPayload);
+    }
+
+    // Expo notification
+    if (enrichedData.expoPushToken) {
+      payloads.push({
+        channel: NotificationChannelEnum.Expo,
+        to: enrichedData.expoPushToken,
+        title: 'Payment Due',
+        body: `Your loan repayment of ${formattedAmount} is due on ${formattedDate}`,
+        priority: 'high',
+        data: {
+          type: 'LoanRepaymentDue',
+          loanId: enrichedData.loanId,
+          amount: enrichedData.amount,
+          dueDate: enrichedData.dueDate,
+        },
+      } as ExpoNotificationPayload);
     }
 
     return payloads;
@@ -134,7 +159,7 @@ export class LoanRepaymentDueNotificationComposer extends NotificationComposer<L
         <div class="content">
             <h2>Loan Repayment Due</h2>
             <p>Your loan repayment is due. Please ensure you have sufficient funds available.</p>
-            
+
             <div class="amount-box">
                 <div style="font-size: 16px; color: #64748b;">Amount Due</div>
                 <div class="amount">${formattedAmount}</div>

@@ -30,7 +30,7 @@ function assertEmailVerificationNotificationData(
 }
 
 @Injectable()
-@Composer('EmailVerification')
+@Composer('EmailVerificationSent')
 export class EmailVerificationNotificationComposer extends NotificationComposer<EmailVerificationNotificationData> {
   async composePayloads(data: unknown): Promise<AnyNotificationPayload[]> {
     assertEmailVerificationNotificationData(data);

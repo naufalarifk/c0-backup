@@ -1,8 +1,11 @@
+import type { NotificationType } from '../../shared/repositories/user.types';
+
 export const NotificationChannelEnum = {
   Email: 'Email' as const,
   SMS: 'SMS' as const,
   FCM: 'FCM' as const,
   APN: 'APN' as const,
+  Expo: 'Expo' as const,
 } as const;
 
 export function assertIsNotificationChannel(value: unknown): asserts value is NotificationChannel {
@@ -22,7 +25,10 @@ export interface NotificationPayload {
 }
 
 export interface PushNotificationPayload extends NotificationPayload {
-  channel: typeof NotificationChannelEnum.FCM | typeof NotificationChannelEnum.APN;
+  channel:
+    | typeof NotificationChannelEnum.FCM
+    | typeof NotificationChannelEnum.APN
+    | typeof NotificationChannelEnum.Expo;
   to: string;
   title: string;
   body: string;
@@ -44,6 +50,19 @@ export interface APNSNotificationPayload extends PushNotificationPayload {
   category?: string;
 }
 
+export interface ExpoNotificationPayload extends PushNotificationPayload {
+  channel: typeof NotificationChannelEnum.Expo;
+  data?: Record<string, string | number | boolean>;
+  sound?: 'default' | null;
+  badge?: number;
+  ttl?: number;
+  expiration?: number;
+  priority?: 'default' | 'normal' | 'high';
+  subtitle?: string;
+  categoryId?: string;
+  channelId?: string;
+}
+
 export interface EmailNotificationPayload extends NotificationPayload {
   channel: typeof NotificationChannelEnum.Email;
   to: string;
@@ -61,72 +80,6 @@ export interface SMSNotificationPayload extends NotificationPayload {
   message: string;
 }
 
-export type NotificationType =
-  // Authentication notifications
-  | 'UserRegistered'
-  | 'PhoneNumberVerification'
-  | 'PhoneNumberVerified'
-  | 'EmailVerification'
-  | 'EmailVerified'
-  | 'PasswordResetRequested'
-  | 'PasswordResetCompleted'
-  | 'TwoFactorEnabled'
-  | 'TwoFactorDisabled'
-  | 'LoginFromNewDevice'
-  | 'SuspiciousLoginAttempt'
-  // KYC notifications
-  | 'UserKycVerified'
-  | 'UserKycRejected'
-  // Institution notifications
-  | 'InstitutionApplicationVerified'
-  | 'InstitutionApplicationRejected'
-  | 'InstitutionMemberInvited'
-  | 'InstitutionMemberAccepted'
-  | 'InstitutionMemberRejected'
-  // Invoice notifications
-  | 'InvoiceCreated'
-  | 'InvoiceDue'
-  | 'InvoiceExpired'
-  | 'InvoicePartiallyPaid'
-  | 'InvoicePaid'
-  // Loan notifications
-  | 'LoanOfferPublished'
-  | 'LoanApplicationPublished'
-  | 'LoanApplicationMatched'
-  | 'LoanOfferMatched'
-  | 'LoanApplicationApproved'
-  | 'LoanApplicationRejected'
-  | 'LoanOfferClosed'
-  | 'LoanDisbursement'
-  | 'LoanActivated'
-  | 'LoanRepaymentDue'
-  | 'LoanRepaymentCompleted'
-  | 'LoanRepaymentReceived'
-  | 'LoanRepaymentFailed'
-  | 'LoanLiquidation'
-  | 'LoanLtvBreach'
-  // Beneficiary notifications
-  | 'BeneficiaryVerification'
-  // Withdrawal notifications
-  | 'WithdrawalRequested'
-  | 'WithdrawalRefunded'
-  | 'WithdrawalRefundApproved'
-  | 'WithdrawalRefundRejected'
-  // Admin notifications
-  | 'AdminInvitationSent'
-  | 'AdminInvitationAccepted'
-  | 'AdminInvitationRejected'
-  | 'AdminInvitationExpired'
-  | 'UserKycSubmitted'
-  | 'InstitutionApplicationSubmitted'
-  | 'WithdrawalFailed'
-  // Enhanced loan notifications
-  | 'LiquidationWarning'
-  | 'LiquidationCompleted'
-  // System notifications
-  | 'PlatformMaintenanceNotice'
-  | 'SecurityAlert';
-
 export interface NotificationData {
   type: NotificationType;
   [key: string]: unknown;
@@ -136,4 +89,5 @@ export type AnyNotificationPayload =
   | EmailNotificationPayload
   | SMSNotificationPayload
   | FCMNotificationPayload
-  | APNSNotificationPayload;
+  | APNSNotificationPayload
+  | ExpoNotificationPayload;
