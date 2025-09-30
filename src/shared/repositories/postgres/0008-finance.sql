@@ -60,13 +60,6 @@ CREATE TABLE IF NOT EXISTS account_mutations (
   amount DECIMAL(78, 0) NOT NULL
 );
 
-ALTER TABLE accounts
-  ALTER COLUMN balance TYPE DECIMAL(78, 0) USING balance::DECIMAL(78, 0),
-  ALTER COLUMN balance SET DEFAULT 0;
-
-ALTER TABLE account_mutations
-  ALTER COLUMN amount TYPE DECIMAL(78, 0) USING amount::DECIMAL(78, 0);
-
 --- VIEW ---
 
 CREATE OR REPLACE VIEW account_mutation_entries AS
