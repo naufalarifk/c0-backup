@@ -125,14 +125,59 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
     const client = await this.#pool.connect();
 
     try {
-      for (const schemaPath of schemaPaths) {
-        try {
-          const schemaSqlQueries = await readFile(schemaPath, { encoding: 'utf-8' });
-          await client.query(schemaSqlQueries);
-        } catch (error) {
-          this.#logger.error('Error applying schema', { schemaPath, error });
-          throw error;
+      // Use PostgreSQL advisory lock to prevent concurrent migrations
+      // Lock ID: 1234567890 (arbitrary but consistent across all services)
+      this.#logger.debug('Attempting to acquire migration advisory lock...');
+
+      const lockResult = await client.query('SELECT pg_try_advisory_lock(1234567890) as acquired');
+      const lockAcquired = lockResult.rows[0].acquired;
+
+      if (!lockAcquired) {
+        this.#logger.log('Another service is running migrations. Waiting for completion...');
+
+        // Wait for the lock to be available (blocking call)
+        await client.query('SELECT pg_advisory_lock(1234567890)');
+        this.#logger.debug('Migration advisory lock acquired after waiting');
+
+        // Check if migrations have already been completed by the other service
+        const checkResult = await client.query(`
+          SELECT table_name FROM information_schema.tables 
+          WHERE table_schema = 'public' AND table_name IN (
+            'users', 'notifications', 'institutions', 'kyc_submissions', 
+            'platform_settings', 'blockchain_networks', 'currencies', 
+            'price_feeds', 'invoices', 'loans', 'loan_documents', 
+            'withdrawals', 'loan_agreement_signatures'
+          )
+        `);
+
+        if (checkResult.rows.length >= 10) {
+          // Most tables exist
+          this.#logger.log('Migrations already completed by another service');
+          await client.query('SELECT pg_advisory_unlock(1234567890)');
+          return;
         }
+      } else {
+        this.#logger.debug('Migration advisory lock acquired immediately');
+      }
+
+      try {
+        // Run migrations with advisory lock held
+        for (const schemaPath of schemaPaths) {
+          try {
+            this.#logger.debug(`Applying schema: ${schemaPath}`);
+            const schemaSqlQueries = await readFile(schemaPath, { encoding: 'utf-8' });
+            await client.query(schemaSqlQueries);
+            this.#logger.debug(`Successfully applied schema: ${schemaPath}`);
+          } catch (error) {
+            this.#logger.error('Error applying schema', { schemaPath, error });
+            throw error;
+          }
+        }
+        this.#logger.log('All database migrations completed successfully');
+      } finally {
+        // Always release the advisory lock
+        await client.query('SELECT pg_advisory_unlock(1234567890)');
+        this.#logger.debug('Migration advisory lock released');
       }
     } finally {
       // CRITICAL: Always release the client back to the pool

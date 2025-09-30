@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import * as Minio from 'minio';
 import { v4 as uuidv4 } from 'uuid';
 
+import { MinioService } from '../../../shared/services/minio.service';
 import { DocumentStorageProvider, type StorageResult } from '../document-storage-provider.abstract';
 import {
   DocumentStorageProviderFlag,
@@ -14,43 +14,18 @@ import {
 @DocumentStorageProviderFlag(DocumentStorageProviderType.MINIO)
 export class MinioStorageProvider extends DocumentStorageProvider {
   private readonly logger = new Logger(MinioStorageProvider.name);
-  private readonly minioClient: Minio.Client;
   private readonly bucketName: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly minioService: MinioService,
+  ) {
     super();
 
     this.bucketName = this.configService.get('MINIO_DOCUMENTS_BUCKET', 'documents');
-
-    // Parse endpoint to separate hostname and port
-    const endpointConfig = this.configService.get('MINIO_ENDPOINT', 'localhost:9000');
-    const [endPoint, endpointPort] = endpointConfig.split(':');
-    const port = endpointPort
-      ? parseInt(endpointPort, 10)
-      : this.configService.get('MINIO_PORT', 9000);
-
-    this.minioClient = new Minio.Client({
-      endPoint,
-      port,
-      useSSL: this.configService.get('MINIO_USE_SSL', 'false') === 'true',
-      accessKey: this.configService.get('MINIO_ACCESS_KEY', 'minioadmin'),
-      secretKey: this.configService.get('MINIO_SECRET_KEY', 'minioadmin'),
-    });
-
-    this.ensureBucketExists();
   }
 
-  private async ensureBucketExists(): Promise<void> {
-    try {
-      const exists = await this.minioClient.bucketExists(this.bucketName);
-      if (!exists) {
-        await this.minioClient.makeBucket(this.bucketName, 'us-east-1');
-        this.logger.log(`Created bucket: ${this.bucketName}`);
-      }
-    } catch (error) {
-      this.logger.error(`Failed to ensure bucket exists: ${error.message}`, error.stack);
-    }
-  }
+  // Note: Bucket creation is handled by MinioService on initialization
 
   async store(
     documentBuffer: Buffer,
@@ -69,13 +44,11 @@ export class MinioStorageProvider extends DocumentStorageProvider {
         ...(metadata as Record<string, unknown>),
       };
 
-      await this.minioClient.putObject(
-        this.bucketName,
+      await this.minioService.uploadFile(documentBuffer, fileName, {
+        bucketName: this.bucketName,
         objectName,
-        documentBuffer,
-        documentBuffer.length,
-        metaData,
-      );
+        metaData: metaData as Record<string, string>,
+      });
 
       this.logger.log(`Document stored successfully: ${objectName}`);
 
@@ -92,7 +65,7 @@ export class MinioStorageProvider extends DocumentStorageProvider {
 
   async retrieve(filePath: string): Promise<Buffer> {
     try {
-      const stream = await this.minioClient.getObject(this.bucketName, filePath);
+      const stream = await this.minioService.getObject(this.bucketName, filePath);
       const chunks: Buffer[] = [];
 
       return new Promise((resolve, reject) => {
@@ -108,7 +81,7 @@ export class MinioStorageProvider extends DocumentStorageProvider {
 
   async delete(filePath: string): Promise<void> {
     try {
-      await this.minioClient.removeObject(this.bucketName, filePath);
+      await this.minioService.deleteFile(this.bucketName, filePath);
       this.logger.log(`Document deleted successfully: ${filePath}`);
     } catch (error) {
       this.logger.error(`Failed to delete document: ${filePath}`, error.stack);
@@ -118,7 +91,7 @@ export class MinioStorageProvider extends DocumentStorageProvider {
 
   async exists(filePath: string): Promise<boolean> {
     try {
-      await this.minioClient.statObject(this.bucketName, filePath);
+      await this.minioService.statObject(this.bucketName, filePath);
       return true;
     } catch (error) {
       if (error.code === 'NotFound') {
@@ -132,7 +105,7 @@ export class MinioStorageProvider extends DocumentStorageProvider {
     try {
       // Default to 1 hour if not specified
       const expiry = expirySeconds || 3600;
-      const url = await this.minioClient.presignedGetObject(this.bucketName, filePath, expiry);
+      const url = await this.minioService.getFileUrl(this.bucketName, filePath, expiry);
       return url;
     } catch (error) {
       this.logger.error(`Failed to generate URL for document: ${filePath}`, error.stack);
