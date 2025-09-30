@@ -64,6 +64,9 @@ ALTER TABLE accounts
   ALTER COLUMN balance TYPE DECIMAL(78, 0) USING balance::DECIMAL(78, 0),
   ALTER COLUMN balance SET DEFAULT 0;
 
+-- Drop view before altering columns it depends on
+DROP VIEW IF EXISTS account_mutation_entries CASCADE;
+
 ALTER TABLE account_mutations
   ALTER COLUMN amount TYPE DECIMAL(78, 0) USING amount::DECIMAL(78, 0);
 

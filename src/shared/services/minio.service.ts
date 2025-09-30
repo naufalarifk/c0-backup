@@ -157,6 +157,20 @@ export class MinioService implements OnModuleInit {
   }
 
   /**
+   * Get file as stream
+   */
+  async getObject(bucketName: string, objectName: string) {
+    return await this.client.getObject(bucketName, objectName);
+  }
+
+  /**
+   * Check if object exists
+   */
+  async statObject(bucketName: string, objectName: string) {
+    return await this.client.statObject(bucketName, objectName);
+  }
+
+  /**
    * Check if file type is allowed image
    */
   isAllowedImageType(fileName: string): boolean {
