@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
-import { NestFactory, Reflector } from '@nestjs/core';
-import { ExpressAdapter, NestExpressApplication } from '@nestjs/platform-express';
+import { Reflector } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
@@ -17,15 +17,9 @@ import { AppConfigService } from '../shared/services/app-config.service';
 import { SharedModule } from '../shared/shared.module';
 import { TelemetryLogger } from '../shared/telemetry.logger';
 import { validationOptions } from '../shared/utils';
-import { AppModule } from './user-api.module';
 
-export async function userApiEntrypoint() {
-  const logger = new TelemetryLogger();
-
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter(), {
-    bodyParser: false,
-    logger,
-  });
+export async function bootstrapUserApi(app: NestExpressApplication) {
+  const logger = new TelemetryLogger('UserApi');
 
   const reflector = app.get(Reflector);
   const configService = app.select(SharedModule).get(AppConfigService);
@@ -35,12 +29,7 @@ export async function userApiEntrypoint() {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: [
-            "'self'",
-            "'unsafe-inline'",
-            "'unsafe-eval'", // Scalar might need this
-            'https://cdn.jsdelivr.net',
-          ],
+          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://cdn.jsdelivr.net'],
           styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
           imgSrc: ["'self'", 'data:', 'https:'],
           fontSrc: ["'self'", 'https:', 'data:'],
@@ -52,7 +41,6 @@ export async function userApiEntrypoint() {
   app.use(compression());
   app.use(cookieParser());
 
-  // Add request ID middleware
   app.use((req: Request, res, next) => {
     const requestId = req.get('x-request-id') || req.get('request-id') || randomUUID();
     req.headers['x-request-id'] = requestId;
@@ -65,11 +53,12 @@ export async function userApiEntrypoint() {
       ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :req[x-request-id] - :response-time ms',
       {
         stream: {
-          write: (message: string) => logger.log(message.trim()),
+          write(message: string) {
+            logger.log(message.trim());
+          },
         },
-        skip(req: Request, _res) {
+        skip(req: Request) {
           const url = req.originalUrl || req.url || '';
-          // Disable access logging for the healthcheck endpoint to keep logs clean
           return /^(\/api)?\/health(\/|$)/.test(url);
         },
       },
@@ -93,7 +82,6 @@ export async function userApiEntrypoint() {
     await docs(app, configService.authConfig.url);
   }
 
-  // Starts listening for shutdown hooks
   if (!configService.isDevelopment) {
     app.enableShutdownHooks();
   }

@@ -200,7 +200,7 @@ export async function waitForEmail(
     if (attempt < maxRetries) {
       await new Promise(resolve => setTimeout(resolve, retryDelay));
     } else {
-      console.warn(`Max retries reached. Email to ${receiver} not found.`);
+      throw new Error(`Email to ${receiver} not found after ${maxRetries} attempts`);
     }
   }
 
@@ -212,15 +212,18 @@ export async function waitForEmailVerification(mailpitApiUrl: string, receiver: 
   /**
    * @example Hi Verify your email address!\r\n\r\nThanks for signing up with CryptoGadai! We're excited to have you on board.\r\nTo complete your registration and secure your account, please verify your email address by clicking the link below:\r\n\r\nhttps://172.22.0.4:3000/api/auth/verify-email?token=eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6InZhbGlkZW1haWxfbWZub3hxMG9AdGVzdC5jb20iLCJpYXQiOjE3NTgwOTU5NzAsImV4cCI6MTc1ODA5OTU3MH0.fV6frfV_qJOV3wUzlsAXIv9zPmY1ahwHQ-Qmy76oQaY&callbackURL=/account-type?referrer=signup\r\n\r\nSecurity Note: This verification link will expire in 24 hours for your security.\r\nIf you didn't create an account with us, you can safely ignore this email.\r\n\r\nThis email was sent by CryptoGadai\r\nIf you have any questions, feel free to contact our support team.\r\n\r\n© 2025 CryptoGadai. All rights reserved.'
    */
-  const emailText = emailMessage?.Text ?? '';
-  const emailHtml = emailMessage?.HTML ?? '';
+  const emailText = emailMessage?.Text ?? 'EMPTY_TEXT_BODY';
+  const emailHtml = emailMessage?.HTML ?? 'EMPTY_HTML_BODY';
   // Try text first, then HTML fallback (strip attributes, look for href)
   const extractedVerificationLink =
     emailText.match(/https?:\/\/[^\s]+/g)?.[0] ||
     emailHtml.match(/https?:\/\/[^"'\s>]+/g)?.[0] ||
     'INVALID';
 
-  ok(extractedVerificationLink !== 'INVALID', 'Failed to extract verification link from email');
+  ok(
+    extractedVerificationLink !== 'INVALID',
+    `Failed to extract verification link from email. Email text: ${emailText}. Email HTML: ${emailHtml}`,
+  );
 
   // eslint-disable-next-line no-undef
   const verificationResponse = await fetch(extractedVerificationLink, {

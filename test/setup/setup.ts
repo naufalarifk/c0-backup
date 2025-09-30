@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
+import { env } from 'node:process';
 
 export async function setup() {
   const redisPort = String(20000 + Math.floor(Math.random() * 5000));
@@ -120,7 +121,7 @@ export async function setup() {
       teardown: () => Promise<void>;
     }>(async function (resolve, reject) {
       let resolvable = true;
-      const cgBackendProcess = spawn('node', ['dist/main.js', 'api', 'notification'], {
+      const cgBackendProcess = spawn('node', ['dist/main.js', 'migration', 'api', 'notification'], {
         cwd: cgBackendPath,
         env: {
           ...process.env,
@@ -156,10 +157,19 @@ export async function setup() {
           DOCUMENT_OUTPUT_DIR: '/tmp/claude/documents',
         },
       });
+      let isNestJSStarted = false;
+      let isDatabaseMigrated = false;
       cgBackendProcess.stdout?.on('data', function (data) {
-        const dataStr = String(data);
-        // console.debug('cg/backend', 'out', dataStr);
-        if (dataStr.includes('application successfully started')) {
+        if (env.CG_BACKEND_LOGS === '1') {
+          console.debug(data?.toString());
+        }
+        if (data?.toString().includes('application successfully started')) {
+          isNestJSStarted = true;
+        }
+        if (data?.toString().includes('Migration completed.')) {
+          isDatabaseMigrated = true;
+        }
+        if (isNestJSStarted && isDatabaseMigrated) {
           if (resolvable) {
             resolvable = false;
             resolve({
@@ -171,7 +181,9 @@ export async function setup() {
         }
       });
       cgBackendProcess.stderr?.on('data', function (data) {
-        // console.error('cg/backend', 'err', data.toString());
+        if (env.CG_BACKEND_LOGS === '1') {
+          console.error(data?.toString());
+        }
       });
       cgBackendProcess.on('error', function (error) {
         if (resolvable) {

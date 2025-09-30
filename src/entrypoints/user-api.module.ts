@@ -1,6 +1,4 @@
-import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
@@ -12,8 +10,8 @@ import { BeneficiariesModule } from '../modules/beneficiaries/beneficiaries.modu
 import { InstitutionsModule } from '../modules/institutions/institutions.module';
 import { LoansModule } from './../modules/loans/loans.module';
 import { NotificationModule } from '../modules/notifications/notification.module';
-import { PortfolioModule } from '../modules/portfolio/portfolio.module';
 import { NotificationsModule } from '../modules/notifications/notifications.module';
+import { PortfolioModule } from '../modules/portfolio/portfolio.module';
 import { SmsModule } from '../modules/sms/sms.module';
 import { UsersModule } from '../modules/users/users.module';
 import { WithdrawalsModule } from '../modules/withdrawals/withdrawals.module';
@@ -24,28 +22,12 @@ import { TestController } from '../shared/test.controller';
 
 @Module({
   imports: [
-    // Global configuration
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: ['.env', '.env.docker'],
-    }),
-
-    // Shared module with common services
     SharedModule,
 
     // Rate limiting
     ThrottlerModule.forRootAsync({
       useFactory: (configService: AppConfigService) => ({
         throttlers: [configService.throttlerConfigs],
-      }),
-      inject: [AppConfigService],
-    }),
-
-    BullModule.forRootAsync({
-      useFactory: (configService: AppConfigService) => ({
-        connection: {
-          ...configService.redisConfig,
-        },
       }),
       inject: [AppConfigService],
     }),
