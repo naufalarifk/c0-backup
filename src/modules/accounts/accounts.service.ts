@@ -8,8 +8,19 @@ import {
   AccountMutationDto,
   AccountMutationsResponseDto,
   AccountMutationType,
+  AssetAllocationDto,
   GetAccountMutationsQueryDto,
+  MonetaryValueDto,
   PaginationMetaDto,
+  PaymentAlertDto,
+  PaymentAlertsDto,
+  PerformanceMetricDto,
+  PortfolioAnalyticsDto,
+  // Portfolio DTOs
+  PortfolioAnalyticsResponseDto,
+  PortfolioOverviewDto,
+  PortfolioOverviewResponseDto,
+  PortfolioPerformanceDto,
 } from './dto/accounts.dto';
 
 @Injectable()
@@ -28,17 +39,61 @@ export class AccountsService {
     try {
       const result = await this.repository.userRetrievesAccountBalances({ userId });
 
-      const balances: AccountBalanceDto[] = result.accounts.map(account => ({
-        id: Number(account.id),
-        currency: this.mapToCurrencyDto(account),
-        balance: account.balance,
-        pendingOperations: this.calculatePendingOperations(account),
-        lastUpdated: new Date().toISOString(),
-      }));
+      const accounts: AccountBalanceDto[] = result.accounts.map(account => {
+        const accountDto: AccountBalanceDto = {
+          id: Number(account.id),
+          currency: this.mapToCurrencyDto(account),
+          balance: account.balance,
+          lastUpdated: new Date().toISOString(),
+        };
+
+        // Add valuation data if available
+        if (account.valuationAmount && account.exchangeRate && account.rateDate) {
+          const quoteCurrencyDecimals = account.quoteCurrencyDecimals || 6;
+          const valuationBigInt = BigInt(account.valuationAmount);
+          const divisor = BigInt(10 ** quoteCurrencyDecimals);
+          const integerPart = valuationBigInt / divisor;
+          const fractionalPart = valuationBigInt % divisor;
+          const valuationFormatted = `${integerPart}.${fractionalPart.toString().padStart(quoteCurrencyDecimals, '0')}`;
+
+          accountDto.valuation = {
+            amount: valuationFormatted,
+            currency: {
+              blockchainKey: 'crosschain',
+              tokenId: 'iso4217:usd',
+              name: 'USD Token',
+              symbol: 'USD',
+              decimals: quoteCurrencyDecimals,
+              logoUrl: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
+            },
+            exchangeRate: account.exchangeRate,
+            rateSource: account.rateSource || 'unknown',
+            rateDate: account.rateDate.toISOString(),
+          };
+        }
+
+        return accountDto;
+      });
+
+      // Format total portfolio value
+      const totalPortfolioValueUsd = result.totalPortfolioValueUsd || '0';
+      const totalValueBigInt = BigInt(totalPortfolioValueUsd);
+      const usdDecimals = 6;
+      const divisor = BigInt(10 ** usdDecimals);
+      const integerPart = totalValueBigInt / divisor;
+      const fractionalPart = totalValueBigInt % divisor;
+      const totalValueFormatted = `${integerPart}.${fractionalPart.toString().padStart(usdDecimals, '0').slice(0, 2)}`;
 
       return {
         success: true,
-        data: { balances },
+        data: {
+          accounts,
+          totalPortfolioValue: {
+            amount: totalValueFormatted,
+            currency: 'USD',
+            lastUpdated: new Date().toISOString(),
+          },
+        },
       };
     } catch (error) {
       this.logger.error('Failed to get account balances', error);
@@ -60,7 +115,7 @@ export class AccountsService {
 
       const result = await this.repository.userViewsAccountTransactionHistory({
         accountId,
-        mutationType: mutationType as string,
+        mutationType: mutationType as string | undefined,
         fromDate: fromDate ? new Date(fromDate) : undefined,
         toDate: toDate ? new Date(toDate) : undefined,
         limit,
@@ -83,6 +138,7 @@ export class AccountsService {
           : mutation.withdrawalId
             ? 'withdrawal'
             : undefined,
+        balanceAfter: undefined, // TODO: Calculate or fetch from repository
       }));
 
       const totalPages = Math.ceil(result.totalCount / limit);
@@ -139,53 +195,13 @@ export class AccountsService {
   }
 
   /**
-   * Calculate pending operations for an account
-   */
-  private calculatePendingOperations(account: AccountBalance) {
-    return {
-      incoming: '0.000000000000000000',
-      outgoing: '0.000000000000000000',
-      net: '0.000000000000000000',
-    };
-  }
-
-  /**
    * Map database mutation type to enum
+   * Database stores mutation types in PascalCase (e.g., 'InvoiceReceived')
+   * Enum values match the PascalCase format
    */
   private mapToAccountMutationType(mutationType: string): AccountMutationType {
-    const typeMap: Record<string, AccountMutationType> = {
-      invoiceReceived: AccountMutationType.INVOICE_RECEIVED,
-      loanCollateralDeposit: AccountMutationType.LOAN_COLLATERAL_DEPOSIT,
-      loanApplicationCollateralEscrowed: AccountMutationType.LOAN_APPLICATION_COLLATERAL_ESCROWED,
-      loanPrincipalDisbursement: AccountMutationType.LOAN_PRINCIPAL_DISBURSEMENT,
-      loanDisbursementReceived: AccountMutationType.LOAN_DISBURSEMENT_RECEIVED,
-      loanPrincipalDisbursementFee: AccountMutationType.LOAN_PRINCIPAL_DISBURSEMENT_FEE,
-      loanRepayment: AccountMutationType.LOAN_REPAYMENT,
-      loanCollateralRelease: AccountMutationType.LOAN_COLLATERAL_RELEASE,
-      loanCollateralReturned: AccountMutationType.LOAN_COLLATERAL_RETURNED,
-      loanCollateralReleased: AccountMutationType.LOAN_COLLATERAL_RELEASED,
-      loanLiquidationRelease: AccountMutationType.LOAN_LIQUIDATION_RELEASE,
-      loanLiquidationSurplus: AccountMutationType.LOAN_LIQUIDATION_SURPLUS,
-      loanLiquidationReleaseFee: AccountMutationType.LOAN_LIQUIDATION_RELEASE_FEE,
-      loanPrincipalFunded: AccountMutationType.LOAN_PRINCIPAL_FUNDED,
-      loanOfferPrincipalEscrowed: AccountMutationType.LOAN_OFFER_PRINCIPAL_ESCROWED,
-      loanPrincipalReturned: AccountMutationType.LOAN_PRINCIPAL_RETURNED,
-      loanPrincipalReturnedFee: AccountMutationType.LOAN_PRINCIPAL_RETURNED_FEE,
-      loanInterestReceived: AccountMutationType.LOAN_INTEREST_RECEIVED,
-      loanRepaymentReceived: AccountMutationType.LOAN_REPAYMENT_RECEIVED,
-      loanLiquidationRepayment: AccountMutationType.LOAN_LIQUIDATION_REPAYMENT,
-      loanDisbursementPrincipal: AccountMutationType.LOAN_DISBURSEMENT_PRINCIPAL,
-      loanDisbursementFee: AccountMutationType.LOAN_DISBURSEMENT_FEE,
-      loanRedeliveryFee: AccountMutationType.LOAN_REDELIVERY_FEE,
-      loanLiquidationFee: AccountMutationType.LOAN_LIQUIDATION_FEE,
-      loanLiquidationCollateralUsed: AccountMutationType.LOAN_LIQUIDATION_COLLATERAL_USED,
-      withdrawalRequested: AccountMutationType.WITHDRAWAL_REQUESTED,
-      withdrawalRefunded: AccountMutationType.WITHDRAWAL_REFUNDED,
-      platformFeeCharged: AccountMutationType.PLATFORM_FEE_CHARGED,
-      platformFeeRefunded: AccountMutationType.PLATFORM_FEE_REFUNDED,
-    };
-
-    return typeMap[mutationType] || AccountMutationType.PLATFORM_FEE_CHARGED;
+    // Database uses PascalCase, which matches our enum values
+    return mutationType as AccountMutationType;
   }
 
   /**
@@ -193,35 +209,35 @@ export class AccountsService {
    */
   private generateMutationDescription(mutation: AccountMutation): string {
     const typeDescriptions: Record<string, string> = {
-      invoiceReceived: 'Invoice payment received',
-      loanCollateralDeposit: 'Loan collateral deposit',
-      loanApplicationCollateralEscrowed: 'Loan application collateral escrowed',
-      loanPrincipalDisbursement: 'Loan principal disbursement',
-      loanDisbursementReceived: 'Loan disbursement received',
-      loanPrincipalDisbursementFee: 'Loan principal disbursement fee',
-      loanRepayment: 'Loan repayment',
-      loanCollateralRelease: 'Loan collateral release',
-      loanCollateralReturned: 'Loan collateral returned',
-      loanCollateralReleased: 'Loan collateral released',
-      loanLiquidationRelease: 'Loan liquidation release',
-      loanLiquidationSurplus: 'Loan liquidation surplus',
-      loanLiquidationReleaseFee: 'Loan liquidation release fee',
-      loanPrincipalFunded: 'Loan principal funded',
-      loanOfferPrincipalEscrowed: 'Loan offer principal escrowed',
-      loanPrincipalReturned: 'Loan principal returned',
-      loanPrincipalReturnedFee: 'Loan principal returned fee',
-      loanInterestReceived: 'Loan interest received',
-      loanRepaymentReceived: 'Loan repayment received',
-      loanLiquidationRepayment: 'Loan liquidation repayment',
-      loanDisbursementPrincipal: 'Loan disbursement principal',
-      loanDisbursementFee: 'Loan disbursement fee',
-      loanRedeliveryFee: 'Loan redelivery fee',
-      loanLiquidationFee: 'Loan liquidation fee',
-      loanLiquidationCollateralUsed: 'Loan liquidation collateral used',
-      withdrawalRequested: 'Withdrawal requested',
-      withdrawalRefunded: 'Withdrawal refunded',
-      platformFeeCharged: 'Platform fee charged',
-      platformFeeRefunded: 'Platform fee refunded',
+      InvoiceReceived: 'Invoice payment received',
+      LoanCollateralDeposit: 'Loan collateral deposit',
+      LoanApplicationCollateralEscrowed: 'Loan application collateral escrowed',
+      LoanPrincipalDisbursement: 'Loan principal disbursement',
+      LoanDisbursementReceived: 'Loan disbursement received',
+      LoanPrincipalDisbursementFee: 'Loan principal disbursement fee',
+      LoanRepayment: 'Loan repayment',
+      LoanCollateralRelease: 'Loan collateral release',
+      LoanCollateralReturned: 'Loan collateral returned',
+      LoanCollateralReleased: 'Loan collateral released',
+      LoanLiquidationRelease: 'Loan liquidation release',
+      LoanLiquidationSurplus: 'Loan liquidation surplus',
+      LoanLiquidationReleaseFee: 'Loan liquidation release fee',
+      LoanPrincipalFunded: 'Loan principal funded',
+      LoanOfferPrincipalEscrowed: 'Loan offer principal escrowed',
+      LoanPrincipalReturned: 'Loan principal returned',
+      LoanPrincipalReturnedFee: 'Loan principal returned fee',
+      LoanInterestReceived: 'Loan interest received',
+      LoanRepaymentReceived: 'Loan repayment received',
+      LoanLiquidationRepayment: 'Loan liquidation repayment',
+      LoanDisbursementPrincipal: 'Loan disbursement principal',
+      LoanDisbursementFee: 'Loan disbursement fee',
+      LoanReturnFee: 'Loan return fee',
+      LoanLiquidationFee: 'Loan liquidation fee',
+      LoanLiquidationCollateralUsed: 'Loan liquidation collateral used',
+      WithdrawalRequested: 'Withdrawal requested',
+      WithdrawalRefunded: 'Withdrawal refunded',
+      PlatformFeeCharged: 'Platform fee charged',
+      PlatformFeeRefunded: 'Platform fee refunded',
     };
 
     const baseDescription = typeDescriptions[mutation.mutationType] || 'Account mutation';
@@ -237,5 +253,161 @@ export class AccountsService {
     }
 
     return baseDescription;
+  }
+
+  /**
+   * Get portfolio analytics for user
+   */
+  async getPortfolioAnalytics(userId: string): Promise<PortfolioAnalyticsResponseDto> {
+    try {
+      const result = await this.repository.userRetrievesPortfolioAnalytics({ userId });
+
+      const portfolioAnalytics: PortfolioAnalyticsDto = {
+        totalPortfolioValue: {
+          amount: result.totalPortfolioValue.amount,
+          currency: result.totalPortfolioValue.currency,
+          isLocked: result.totalPortfolioValue.isLocked,
+          lastUpdated: result.totalPortfolioValue.lastUpdated.toISOString(),
+        },
+        interestGrowth: {
+          amount: result.interestGrowth.amount,
+          currency: result.interestGrowth.currency,
+          percentage: result.interestGrowth.percentage,
+          isPositive: result.interestGrowth.isPositive,
+          periodLabel: result.interestGrowth.periodLabel,
+        },
+        activeLoans: {
+          count: result.activeLoans.count,
+          borrowerLoans: result.activeLoans.borrowerLoans,
+          lenderLoans: result.activeLoans.lenderLoans,
+          totalCollateralValue: result.activeLoans.totalCollateralValue,
+          averageLTV: result.activeLoans.averageLTV,
+        },
+        portfolioPeriod: {
+          displayMonth: result.portfolioPeriod.displayMonth,
+          startDate: result.portfolioPeriod.startDate.toISOString(),
+          endDate: result.portfolioPeriod.endDate.toISOString(),
+        },
+        paymentAlerts: {
+          upcomingPayments: result.paymentAlerts.upcomingPayments.map(alert => ({
+            loanId: alert.loanId,
+            daysUntilDue: alert.daysUntilDue,
+            paymentAmount: alert.paymentAmount,
+            currency: alert.currency,
+            collateralAtRisk: alert.collateralAtRisk,
+            collateralCurrency: alert.collateralCurrency,
+            liquidationWarning: alert.liquidationWarning,
+          })),
+          overduePayments: result.paymentAlerts.overduePayments.map(alert => ({
+            loanId: alert.loanId,
+            daysUntilDue: alert.daysUntilDue,
+            paymentAmount: alert.paymentAmount,
+            currency: alert.currency,
+            collateralAtRisk: alert.collateralAtRisk,
+            collateralCurrency: alert.collateralCurrency,
+            liquidationWarning: alert.liquidationWarning,
+          })),
+        },
+        assetBreakdown: {
+          cryptoAssets: {
+            percentage: result.assetBreakdown.cryptoAssets.percentage,
+            value: result.assetBreakdown.cryptoAssets.value,
+          },
+          stablecoins: {
+            percentage: result.assetBreakdown.stablecoins.percentage,
+            value: result.assetBreakdown.stablecoins.value,
+          },
+          loanCollateral: {
+            percentage: result.assetBreakdown.loanCollateral.percentage,
+            value: result.assetBreakdown.loanCollateral.value,
+          },
+        },
+      };
+
+      return {
+        success: true,
+        data: portfolioAnalytics,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get portfolio analytics', error);
+      throw new BadRequestException('Failed to retrieve portfolio analytics');
+    }
+  }
+
+  /**
+   * Get portfolio overview for user
+   */
+  async getPortfolioOverview(userId: string): Promise<PortfolioOverviewResponseDto> {
+    try {
+      const result = await this.repository.userRetrievesPortfolioOverview({ userId });
+
+      const portfolioOverview: PortfolioOverviewDto = {
+        totalValue: {
+          amount: result.totalValue.amount,
+          currency: this.mapCurrencyToDto(result.totalValue.currency),
+        },
+        assetAllocation: result.assetAllocation.map(asset => ({
+          currency: this.mapCurrencyToDto(asset.currency),
+          balance: asset.balance,
+          value: {
+            amount: asset.value.amount,
+            currency: this.mapCurrencyToDto({
+              blockchainKey: 'crosschain',
+              tokenId: 'iso4217:usd',
+              name: 'USD Token',
+              symbol: 'USD',
+              decimals: 6,
+            }),
+          },
+          percentage: asset.percentage,
+        })),
+        performance: {
+          daily: {
+            amount: result.performance.daily.amount,
+            currency: result.performance.daily.currency,
+            percentage: result.performance.daily.percentage,
+          },
+          weekly: {
+            amount: result.performance.weekly.amount,
+            currency: result.performance.weekly.currency,
+            percentage: result.performance.weekly.percentage,
+          },
+          monthly: {
+            amount: result.performance.monthly.amount,
+            currency: result.performance.monthly.currency,
+            percentage: result.performance.monthly.percentage,
+          },
+        },
+        lastUpdated: result.lastUpdated.toISOString(),
+      };
+
+      return {
+        success: true,
+        data: portfolioOverview,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get portfolio overview', error);
+      throw new BadRequestException('Failed to retrieve portfolio overview');
+    }
+  }
+
+  /**
+   * Map currency object to DTO format
+   */
+  private mapCurrencyToDto(currency: {
+    blockchainKey: string;
+    tokenId: string;
+    name: string;
+    symbol: string;
+    decimals: number;
+  }) {
+    return {
+      blockchainKey: currency.blockchainKey,
+      tokenId: currency.tokenId,
+      name: currency.name,
+      symbol: currency.symbol,
+      decimals: currency.decimals,
+      logoUrl: `https://assets.cryptogadai.com/currencies/${currency.symbol.toLowerCase()}.png`,
+    };
   }
 }

@@ -26,6 +26,8 @@ import {
   AccountBalancesResponseDto,
   AccountMutationsResponseDto,
   GetAccountMutationsQueryDto,
+  PortfolioAnalyticsResponseDto,
+  PortfolioOverviewResponseDto,
 } from './dto/accounts.dto';
 
 @ApiTags('Accounts')
@@ -100,35 +102,35 @@ export class AccountsController {
     type: 'string',
     required: false,
     enum: [
-      'invoiceReceived',
-      'loanCollateralDeposit',
-      'loanApplicationCollateralEscrowed',
-      'loanPrincipalDisbursement',
-      'loanDisbursementReceived',
-      'loanPrincipalDisbursementFee',
-      'loanRepayment',
-      'loanCollateralRelease',
-      'loanCollateralReturned',
-      'loanCollateralReleased',
-      'loanLiquidationRelease',
-      'loanLiquidationSurplus',
-      'loanLiquidationReleaseFee',
-      'loanPrincipalFunded',
-      'loanOfferPrincipalEscrowed',
-      'loanPrincipalReturned',
-      'loanPrincipalReturnedFee',
-      'loanInterestReceived',
-      'loanRepaymentReceived',
-      'loanLiquidationRepayment',
-      'loanDisbursementPrincipal',
-      'loanDisbursementFee',
-      'loanRedeliveryFee',
-      'loanLiquidationFee',
-      'loanLiquidationCollateralUsed',
-      'withdrawalRequested',
-      'withdrawalRefunded',
-      'platformFeeCharged',
-      'platformFeeRefunded',
+      'InvoiceReceived',
+      'LoanCollateralDeposit',
+      'LoanApplicationCollateralEscrowed',
+      'LoanPrincipalDisbursement',
+      'LoanDisbursementReceived',
+      'LoanPrincipalDisbursementFee',
+      'LoanRepayment',
+      'LoanCollateralRelease',
+      'LoanCollateralReturned',
+      'LoanCollateralReleased',
+      'LoanLiquidationRelease',
+      'LoanLiquidationSurplus',
+      'LoanLiquidationReleaseFee',
+      'LoanPrincipalFunded',
+      'LoanOfferPrincipalEscrowed',
+      'LoanPrincipalReturned',
+      'LoanPrincipalReturnedFee',
+      'LoanInterestReceived',
+      'LoanRepaymentReceived',
+      'LoanLiquidationRepayment',
+      'LoanDisbursementPrincipal',
+      'LoanDisbursementFee',
+      'LoanReturnFee',
+      'LoanLiquidationFee',
+      'LoanLiquidationCollateralUsed',
+      'WithdrawalRequested',
+      'WithdrawalRefunded',
+      'PlatformFeeCharged',
+      'PlatformFeeRefunded',
     ],
   })
   @ApiQuery({
@@ -173,5 +175,78 @@ export class AccountsController {
     } = session;
     this.logger.log(`Getting mutations for account: ${accountId}, user: ${id}`);
     return await this.accountsService.getAccountMutations(accountId, query);
+  }
+}
+
+@ApiTags('Portfolio')
+@ApiBearerAuth()
+@UseGuards(AuthGuard)
+@Controller('portfolio')
+export class PortfolioController {
+  private readonly logger = new Logger(PortfolioController.name);
+
+  constructor(private readonly accountsService: AccountsService) {}
+
+  /**
+   * Get portfolio analytics for individual user home
+   */
+  @Get('analytics')
+  @ApiOperation({
+    summary: 'Get Portfolio Analytics',
+    description: 'Retrieve portfolio analytics for individual user home interface',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Successfully retrieved portfolio analytics',
+    type: PortfolioAnalyticsResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Unauthorized - Invalid or missing authentication token',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Bad Request - Failed to retrieve portfolio analytics',
+  })
+  async getPortfolioAnalytics(
+    @Session() session: UserSession,
+  ): Promise<PortfolioAnalyticsResponseDto> {
+    const {
+      session: { id },
+    } = session;
+    this.logger.log(`Getting portfolio analytics for user: ${id}`);
+    return await this.accountsService.getPortfolioAnalytics(id);
+  }
+
+  /**
+   * Get portfolio overview with asset allocation
+   */
+  @Get('overview')
+  @ApiOperation({
+    summary: 'Get Portfolio Overview',
+    description:
+      'Retrieve comprehensive portfolio overview with asset allocation and performance metrics',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Successfully retrieved portfolio overview',
+    type: PortfolioOverviewResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Unauthorized - Invalid or missing authentication token',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Bad Request - Failed to retrieve portfolio overview',
+  })
+  async getPortfolioOverview(
+    @Session() session: UserSession,
+  ): Promise<PortfolioOverviewResponseDto> {
+    const {
+      session: { id },
+    } = session;
+    this.logger.log(`Getting portfolio overview for user: ${id}`);
+    return await this.accountsService.getPortfolioOverview(id);
   }
 }

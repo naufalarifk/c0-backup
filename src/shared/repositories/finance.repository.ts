@@ -21,12 +21,14 @@ import {
   AdminViewsFailedWithdrawalsResult,
   AdminViewsWithdrawalDetailsParams,
   AdminWithdrawalDetailsResult,
+  AssetAllocation,
   BlockchainDetectsInvoicePaymentParams,
   BlockchainDetectsInvoicePaymentResult,
   GetRemainingDailyWithdrawalLimitParams,
   GetRemainingDailyWithdrawalLimitResult,
   GetWithdrawalStatusParams,
   GetWithdrawalStatusResult,
+  PerformanceMetric,
   PlatformConfirmsWithdrawalParams,
   PlatformConfirmsWithdrawalResult,
   PlatformCreatesInvoiceParams,
@@ -45,6 +47,8 @@ import {
   PlatformViewsActiveButExpiredInvoicesParams,
   PlatformViewsActiveButExpiredInvoicesResult,
   PlatformViewsActiveInvoicesParams,
+  PortfolioAnalyticsResult,
+  PortfolioOverviewResult,
   UpdateWithdrawalStatusParams,
   UpdateWithdrawalStatusResult,
   UserRegistersWithdrawalBeneficiaryParams,
@@ -53,6 +57,9 @@ import {
   UserRequestsWithdrawalResult,
   UserRetrievesAccountBalancesParams,
   UserRetrievesAccountBalancesResult,
+  // Portfolio Management Types
+  UserRetrievesPortfolioAnalyticsParams,
+  UserRetrievesPortfolioOverviewParams,
   UserViewsAccountTransactionHistoryParams,
   UserViewsAccountTransactionHistoryResult,
   UserViewsCurrenciesParams,
@@ -85,37 +92,98 @@ export abstract class FinanceRepository extends UserRepository {
 
     const rows = await this.sql`
       SELECT
-        id,
-        user_id,
-        currency_blockchain_key,
-        currency_token_id,
-        balance,
-        account_type
-      FROM accounts
-      WHERE user_id = ${userId}
-      ORDER BY currency_blockchain_key, currency_token_id
+        a.id,
+        a.user_id,
+        a.currency_blockchain_key,
+        a.currency_token_id,
+        a.balance,
+        a.account_type,
+        c.decimals as currency_decimals,
+        -- Get latest exchange rate for valuation (crosschain to iso4217:usd)
+        er.bid_price as exchange_rate,
+        er.retrieval_date as rate_date,
+        pf.source as rate_source,
+        qc.decimals as quote_currency_decimals
+      FROM accounts a
+      JOIN currencies c ON a.currency_blockchain_key = c.blockchain_key
+        AND a.currency_token_id = c.token_id
+      LEFT JOIN LATERAL (
+        SELECT pf2.id, pf2.source, pf2.quote_currency_token_id
+        FROM price_feeds pf2
+        WHERE pf2.blockchain_key = 'crosschain'
+          AND pf2.base_currency_token_id = a.currency_token_id
+          AND pf2.quote_currency_token_id = 'iso4217:usd'
+        LIMIT 1
+      ) pf ON true
+      LEFT JOIN LATERAL (
+        SELECT er2.bid_price, er2.retrieval_date
+        FROM exchange_rates er2
+        WHERE er2.price_feed_id = pf.id
+        ORDER BY er2.retrieval_date DESC
+        LIMIT 1
+      ) er ON true
+      LEFT JOIN currencies qc ON pf.quote_currency_token_id = qc.token_id
+        AND qc.blockchain_key = 'crosschain'
+      WHERE a.user_id = ${userId}
+      ORDER BY a.currency_blockchain_key, a.currency_token_id
     `;
 
     const accounts = rows;
 
+    // Calculate total portfolio value in USD
+    let totalPortfolioValueUsd = BigInt(0);
+
+    const mappedAccounts = accounts.map(function (account: unknown) {
+      assertDefined(account, 'Account is undefined');
+      assertProp(check(isString, isNumber), account, 'id');
+      assertProp(check(isString, isNumber), account, 'user_id');
+      assertPropString(account, 'currency_blockchain_key');
+      assertPropString(account, 'currency_token_id');
+      assertProp(check(isString, isNumber), account, 'balance');
+      assertPropString(account, 'account_type');
+      assertProp(check(isString, isNumber), account, 'currency_decimals');
+      assertProp(check(isNullable, isString, isNumber), account, 'exchange_rate');
+      assertProp(check(isNullable, isInstanceOf(Date)), account, 'rate_date');
+      assertProp(check(isNullable, isString), account, 'rate_source');
+      assertProp(check(isNullable, isString, isNumber), account, 'quote_currency_decimals');
+
+      const balance = BigInt(account.balance);
+      const currencyDecimals = Number(account.currency_decimals);
+      const exchangeRate = account.exchange_rate ? BigInt(account.exchange_rate) : null;
+      const quoteCurrencyDecimals = account.quote_currency_decimals
+        ? Number(account.quote_currency_decimals)
+        : 6; // USD default decimals
+
+      // Calculate valuation in USD if exchange rate exists
+      let valuationAmount: string | null = null;
+      if (exchangeRate !== null && balance > BigInt(0)) {
+        // Formula: (balance * exchangeRate) / (10^currencyDecimals)
+        // This gives us the value in quote currency's smallest unit
+        const valuationInSmallestUnit = (balance * exchangeRate) / BigInt(10 ** currencyDecimals);
+        valuationAmount = valuationInSmallestUnit.toString();
+
+        // Add to total portfolio value
+        totalPortfolioValueUsd += valuationInSmallestUnit;
+      }
+
+      return {
+        id: String(account.id),
+        userId: String(account.user_id),
+        currencyBlockchainKey: account.currency_blockchain_key,
+        currencyTokenId: account.currency_token_id,
+        balance: String(account.balance),
+        accountType: account.account_type,
+        valuationAmount,
+        exchangeRate: exchangeRate ? String(exchangeRate) : undefined,
+        rateSource: account.rate_source || undefined,
+        rateDate: account.rate_date || undefined,
+        quoteCurrencyDecimals,
+      };
+    });
+
     return {
-      accounts: accounts.map(function (account: unknown) {
-        assertDefined(account, 'Account is undefined');
-        assertProp(check(isString, isNumber), account, 'id');
-        assertProp(check(isString, isNumber), account, 'user_id');
-        assertPropString(account, 'currency_blockchain_key');
-        assertPropString(account, 'currency_token_id');
-        assertProp(check(isString, isNumber), account, 'balance');
-        assertPropString(account, 'account_type');
-        return {
-          id: String(account.id),
-          userId: String(account.user_id),
-          currencyBlockchainKey: account.currency_blockchain_key,
-          currencyTokenId: account.currency_token_id,
-          balance: String(account.balance),
-          accountType: account.account_type,
-        };
-      }),
+      accounts: mappedAccounts,
+      totalPortfolioValueUsd: totalPortfolioValueUsd.toString(),
     };
   }
 
@@ -1937,5 +2005,230 @@ export abstract class FinanceRepository extends UserRepository {
     };
 
     return { withdrawal };
+  }
+
+  // Portfolio Management Methods
+  async userRetrievesPortfolioAnalytics(
+    params: UserRetrievesPortfolioAnalyticsParams,
+  ): Promise<PortfolioAnalyticsResult> {
+    const { userId } = params;
+
+    // Get current date for period calculations
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const periodStart = new Date(currentYear, currentMonth, 1);
+    const periodEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59);
+
+    // Get user's total portfolio value
+    const balanceResult = await this.userRetrievesAccountBalances({ userId });
+    const totalPortfolioValue = balanceResult.totalPortfolioValueUsd || '0';
+
+    // Calculate interest growth (simplified - would need historical data)
+    const interestGrowthAmount = '17.98'; // Placeholder - should be calculated from historical data
+    const interestGrowthPercentage = 17.98;
+
+    // Get active loans count (placeholder - would need loan repository integration)
+    const activeLoanCount = 125;
+    const borrowerLoanCount = 5;
+    const lenderLoanCount = 120;
+    const totalCollateralValue = '85432.10';
+    const averageLTV = 0.67;
+
+    // Calculate asset breakdown
+    const totalValue = parseFloat(totalPortfolioValue) || 0;
+    const cryptoAssetsValue = totalValue * 0.7;
+    const stablecoinsValue = totalValue * 0.2;
+    const loanCollateralValue = totalValue * 0.1;
+
+    return {
+      totalPortfolioValue: {
+        amount: totalPortfolioValue,
+        currency: 'USDT',
+        isLocked: true,
+        lastUpdated: now,
+      },
+      interestGrowth: {
+        amount: `+${interestGrowthAmount}`,
+        currency: 'USDT',
+        percentage: interestGrowthPercentage,
+        isPositive: true,
+        periodLabel: 'USDT',
+      },
+      activeLoans: {
+        count: activeLoanCount,
+        borrowerLoans: borrowerLoanCount,
+        lenderLoans: lenderLoanCount,
+        totalCollateralValue,
+        averageLTV,
+      },
+      portfolioPeriod: {
+        displayMonth: now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        startDate: periodStart,
+        endDate: periodEnd,
+      },
+      paymentAlerts: {
+        upcomingPayments: [], // Placeholder - would integrate with loan system
+        overduePayments: [],
+      },
+      assetBreakdown: {
+        cryptoAssets: {
+          percentage: 70.0,
+          value: cryptoAssetsValue.toFixed(2),
+        },
+        stablecoins: {
+          percentage: 20.0,
+          value: stablecoinsValue.toFixed(2),
+        },
+        loanCollateral: {
+          percentage: 10.0,
+          value: loanCollateralValue.toFixed(2),
+        },
+      },
+    };
+  }
+
+  async userRetrievesPortfolioOverview(
+    params: UserRetrievesPortfolioOverviewParams,
+  ): Promise<PortfolioOverviewResult> {
+    const { userId } = params;
+
+    // Get user account balances for asset allocation
+    const balanceResult = await this.userRetrievesAccountBalances({ userId });
+    const totalValue = parseFloat(balanceResult.totalPortfolioValueUsd || '0');
+
+    // Map accounts to asset allocation
+    const assetAllocation: AssetAllocation[] = balanceResult.accounts.map(account => {
+      const balanceValue = parseFloat(account.balance) || 0;
+      const percentage = totalValue > 0 ? (balanceValue / totalValue) * 100 : 0;
+
+      return {
+        currency: {
+          blockchainKey: account.currencyBlockchainKey,
+          tokenId: account.currencyTokenId,
+          name: this.getCurrencyName(account.currencyTokenId),
+          symbol: this.getCurrencySymbol(account.currencyTokenId),
+          decimals: this.getCurrencyDecimals(account.currencyTokenId),
+          logoUrl: `https://assets.cryptogadai.com/currencies/${this.getCurrencySymbol(account.currencyTokenId).toLowerCase()}.png`,
+          isCollateralCurrency: false,
+          isLoanCurrency: false,
+          maxLtv: 0,
+          ltvWarningThreshold: 0,
+          ltvCriticalThreshold: 0,
+          ltvLiquidationThreshold: 0,
+          minLoanPrincipalAmount: '0',
+          maxLoanPrincipalAmount: '0',
+          minWithdrawalAmount: '0',
+          maxWithdrawalAmount: '0',
+          maxDailyWithdrawalAmount: '0',
+          withdrawalFeeRate: 0,
+          blockchain: {
+            key: account.currencyBlockchainKey,
+            name: 'Unknown',
+            shortName: 'UNK',
+            image: '',
+          },
+        },
+        balance: account.balance,
+        value: {
+          amount: balanceValue.toFixed(2),
+          currency: 'USD',
+        },
+        percentage: parseFloat(percentage.toFixed(2)),
+      };
+    });
+
+    // Performance metrics (placeholder - would need historical data)
+    const dailyChange = totalValue * 0.0206; // +2.06%
+    const weeklyChange = totalValue * -0.0147; // -1.47%
+    const monthlyChange = totalValue * 0.0764; // +7.64%
+
+    return {
+      totalValue: {
+        amount: totalValue.toFixed(2),
+        currency: {
+          blockchainKey: 'crosschain',
+          tokenId: 'iso4217:usd',
+          name: 'USD Token',
+          symbol: 'USD',
+          decimals: 6,
+          logoUrl: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
+          isCollateralCurrency: false,
+          isLoanCurrency: false,
+          maxLtv: 0,
+          ltvWarningThreshold: 0,
+          ltvCriticalThreshold: 0,
+          ltvLiquidationThreshold: 0,
+          minLoanPrincipalAmount: '0',
+          maxLoanPrincipalAmount: '0',
+          minWithdrawalAmount: '0',
+          maxWithdrawalAmount: '0',
+          maxDailyWithdrawalAmount: '0',
+          withdrawalFeeRate: 0,
+          blockchain: {
+            key: 'crosschain',
+            name: 'Cross-Chain',
+            shortName: 'CROSS',
+            image: '',
+          },
+        },
+      },
+      assetAllocation,
+      performance: {
+        daily: {
+          amount: dailyChange.toFixed(2),
+          currency: 'USD',
+          percentage: 2.06,
+        },
+        weekly: {
+          amount: weeklyChange.toFixed(2),
+          currency: 'USD',
+          percentage: -1.47,
+        },
+        monthly: {
+          amount: monthlyChange.toFixed(2),
+          currency: 'USD',
+          percentage: 7.64,
+        },
+      },
+      lastUpdated: new Date(),
+    };
+  }
+
+  // Helper methods for currency information
+  private getCurrencyName(tokenId: string): string {
+    const currencyMap: Record<string, string> = {
+      'slip44:0': 'Bitcoin',
+      'slip44:60': 'Ethereum',
+      'slip44:714': 'Binance Coin',
+      'slip44:501': 'Solana',
+      'iso4217:usd': 'USD Token',
+      'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d': 'USD Coin',
+    };
+    return currencyMap[tokenId] || 'Unknown';
+  }
+
+  private getCurrencySymbol(tokenId: string): string {
+    const currencyMap: Record<string, string> = {
+      'slip44:0': 'BTC',
+      'slip44:60': 'ETH',
+      'slip44:714': 'BNB',
+      'slip44:501': 'SOL',
+      'iso4217:usd': 'USD',
+      'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d': 'USDC',
+    };
+    return currencyMap[tokenId] || 'UNK';
+  }
+
+  private getCurrencyDecimals(tokenId: string): number {
+    const currencyMap: Record<string, number> = {
+      'slip44:0': 8,
+      'slip44:60': 18,
+      'slip44:714': 18,
+      'slip44:501': 9,
+      'iso4217:usd': 6,
+      'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d': 6,
+    };
+    return currencyMap[tokenId] || 18;
   }
 }

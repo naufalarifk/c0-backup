@@ -12,6 +12,11 @@ export interface AccountBalance {
   currencyTokenId: string;
   balance: string;
   accountType: string;
+  valuationAmount?: string | null;
+  exchangeRate?: string;
+  rateSource?: string;
+  rateDate?: Date;
+  quoteCurrencyDecimals?: number;
   pendingOperations?: {
     activeLoans: string;
     pendingWithdrawals: string;
@@ -490,6 +495,101 @@ export interface UserViewsWithdrawalDetailsParams {
 
 export interface UserViewsWithdrawalDetailsResult {
   withdrawal: WithdrawalRecord | null;
+}
+
+// Portfolio Management Types
+export interface UserRetrievesPortfolioAnalyticsParams {
+  userId: string;
+}
+
+export interface PortfolioAnalyticsResult {
+  totalPortfolioValue: {
+    amount: string;
+    currency: string;
+    isLocked: boolean;
+    lastUpdated: Date;
+  };
+  interestGrowth: {
+    amount: string;
+    currency: string;
+    percentage: number;
+    isPositive: boolean;
+    periodLabel: string;
+  };
+  activeLoans: {
+    count: number;
+    borrowerLoans: number;
+    lenderLoans: number;
+    totalCollateralValue: string;
+    averageLTV: number;
+  };
+  portfolioPeriod: {
+    displayMonth: string;
+    startDate: Date;
+    endDate: Date;
+  };
+  paymentAlerts: {
+    upcomingPayments: PaymentAlert[];
+    overduePayments: PaymentAlert[];
+  };
+  assetBreakdown: {
+    cryptoAssets: {
+      percentage: number;
+      value: string;
+    };
+    stablecoins: {
+      percentage: number;
+      value: string;
+    };
+    loanCollateral: {
+      percentage: number;
+      value: string;
+    };
+  };
+}
+
+export interface PaymentAlert {
+  loanId: string;
+  daysUntilDue: number;
+  paymentAmount: string;
+  currency: string;
+  collateralAtRisk: string;
+  collateralCurrency: string;
+  liquidationWarning: boolean;
+}
+
+export interface UserRetrievesPortfolioOverviewParams {
+  userId: string;
+}
+
+export interface PortfolioOverviewResult {
+  totalValue: {
+    amount: string;
+    currency: Currency;
+  };
+  assetAllocation: AssetAllocation[];
+  performance: {
+    daily: PerformanceMetric;
+    weekly: PerformanceMetric;
+    monthly: PerformanceMetric;
+  };
+  lastUpdated: Date;
+}
+
+export interface AssetAllocation {
+  currency: Currency;
+  balance: string;
+  value: {
+    amount: string;
+    currency: string;
+  };
+  percentage: number;
+}
+
+export interface PerformanceMetric {
+  amount: string;
+  currency: string;
+  percentage: number;
 }
 
 // Withdrawal Status and Limit Management Types

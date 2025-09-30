@@ -16,35 +16,35 @@ import {
 } from 'class-validator';
 
 export enum AccountMutationType {
-  INVOICE_RECEIVED = 'invoiceReceived',
-  LOAN_COLLATERAL_DEPOSIT = 'loanCollateralDeposit',
-  LOAN_APPLICATION_COLLATERAL_ESCROWED = 'loanApplicationCollateralEscrowed',
-  LOAN_PRINCIPAL_DISBURSEMENT = 'loanPrincipalDisbursement',
-  LOAN_DISBURSEMENT_RECEIVED = 'loanDisbursementReceived',
-  LOAN_PRINCIPAL_DISBURSEMENT_FEE = 'loanPrincipalDisbursementFee',
-  LOAN_REPAYMENT = 'loanRepayment',
-  LOAN_COLLATERAL_RELEASE = 'loanCollateralRelease',
-  LOAN_COLLATERAL_RETURNED = 'loanCollateralReturned',
-  LOAN_COLLATERAL_RELEASED = 'loanCollateralReleased',
-  LOAN_LIQUIDATION_RELEASE = 'loanLiquidationRelease',
-  LOAN_LIQUIDATION_SURPLUS = 'loanLiquidationSurplus',
-  LOAN_LIQUIDATION_RELEASE_FEE = 'loanLiquidationReleaseFee',
-  LOAN_PRINCIPAL_FUNDED = 'loanPrincipalFunded',
-  LOAN_OFFER_PRINCIPAL_ESCROWED = 'loanOfferPrincipalEscrowed',
-  LOAN_PRINCIPAL_RETURNED = 'loanPrincipalReturned',
-  LOAN_PRINCIPAL_RETURNED_FEE = 'loanPrincipalReturnedFee',
-  LOAN_INTEREST_RECEIVED = 'loanInterestReceived',
-  LOAN_REPAYMENT_RECEIVED = 'loanRepaymentReceived',
-  LOAN_LIQUIDATION_REPAYMENT = 'loanLiquidationRepayment',
-  LOAN_DISBURSEMENT_PRINCIPAL = 'loanDisbursementPrincipal',
-  LOAN_DISBURSEMENT_FEE = 'loanDisbursementFee',
-  LOAN_REDELIVERY_FEE = 'loanRedeliveryFee',
-  LOAN_LIQUIDATION_FEE = 'loanLiquidationFee',
-  LOAN_LIQUIDATION_COLLATERAL_USED = 'loanLiquidationCollateralUsed',
-  WITHDRAWAL_REQUESTED = 'withdrawalRequested',
-  WITHDRAWAL_REFUNDED = 'withdrawalRefunded',
-  PLATFORM_FEE_CHARGED = 'platformFeeCharged',
-  PLATFORM_FEE_REFUNDED = 'platformFeeRefunded',
+  INVOICE_RECEIVED = 'InvoiceReceived',
+  LOAN_COLLATERAL_DEPOSIT = 'LoanCollateralDeposit',
+  LOAN_APPLICATION_COLLATERAL_ESCROWED = 'LoanApplicationCollateralEscrowed',
+  LOAN_PRINCIPAL_DISBURSEMENT = 'LoanPrincipalDisbursement',
+  LOAN_DISBURSEMENT_RECEIVED = 'LoanDisbursementReceived',
+  LOAN_PRINCIPAL_DISBURSEMENT_FEE = 'LoanPrincipalDisbursementFee',
+  LOAN_REPAYMENT = 'LoanRepayment',
+  LOAN_COLLATERAL_RELEASE = 'LoanCollateralRelease',
+  LOAN_COLLATERAL_RETURNED = 'LoanCollateralReturned',
+  LOAN_COLLATERAL_RELEASED = 'LoanCollateralReleased',
+  LOAN_LIQUIDATION_RELEASE = 'LoanLiquidationRelease',
+  LOAN_LIQUIDATION_SURPLUS = 'LoanLiquidationSurplus',
+  LOAN_LIQUIDATION_RELEASE_FEE = 'LoanLiquidationReleaseFee',
+  LOAN_PRINCIPAL_FUNDED = 'LoanPrincipalFunded',
+  LOAN_OFFER_PRINCIPAL_ESCROWED = 'LoanOfferPrincipalEscrowed',
+  LOAN_PRINCIPAL_RETURNED = 'LoanPrincipalReturned',
+  LOAN_PRINCIPAL_RETURNED_FEE = 'LoanPrincipalReturnedFee',
+  LOAN_INTEREST_RECEIVED = 'LoanInterestReceived',
+  LOAN_REPAYMENT_RECEIVED = 'LoanRepaymentReceived',
+  LOAN_LIQUIDATION_REPAYMENT = 'LoanLiquidationRepayment',
+  LOAN_DISBURSEMENT_PRINCIPAL = 'LoanDisbursementPrincipal',
+  LOAN_DISBURSEMENT_FEE = 'LoanDisbursementFee',
+  LOAN_RETURN_FEE = 'LoanReturnFee',
+  LOAN_LIQUIDATION_FEE = 'LoanLiquidationFee',
+  LOAN_LIQUIDATION_COLLATERAL_USED = 'LoanLiquidationCollateralUsed',
+  WITHDRAWAL_REQUESTED = 'WithdrawalRequested',
+  WITHDRAWAL_REFUNDED = 'WithdrawalRefunded',
+  PLATFORM_FEE_CHARGED = 'PlatformFeeCharged',
+  PLATFORM_FEE_REFUNDED = 'PlatformFeeRefunded',
 }
 
 export class CurrencyDto {
@@ -115,6 +115,41 @@ export class PendingOperationsDto {
   net: string;
 }
 
+export class ValuationDto {
+  @ApiProperty({
+    description: 'Balance value in USD',
+    example: '2451.25',
+  })
+  @IsString()
+  amount: string;
+
+  @ApiProperty({
+    description: 'Valuation currency',
+  })
+  currency: CurrencyDto;
+
+  @ApiProperty({
+    description: 'Exchange rate used for valuation',
+    example: '1.960000000000000000',
+  })
+  @IsString()
+  exchangeRate: string;
+
+  @ApiProperty({
+    description: 'Source of the exchange rate',
+    example: 'coinbase',
+  })
+  @IsString()
+  rateSource: string;
+
+  @ApiProperty({
+    description: 'Timestamp of the exchange rate',
+    example: '2025-08-11T10:29:45Z',
+  })
+  @IsDateString()
+  rateDate: string;
+}
+
 export class AccountBalanceDto {
   @ApiProperty({
     description: 'Account ID',
@@ -131,22 +166,24 @@ export class AccountBalanceDto {
 
   @ApiProperty({
     description: 'Current account balance',
-    example: '0.01000000',
+    example: '1250.750000000000000000',
   })
   @IsString()
   balance: string;
 
   @ApiProperty({
-    description: 'Pending operations for this account',
-  })
-  pendingOperations: PendingOperationsDto;
-
-  @ApiProperty({
     description: 'Last updated timestamp',
-    example: '2024-01-15T10:30:00Z',
+    example: '2025-08-11T10:30:00Z',
   })
   @IsDateString()
   lastUpdated: string;
+
+  @ApiPropertyOptional({
+    description: 'Valuation information (optional)',
+    type: ValuationDto,
+  })
+  @IsOptional()
+  valuation?: ValuationDto;
 }
 
 export class AccountMutationDto {
@@ -203,6 +240,14 @@ export class AccountMutationDto {
   @IsOptional()
   @IsString()
   referenceType?: string;
+
+  @ApiPropertyOptional({
+    description: 'Account balance after this mutation',
+    example: '2250.750000000000000000',
+  })
+  @IsOptional()
+  @IsString()
+  balanceAfter?: string;
 }
 
 export class PaginationMetaDto {
@@ -315,7 +360,12 @@ export class AccountBalancesResponseDto {
     description: 'Account balances data',
   })
   data: {
-    balances: AccountBalanceDto[];
+    accounts: AccountBalanceDto[];
+    totalPortfolioValue: {
+      amount: string;
+      currency: string;
+      lastUpdated: string;
+    };
   };
 }
 
@@ -334,4 +384,282 @@ export class AccountMutationsResponseDto {
     mutations: AccountMutationDto[];
     pagination: PaginationMetaDto;
   };
+}
+
+// Portfolio Management DTOs
+export class PaymentAlertDto {
+  @ApiProperty({
+    description: 'Loan identifier',
+    example: 'loan_789',
+  })
+  @IsString()
+  loanId: string;
+
+  @ApiProperty({
+    description: 'Days until payment is due (negative if overdue)',
+    example: 3,
+  })
+  @IsNumber()
+  daysUntilDue: number;
+
+  @ApiProperty({
+    description: 'Amount due for payment',
+    example: '10000.00',
+  })
+  @IsString()
+  paymentAmount: string;
+
+  @ApiProperty({
+    description: 'Payment currency',
+    example: 'USDT',
+  })
+  @IsString()
+  currency: string;
+
+  @ApiProperty({
+    description: 'Amount of collateral at risk',
+    example: '5.0',
+  })
+  @IsString()
+  collateralAtRisk: string;
+
+  @ApiProperty({
+    description: 'Collateral currency',
+    example: 'ETH',
+  })
+  @IsString()
+  collateralCurrency: string;
+
+  @ApiProperty({
+    description: 'Whether liquidation warning should be shown',
+    example: true,
+  })
+  @IsBoolean()
+  liquidationWarning: boolean;
+}
+
+export class PaymentAlertsDto {
+  @ApiProperty({
+    description: 'Upcoming payment alerts',
+    type: [PaymentAlertDto],
+  })
+  upcomingPayments: PaymentAlertDto[];
+
+  @ApiProperty({
+    description: 'Overdue payment alerts',
+    type: [PaymentAlertDto],
+  })
+  overduePayments: PaymentAlertDto[];
+}
+
+export class PortfolioAnalyticsDto {
+  @ApiProperty({
+    description: 'Total portfolio value information',
+  })
+  totalPortfolioValue: {
+    amount: string;
+    currency: string;
+    isLocked: boolean;
+    lastUpdated: string;
+  };
+
+  @ApiProperty({
+    description: 'Interest growth metrics',
+  })
+  interestGrowth: {
+    amount: string;
+    currency: string;
+    percentage: number;
+    isPositive: boolean;
+    periodLabel: string;
+  };
+
+  @ApiProperty({
+    description: 'Active loans statistics',
+  })
+  activeLoans: {
+    count: number;
+    borrowerLoans: number;
+    lenderLoans: number;
+    totalCollateralValue: string;
+    averageLTV: number;
+  };
+
+  @ApiProperty({
+    description: 'Portfolio period information',
+  })
+  portfolioPeriod: {
+    displayMonth: string;
+    startDate: string;
+    endDate: string;
+  };
+
+  @ApiProperty({
+    description: 'Payment alerts',
+    type: PaymentAlertsDto,
+  })
+  paymentAlerts: PaymentAlertsDto;
+
+  @ApiProperty({
+    description: 'Asset allocation breakdown',
+  })
+  assetBreakdown: {
+    cryptoAssets: {
+      percentage: number;
+      value: string;
+    };
+    stablecoins: {
+      percentage: number;
+      value: string;
+    };
+    loanCollateral: {
+      percentage: number;
+      value: string;
+    };
+  };
+}
+
+export class PortfolioAnalyticsResponseDto {
+  @ApiProperty({
+    description: 'Indicates if the request was successful',
+    example: true,
+  })
+  @IsBoolean()
+  success: boolean;
+
+  @ApiProperty({
+    description: 'Portfolio analytics data',
+    type: PortfolioAnalyticsDto,
+  })
+  data: PortfolioAnalyticsDto;
+}
+
+export class MonetaryValueDto {
+  @ApiProperty({
+    description: 'Monetary amount',
+    example: '125750.00',
+  })
+  @IsString()
+  amount: string;
+
+  @ApiProperty({
+    description: 'Currency information',
+    type: CurrencyDto,
+  })
+  currency: CurrencyDto;
+}
+
+export class AssetAllocationDto {
+  @ApiProperty({
+    description: 'Asset currency information',
+    type: CurrencyDto,
+  })
+  currency: CurrencyDto;
+
+  @ApiProperty({
+    description: 'Raw balance in smallest currency unit',
+    example: '150000000',
+  })
+  @IsString()
+  balance: string;
+
+  @ApiProperty({
+    description: 'Asset value in USD',
+    type: MonetaryValueDto,
+  })
+  value: MonetaryValueDto;
+
+  @ApiProperty({
+    description: 'Percentage of total portfolio value',
+    example: 80.45,
+  })
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  percentage: number;
+}
+
+export class PerformanceMetricDto {
+  @ApiProperty({
+    description: 'Absolute change amount in USD',
+    example: '2540.50',
+  })
+  @IsString()
+  amount: string;
+
+  @ApiProperty({
+    description: 'Currency code for the amount',
+    example: 'USD',
+  })
+  @IsString()
+  currency: string;
+
+  @ApiProperty({
+    description: 'Percentage change',
+    example: 2.06,
+  })
+  @IsNumber()
+  percentage: number;
+}
+
+export class PortfolioPerformanceDto {
+  @ApiProperty({
+    description: 'Daily performance',
+    type: PerformanceMetricDto,
+  })
+  daily: PerformanceMetricDto;
+
+  @ApiProperty({
+    description: 'Weekly performance',
+    type: PerformanceMetricDto,
+  })
+  weekly: PerformanceMetricDto;
+
+  @ApiProperty({
+    description: 'Monthly performance',
+    type: PerformanceMetricDto,
+  })
+  monthly: PerformanceMetricDto;
+}
+
+export class PortfolioOverviewDto {
+  @ApiProperty({
+    description: 'Total portfolio value',
+    type: MonetaryValueDto,
+  })
+  totalValue: MonetaryValueDto;
+
+  @ApiProperty({
+    description: 'Asset allocation breakdown',
+    type: [AssetAllocationDto],
+  })
+  assetAllocation: AssetAllocationDto[];
+
+  @ApiProperty({
+    description: 'Performance metrics',
+    type: PortfolioPerformanceDto,
+  })
+  performance: PortfolioPerformanceDto;
+
+  @ApiProperty({
+    description: 'Last updated timestamp',
+    example: '2025-09-22T10:30:00Z',
+  })
+  @IsDateString()
+  lastUpdated: string;
+}
+
+export class PortfolioOverviewResponseDto {
+  @ApiProperty({
+    description: 'Indicates if the request was successful',
+    example: true,
+  })
+  @IsBoolean()
+  success: boolean;
+
+  @ApiProperty({
+    description: 'Portfolio overview data',
+    type: PortfolioOverviewDto,
+  })
+  data: PortfolioOverviewDto;
 }
