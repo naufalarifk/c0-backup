@@ -3,6 +3,7 @@ export type UserUpdatesProfileParams = {
   id: string;
   name?: string;
   profilePictureUrl?: string;
+  expoPushToken?: string;
   updateDate: Date;
 };
 
@@ -10,6 +11,7 @@ export type UserUpdatesProfileResult = {
   id: string;
   name?: string;
   profilePictureUrl?: string | null;
+  expoPushToken?: string | null;
   updatedDate: Date;
 };
 
@@ -274,62 +276,84 @@ export type UserViewsProfileResult = {
   kycStatus: 'none' | 'pending' | 'verified' | 'rejected';
   businessName?: string | null;
   businessType?: string | null;
+  expoPushToken?: string | null;
 };
 
-// Notification management types
-export type NotificationType =
+export const notificationTypes = [
   // Authentication notifications
-  | 'UserRegistered'
-  | 'EmailVerificationSent'
-  | 'EmailVerified'
-  | 'PasswordResetRequested'
-  | 'PasswordResetCompleted'
-  | 'TwoFactorEnabled'
-  | 'TwoFactorDisabled'
-  | 'LoginFromNewDevice'
-  | 'SuspiciousLoginAttempt'
+  'UserRegistered',
+  'EmailVerificationSent',
+  'EmailVerified',
+  'PhoneNumberVerification',
+  'PhoneNumberVerified',
+  'PasswordResetRequested',
+  'PasswordResetCompleted',
+  'TwoFactorEnabled',
+  'TwoFactorDisabled',
+  'LoginFromNewDevice',
+  'SuspiciousLoginAttempt',
   // KYC notifications
-  | 'UserKycVerified'
-  | 'UserKycRejected'
+  'UserKycVerified',
+  'UserKycRejected',
+  'UserKycSubmitted',
   // Institution notifications
-  | 'InstitutionApplicationVerified'
-  | 'InstitutionApplicationRejected'
-  | 'InstitutionMemberInvited'
-  | 'InstitutionMemberAccepted'
-  | 'InstitutionMemberRejected'
+  'InstitutionApplicationVerified',
+  'InstitutionApplicationRejected',
+  'InstitutionApplicationSubmitted',
+  'InstitutionMemberInvited',
+  'InstitutionMemberAccepted',
+  'InstitutionMemberRejected',
   // Invoice notifications
-  | 'InvoiceCreated'
-  | 'InvoiceDue'
-  | 'InvoiceExpired'
-  | 'InvoicePartiallyPaid'
-  | 'InvoicePaid'
+  'InvoiceCreated',
+  'InvoiceDue',
+  'InvoiceExpired',
+  'InvoicePartiallyPaid',
+  'InvoicePaid',
   // Loan notifications
-  | 'LoanOfferPublished'
-  | 'LoanApplicationPublished'
-  | 'LoanApplicationMatched'
-  | 'LoanOfferMatched'
-  | 'LoanApplicationApproved'
-  | 'LoanApplicationRejected'
-  | 'LoanOfferClosed'
-  | 'LoanDisbursement'
-  | 'LoanActivated'
-  | 'LoanRepaymentDue'
-  | 'LoanRepaymentCompleted'
-  | 'LoanRepaymentReceived'
-  | 'LoanRepaymentFailed'
-  | 'LoanLiquidation'
-  | 'LoanLtvBreach'
+  'LoanOfferPublished',
+  'LoanApplicationPublished',
+  'LoanApplicationMatched',
+  'LoanOfferMatched',
+  'LoanApplicationApproved',
+  'LoanApplicationRejected',
+  'LoanOfferClosed',
+  'LoanDisbursement',
+  'LoanActivated',
+  'LoanRepaymentDue',
+  'LoanRepaymentCompleted',
+  'LoanRepaymentReceived',
+  'LoanRepaymentFailed',
+  'LoanLiquidation',
+  'LoanLtvBreach',
+  // Beneficiary notifications
+  'BeneficiaryVerification',
   // Withdrawal notifications
-  | 'WithdrawalRequested'
-  | 'WithdrawalRefunded'
-  | 'WithdrawalRefundApproved'
-  | 'WithdrawalRefundRejected'
+  'WithdrawalRequested',
+  'WithdrawalRefunded',
+  'WithdrawalRefundApproved',
+  'WithdrawalRefundRejected',
+  'WithdrawalFailed',
+  'WithdrawalConfirmed',
+  'WithdrawalInfoRequested',
+  'WithdrawalTimeout',
+  // Admin notifications
+  'AdminInvitationSent',
+  'AdminInvitationAccepted',
+  'AdminInvitationRejected',
+  'AdminInvitationExpired',
+  'AdminWithdrawalFailure',
+  'AdminRefundProcessed',
+  'AdminMonitoringFailure',
   // Enhanced loan notifications
-  | 'LiquidationWarning'
-  | 'LiquidationCompleted'
+  'LiquidationWarning',
+  'LiquidationCompleted',
   // System notifications
-  | 'PlatformMaintenanceNotice'
-  | 'SecurityAlert';
+  'PlatformMaintenanceNotice',
+  'SecurityAlert',
+] as const;
+
+// Notification management types
+export type NotificationType = (typeof notificationTypes)[number];
 
 export type NotificationItem = {
   id: string;

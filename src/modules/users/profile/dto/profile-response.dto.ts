@@ -129,4 +129,12 @@ export class ProfileResponseDto {
     nullable: true,
   })
   businessType?: string | null;
+
+  // @ApiProperty({
+  //   description: 'Expo push notification token for mobile app',
+  //   example: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',
+  //   required: false,
+  //   nullable: true,
+  // })
+  // expoPushToken?: string | null;
 }

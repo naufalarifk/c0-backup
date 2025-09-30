@@ -213,7 +213,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /notifications/mark-all-read:
+  /notifications/read:
     patch:
       tags: [Notifications]
       summary: Mark all notifications as read
@@ -272,7 +272,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /notifications/{id}/delete:
+  /notifications/{id}:
     delete:
       tags: [Notifications]
       summary: Delete notification

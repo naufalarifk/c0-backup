@@ -253,7 +253,7 @@ export class BeneficiariesService {
     beneficiaryDto: CreateBeneficiaryDto,
   ): Promise<void> {
     // Get user details for email
-    const user = await this.repo.betterAuthFindOneUser([{ field: 'id', value: userId }]);
+    const user = await this.repo.userViewsProfile({ userId });
     ensureExists(user, 'User not found');
     assertPropString(user, 'email', 'User email must be a string');
 
@@ -261,10 +261,10 @@ export class BeneficiariesService {
     const notificationData: BeneficiaryVerificationNotificationData = {
       type: 'BeneficiaryVerification',
       url: `${this.configService.authConfig.url}/api/beneficiaries/verify?token=${token}&callbackURL=${beneficiaryDto.callbackURL || '/'}`,
+      userId: user.id,
       email: user.email,
       blockchain: beneficiaryDto.blockchainKey,
       address: beneficiaryDto.address,
-      label: beneficiaryDto.label,
     };
     await this.notificationQueueService.queueNotification(notificationData);
   }

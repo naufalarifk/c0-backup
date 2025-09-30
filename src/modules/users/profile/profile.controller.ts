@@ -46,10 +46,6 @@ export class ProfileController {
     description: 'Profile retrieved successfully',
     type: ProfileResponseDto,
   })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Authentication required',
-  })
   async findOne(@Session() session: UserSession) {
     const user = await this.profileService.findOne(session.user.id);
     return { user };
@@ -70,10 +66,6 @@ export class ProfileController {
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
     description: 'Request validation failed or invalid file format',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Authentication required',
   })
   async update(
     @Session() session: UserSession,
@@ -117,10 +109,6 @@ export class ProfileController {
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
     description: 'Request validation failed or invalid file format',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Authentication required',
   })
   async updatePut(
     @Session() session: UserSession,
