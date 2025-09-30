@@ -66,6 +66,13 @@ const MODULE_CONFIGS = [
     path: 'docs/swagger/admin',
     tags: ['Admin'],
   },
+  {
+    name: 'finance-config',
+    title: 'Finance Configuration API',
+    description: 'Finance configuration and market data endpoints',
+    path: 'docs/swagger/finance-config',
+    tags: ['Blockchain Management', 'Currency Management', 'Exchange Rates'],
+  },
 ];
 
 export default async function docs(app: NestExpressApplication, url: string) {

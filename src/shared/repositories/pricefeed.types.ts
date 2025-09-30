@@ -54,3 +54,38 @@ export interface PriceFeed {
 export interface PlatformRetrievesActivePriceFeedsResult {
   priceFeeds: PriceFeed[];
 }
+
+// Enhanced types for Finance Config API
+export interface CurrencyInfo {
+  blockchainKey: string;
+  tokenId: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  logoUrl: string;
+}
+
+export interface EnhancedExchangeRate {
+  id: number;
+  baseAsset: CurrencyInfo;
+  quoteAsset: CurrencyInfo;
+  bidPrice: string;
+  askPrice: string;
+  midPrice: string;
+  source: string;
+  sourceDate: string;
+  retrievalDate: string;
+}
+
+export interface UserViewsExchangeRatesParams {
+  baseCurrencyBlockchainKey?: string;
+  baseCurrencyTokenId?: string;
+  quoteCurrencyBlockchainKey?: string;
+  quoteCurrencyTokenId?: string;
+  source?: string;
+}
+
+export interface UserViewsExchangeRatesResult {
+  exchangeRates: EnhancedExchangeRate[];
+  lastUpdated: string;
+}

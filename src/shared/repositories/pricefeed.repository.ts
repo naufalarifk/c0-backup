@@ -15,6 +15,8 @@ import {
   PlatformRetrievesActivePriceFeedsResult,
   PlatformRetrievesExchangeRatesParams,
   PlatformRetrievesExchangeRatesResult,
+  UserViewsExchangeRatesParams,
+  UserViewsExchangeRatesResult,
 } from './pricefeed.types';
 
 /**
@@ -245,5 +247,121 @@ export abstract class PricefeedRepository extends FinanceRepository {
     assertProp(check(isString, isNumber), row, 'id');
 
     return { id: String(row.id) };
+  }
+
+  // Enhanced Exchange Rate Methods for Finance Config API
+  async userViewsExchangeRates(
+    params: UserViewsExchangeRatesParams,
+  ): Promise<UserViewsExchangeRatesResult> {
+    const {
+      baseCurrencyBlockchainKey,
+      baseCurrencyTokenId,
+      quoteCurrencyBlockchainKey,
+      quoteCurrencyTokenId,
+      source,
+    } = params;
+
+    // Get the latest exchange rates with full currency information
+    const rows = await this.sql`
+      SELECT DISTINCT ON (pf.blockchain_key, pf.base_currency_token_id, pf.quote_currency_token_id)
+        er.id,
+        er.bid_price,
+        er.ask_price,
+        er.retrieval_date,
+        er.source_date,
+        pf.source,
+        -- Base currency information
+        bc.blockchain_key as base_blockchain_key,
+        bc.token_id as base_token_id,
+        bc.name as base_name,
+        bc.symbol as base_symbol,
+        bc.decimals as base_decimals,
+        bc.image as base_logo_url,
+        -- Quote currency information
+        qc.blockchain_key as quote_blockchain_key,
+        qc.token_id as quote_token_id,
+        qc.name as quote_name,
+        qc.symbol as quote_symbol,
+        qc.decimals as quote_decimals,
+        qc.image as quote_logo_url
+      FROM exchange_rates er
+      JOIN price_feeds pf ON er.price_feed_id = pf.id
+      JOIN currencies bc ON pf.blockchain_key = bc.blockchain_key 
+        AND pf.base_currency_token_id = bc.token_id
+      JOIN currencies qc ON pf.blockchain_key = qc.blockchain_key 
+        AND pf.quote_currency_token_id = qc.token_id
+      WHERE (${baseCurrencyBlockchainKey}::text IS NULL OR bc.blockchain_key = ${baseCurrencyBlockchainKey})
+        AND (${baseCurrencyTokenId}::text IS NULL OR bc.token_id = ${baseCurrencyTokenId})
+        AND (${quoteCurrencyBlockchainKey}::text IS NULL OR qc.blockchain_key = ${quoteCurrencyBlockchainKey})
+        AND (${quoteCurrencyTokenId}::text IS NULL OR qc.token_id = ${quoteCurrencyTokenId})
+        AND (${source}::text IS NULL OR pf.source = ${source})
+      ORDER BY pf.blockchain_key, pf.base_currency_token_id, pf.quote_currency_token_id, er.retrieval_date DESC
+    `;
+
+    const exchangeRates = rows;
+    const lastUpdated = new Date().toISOString();
+
+    return {
+      exchangeRates: exchangeRates.map(function (rate: unknown) {
+        assertDefined(rate, 'Exchange rate record is undefined');
+        assertProp(check(isString, isNumber), rate, 'id');
+        assertProp(check(isString, isNumber), rate, 'bid_price');
+        assertProp(check(isString, isNumber), rate, 'ask_price');
+        assertProp(isInstanceOf(Date), rate, 'retrieval_date');
+        assertProp(isInstanceOf(Date), rate, 'source_date');
+        assertPropString(rate, 'source');
+
+        // Base currency assertions
+        assertPropString(rate, 'base_blockchain_key');
+        assertPropString(rate, 'base_token_id');
+        assertPropString(rate, 'base_name');
+        assertPropString(rate, 'base_symbol');
+        assertProp(check(isString, isNumber), rate, 'base_decimals');
+        assertPropString(rate, 'base_logo_url');
+
+        // Quote currency assertions
+        assertPropString(rate, 'quote_blockchain_key');
+        assertPropString(rate, 'quote_token_id');
+        assertPropString(rate, 'quote_name');
+        assertPropString(rate, 'quote_symbol');
+        assertProp(check(isString, isNumber), rate, 'quote_decimals');
+        assertPropString(rate, 'quote_logo_url');
+
+        const bidPrice = String(rate.bid_price);
+        const askPrice = String(rate.ask_price);
+
+        // Calculate mid price from bid and ask
+        const bidNum = Number(bidPrice);
+        const askNum = Number(askPrice);
+        const midPrice = ((bidNum + askNum) / 2).toString();
+
+        return {
+          id: Number(rate.id),
+          baseAsset: {
+            blockchainKey: rate.base_blockchain_key,
+            tokenId: rate.base_token_id,
+            name: rate.base_name,
+            symbol: rate.base_symbol,
+            decimals: Number(rate.base_decimals),
+            logoUrl: rate.base_logo_url,
+          },
+          quoteAsset: {
+            blockchainKey: rate.quote_blockchain_key,
+            tokenId: rate.quote_token_id,
+            name: rate.quote_name,
+            symbol: rate.quote_symbol,
+            decimals: Number(rate.quote_decimals),
+            logoUrl: rate.quote_logo_url,
+          },
+          bidPrice,
+          askPrice,
+          midPrice,
+          source: rate.source,
+          sourceDate: rate.source_date.toISOString(),
+          retrievalDate: rate.retrieval_date.toISOString(),
+        };
+      }),
+      lastUpdated,
+    };
   }
 }
