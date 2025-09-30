@@ -23,7 +23,7 @@ import { Session } from '../../auth/auth.decorator';
 import { AuthGuard } from '../../auth/auth.guard';
 import { AuthService } from '../../auth/auth.service';
 import { ProfileResponseDto } from './dto/profile-response.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateUserProfileDto } from './dto/update-profile.dto';
 import { UpdateProfileResponseDto } from './dto/update-profile-response.dto';
 import { ProfileService } from './profile.service';
 
@@ -71,7 +71,7 @@ export class ProfileController {
     @Session() session: UserSession,
     @Req() req: Request,
     @UploadedFile() profilePicture: File,
-    @Body() updateProfileDto: UpdateProfileDto,
+    @Body() updateProfileDto: UpdateUserProfileDto,
   ) {
     // Validate content type for multipart form data
     const contentType = req.get('content-type') || '';
@@ -114,7 +114,7 @@ export class ProfileController {
     @Session() session: UserSession,
     @Req() req: Request,
     @UploadedFile() profilePicture: File,
-    @Body() updateProfileDto: UpdateProfileDto,
+    @Body() updateProfileDto: UpdateUserProfileDto,
   ) {
     // Validate content type for multipart form data
     const contentType = req.get('content-type') || '';
