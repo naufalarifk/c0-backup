@@ -1,8 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 
-import { MigrationModule } from 'src/entrypoints/migration.module.js';
-import { CryptogadaiRepository } from 'src/shared/repositories/cryptogadai.repository.js';
-
+import { MigrationModule } from '../entrypoints/migration.module';
+import { CryptogadaiRepository } from '../shared/repositories/cryptogadai.repository';
 import { TelemetryLogger } from '../shared/telemetry.logger';
 
 export async function migrationEntrypoint() {

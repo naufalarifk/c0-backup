@@ -3,12 +3,11 @@ import 'reflect-metadata';
 import { networkInterfaces } from 'node:os';
 import { argv, env } from 'node:process';
 
-import { migrationEntrypoint } from 'src/entrypoints/migration.entrypoint.js';
-
 import { documentEntrypoint } from './entrypoints/document.entrypoint';
 import { indexerEntrypoint } from './entrypoints/indexer.entrypoint';
 import { invoiceExpirationEntrypoint } from './entrypoints/invoice-expiration.entrypoint';
 import { loanMatcherEntrypoint } from './entrypoints/loan-matcher.entrypoint';
+import { migrationEntrypoint } from './entrypoints/migration.entrypoint.js';
 import { notificationEntrypoint } from './entrypoints/notification.entrypoint';
 import { pricefeedEntrypoint } from './entrypoints/pricefeed.entrypoint';
 import { userApiEntrypoint } from './entrypoints/user-api.entrypoint';

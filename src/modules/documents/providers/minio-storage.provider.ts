@@ -22,9 +22,16 @@ export class MinioStorageProvider extends DocumentStorageProvider {
 
     this.bucketName = this.configService.get('MINIO_DOCUMENTS_BUCKET', 'documents');
 
+    // Parse endpoint to separate hostname and port
+    const endpointConfig = this.configService.get('MINIO_ENDPOINT', 'localhost:9000');
+    const [endPoint, endpointPort] = endpointConfig.split(':');
+    const port = endpointPort
+      ? parseInt(endpointPort, 10)
+      : this.configService.get('MINIO_PORT', 9000);
+
     this.minioClient = new Minio.Client({
-      endPoint: this.configService.get('MINIO_ENDPOINT', 'localhost'),
-      port: this.configService.get('MINIO_PORT', 9000),
+      endPoint,
+      port,
       useSSL: this.configService.get('MINIO_USE_SSL', 'false') === 'true',
       accessKey: this.configService.get('MINIO_ACCESS_KEY', 'minioadmin'),
       secretKey: this.configService.get('MINIO_SECRET_KEY', 'minioadmin'),

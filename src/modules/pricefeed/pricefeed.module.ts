@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { DiscoveryModule } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 
 import { RepositoryModule } from '../../shared/repositories/repository.module';
@@ -11,7 +12,7 @@ import { CoinMarketCapPriceFeedProvider } from './providers/coinmarketcap.provid
 import { RandomPriceFeedProvider } from './providers/random.provider.js';
 
 @Module({
-  imports: [ConfigModule, ScheduleModule.forRoot(), RepositoryModule],
+  imports: [ConfigModule, DiscoveryModule, ScheduleModule.forRoot(), RepositoryModule],
   providers: [
     PricefeedService,
     PriceFeedProviderFactory,
