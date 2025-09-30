@@ -274,7 +274,7 @@ export type UserViewsProfileResult = {
   institutionUserId?: string | null;
   institutionRole?: 'Owner' | 'Finance' | null;
   kycId?: string | null;
-  kycStatus: 'none' | 'pending' | 'verified' | 'rejected';
+  kycStatus: 'none' | 'pending' | 'verified' | 'rejected' | 'approved';
   businessName?: string | null;
   businessType?: string | null;
   expoPushToken?: string | null;
