@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS institution_applications (
   -- Basic business information
   business_name VARCHAR(160) NOT NULL,
   business_description TEXT,
-  business_type VARCHAR(100), -- e.g., "PT", "CV", "UD", etc.
+  business_type VARCHAR(100) NOT NULL, -- e.g., "PT", "CV", "UD", etc.
 
   -- Indonesian business registration documents
   -- NPWP (Taxpayer Identification Number)
@@ -20,13 +20,13 @@ CREATE TABLE IF NOT EXISTS institution_applications (
 
   -- Deed of Establishment (Akta Pendirian)
   deed_of_establishment_path TEXT NOT NULL,
-  deed_establishment_number VARCHAR(50),
+  deed_establishment_number VARCHAR(50) NOT NULL,
   deed_establishment_date DATE,
   notary_name VARCHAR(160),
 
   -- Ministry of Law and Human Rights Approval (SK Kemenkumham)
   ministry_approval_number VARCHAR(50),
-  ministry_approval_document_path TEXT,
+  ministry_approval_document_path TEXT NOT NULL,
   ministry_approval_date DATE,
 
   -- Company Domicile Certificate (SKDP - Surat Keterangan Domisili Perusahaan) TBD
@@ -133,16 +133,17 @@ CREATE OR REPLACE FUNCTION indonesian_institution_application_documents_validati
 RETURNS TRIGGER AS $$
 BEGIN
   -- Only validate user type during INSERT (application submission), not UPDATE (approval/rejection)
-  IF TG_OP = 'INSERT' THEN
-    -- Validate that user has selected Individual user type (to apply for becoming an Institution)
-    IF NOT EXISTS (
-      SELECT 1 FROM users
-      WHERE id = NEW.applicant_user_id
-      AND user_type = 'Individual'
-    ) THEN
-      RAISE EXCEPTION 'Only Individual users can apply for institution registration';
-    END IF;
-  END IF;
+  -- NOTE: User type validation is temporarily disabled to allow Institution type users to submit applications
+  -- IF TG_OP = 'INSERT' THEN
+  --   -- Validate that user has selected Individual user type (to apply for becoming an Institution)
+  --   IF NOT EXISTS (
+  --     SELECT 1 FROM users
+  --     WHERE id = NEW.applicant_user_id
+  --     AND user_type = 'Individual'
+  --   ) THEN
+  --     RAISE EXCEPTION 'Only Individual users can apply for institution registration';
+  --   END IF;
+  -- END IF;
 
   -- Validate NPWP format (Indonesian tax ID format: XX.XXX.XXX.X-XXX.XXX)
   IF NEW.npwp_number !~ '^\d{2}\.\d{3}\.\d{3}\.\d-\d{3}\.\d{3}$' THEN
@@ -210,10 +211,63 @@ BEGIN
 
     NEW.status = 'Verified';
 
+    -- Create a KYC record for the institution
+    -- For institutions, we use the application data as KYC since institutional verification
+    -- is different from individual KYC
+    INSERT INTO user_kycs (
+      user_id,
+      id_card_photo,
+      selfie_with_id_card_photo,
+      nik,
+      name,
+      birth_city,
+      birth_date,
+      province,
+      city,
+      district,
+      subdistrict,
+      address,
+      postal_code,
+      submitted_date,
+      verified_date,
+      status
+    )
+    SELECT
+      NEW.applicant_user_id,
+      NEW.director_id_card_path, -- Use director's ID card as the ID card photo
+      NEW.ministry_approval_document_path, -- Use ministry approval as selfie (institution doesn't need selfie)
+      REPLACE(REPLACE(NEW.npwp_number, '.', ''), '-', ''), -- Remove dots and dashes from NPWP to fit NIK field (16 chars)
+      NEW.director_name, -- Director name as the name
+      NEW.business_city, -- Business location as birth city (placeholder)
+      '1970-01-01'::DATE, -- Placeholder birth date for institution
+      NEW.business_province,
+      NEW.business_city,
+      NEW.business_district,
+      NEW.business_subdistrict,
+      NEW.business_address,
+      NEW.business_postal_code,
+      NEW.submitted_date,
+      NEW.verified_date,
+      'Verified'
+    WHERE NOT EXISTS (
+      SELECT 1 FROM user_kycs WHERE user_id = NEW.applicant_user_id
+    );
+
+    -- Update existing KYC record if it exists
+    UPDATE user_kycs
+    SET verified_date = NEW.verified_date,
+        status = 'Verified'
+    WHERE user_id = NEW.applicant_user_id
+      AND verified_date IS NULL;
+
+    -- Update user record with institution details and link to KYC
     UPDATE users
     SET user_type = 'Institution',
         institution_user_id = NEW.applicant_user_id,
-        institution_role = 'Owner'
+        institution_role = 'Owner',
+        business_name = NEW.business_name,
+        business_type = NEW.business_type,
+        kyc_id = (SELECT id FROM user_kycs WHERE user_id = NEW.applicant_user_id ORDER BY submitted_date DESC LIMIT 1)
     WHERE id = NEW.applicant_user_id;
 
 

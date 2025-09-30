@@ -121,7 +121,7 @@ export async function setup() {
       teardown: () => Promise<void>;
     }>(async function (resolve, reject) {
       let resolvable = true;
-      const cgBackendProcess = spawn('node', ['dist/main.js', 'migration', 'api', 'notification'], {
+      const cgBackend = spawn('node', ['dist/main.js', 'migration', 'api', 'notification'], {
         cwd: cgBackendPath,
         env: {
           ...process.env,
@@ -159,8 +159,8 @@ export async function setup() {
       });
       let isNestJSStarted = false;
       let isDatabaseMigrated = false;
-      cgBackendProcess.stdout?.on('data', function (data) {
-        if (env.CG_BACKEND_LOGS === '1') {
+      cgBackend.stdout?.on('data', function (data) {
+        if (env.CG_BACKEND_LOGS === '1' || env.CG_BACKEND_LOGS === 'true') {
           console.debug(data?.toString());
         }
         if (data?.toString().includes('application successfully started')) {
@@ -174,24 +174,24 @@ export async function setup() {
             resolvable = false;
             resolve({
               async teardown() {
-                cgBackendProcess.kill('SIGTERM');
+                cgBackend.kill('SIGTERM');
               },
             });
           }
         }
       });
-      cgBackendProcess.stderr?.on('data', function (data) {
-        if (env.CG_BACKEND_LOGS === '1') {
+      cgBackend.stderr?.on('data', function (data) {
+        if (env.CG_BACKEND_LOGS === '1' || env.CG_BACKEND_LOGS === 'true') {
           console.error(data?.toString());
         }
       });
-      cgBackendProcess.on('error', function (error) {
+      cgBackend.on('error', function (error) {
         if (resolvable) {
           resolvable = false;
           reject(new Error(`Failed to start CG Backend: ${error.message}`));
         }
       });
-      cgBackendProcess.on('exit', function (code) {
+      cgBackend.on('exit', function (code) {
         if (resolvable) {
           resolvable = false;
           reject(new Error(`CG Backend process exited with code ${code}`));

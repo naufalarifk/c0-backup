@@ -110,13 +110,13 @@ export class InstitutionsController {
       type: 'object',
       properties: {
         message: { type: 'string', example: 'Institution application created successfully' },
-        data: {
+        application: {
           type: 'object',
           properties: {
-            applicationId: { type: 'string', example: 'uuid-123' },
-            status: { type: 'string', example: 'Pending' },
-            submissionDate: { type: 'string', format: 'date-time' },
+            id: { type: 'number', example: 123 },
             businessName: { type: 'string', example: 'PT. Example' },
+            submittedDate: { type: 'string', format: 'date-time' },
+            status: { type: 'string', example: 'Submitted' },
           },
         },
         timestamp: { type: 'string', format: 'date-time' },
@@ -137,7 +137,7 @@ export class InstitutionsController {
     ],
     { isRequired: true },
   )
-  @RequireUserType('Institution')
+  @RequireUserType('Individual')
   async apply(
     @Session() session: UserSession,
     @UploadedFiles() files: {

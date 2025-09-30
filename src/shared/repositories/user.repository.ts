@@ -146,10 +146,30 @@ export abstract class UserRepository extends BetterAuthRepository {
     assertProp(check(isString, isNumber), user, 'id');
 
     // Get KYC status using existing helper; default to 'none' if not available
-    let kycStatus: 'none' | 'pending' | 'verified' | 'rejected' = 'none';
+    // For Institution users, check institution_applications instead of user_kycs
+    let kycStatus: 'none' | 'pending' | 'verified' | 'rejected' | 'approved' = 'none';
     try {
-      const kyc = await this.userViewsKYCStatus({ userId });
-      if (kyc && kyc.status) kycStatus = kyc.status;
+      const userType =
+        'user_type' in user && typeof user.user_type === 'string' ? user.user_type : 'Undecided';
+
+      if (userType === 'Institution') {
+        // Check institution application status
+        const application = await this.userViewsInstitutionApplicationStatus({ userId });
+        if (application && application.status) {
+          // Map institution application status to kycStatus
+          if (application.status === 'Verified') {
+            kycStatus = 'approved';
+          } else if (application.status === 'Rejected') {
+            kycStatus = 'rejected';
+          } else if (application.status === 'Submitted') {
+            kycStatus = 'pending';
+          }
+        }
+      } else {
+        // For Individual users, check user_kycs
+        const kyc = await this.userViewsKYCStatus({ userId });
+        if (kyc && kyc.status) kycStatus = kyc.status;
+      }
     } catch (_error) {
       // Ignore errors and default to 'none'
     }
@@ -508,6 +528,7 @@ export abstract class UserRepository extends BetterAuthRepository {
         npwpDocumentPath,
         registrationNumber,
         registrationDocumentPath,
+        establishmentNumber,
         deedOfEstablishmentPath,
         businessAddress,
         businessCity,
@@ -526,7 +547,7 @@ export abstract class UserRepository extends BetterAuthRepository {
         INSERT INTO institution_applications (
           applicant_user_id, business_name, business_description, business_type,
           npwp_number, npwp_document_path, registration_number, registration_document_path,
-          deed_of_establishment_path, business_address,
+          deed_establishment_number, deed_of_establishment_path, business_address,
           business_city, business_province, business_district, business_subdistrict,
           business_postal_code, director_name, director_position, director_id_card_path,
           ministry_approval_document_path, submitted_date
@@ -534,9 +555,9 @@ export abstract class UserRepository extends BetterAuthRepository {
         VALUES (
           ${applicantUserId}, ${businessName}, ${businessDescription}, ${businessType},
           ${npwpNumber}, ${npwpDocumentPath}, ${registrationNumber}, ${registrationDocumentPath},
-          ${deedOfEstablishmentPath}, ${businessAddress},
+          ${establishmentNumber}, ${deedOfEstablishmentPath}, ${businessAddress},
           ${businessCity}, ${businessProvince}, ${businessDistrict}, ${businessSubdistrict},
-          ${businessPostalCode}, ${directorName}, ${directorPosition}, ${directorIdCardPath},
+          ${businessPostalCode}, ${directorName}, ${directorPosition || 'Director'}, ${directorIdCardPath},
           ${ministryApprovalDocumentPath}, ${applicationDate}
         )
         RETURNING id, applicant_user_id, business_name;

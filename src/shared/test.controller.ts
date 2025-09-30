@@ -337,6 +337,120 @@ export class TestController {
     };
   }
 
+  @Post('test-admin-institution-approve-by-email')
+  async approveInstitutionByEmail(@Body() body: { email: string }) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Test endpoints are not available in production');
+    }
+
+    const { email } = body;
+    if (!email || typeof email !== 'string') {
+      throw new BadRequestException('email is required');
+    }
+
+    // Find latest pending institution application for the user with this email
+    const rows = await this.repo.sql`
+      SELECT ia.id, ia.status, ia.applicant_user_id, u.id as user_id
+      FROM institution_applications ia
+      JOIN users u ON ia.applicant_user_id = u.id
+      WHERE u.email = ${email}
+        AND ia.verified_date IS NULL
+        AND ia.rejected_date IS NULL
+      ORDER BY ia.submitted_date DESC
+      LIMIT 1
+    `;
+
+    if (rows.length === 0) {
+      throw new NotFoundException(`No pending institution application found for email ${email}`);
+    }
+
+    const application = rows[0];
+    assertDefined(application);
+    assertProp(check(isString, isNumber), application, 'id');
+    assertProp(check(isString, isNumber), application, 'applicant_user_id');
+    assertProp(check(isString, isNumber), application, 'user_id');
+
+    const applicationId = String(application.id);
+    const userId = String(application.user_id);
+
+    // Approve the institution application
+    await this.repo.adminApprovesInstitutionApplication({
+      approvalDate: new Date(),
+      applicationId: applicationId,
+      reviewerUserId: '1',
+    });
+
+    this.#logger.debug(`Approved institution application ${applicationId} for user ${userId}`);
+
+    return {
+      success: true,
+      message: `Institution application ${applicationId} for ${email} has been approved`,
+      applicationId: Number(applicationId),
+      userId: Number(userId),
+      processingAdmin: 'test-admin',
+    };
+  }
+
+  @Post('test-admin-institution-reject-by-email')
+  async rejectInstitutionByEmail(@Body() body: { email: string; reason: string }) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Test endpoints are not available in production');
+    }
+
+    const { email, reason } = body;
+    if (!email || typeof email !== 'string') {
+      throw new BadRequestException('email is required');
+    }
+    if (!reason || typeof reason !== 'string' || reason.trim().length < 10) {
+      throw new BadRequestException('Rejection reason must be at least 10 characters long');
+    }
+
+    // Find latest pending institution application for the user with this email
+    const rows = await this.repo.sql`
+      SELECT ia.id, ia.status, ia.applicant_user_id, u.id as user_id
+      FROM institution_applications ia
+      JOIN users u ON ia.applicant_user_id = u.id
+      WHERE u.email = ${email}
+        AND ia.verified_date IS NULL
+        AND ia.rejected_date IS NULL
+      ORDER BY ia.submitted_date DESC
+      LIMIT 1
+    `;
+
+    if (rows.length === 0) {
+      throw new NotFoundException(`No pending institution application found for email ${email}`);
+    }
+
+    const application = rows[0];
+    assertDefined(application);
+    assertProp(check(isString, isNumber), application, 'id');
+    assertProp(check(isString, isNumber), application, 'applicant_user_id');
+    assertProp(check(isString, isNumber), application, 'user_id');
+
+    const applicationId = String(application.id);
+    const userId = String(application.user_id);
+
+    // Reject the institution application
+    await this.repo.adminRejectInstitutionApplication({
+      rejectionDate: new Date(),
+      rejectionReason: reason,
+      applicationId: applicationId,
+      reviewerUserId: '1',
+    });
+
+    this.#logger.debug(
+      `Rejected institution application ${applicationId} for user ${userId} with reason: ${reason}`,
+    );
+
+    return {
+      success: true,
+      message: `Institution application ${applicationId} for ${email} has been rejected`,
+      applicationId: Number(applicationId),
+      userId: Number(userId),
+      processingAdmin: 'test-admin',
+    };
+  }
+
   @Post('test/loan-offers/:loanOfferId/funding-invoice/mark-paid')
   async markLoanOfferFundingInvoicePaid(
     @Param('loanOfferId') loanOfferId: string,

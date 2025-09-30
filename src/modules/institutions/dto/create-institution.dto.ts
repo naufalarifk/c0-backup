@@ -28,14 +28,13 @@ export class CreateInstitutionDto
   businessDescription?: string;
 
   @ApiProperty({
-    description: 'Type of business (optional)',
-    example: 'Financial Technology',
-    required: false,
+    description: 'Type of business',
+    example: 'corporation',
   })
-  @IsOptional()
+  @IsNotEmpty({ message: 'Business type is required' })
   @IsString({ message: 'Business type must be a valid text' })
   @Transform(({ value }) => value?.trim())
-  businessType?: string;
+  businessType: string;
 
   @ApiProperty({
     description: 'Business address',
@@ -113,6 +112,15 @@ export class CreateInstitutionDto
   registrationNumber: string;
 
   @ApiProperty({
+    description: 'Establishment number (Akta Pendirian number)',
+    example: 'AHU-001234567',
+  })
+  @IsNotEmpty({ message: 'Establishment number is required' })
+  @IsString({ message: 'Establishment number must be a valid text' })
+  @Transform(({ value }) => value?.trim()?.toUpperCase())
+  establishmentNumber: string;
+
+  @ApiProperty({
     description: 'Name of the company director',
     example: 'John Doe',
   })
@@ -124,11 +132,12 @@ export class CreateInstitutionDto
   @ApiProperty({
     description: 'Position of the company director',
     example: 'CEO',
+    required: false,
   })
-  @IsNotEmpty({ message: 'Director position is required' })
+  @IsOptional()
   @IsString({ message: 'Director position must be a valid text' })
-  @Transform(({ value }) => value?.trim())
-  directorPosition: string;
+  @Transform(({ value }) => value?.trim() || 'Director')
+  directorPosition?: string;
 
   @ApiProperty({
     description: 'NPWP document storage path in format bucket:path',

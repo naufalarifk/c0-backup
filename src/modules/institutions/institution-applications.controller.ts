@@ -52,7 +52,6 @@ export class InstitutionApplicationsController {
     ],
     { isRequired: true },
   )
-  @RequireUserType('Individual')
   async apply(
     @Session() session: UserSession,
     @UploadedFiles() files: {
@@ -108,7 +107,6 @@ export class InstitutionApplicationsController {
     status: HttpStatus.NOT_FOUND,
     description: 'Institution application not found',
   })
-  @RequireUserType('Individual')
   async getApplicationStatus(@Session() session: UserSession) {
     return this.institutionsService.getApplicationStatus(session.user.id);
   }

@@ -99,11 +99,12 @@ export type UserAppliesForInstitutionParams = {
   applicantUserId: string;
   businessName: string;
   businessDescription?: string;
-  businessType?: string;
+  businessType: string;
   npwpNumber: string;
   npwpDocumentPath: string;
   registrationNumber: string;
   registrationDocumentPath: string;
+  establishmentNumber: string;
   deedOfEstablishmentPath: string;
   businessAddress: string;
   businessCity: string;
@@ -112,7 +113,7 @@ export type UserAppliesForInstitutionParams = {
   businessSubdistrict: string;
   businessPostalCode: string;
   directorName: string;
-  directorPosition: string;
+  directorPosition?: string;
   directorIdCardPath: string;
   ministryApprovalDocumentPath: string;
   applicationDate: Date;
