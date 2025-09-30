@@ -108,19 +108,19 @@ describe('LoanMatcherService - Real Database Integration', () => {
       updatedAt: new Date(),
     });
 
-    createdUserIds.push(user.id);
+    createdUserIds.push(String(user.id));
 
     // Set user type if specified
     if (options.userType) {
       await repository.userDecidesUserType({
-        userId: user.id,
+        userId: String(user.id),
         userType: options.userType,
         decisionDate: new Date(),
       });
     }
 
     return {
-      id: user.id,
+      id: String(user.id),
       name: user.name,
       email: user.email,
       userType: options.userType,
@@ -137,7 +137,7 @@ describe('LoanMatcherService - Real Database Integration', () => {
     } = {},
   ) {
     const application = await repository.borrowerCreatesLoanApplication({
-      borrowerUserId,
+      borrowerUserId: String(borrowerUserId),
       collateralBlockchainKey: 'eip155:1',
       collateralTokenId: 'ETH',
       principalBlockchainKey: 'eip155:1',
@@ -150,12 +150,24 @@ describe('LoanMatcherService - Real Database Integration', () => {
       expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       collateralWalletDerivationPath: `m/44'/60'/0'/0/${Date.now() % 1000000}`,
       collateralWalletAddress: `0x${Date.now().toString(16).padStart(40, '0')}`,
+      provisionAmount: '0',
+      minLtvRatio: 0.5,
+      maxLtvRatio: 0.8,
+      collateralDepositAmount: '0',
+      collateralDepositExchangeRateId: 1,
+      collateralInvoiceId: 100,
+      collateralInvoicePrepaidAmount: '0',
+      collateralInvoiceDate: new Date(),
+      collateralInvoiceDueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      collateralInvoiceExpiredDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      // removed invalid property 'status'
+      // removed expiredDate property
     });
 
-    createdApplicationIds.push(application.id);
+    createdApplicationIds.push(String(application.id));
     return {
-      id: application.id,
-      borrowerUserId: application.borrowerUserId,
+      id: String(application.id),
+      borrowerUserId: String(application.borrowerUserId),
     };
   }
 
@@ -171,7 +183,7 @@ describe('LoanMatcherService - Real Database Integration', () => {
     } = {},
   ) {
     const offer = await repository.lenderCreatesLoanOffer({
-      lenderUserId,
+      lenderUserId: String(lenderUserId),
       principalBlockchainKey: 'eip155:1',
       principalTokenId: 'USDC',
       offeredPrincipalAmount: options.offeredAmount || '100000',
@@ -183,12 +195,17 @@ describe('LoanMatcherService - Real Database Integration', () => {
       createdDate: new Date(),
       fundingWalletDerivationPath: `m/44'/60'/0'/1/${Date.now() % 1000000}`,
       fundingWalletAddress: `0x${(Date.now() + 1000).toString(16).padStart(40, '0')}`,
+      fundingInvoiceId: 1,
+      fundingInvoicePrepaidAmount: '0',
+      fundingInvoiceDate: new Date(),
+      fundingInvoiceDueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      fundingInvoiceExpiredDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     });
 
-    createdOfferIds.push(offer.id);
+    createdOfferIds.push(String(offer.id));
     return {
-      id: offer.id,
-      lenderUserId: offer.lenderUserId,
+      id: String(offer.id),
+      lenderUserId: String(offer.lenderUserId),
     };
   }
 
@@ -368,7 +385,7 @@ describe('LoanMatcherService - Real Database Integration', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    createdUserIds.push(borrowerResult.id);
+    createdUserIds.push(String(borrowerResult.id));
 
     const lenderResult = await repository.betterAuthCreateUser({
       name: 'Test Lender for Matching',
@@ -376,13 +393,13 @@ describe('LoanMatcherService - Real Database Integration', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    createdUserIds.push(lenderResult.id);
+    createdUserIds.push(String(lenderResult.id));
 
     console.log(`Created users: Borrower ${borrowerResult.id}, Lender ${lenderResult.id}`);
 
     // Create a loan offer that should match
     const offerResult = await repository.lenderCreatesLoanOffer({
-      lenderUserId: lenderResult.id,
+      lenderUserId: String(lenderResult.id),
       principalBlockchainKey: 'eip155:1',
       principalTokenId: 'USDC',
       offeredPrincipalAmount: '100000', // Offering 100k
@@ -394,8 +411,13 @@ describe('LoanMatcherService - Real Database Integration', () => {
       createdDate: new Date(),
       fundingWalletDerivationPath: `m/44'/60'/0'/0/${Date.now() + 10}`,
       fundingWalletAddress: '0x9876543210987654321098765432109876543210',
+      fundingInvoiceId: 1,
+      fundingInvoicePrepaidAmount: '0',
+      fundingInvoiceDate: new Date(),
+      fundingInvoiceDueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      fundingInvoiceExpiredDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     });
-    createdOfferIds.push(offerResult.id);
+    createdOfferIds.push(String(offerResult.id));
 
     console.log(
       `Created loan offer: ${offerResult.id} - 7.5% for 20k-80k USDC, terms: [12,24,36] months`,
@@ -403,7 +425,7 @@ describe('LoanMatcherService - Real Database Integration', () => {
 
     // Create a loan application that should match
     const applicationResult = await repository.borrowerCreatesLoanApplication({
-      borrowerUserId: borrowerResult.id,
+      borrowerUserId: String(borrowerResult.id),
       loanOfferId: undefined, // Not targeting specific offer
       collateralBlockchainKey: 'eip155:1',
       collateralTokenId: 'ETH',
@@ -417,6 +439,18 @@ describe('LoanMatcherService - Real Database Integration', () => {
       expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       collateralWalletDerivationPath: `m/44'/60'/0'/0/${Date.now()}`,
       collateralWalletAddress: '0x1234567890123456789012345678901234567890',
+      // removed duplicate properties
+      collateralInvoiceId: 10,
+      collateralInvoicePrepaidAmount: '0',
+      collateralInvoiceDate: new Date(),
+      collateralInvoiceDueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      collateralInvoiceExpiredDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      provisionAmount: '0',
+      minLtvRatio: 0.5,
+      maxLtvRatio: 0.8,
+      collateralDepositAmount: '0',
+      collateralDepositExchangeRateId: 1,
+      // removed expiredDate property, not in BorrowerCreatesLoanApplicationParams
     });
     createdApplicationIds.push(applicationResult.id);
 
@@ -528,7 +562,7 @@ describe('LoanMatcherService - Real Database Integration', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    createdUserIds.push(borrower1.id);
+    createdUserIds.push(String(borrower1.id));
 
     const borrower2 = await repository.betterAuthCreateUser({
       name: 'Borrower 2 - Bad Interest Match',
@@ -536,42 +570,62 @@ describe('LoanMatcherService - Real Database Integration', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    createdUserIds.push(borrower2.id);
+    createdUserIds.push(String(borrower2.id));
 
     // Create loan applications
     const app1 = await repository.borrowerCreatesLoanApplication({
-      borrowerUserId: borrower1.id,
+      borrowerUserId: String(borrower1.id),
       loanOfferId: undefined,
       collateralBlockchainKey: 'eip155:1',
       collateralTokenId: 'ETH',
       principalBlockchainKey: 'eip155:1',
       principalTokenId: 'USDC',
-      principalAmount: '30000', // Good amount
-      maxInterestRate: 9.0, // Will accept 9% (lender fixed at 8.5%)
-      termInMonths: 24, // Good term
+      principalAmount: '30000',
+      maxInterestRate: 9.0,
+      termInMonths: 24,
       liquidationMode: 'Partial',
       appliedDate: new Date(),
       expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       collateralWalletDerivationPath: `m/44'/60'/0'/0/${Date.now() + 1}`,
       collateralWalletAddress: '0x1111111111111111111111111111111111111111',
+      provisionAmount: '0',
+      minLtvRatio: 0.5,
+      maxLtvRatio: 0.8,
+      collateralDepositAmount: '0',
+      collateralDepositExchangeRateId: 1,
+      collateralInvoiceId: 1,
+      collateralInvoicePrepaidAmount: '0',
+      collateralInvoiceDate: new Date(),
+      collateralInvoiceDueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      collateralInvoiceExpiredDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     });
     createdApplicationIds.push(app1.id);
 
     const app2 = await repository.borrowerCreatesLoanApplication({
-      borrowerUserId: borrower2.id,
+      borrowerUserId: String(borrower2.id),
       loanOfferId: undefined,
       collateralBlockchainKey: 'eip155:1',
       collateralTokenId: 'ETH',
       principalBlockchainKey: 'eip155:1',
       principalTokenId: 'USDC',
-      principalAmount: '30000', // Good amount
-      maxInterestRate: 8.0, // Won't accept more than 8% (lender fixed at 8.5%)
-      termInMonths: 24, // Good term
+      principalAmount: '30000',
+      maxInterestRate: 8.0,
+      termInMonths: 24,
       liquidationMode: 'Partial',
       appliedDate: new Date(),
       expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       collateralWalletDerivationPath: `m/44'/60'/0'/0/${Date.now() + 2}`,
       collateralWalletAddress: '0x2222222222222222222222222222222222222222',
+      provisionAmount: '0',
+      minLtvRatio: 0.5,
+      maxLtvRatio: 0.8,
+      collateralDepositAmount: '0',
+      collateralDepositExchangeRateId: 1,
+      collateralInvoiceId: 2,
+      collateralInvoicePrepaidAmount: '0',
+      collateralInvoiceDate: new Date(),
+      collateralInvoiceDueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      collateralInvoiceExpiredDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     });
     createdApplicationIds.push(app2.id);
 
@@ -631,7 +685,7 @@ describe('LoanMatcherService - Real Database Integration', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    createdUserIds.push(borrower.id);
+    createdUserIds.push(String(borrower.id));
 
     // Create individual lender
     const individualLender = await repository.betterAuthCreateUser({
@@ -640,11 +694,11 @@ describe('LoanMatcherService - Real Database Integration', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    createdUserIds.push(individualLender.id);
+    createdUserIds.push(String(individualLender.id));
 
     // Set individual user type
     await repository.userDecidesUserType({
-      userId: individualLender.id,
+      userId: String(individualLender.id),
       userType: 'Individual',
       decisionDate: new Date(),
     });
@@ -656,51 +710,61 @@ describe('LoanMatcherService - Real Database Integration', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    createdUserIds.push(institutionLender.id);
+    createdUserIds.push(String(institutionLender.id));
 
     // Set institutional user type
     await repository.userDecidesUserType({
-      userId: institutionLender.id,
+      userId: String(institutionLender.id),
       userType: 'Institution',
       decisionDate: new Date(),
     });
 
     // Create offers from both lenders
     const individualOffer = await repository.lenderCreatesLoanOffer({
-      lenderUserId: individualLender.id,
+      lenderUserId: String(individualLender.id),
       principalBlockchainKey: 'eip155:1',
       principalTokenId: 'USDC',
       offeredPrincipalAmount: '100000',
       minLoanPrincipalAmount: '10000',
       maxLoanPrincipalAmount: '80000',
-      interestRate: 7.0, // Better rate from individual
+      interestRate: 7.0,
       termInMonthsOptions: [12, 24],
       expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       createdDate: new Date(),
       fundingWalletDerivationPath: `m/44'/60'/0'/0/${Date.now() + 11}`,
       fundingWalletAddress: '0x3333333333333333333333333333333333333333',
+      fundingInvoiceId: 1,
+      fundingInvoicePrepaidAmount: '0',
+      fundingInvoiceDate: new Date(),
+      fundingInvoiceDueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      fundingInvoiceExpiredDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     });
     createdOfferIds.push(individualOffer.id);
 
     const institutionOffer = await repository.lenderCreatesLoanOffer({
-      lenderUserId: institutionLender.id,
+      lenderUserId: String(institutionLender.id),
       principalBlockchainKey: 'eip155:1',
       principalTokenId: 'USDC',
       offeredPrincipalAmount: '500000',
       minLoanPrincipalAmount: '20000',
       maxLoanPrincipalAmount: '200000',
-      interestRate: 8.0, // Higher rate but institutional
+      interestRate: 8.0,
       termInMonthsOptions: [12, 24, 36],
       expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       createdDate: new Date(),
       fundingWalletDerivationPath: `m/44'/60'/0'/0/${Date.now() + 12}`,
       fundingWalletAddress: '0x4444444444444444444444444444444444444444',
+      fundingInvoiceId: 2,
+      fundingInvoicePrepaidAmount: '0',
+      fundingInvoiceDate: new Date(),
+      fundingInvoiceDueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      fundingInvoiceExpiredDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     });
     createdOfferIds.push(institutionOffer.id);
 
     // Create application
     const application = await repository.borrowerCreatesLoanApplication({
-      borrowerUserId: borrower.id,
+      borrowerUserId: String(borrower.id),
       loanOfferId: undefined,
       collateralBlockchainKey: 'eip155:1',
       collateralTokenId: 'ETH',
@@ -714,6 +778,16 @@ describe('LoanMatcherService - Real Database Integration', () => {
       expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       collateralWalletDerivationPath: `m/44'/60'/0'/0/${Date.now() + 3}`,
       collateralWalletAddress: '0x5555555555555555555555555555555555555555',
+      provisionAmount: '0',
+      minLtvRatio: 0.5,
+      maxLtvRatio: 0.8,
+      collateralDepositAmount: '0',
+      collateralDepositExchangeRateId: 1,
+      collateralInvoiceId: 3,
+      collateralInvoicePrepaidAmount: '0',
+      collateralInvoiceDate: new Date(),
+      collateralInvoiceDueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      collateralInvoiceExpiredDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     });
     createdApplicationIds.push(application.id);
 

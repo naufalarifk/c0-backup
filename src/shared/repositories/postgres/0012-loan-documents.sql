@@ -35,29 +35,22 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_loan_documents_unique_active
 ON loan_documents(loan_id, document_type)
 WHERE status IN ('Queued', 'InProgress', 'Completed');
 
--- Add foreign key constraint if loans table exists
+-- Add foreign key constraint if loans table exists and constraint doesn't exist
 -- Note: This assumes the loans table has an 'id' column
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'loans') THEN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'loans') AND
+     NOT EXISTS (SELECT 1 FROM information_schema.table_constraints 
+                 WHERE constraint_name = 'fk_loan_documents_loan_id' 
+                 AND table_name = 'loan_documents') THEN
     ALTER TABLE loan_documents
         ADD CONSTRAINT fk_loan_documents_loan_id
         FOREIGN KEY (loan_id) REFERENCES loans(id) ON DELETE CASCADE;
   END IF;
 END $$;
 
-    DO $$
-    BEGIN
-      IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_name = 'loan_documents'
-          AND column_name = 'loan_id'
-      ) THEN
-        ALTER TABLE loan_documents
-          ALTER COLUMN loan_id TYPE BIGINT USING loan_id::BIGINT;
-      END IF;
-    END $$;
+-- loan_id column is already created as BIGINT in the CREATE TABLE statement above
+-- No additional ALTER statements needed
 
 -- Create trigger to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_loan_documents_updated_at()
@@ -68,6 +61,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_loan_documents_updated_at ON loan_documents;
 CREATE TRIGGER trigger_loan_documents_updated_at
   BEFORE UPDATE ON loan_documents
   FOR EACH ROW

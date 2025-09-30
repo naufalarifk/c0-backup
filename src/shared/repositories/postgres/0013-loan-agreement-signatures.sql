@@ -23,18 +23,24 @@ CREATE INDEX IF NOT EXISTS idx_loan_agreement_signatures_signed_at ON loan_agree
 CREATE UNIQUE INDEX IF NOT EXISTS idx_loan_agreement_signatures_unique
 ON loan_agreement_signatures(loan_id, user_id, document_type);
 
--- Add foreign key constraints if tables exist
+-- Add foreign key constraints if tables exist and constraints don't already exist
 DO $$
 BEGIN
   -- Foreign key to loans table
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'loans') THEN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'loans') AND
+     NOT EXISTS (SELECT 1 FROM information_schema.table_constraints 
+                 WHERE constraint_name = 'fk_loan_agreement_signatures_loan_id' 
+                 AND table_name = 'loan_agreement_signatures') THEN
     ALTER TABLE loan_agreement_signatures
     ADD CONSTRAINT fk_loan_agreement_signatures_loan_id
     FOREIGN KEY (loan_id) REFERENCES loans(id) ON DELETE CASCADE;
   END IF;
 
   -- Foreign key to users table
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'users') THEN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'users') AND
+     NOT EXISTS (SELECT 1 FROM information_schema.table_constraints 
+                 WHERE constraint_name = 'fk_loan_agreement_signatures_user_id' 
+                 AND table_name = 'loan_agreement_signatures') THEN
     ALTER TABLE loan_agreement_signatures
     ADD CONSTRAINT fk_loan_agreement_signatures_user_id
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
