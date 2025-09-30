@@ -24,7 +24,8 @@ export class BscMainnetWalletService extends IWalletService {
   private _provider?: ethers.JsonRpcProvider;
   protected get provider(): ethers.JsonRpcProvider {
     if (!this._provider) {
-      this._provider = new ethers.JsonRpcProvider(this.rpcUrl);
+      // Use a more reliable BSC RPC endpoint
+      this._provider = new ethers.JsonRpcProvider('https://bsc.publicnode.com');
     }
     return this._provider;
   }

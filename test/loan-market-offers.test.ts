@@ -90,11 +90,7 @@ suite('Loan Market API', function () {
         termOptions: [3, 6],
         minLoanAmount: '1000.000000000000000000',
         maxLoanAmount: '10000.000000000000000000',
-        liquidationMode: 'Partial',
         expirationDate: '2025-12-31T23:59:59Z',
-        acceptedCollateral: ['BTC', 'ETH'],
-        fundingDeadline: '2025-10-01T23:59:59Z',
-        termsAcceptanceTimestamp: '2025-09-23T10:30:00Z',
       };
 
       const response = await lenderIndividual.fetch('/api/loan-offers', {
@@ -104,12 +100,6 @@ suite('Loan Market API', function () {
       });
 
       const data = await response.json();
-
-      if (response.status !== 201) {
-        console.log('Expected 201, got:', response.status);
-        console.log('Error details:', data);
-        return; // Skip assertions if endpoint not implemented
-      }
 
       strictEqual(response.status, 201);
       assertDefined(data);
@@ -174,11 +164,7 @@ suite('Loan Market API', function () {
         termOptions: [1, 3, 6, 12],
         minLoanAmount: '5000.000000000000000000',
         maxLoanAmount: '50000.000000000000000000',
-        liquidationMode: 'Full',
         expirationDate: '2025-12-31T23:59:59Z',
-        acceptedCollateral: ['BTC', 'ETH', 'BNB', 'SOL'],
-        fundingDeadline: '2025-10-01T23:59:59Z',
-        termsAcceptanceTimestamp: '2025-09-23T10:30:00Z',
       };
 
       const response = await lenderInstitution.fetch('/api/loan-offers', {
@@ -188,12 +174,6 @@ suite('Loan Market API', function () {
       });
 
       const data = await response.json();
-
-      if (response.status !== 201) {
-        console.log('Expected 201, got:', response.status);
-        console.log('Error details:', data);
-        return; // Skip assertions if endpoint not implemented
-      }
 
       strictEqual(response.status, 201);
       assertDefined(data);
@@ -209,15 +189,11 @@ suite('Loan Market API', function () {
       assertPropString(lender, 'type');
       strictEqual(lender.type, 'Institution');
 
-      if ('businessType' in lender) {
-        assertPropString(lender, 'businessType');
-      }
+      assertPropString(lender, 'businessType');
 
       // Verify profilePictureUrl if present (per OpenAPI spec)
-      if ('profilePictureUrl' in lender && lender.profilePictureUrl) {
-        assertPropString(lender, 'profilePictureUrl');
-        ok(lender.profilePictureUrl.startsWith('http'));
-      }
+      assertPropString(lender, 'profilePictureUrl');
+      ok(lender.profilePictureUrl.startsWith('http'));
     });
 
     it('should return 422 for invalid principal currency', async function () {
@@ -229,11 +205,7 @@ suite('Loan Market API', function () {
         termOptions: [3, 6],
         minLoanAmount: '1000.000000000000000000',
         maxLoanAmount: '10000.000000000000000000',
-        liquidationMode: 'Partial',
         expirationDate: '2025-12-31T23:59:59Z',
-        acceptedCollateral: ['BTC'],
-        fundingDeadline: '2025-10-01T23:59:59Z',
-        termsAcceptanceTimestamp: '2025-09-23T10:30:00Z',
       };
 
       const response = await lenderIndividual.fetch('/api/loan-offers', {
@@ -265,11 +237,7 @@ suite('Loan Market API', function () {
         termOptions: [3, 6],
         minLoanAmount: '1000.000000000000000000',
         maxLoanAmount: '10000.000000000000000000',
-        liquidationMode: 'Partial',
         expirationDate: '2025-12-31T23:59:59Z',
-        acceptedCollateral: ['BTC'],
-        fundingDeadline: '2025-10-01T23:59:59Z',
-        termsAcceptanceTimestamp: '2025-09-23T10:30:00Z',
       };
 
       const response = await lenderIndividual.fetch('/api/loan-offers', {
@@ -324,11 +292,7 @@ suite('Loan Market API', function () {
         termOptions: [3, 6],
         minLoanAmount: '1000.000000000000000000',
         maxLoanAmount: '10000.000000000000000000',
-        liquidationMode: 'Partial',
         expirationDate: '2025-12-31T23:59:59Z',
-        acceptedCollateral: ['BTC'],
-        fundingDeadline: '2025-10-01T23:59:59Z',
-        termsAcceptanceTimestamp: '2025-09-23T10:30:00Z',
       };
 
       const response = await fetch(`${testSetup.backendUrl}/api/loan-offers`, {
@@ -605,11 +569,7 @@ suite('Loan Market API', function () {
         termOptions: [3, 6],
         minLoanAmount: '1000.000000000000000000',
         maxLoanAmount: '10000.000000000000000000',
-        liquidationMode: 'Partial',
         expirationDate: '2025-12-31T23:59:59Z',
-        acceptedCollateral: ['BTC'],
-        fundingDeadline: '2025-10-01T23:59:59Z',
-        termsAcceptanceTimestamp: '2025-09-23T10:30:00Z',
       };
 
       const createResponse = await lenderIndividual.fetch('/api/loan-offers', {

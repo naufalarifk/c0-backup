@@ -45,34 +45,21 @@ async function seedExchangeRateData(testSetup: Awaited<ReturnType<typeof setup>>
 
   // Use direct fetch calls to the test seeding endpoint
   for (const rate of exchangeRates) {
-    try {
-      const response = await fetch(`${testSetup.backendUrl}/api/admin/seed-exchange-rate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          blockchainKey: 'crosschain',
-          baseCurrencyTokenId: rate.baseCurrency,
-          quoteCurrencyTokenId: rate.quoteCurrency,
-          source: 'test',
-          bidPrice: rate.bidPrice,
-          askPrice: rate.askPrice,
-          sourceDate: new Date().toISOString(),
-        }),
-      });
+    const response = await fetch(`${testSetup.backendUrl}/api/admin/seed-exchange-rate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        blockchainKey: 'crosschain',
+        baseCurrencyTokenId: rate.baseCurrency,
+        quoteCurrencyTokenId: rate.quoteCurrency,
+        source: 'test',
+        bidPrice: rate.bidPrice,
+        askPrice: rate.askPrice,
+        sourceDate: new Date().toISOString(),
+      }),
+    });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log(
-          `Warning: Failed to seed exchange rate for ${rate.baseCurrency}: ${response.status} ${response.statusText} - ${errorText}`,
-        );
-      } else {
-        console.log(`Seeded exchange rate for ${rate.baseCurrency}`);
-      }
-    } catch (error) {
-      console.log(
-        `Warning: Could not seed exchange rate for ${rate.baseCurrency}: ${error.message}`,
-      );
-    }
+    strictEqual(response.status, 201, `Failed to seed exchange rate for ${rate.baseCurrency}`);
   }
 }
 
@@ -125,8 +112,6 @@ suite('Loan Market API', function () {
       const calculationData = {
         collateralBlockchainKey: 'eip155:1',
         collateralTokenId: 'slip44:60',
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         principalAmount: '10000.000000000000000000',
         loanTerm: 6,
       };
@@ -138,11 +123,6 @@ suite('Loan Market API', function () {
       });
 
       const data = await response.json();
-
-      if (response.status === 404) {
-        console.log('Endpoint not implemented yet');
-        return;
-      }
 
       strictEqual(response.status, 200);
       assertDefined(data);
@@ -161,20 +141,18 @@ suite('Loan Market API', function () {
       ok(calculationResult.maxLtvRatio > 0 && calculationResult.maxLtvRatio <= 1);
 
       // Verify safetyBuffer if present
-      if ('safetyBuffer' in calculationResult) {
-        assertPropNumber(calculationResult, 'safetyBuffer');
-        ok(calculationResult.safetyBuffer >= 0);
-      }
+      assertPropNumber(calculationResult, 'safetyBuffer');
+      ok(calculationResult.safetyBuffer >= 0);
 
-      if ('calculationDetails' in calculationResult) {
-        const details = calculationResult.calculationDetails;
-        assertPropString(details, 'baseLoanAmount');
-        assertPropString(details, 'baseCollateralValue');
-        assertPropString(details, 'withSafetyBuffer');
-        assertPropString(details, 'currentExchangeRate');
-        assertPropString(details, 'rateSource');
-        assertPropString(details, 'rateTimestamp');
-      }
+      assertPropDefined(calculationResult, 'calculationDetails');
+
+      const details = calculationResult.calculationDetails;
+      assertPropString(details, 'baseLoanAmount');
+      assertPropString(details, 'baseCollateralValue');
+      assertPropString(details, 'withSafetyBuffer');
+      assertPropString(details, 'currentExchangeRate');
+      assertPropString(details, 'rateSource');
+      assertPropString(details, 'rateTimestamp');
 
       // Verify currency objects
       const collateralCurrency = calculationResult.collateralCurrency;
@@ -190,18 +168,14 @@ suite('Loan Market API', function () {
       strictEqual(principalCurrency.symbol, 'USDC');
 
       // Verify logoUrl if present (per OpenAPI spec)
-      if ('logoUrl' in principalCurrency && principalCurrency.logoUrl) {
-        assertPropString(principalCurrency, 'logoUrl');
-        ok(principalCurrency.logoUrl.startsWith('http'));
-      }
+      assertPropString(principalCurrency, 'logoUrl');
+      ok(principalCurrency.logoUrl.startsWith('http'));
     });
 
     it('should calculate loan requirements with BTC collateral successfully', async function () {
       const calculationData = {
         collateralBlockchainKey: 'bip122:000000000019d6689c085ae165831e93',
         collateralTokenId: 'slip44:0',
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         principalAmount: '15000.000000000000000000',
         loanTerm: 12,
       };
@@ -211,11 +185,6 @@ suite('Loan Market API', function () {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(calculationData),
       });
-
-      if (response.status === 404) {
-        console.log('Endpoint not implemented yet');
-        return;
-      }
 
       strictEqual(response.status, 200);
       const data = await response.json();
@@ -239,11 +208,6 @@ suite('Loan Market API', function () {
         body: JSON.stringify({}),
       });
 
-      if (response.status === 404) {
-        console.log('Endpoint not implemented yet');
-        return;
-      }
-
       strictEqual(response.status, 422);
       const data = await response.json();
       assertDefined(data);
@@ -258,8 +222,6 @@ suite('Loan Market API', function () {
       const calculationData = {
         collateralBlockchainKey: 'eip155:1',
         collateralTokenId: 'slip44:60',
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         principalAmount: '10000.000000000000000000',
       };
 
@@ -300,8 +262,6 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'eip155:1',
         collateralTokenId: 'slip44:60',
         principalAmount: '5000.000000000000000000',
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         maxInterestRate: 15.0,
         termMonths: 6,
         liquidationMode: 'Full',
@@ -316,16 +276,7 @@ suite('Loan Market API', function () {
 
       const data = await response.json();
 
-      if (response.status === 404) {
-        console.log('Endpoint not implemented yet');
-        return;
-      }
-
-      if (response.status !== 201) {
-        console.log('Expected 201, got:', response.status);
-        console.log('Error details:', JSON.stringify(data, null, 2));
-        return; // Skip assertions if endpoint has error
-      }
+      ok(response.ok, `Response not OK: ${response.status} - ${JSON.stringify(data)}`);
 
       strictEqual(response.status, 201);
       assertDefined(data);
@@ -348,14 +299,14 @@ suite('Loan Market API', function () {
       strictEqual(collateralCurrency.symbol, 'ETH');
 
       // Verify collateral invoice if present
-      if ('collateralInvoice' in application) {
-        const invoice = application.collateralInvoice;
-        assertPropString(invoice, 'id');
-        assertPropString(invoice, 'amount');
-        assertPropDefined(invoice, 'currency');
-        assertPropString(invoice, 'walletAddress');
-        assertPropString(invoice, 'expiryDate');
-      }
+      ok('collateralInvoice' in application, 'collateralInvoice should be present');
+
+      const invoice = application.collateralInvoice;
+      assertPropString(invoice, 'id');
+      assertPropString(invoice, 'amount');
+      assertPropDefined(invoice, 'currency');
+      assertPropString(invoice, 'walletAddress');
+      assertPropString(invoice, 'expiryDate');
     });
 
     it('should create loan application with BTC collateral successfully', async function () {
@@ -363,8 +314,6 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'bip122:000000000019d6689c085ae165831e93',
         collateralTokenId: 'slip44:0',
         principalAmount: '18000.000000000000000000',
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         maxInterestRate: 12.0,
         termMonths: 12,
         liquidationMode: 'Partial',
@@ -376,11 +325,6 @@ suite('Loan Market API', function () {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(applicationData),
       });
-
-      if (response.status === 404) {
-        console.log('Endpoint not implemented yet');
-        return;
-      }
 
       strictEqual(response.status, 201);
       const data = await response.json();
@@ -400,8 +344,6 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
         collateralTokenId: 'slip44:501',
         principalAmount: '2000.000000000000000000',
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         maxInterestRate: 18.0,
         termMonths: 1,
         liquidationMode: 'Full',
@@ -413,11 +355,6 @@ suite('Loan Market API', function () {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(applicationData),
       });
-
-      if (response.status === 404) {
-        console.log('Endpoint not implemented yet');
-        return;
-      }
 
       strictEqual(response.status, 201);
       const data = await response.json();
@@ -437,8 +374,6 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'eip155:1',
         collateralTokenId: 'slip44:60',
         principalAmount: 'invalid-amount', // Invalid format
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         maxInterestRate: 15.0,
         termMonths: 6,
         liquidationMode: 'Full',
@@ -450,11 +385,6 @@ suite('Loan Market API', function () {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(applicationData),
       });
-
-      if (response.status === 404) {
-        console.log('Endpoint not implemented yet');
-        return;
-      }
 
       strictEqual(response.status, 422);
       const data = await response.json();
@@ -469,8 +399,6 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'eip155:1',
         collateralTokenId: 'slip44:60',
         principalAmount: '5000.000000000000000000',
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         maxInterestRate: 15.0,
         termMonths: 24, // Invalid - not in enum [1, 3, 6, 12]
         liquidationMode: 'Full',
@@ -482,11 +410,6 @@ suite('Loan Market API', function () {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(applicationData),
       });
-
-      if (response.status === 404) {
-        console.log('Endpoint not implemented yet');
-        return;
-      }
 
       strictEqual(response.status, 422);
       const data = await response.json();
@@ -503,11 +426,6 @@ suite('Loan Market API', function () {
         body: JSON.stringify({}),
       });
 
-      if (response.status === 404) {
-        console.log('Endpoint not implemented yet');
-        return;
-      }
-
       strictEqual(response.status, 422);
       const data = await response.json();
       assertDefined(data);
@@ -521,8 +439,6 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'eip155:1',
         collateralTokenId: 'slip44:60',
         principalAmount: '5000.000000000000000000',
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         maxInterestRate: 15.0,
         termMonths: 6,
         liquidationMode: 'Full',
@@ -566,11 +482,6 @@ suite('Loan Market API', function () {
 
       const data = await response.json();
 
-      if (response.status === 404) {
-        console.log('Endpoint not implemented yet');
-        return;
-      }
-
       strictEqual(response.status, 200);
       assertDefined(data);
       assertPropDefined(data, 'success');
@@ -589,35 +500,33 @@ suite('Loan Market API', function () {
       assertProp(v => typeof v === 'boolean', pagination, 'hasNext');
       assertProp(v => typeof v === 'boolean', pagination, 'hasPrev');
 
-      if (responseData.applications.length > 0) {
-        assertPropArrayMapOf(responseData, 'applications', application => {
-          assertDefined(application);
-          assertPropString(application, 'id');
-          assertPropString(application, 'borrowerId');
-          assertPropDefined(application, 'borrower');
-          assertPropDefined(application, 'collateralCurrency');
-          assertPropDefined(application, 'principalCurrency');
-          assertPropString(application, 'principalAmount');
-          assertPropNumber(application, 'maxInterestRate');
-          assertPropNumber(application, 'termMonths');
-          assertProp(v => v === 'Partial' || v === 'Full', application, 'liquidationMode');
-          assertProp(v => v === 'Published', application, 'status'); // Only published should be listed
-          assertPropString(application, 'createdDate');
-          assertPropString(application, 'expiryDate');
+      ok(responseData.applications.length <= pagination.limit);
 
-          if ('publishedDate' in application) {
-            assertPropString(application, 'publishedDate');
-          }
+      assertPropArrayMapOf(responseData, 'applications', application => {
+        assertDefined(application);
+        assertPropString(application, 'id');
+        assertPropString(application, 'borrowerId');
+        assertPropDefined(application, 'borrower');
+        assertPropDefined(application, 'collateralCurrency');
+        assertPropDefined(application, 'principalCurrency');
+        assertPropString(application, 'principalAmount');
+        assertPropNumber(application, 'maxInterestRate');
+        assertPropNumber(application, 'termMonths');
+        assertProp(v => v === 'Partial' || v === 'Full', application, 'liquidationMode');
+        assertProp(v => v === 'Published', application, 'status'); // Only published should be listed
+        assertPropString(application, 'createdDate');
+        assertPropString(application, 'expiryDate');
 
-          // Verify borrower info
-          const borrower = application.borrower;
-          assertPropString(borrower, 'id');
-          assertPropString(borrower, 'type');
-          assertPropString(borrower, 'name');
+        assertPropString(application, 'publishedDate');
 
-          return application;
-        });
-      }
+        // Verify borrower info
+        const borrower = application.borrower;
+        assertPropString(borrower, 'id');
+        assertPropString(borrower, 'type');
+        assertPropString(borrower, 'name');
+
+        return application;
+      });
     });
 
     it('should filter applications by collateral currency', async function () {
@@ -625,36 +534,26 @@ suite('Loan Market API', function () {
         '/api/loan-applications?collateralBlockchainKey=eip155:1&collateralTokenId=slip44:60',
       );
 
-      if (response.status === 404) {
-        console.log('Endpoint not implemented yet');
-        return;
-      }
-
       strictEqual(response.status, 200);
       const data = await response.json();
       assertDefined(data);
       assertPropDefined(data, 'data');
       assertPropArray(data.data, 'applications');
 
-      if (data.data.applications.length > 0) {
-        data.data.applications.forEach(app => {
-          assertDefined(app);
-          assertPropDefined(app, 'collateralCurrency');
-          assertPropString(app.collateralCurrency, 'symbol');
-          strictEqual(app.collateralCurrency.symbol, 'ETH');
-        });
-      }
+      ok(data.data.applications.length > 0, 'Expected zero or more applications');
+
+      data.data.applications.forEach(app => {
+        assertDefined(app);
+        assertPropDefined(app, 'collateralCurrency');
+        assertPropString(app.collateralCurrency, 'symbol');
+        strictEqual(app.collateralCurrency.symbol, 'ETH');
+      });
     });
 
     it('should filter applications by principal amount range', async function () {
       const response = await lender.fetch(
         '/api/loan-applications?minPrincipalAmount=1000&maxPrincipalAmount=10000',
       );
-
-      if (response.status === 404) {
-        console.log('Endpoint not implemented yet');
-        return;
-      }
 
       strictEqual(response.status, 200);
       const data = await response.json();
@@ -666,33 +565,23 @@ suite('Loan Market API', function () {
     it('should filter applications by liquidation mode', async function () {
       const response = await lender.fetch('/api/loan-applications?liquidationMode=Full');
 
-      if (response.status === 404) {
-        console.log('Endpoint not implemented yet');
-        return;
-      }
-
       strictEqual(response.status, 200);
       const data = await response.json();
       assertDefined(data);
       assertPropDefined(data, 'data');
       assertPropArray(data.data, 'applications');
 
-      if (data.data.applications.length > 0) {
-        data.data.applications.forEach(app => {
-          assertDefined(app);
-          assertPropString(app, 'liquidationMode');
-          strictEqual(app.liquidationMode, 'Full');
-        });
-      }
+      ok(data.data.applications.length > 0, 'Expected applications');
+
+      data.data.applications.forEach(app => {
+        assertDefined(app);
+        assertPropString(app, 'liquidationMode');
+        strictEqual(app.liquidationMode, 'Full');
+      });
     });
 
     it('should support pagination', async function () {
       const response = await lender.fetch('/api/loan-applications?page=1&limit=10');
-
-      if (response.status === 404) {
-        console.log('Endpoint not implemented yet');
-        return;
-      }
 
       strictEqual(response.status, 200);
       const data = await response.json();
@@ -733,11 +622,6 @@ suite('Loan Market API', function () {
 
       const data = await response.json();
 
-      if (response.status === 404) {
-        console.log('Endpoint not implemented yet');
-        return;
-      }
-
       strictEqual(response.status, 200);
       assertDefined(data);
       assertPropDefined(data, 'success');
@@ -748,24 +632,19 @@ suite('Loan Market API', function () {
       assertPropArray(responseData, 'applications');
       assertPropDefined(responseData, 'pagination');
 
-      if (responseData.applications.length > 0) {
-        responseData.applications.forEach(application => {
-          assertDefined(application);
-          assertProp(check(isNumber, isString), application, 'borrowerId');
-          strictEqual(application.borrowerId, borrower.id);
-        });
-      }
+      ok(responseData.applications.length, 'Expected applications');
+
+      responseData.applications.forEach(application => {
+        assertDefined(application);
+        assertProp(check(isNumber, isString), application, 'borrowerId');
+        strictEqual(application.borrowerId, borrower.id);
+      });
     });
 
     it('should support pagination for my applications', async function () {
       const response = await borrower.fetch(
         '/api/loan-applications/my-applications?page=1&limit=5',
       );
-
-      if (response.status === 404) {
-        console.log('Endpoint not implemented yet');
-        return;
-      }
 
       strictEqual(response.status, 200);
       const data = await response.json();
@@ -816,8 +695,6 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'eip155:1',
         collateralTokenId: 'slip44:60',
         principalAmount: '5000.000000000000000000',
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         maxInterestRate: 15.0,
         termMonths: 6,
         liquidationMode: 'Full',
@@ -830,10 +707,7 @@ suite('Loan Market API', function () {
         body: JSON.stringify(applicationData),
       });
 
-      if (createResponse.status !== 201) {
-        console.log('Cannot create loan application, skipping update test');
-        return;
-      }
+      ok(createResponse.ok, `Failed to create application: ${createResponse.status}`);
 
       const createData = await createResponse.json();
       const applicationId = createData.data.id;
@@ -848,11 +722,6 @@ suite('Loan Market API', function () {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
       });
-
-      if (response.status === 404) {
-        console.log('Update endpoint not implemented yet');
-        return;
-      }
 
       strictEqual(response.status, 200);
       const data = await response.json();
@@ -876,17 +745,6 @@ suite('Loan Market API', function () {
         body: JSON.stringify(updateData),
       });
 
-      if (response.status === 404) {
-        const data = await response.json();
-        if (data.error?.code === ERROR_CODES.NOT_FOUND) {
-          // Expected behavior
-          return;
-        } else {
-          console.log('Endpoint not implemented yet');
-          return;
-        }
-      }
-
       strictEqual(response.status, 404);
     });
 
@@ -900,11 +758,6 @@ suite('Loan Market API', function () {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
       });
-
-      if (response.status === 404) {
-        console.log('Endpoint not implemented yet');
-        return;
-      }
 
       ok(response.status === 403 || response.status === 404);
     });

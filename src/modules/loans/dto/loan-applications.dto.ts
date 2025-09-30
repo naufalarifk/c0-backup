@@ -40,22 +40,6 @@ export class LoanCalculationRequestDto {
   collateralTokenId: string;
 
   @ApiProperty({
-    description: 'Blockchain key for principal currency',
-    example: 'eip155:1',
-    maxLength: 64,
-  })
-  @IsString()
-  principalBlockchainKey: string;
-
-  @ApiProperty({
-    description: 'Token ID for principal currency',
-    example: 'erc20:0xdac17f958d2ee523a2206206994597c13d831ec7',
-    maxLength: 64,
-  })
-  @IsString()
-  principalTokenId: string;
-
-  @ApiProperty({
     description: 'Principal amount requested',
     example: '5000.000000000000000000',
     pattern: '^\\d+\\.\\d{18}$',
@@ -189,24 +173,8 @@ export class CreateLoanApplicationDto {
   principalAmount: string;
 
   @ApiProperty({
-    description: 'Blockchain key for principal currency',
-    example: 'eip155:56',
-    maxLength: 64,
-  })
-  @IsString()
-  principalBlockchainKey: string;
-
-  @ApiProperty({
-    description: 'Token ID for principal currency',
-    example: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-    maxLength: 64,
-  })
-  @IsString()
-  principalTokenId: string;
-
-  @ApiProperty({
     description: 'Maximum acceptable interest rate',
-    example: 15.0,
+    example: 15,
     minimum: 0.1,
     maximum: 50,
   })
@@ -230,17 +198,16 @@ export class CreateLoanApplicationDto {
   @IsEnum(LiquidationMode)
   liquidationMode: LiquidationMode;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     description: 'Minimum acceptable LTV ratio',
     example: 0.5,
     minimum: 0,
-    maximum: 100,
+    maximum: 1,
   })
-  @IsOptional()
   @IsNumber()
   @Min(0)
-  @Max(100)
-  minLtvRatio?: number;
+  @Max(1)
+  minLtvRatio: number;
 }
 
 export class UpdateLoanApplicationDto {

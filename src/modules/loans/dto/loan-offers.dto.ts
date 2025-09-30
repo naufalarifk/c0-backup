@@ -17,7 +17,6 @@ import {
   InvoiceDto,
   IsDecimalAmount,
   LenderInfoDto,
-  LiquidationMode,
   LoanOfferStatus,
   PaginationMetaDto,
 } from './common.dto';
@@ -25,7 +24,7 @@ import {
 export class CreateLoanOfferDto {
   @ApiProperty({
     description: 'Blockchain key for principal currency',
-    example: 'eip155:1',
+    example: 'eip155:56',
     maxLength: 64,
   })
   @IsString()
@@ -33,7 +32,7 @@ export class CreateLoanOfferDto {
 
   @ApiProperty({
     description: 'Token ID for principal currency',
-    example: 'erc20:0xdac17f958d2ee523a2206206994597c13d831ec7',
+    example: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
     maxLength: 64,
   })
   @IsString()
@@ -87,46 +86,11 @@ export class CreateLoanOfferDto {
   maxLoanAmount: string;
 
   @ApiProperty({
-    description: 'Liquidation mode preference',
-    enum: LiquidationMode,
-    example: LiquidationMode.PARTIAL,
-  })
-  @IsEnum(LiquidationMode)
-  liquidationMode: LiquidationMode;
-
-  @ApiPropertyOptional({
-    description: 'Optional expiration date for the offer',
+    description: 'Expiration date for the offer',
     example: '2025-12-31T23:59:59Z',
   })
-  @IsOptional()
   @IsDateString()
-  expirationDate?: string;
-
-  @ApiPropertyOptional({
-    description: 'Accepted collateral assets',
-    example: ['BTC', 'ETH'],
-    type: [String],
-  })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  acceptedCollateral?: string[];
-
-  @ApiPropertyOptional({
-    description: 'Funding deadline for the offer',
-    example: '2025-10-01T23:59:59Z',
-  })
-  @IsOptional()
-  @IsDateString()
-  fundingDeadline?: string;
-
-  @ApiPropertyOptional({
-    description: 'Terms acceptance timestamp',
-    example: '2025-09-23T10:30:00Z',
-  })
-  @IsOptional()
-  @IsDateString()
-  termsAcceptanceTimestamp?: string;
+  expirationDate: string;
 }
 
 export class UpdateLoanOfferDto {

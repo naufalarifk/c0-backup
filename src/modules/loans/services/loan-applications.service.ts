@@ -66,11 +66,15 @@ export class LoanApplicationsService {
       const calculationDate = new Date();
 
       // Get data from repository (no calculations)
+      // Default to USDC on BSC for principal currency
+      const DEFAULT_PRINCIPAL_BLOCKCHAIN_KEY = 'eip155:56';
+      const DEFAULT_PRINCIPAL_TOKEN_ID = 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d';
+
       const currencies = await this.cryptogadaiRepository.borrowerGetsCurrencyPair({
         collateralBlockchainKey: calculationRequest.collateralBlockchainKey,
         collateralTokenId: calculationRequest.collateralTokenId,
-        principalBlockchainKey: calculationRequest.principalBlockchainKey,
-        principalTokenId: calculationRequest.principalTokenId,
+        principalBlockchainKey: DEFAULT_PRINCIPAL_BLOCKCHAIN_KEY,
+        principalTokenId: DEFAULT_PRINCIPAL_TOKEN_ID,
       });
 
       const platformConfig = await this.cryptogadaiRepository.borrowerGetsPlatformConfig({
@@ -231,11 +235,15 @@ export class LoanApplicationsService {
       const expirationDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
 
       // Get data from repository (no calculations)
+      // Default to USDC on BSC for principal currency
+      const DEFAULT_PRINCIPAL_BLOCKCHAIN_KEY = 'eip155:56';
+      const DEFAULT_PRINCIPAL_TOKEN_ID = 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d';
+
       const currencies = await this.cryptogadaiRepository.borrowerGetsCurrencyPair({
         collateralBlockchainKey: createLoanApplicationDto.collateralBlockchainKey,
         collateralTokenId: createLoanApplicationDto.collateralTokenId,
-        principalBlockchainKey: createLoanApplicationDto.principalBlockchainKey,
-        principalTokenId: createLoanApplicationDto.principalTokenId,
+        principalBlockchainKey: DEFAULT_PRINCIPAL_BLOCKCHAIN_KEY,
+        principalTokenId: DEFAULT_PRINCIPAL_TOKEN_ID,
       });
 
       const platformConfig = await this.cryptogadaiRepository.borrowerGetsPlatformConfig({
@@ -324,8 +332,8 @@ export class LoanApplicationsService {
         borrowerUserId: borrowerId,
         collateralBlockchainKey: createLoanApplicationDto.collateralBlockchainKey,
         collateralTokenId: createLoanApplicationDto.collateralTokenId,
-        principalBlockchainKey: createLoanApplicationDto.principalBlockchainKey,
-        principalTokenId: createLoanApplicationDto.principalTokenId,
+        principalBlockchainKey: DEFAULT_PRINCIPAL_BLOCKCHAIN_KEY,
+        principalTokenId: DEFAULT_PRINCIPAL_TOKEN_ID,
         principalAmount: principalAmountInSmallestUnits,
         provisionAmount: calculationResult.provisionAmount,
         maxInterestRate: createLoanApplicationDto.maxInterestRate,

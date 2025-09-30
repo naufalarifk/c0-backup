@@ -158,8 +158,6 @@ suite('Loan Market API', function () {
       const calculationData = {
         collateralBlockchainKey: 'unsupported-chain',
         collateralTokenId: 'unsupported-token',
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         principalAmount: '10000.000000000000000000',
       };
 
@@ -179,8 +177,6 @@ suite('Loan Market API', function () {
 
     it('should handle very large principal amounts', async function () {
       const loanOfferData = {
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         totalAmount: '999999999999.000000000000000000', // Very large amount
         interestRate: 12.5,
         termOptions: [3, 6],
@@ -213,8 +209,6 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'eip155:1',
         collateralTokenId: 'slip44:60',
         principalAmount: '49.000000000000000000', // Below minimum 50 USDT
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         maxInterestRate: 15.0,
         termMonths: 6,
         liquidationMode: 'Full',
@@ -245,8 +239,6 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'eip155:1',
         collateralTokenId: 'slip44:60',
         principalAmount: '20001.000000000000000000', // Above maximum 20,000 USDT
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         maxInterestRate: 15.0,
         termMonths: 6,
         liquidationMode: 'Full',
@@ -277,8 +269,6 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'eip155:1',
         collateralTokenId: 'slip44:60',
         principalAmount: '0.000000000000000001', // Very small amount
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         maxInterestRate: 15.0,
         termMonths: 6,
         liquidationMode: 'Full',
@@ -305,8 +295,6 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'eip155:1',
         collateralTokenId: 'slip44:60',
         principalAmount: '5000.000000000000000000',
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         maxInterestRate: 15.0,
         termMonths: 6,
         liquidationMode: 'Full',
@@ -337,8 +325,6 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'eip155:1',
         collateralTokenId: 'slip44:60',
         principalAmount: '5000.000000000000000000',
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         maxInterestRate: 15.0,
         termMonths: 6,
         liquidationMode: 'Full',
@@ -393,8 +379,6 @@ suite('Loan Market API', function () {
 
     it('should validate interest rate bounds per SRS CONF-001', async function () {
       const loanOfferData = {
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         totalAmount: '10000.000000000000000000',
         interestRate: 0.05, // Below minimum 0.1%
         termOptions: [3, 6],
@@ -431,8 +415,6 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'cosmos:cosmoshub-3', // Unsupported blockchain
         collateralTokenId: 'slip44:118',
         principalAmount: '5000.000000000000000000',
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         maxInterestRate: 15.0,
         termMonths: 6,
         liquidationMode: 'Full',
@@ -462,8 +444,6 @@ suite('Loan Market API', function () {
       const calculationData = {
         collateralBlockchainKey: 'eip155:1',
         collateralTokenId: 'slip44:60',
-        principalBlockchainKey: 'eip155:56',
-        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
         principalAmount: '19.000000000000000000', // Below minimum 20 USDT equivalent
         loanTerm: 1,
       };
