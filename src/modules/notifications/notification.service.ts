@@ -1,11 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ModuleRef } from '@nestjs/core';
 
-import {
-  type AnyNotificationPayload,
-  assertIsNotificationChannel,
-  type NotificationType,
-} from './notification.types';
+import { NotificationType } from '../../shared/types';
+import { type AnyNotificationPayload, assertIsNotificationChannel } from './notification.types';
 import { NotificationComposer } from './notification-composer.abstract';
 import { NotificationComposerFactory } from './notification-composer.factory';
 import { NotificationProvider } from './notification-provider.abstract';

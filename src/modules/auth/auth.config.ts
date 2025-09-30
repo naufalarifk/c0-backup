@@ -136,7 +136,7 @@ export class AuthConfig {
       autoSignInAfterVerification: true,
       sendVerificationEmail: async ({ user, url }) => {
         const notificationData: EmailVerificationNotificationData = {
-          type: 'EmailVerification',
+          type: 'EmailVerificationSent',
           name: 'Verify your email address',
           email: user.email,
           url,

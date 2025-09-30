@@ -24,6 +24,7 @@ import { ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestj
 import { Session } from '../auth/auth.decorator';
 import { AuthGuard } from '../auth/auth.guard';
 import { CreateCredentialProviderDto } from './dto/create-credential-provider.dto';
+import { UpdatePushTokenDto } from './dto/push-token.dto';
 import { SelectUserTypeDto } from './dto/select-user-type.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserPreferencesDto } from './preferences/dto/user-preferences.dto';
@@ -62,10 +63,6 @@ export class UsersController {
   @ApiResponse({
     status: HttpStatus.FORBIDDEN,
     description: 'Not allowed to update this user',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Authentication required',
   })
   async selectUserType(
     @Session() session: UserSession,
@@ -141,10 +138,6 @@ export class UsersController {
     status: HttpStatus.OK,
     description: 'User profile retrieved successfully',
   })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Authentication required',
-  })
   async getUserProfile(@Session() session: UserSession) {
     return this.usersService.getUserProfile(session.user.id);
   }
@@ -163,10 +156,6 @@ export class UsersController {
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
     description: 'Invalid input data',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Authentication required',
   })
   @ApiResponse({
     status: HttpStatus.PAYLOAD_TOO_LARGE,
@@ -237,10 +226,6 @@ export class UsersController {
     status: HttpStatus.OK,
     description: 'Preferences retrieved successfully',
   })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Authentication required',
-  })
   async getPreferences(@Session() session: UserSession) {
     return this.preferencesService.getPreferences(session.user.id);
   }
@@ -257,10 +242,6 @@ export class UsersController {
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
     description: 'Invalid preference values',
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    description: 'Authentication required',
   })
   async updatePreferences(
     @Session() session: UserSession,
@@ -329,5 +310,31 @@ export class UsersController {
     }
 
     return await this.preferencesService.updatePreferences(session.user.id, preferences);
+  }
+
+  @Post('push-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Update push notification token',
+    description: 'Allows users to update their push notification token for mobile notifications',
+    operationId: 'updatePushToken',
+  })
+  @ApiBody({
+    type: UpdatePushTokenDto,
+    description: 'Push token update data',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Push token updated successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid push token format',
+  })
+  async updatePushToken(
+    @Session() session: UserSession,
+    @Body() updatePushTokenDto: UpdatePushTokenDto,
+  ) {
+    return this.usersService.updatePushToken(session.user.id, updatePushTokenDto);
   }
 }

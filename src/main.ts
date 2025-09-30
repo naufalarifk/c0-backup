@@ -3,6 +3,8 @@ import 'reflect-metadata';
 import { networkInterfaces } from 'node:os';
 import { argv, env } from 'node:process';
 
+import { migrationEntrypoint } from 'src/entrypoints/migration.entrypoint.js';
+
 import { documentEntrypoint } from './entrypoints/document.entrypoint';
 import { indexerEntrypoint } from './entrypoints/indexer.entrypoint';
 import { invoiceExpirationEntrypoint } from './entrypoints/invoice-expiration.entrypoint';
@@ -43,6 +45,10 @@ if (commands.includes('indexer')) {
 
 if (commands.includes('document')) {
   void documentEntrypoint();
+}
+
+if (commands.includes('migration')) {
+  void migrationEntrypoint();
 }
 
 function getDefaultAuthUrl(): string {

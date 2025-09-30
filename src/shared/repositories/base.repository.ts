@@ -8,6 +8,7 @@ export abstract class DbRepository {
 export abstract class BaseRepository extends DbRepository {
   abstract connect(): Promise<void>;
   abstract close(): Promise<void>;
+  abstract migrate(): Promise<void>;
 
   // Transaction methods
   abstract beginTransaction(): Promise<DbRepository>;

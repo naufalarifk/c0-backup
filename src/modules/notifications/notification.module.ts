@@ -28,6 +28,7 @@ import { NotificationProviderFactory } from './notification-provider.factory';
 import { NotificationQueueService } from './notification-queue.service';
 import { APNSNotificationProvider } from './providers/apns-notification.provider';
 import { EmailNotificationProvider } from './providers/email-notification.provider';
+import { ExpoNotificationProvider } from './providers/expo-notification.provider';
 import { FCMNotificationProvider } from './providers/fcm-notification.provider';
 import { SMSNotificationProvider } from './providers/sms-notification.provider';
 
@@ -38,6 +39,7 @@ import { SMSNotificationProvider } from './providers/sms-notification.provider';
       name: 'notificationQueue',
     }),
   ],
+  controllers: [],
   providers: [
     // Core services
     NotificationService,
@@ -52,6 +54,7 @@ import { SMSNotificationProvider } from './providers/sms-notification.provider';
     SMSNotificationProvider,
     FCMNotificationProvider,
     APNSNotificationProvider,
+    ExpoNotificationProvider,
 
     // Notification Composers
     BeneficiaryVerificationNotificationComposer,

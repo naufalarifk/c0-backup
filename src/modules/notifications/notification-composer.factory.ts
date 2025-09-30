@@ -1,4 +1,4 @@
-import type { NotificationType } from './notification.types';
+import type { NotificationType } from '../../shared/repositories/user.types';
 
 import { Injectable } from '@nestjs/common';
 import { DiscoveryService } from '@nestjs/core';

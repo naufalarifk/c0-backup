@@ -140,8 +140,8 @@ export class WithdrawalsProcessor extends WorkerHost {
 
         // 8. Send user notification
         await this.notificationQueueService.queueNotification({
-          type: 'WithdrawalSent',
-          name: 'Withdrawal Sent',
+          type: 'WithdrawalRequested',
+          name: 'Withdrawal Requested',
           withdrawalId,
           transactionHash: transactionResult.transactionHash,
           blockchainNetwork: currencyBlockchainKey,
