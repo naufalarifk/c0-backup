@@ -1324,7 +1324,6 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
       assertPropString(loan, 'principal_currency_blockchain_key');
       assertPropString(loan, 'principal_currency_token_id');
       assertPropString(loan, 'status');
-      assertProp(check(isString, isNumber), loan, 'borrower_user_id');
       assertProp(isInstanceOf(Date), loan, 'origination_date');
       assertProp(isInstanceOf(Date), loan, 'maturity_date');
       assertProp(check(isString, isNumber), loan, 'term_in_months');
@@ -1459,5 +1458,145 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
       await tx.rollbackTransaction();
       throw new Error(`Early repayment request failed: ${error}`);
     }
+  }
+
+  /**
+   * Data-only method: Get a single loan application by id for borrower/platform views
+   */
+  async borrowerGetsLoanApplicationById(params: { loanApplicationId: string }) {
+    const { loanApplicationId } = params;
+
+    const rows = await this.sql`
+      SELECT
+        la.id,
+        la.borrower_user_id,
+        u.user_type as borrower_user_type,
+        u.name as borrower_name,
+        la.loan_offer_id,
+        la.principal_amount,
+        la.max_interest_rate,
+        la.min_ltv_ratio,
+        la.term_in_months,
+        la.liquidation_mode,
+        la.status,
+        la.applied_date,
+        la.published_date,
+        la.expired_date,
+        c1.blockchain_key as principal_blockchain_key,
+        c1.token_id as principal_token_id,
+        c1.decimals as principal_decimals,
+        c1.symbol as principal_symbol,
+        c1.name as principal_name,
+        c2.blockchain_key as collateral_blockchain_key,
+        c2.token_id as collateral_token_id,
+        c2.decimals as collateral_decimals,
+        c2.symbol as collateral_symbol,
+        c2.name as collateral_name,
+        i.id as invoice_id,
+        i.invoiced_amount as invoice_amount,
+        i.wallet_address as invoice_wallet_address,
+        i.due_date as invoice_due_date,
+        i.paid_date as invoice_paid_date,
+        i.expired_date as invoice_expired_date
+      FROM loan_applications la
+      JOIN users u ON la.borrower_user_id = u.id
+      JOIN currencies c1 ON la.principal_currency_blockchain_key = c1.blockchain_key
+        AND la.principal_currency_token_id = c1.token_id
+      JOIN currencies c2 ON la.collateral_currency_blockchain_key = c2.blockchain_key
+        AND la.collateral_currency_token_id = c2.token_id
+      LEFT JOIN invoices i ON i.loan_application_id = la.id AND i.invoice_type = 'LoanCollateral'
+      WHERE la.id = ${loanApplicationId}
+    `;
+
+    if (rows.length === 0) {
+      throw new Error('Loan application not found');
+    }
+
+    const row = rows[0];
+    assertDefined(row);
+    // Narrow the row to a well-known shape so we can safely access its properties
+    const r = row as {
+      id: string | number;
+      borrower_user_id: string | number;
+      borrower_user_type: string;
+      borrower_name: string;
+      loan_offer_id?: string | number | null;
+      principal_blockchain_key: string;
+      principal_token_id: string;
+      principal_decimals: string | number;
+      principal_symbol: string;
+      principal_name: string;
+      collateral_blockchain_key: string;
+      collateral_token_id: string;
+      collateral_decimals: string | number;
+      collateral_symbol: string;
+      collateral_name: string;
+      principal_amount: string | number;
+      min_ltv_ratio?: string | number;
+      max_interest_rate: string | number;
+      term_in_months: string | number;
+      liquidation_mode: string;
+      status: string;
+      applied_date: Date;
+      published_date?: Date | null;
+      expired_date: Date;
+      invoice_id?: string | number | null;
+      invoice_amount?: string | number;
+      invoice_wallet_address?: string | null;
+      invoice_due_date?: Date | null;
+      invoice_paid_date?: Date | null;
+      invoice_expired_date?: Date | null;
+    };
+
+    return {
+      id: String(r.id),
+      borrowerUserId: String(r.borrower_user_id),
+      borrower: {
+        id: String(r.borrower_user_id),
+        type: r.borrower_user_type,
+        name: r.borrower_name,
+      },
+      loanOfferId: r.loan_offer_id ? String(r.loan_offer_id) : undefined,
+      principalCurrency: {
+        blockchainKey: r.principal_blockchain_key,
+        tokenId: r.principal_token_id,
+        decimals: Number(r.principal_decimals),
+        symbol: r.principal_symbol,
+        name: r.principal_name,
+      },
+      collateralCurrency: {
+        blockchainKey: r.collateral_blockchain_key,
+        tokenId: r.collateral_token_id,
+        decimals: Number(r.collateral_decimals),
+        symbol: r.collateral_symbol,
+        name: r.collateral_name,
+      },
+      principalAmount: String(r.principal_amount),
+      minLtvRatio: r.min_ltv_ratio !== undefined ? Number(r.min_ltv_ratio) : undefined,
+      maxInterestRate: Number(r.max_interest_rate),
+      termInMonths: Number(r.term_in_months),
+      liquidationMode: r.liquidation_mode,
+      status: r.status,
+      appliedDate: r.applied_date,
+      publishedDate: r.published_date || undefined,
+      expirationDate: r.expired_date,
+      collateralInvoice: r.invoice_id
+        ? {
+            id: String(r.invoice_id),
+            amount: String(r.invoice_amount),
+            currency: {
+              blockchainKey: r.collateral_blockchain_key,
+              tokenId: r.collateral_token_id,
+              name: r.collateral_name,
+              symbol: r.collateral_symbol,
+              decimals: Number(r.collateral_decimals),
+            },
+            walletAddress: r.invoice_wallet_address || undefined,
+            expiryDate: r.invoice_due_date || undefined,
+            paidDate: r.invoice_paid_date || undefined,
+            expiredDate: r.invoice_expired_date || undefined,
+          }
+        : undefined,
+    };
   }
 }

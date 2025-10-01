@@ -84,13 +84,9 @@ suite('Loan Market API', function () {
       assertPropString(data.error, 'message');
       ok(data.error.message.includes('not valid JSON'));
 
-      // Verify additional error fields per OpenAPI spec
-      if ('timestamp' in data) {
-        assertPropString(data, 'timestamp');
-      }
-      if ('requestId' in data) {
-        assertPropString(data, 'requestId');
-      }
+      // Verify additional error fields per OpenAPI spec (always present)
+      assertPropString(data, 'timestamp');
+      assertPropString(data, 'requestId');
     });
 
     it('should handle malformed JSON in loan application creation', async function () {
@@ -114,13 +110,9 @@ suite('Loan Market API', function () {
       assertPropString(data.error, 'code');
       strictEqual(data.error.code, ERROR_CODES.BAD_REQUEST);
 
-      // Verify additional error fields per OpenAPI spec
-      if ('timestamp' in data) {
-        assertPropString(data, 'timestamp');
-      }
-      if ('requestId' in data) {
-        assertPropString(data, 'requestId');
-      }
+      // Verify additional error fields per OpenAPI spec (always present)
+      assertPropString(data, 'timestamp');
+      assertPropString(data, 'requestId');
     });
 
     it('should handle empty request body in loan offer creation', async function () {

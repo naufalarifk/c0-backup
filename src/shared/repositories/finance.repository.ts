@@ -1382,7 +1382,7 @@ export abstract class FinanceRepository extends UserRepository {
 
     return {
       currencies: currencies.map(function (currency: unknown) {
-        assertDefined(currency, 'Currency record is undefined');
+        assertDefined(currency);
         assertPropString(currency, 'blockchain_key');
         assertPropString(currency, 'token_id');
         assertPropString(currency, 'name');

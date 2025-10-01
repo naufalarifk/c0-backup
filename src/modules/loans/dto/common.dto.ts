@@ -147,6 +147,22 @@ export class LenderInfoDto {
   @IsString()
   businessType?: string;
 
+  @ApiPropertyOptional({
+    description: 'Business description (only for Institution lenders)',
+    example: 'PT. Financial Services Indonesia is a leading fintech company',
+  })
+  @IsOptional()
+  @IsString()
+  businessDescription?: string;
+
+  @ApiPropertyOptional({
+    description: 'URL to lender profile picture',
+    example: 'https://assets.cryptogadai.com/profiles/user_67890.jpg',
+  })
+  @IsOptional()
+  @IsString()
+  profilePictureUrl?: string;
+
   @ApiProperty({
     description: 'Whether the lender is verified',
     example: true,

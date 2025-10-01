@@ -60,19 +60,22 @@ suite('Finance Configuration API', function () {
         return blockchain;
       });
 
-      // Verify that expected blockchains are present
+      // Verify exact count of blockchains (4: BTC, ETH, BSC, SOL - excluding 'crosschain')
       const blockchains = data.data.blockchains;
-      const blockchainKeys = blockchains.map(b => b.key);
+      strictEqual(blockchains.length, 4, 'Should have exactly 4 blockchains');
 
-      ok(
-        blockchainKeys.includes('bip122:000000000019d6689c085ae165831e93'),
-        'Bitcoin blockchain should be present',
+      // Verify specific blockchains in expected order
+      strictEqual(
+        blockchains[0].key,
+        'bip122:000000000019d6689c085ae165831e93',
+        'First blockchain should be Bitcoin',
       );
-      ok(blockchainKeys.includes('eip155:1'), 'Ethereum Mainnet should be present');
-      ok(blockchainKeys.includes('eip155:56'), 'Binance Smart Chain should be present');
-      ok(
-        blockchainKeys.includes('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
-        'Solana should be present',
+      strictEqual(blockchains[1].key, 'eip155:1', 'Second blockchain should be Ethereum');
+      strictEqual(blockchains[2].key, 'eip155:56', 'Third blockchain should be BSC');
+      strictEqual(
+        blockchains[3].key,
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+        'Fourth blockchain should be Solana',
       );
     });
 
@@ -152,13 +155,16 @@ suite('Finance Configuration API', function () {
         return currency;
       });
 
-      // Verify we have both collateral and loan currencies
+      // Verify exact count: 4 collateral + 2 loan + 4 crosschain generic = 10 total
       const currencies = data.data.currencies;
-      const hasCollateral = currencies.some(c => c.isCollateralCurrency);
-      const hasLoan = currencies.some(c => c.isLoanCurrency);
+      strictEqual(currencies.length, 10, 'Should have exactly 10 currencies');
 
-      ok(hasCollateral, 'Should have at least one collateral currency');
-      ok(hasLoan, 'Should have at least one loan currency');
+      // Count collateral and loan currencies
+      const collateralCount = currencies.filter(c => c.isCollateralCurrency).length;
+      const loanCount = currencies.filter(c => c.isLoanCurrency).length;
+
+      strictEqual(collateralCount, 4, 'Should have exactly 4 collateral currencies');
+      strictEqual(loanCount, 2, 'Should have exactly 2 loan currencies');
     });
 
     it('should filter currencies by type', async function () {
@@ -180,18 +186,27 @@ suite('Finance Configuration API', function () {
         collateralData,
         'data',
       );
-      assertPropArray(collateralData.data, 'currencies');
-
-      // All currencies should be collateral currencies
-      for (const currency of collateralData.data.currencies) {
+      assertPropArrayMapOf(collateralData.data, 'currencies', function (currency) {
         assertDefined(currency);
         assertProp(
           (value: unknown) => typeof value === 'boolean',
           currency,
           'isCollateralCurrency',
         );
-        strictEqual(currency.isCollateralCurrency, true);
-      }
+        strictEqual(
+          currency.isCollateralCurrency,
+          true,
+          'Currency should be a collateral currency',
+        );
+        return currency;
+      });
+
+      // Verify exact count: 4 collateral currencies (BTC, ETH, BNB, SOL)
+      strictEqual(
+        collateralData.data.currencies.length,
+        4,
+        'Should have exactly 4 collateral currencies',
+      );
 
       // Test loan currencies
       const loanResponse = await testUser.fetch('/api/currencies?type=loan', {
@@ -207,14 +222,15 @@ suite('Finance Configuration API', function () {
       assertDefined(loanData);
       assertProp((value: unknown) => typeof value === 'boolean', loanData, 'success');
       assertProp((value: unknown) => typeof value === 'object' && value !== null, loanData, 'data');
-      assertPropArray(loanData.data, 'currencies');
-
-      // All currencies should be loan currencies
-      for (const currency of loanData.data.currencies) {
+      assertPropArrayMapOf(loanData.data, 'currencies', function (currency) {
         assertDefined(currency);
         assertProp((value: unknown) => typeof value === 'boolean', currency, 'isLoanCurrency');
-        strictEqual(currency.isLoanCurrency, true);
-      }
+        strictEqual(currency.isLoanCurrency, true, 'Currency should be a loan currency');
+        return currency;
+      });
+
+      // Verify exact count: 2 loan currencies (USDC on BSC, USD on crosschain)
+      strictEqual(loanData.data.currencies.length, 2, 'Should have exactly 2 loan currencies');
     });
 
     it('should filter currencies by blockchain', async function () {
@@ -231,14 +247,19 @@ suite('Finance Configuration API', function () {
       assertDefined(data);
       assertProp((value: unknown) => typeof value === 'boolean', data, 'success');
       assertProp((value: unknown) => typeof value === 'object' && value !== null, data, 'data');
-      assertPropArray(data.data, 'currencies');
-
-      // All currencies should be on Ethereum Mainnet
-      for (const currency of data.data.currencies) {
+      assertPropArrayMapOf(data.data, 'currencies', function (currency) {
         assertDefined(currency);
         assertPropString(currency, 'blockchainKey');
-        strictEqual(currency.blockchainKey, 'eip155:1');
-      }
+        strictEqual(currency.blockchainKey, 'eip155:1', 'Currency should be on Ethereum Mainnet');
+        return currency;
+      });
+
+      // Verify exact count: 1 currency on Ethereum (ETH collateral)
+      strictEqual(
+        data.data.currencies.length,
+        1,
+        'Should have exactly 1 currency on Ethereum Mainnet',
+      );
     });
 
     it('should filter currencies by LTV range', async function () {
@@ -255,17 +276,22 @@ suite('Finance Configuration API', function () {
       assertDefined(data);
       assertProp((value: unknown) => typeof value === 'boolean', data, 'success');
       assertProp((value: unknown) => typeof value === 'object' && value !== null, data, 'data');
-      assertPropArray(data.data, 'currencies');
-
-      // All currencies should have LTV within range
-      for (const currency of data.data.currencies) {
+      assertPropArrayMapOf(data.data, 'currencies', function (currency) {
         assertDefined(currency);
         assertPropNumber(currency, 'maxLtv');
         ok(
           currency.maxLtv >= 50 && currency.maxLtv <= 70,
-          'Max LTV should be within specified range',
+          `Max LTV (${currency.maxLtv}) should be within specified range (50-70)`,
         );
-      }
+        return currency;
+      });
+
+      // Verify exact count: 4 collateral currencies (all have max_ltv=60, within 50-70 range)
+      strictEqual(
+        data.data.currencies.length,
+        4,
+        'Should have exactly 4 currencies with LTV in range 50-70',
+      );
     });
 
     it('should require authentication', async function () {
@@ -352,6 +378,14 @@ suite('Finance Configuration API', function () {
 
       assertPropString(data.data, 'lastUpdated');
       ok(!isNaN(Date.parse(data.data.lastUpdated)), 'Last updated should be valid ISO string');
+
+      // Exchange rates table is populated by background price feed workers
+      // In test environment without active workers, expect empty results
+      strictEqual(
+        data.data.exchangeRates.length,
+        0,
+        'Should have 0 exchange rates (no price feed workers in test)',
+      );
     });
 
     it('should filter exchange rates by base currency', async function () {
@@ -370,17 +404,13 @@ suite('Finance Configuration API', function () {
       assertProp((value: unknown) => typeof value === 'object' && value !== null, data, 'data');
       assertPropArray(data.data, 'exchangeRates');
 
-      // All rates should have Bitcoin as base currency
-      for (const rate of data.data.exchangeRates) {
-        assertDefined(rate);
-        assertProp(
-          (value: unknown) => typeof value === 'object' && value !== null,
-          rate,
-          'baseAsset',
-        );
-        assertPropString(rate.baseAsset, 'tokenId');
-        strictEqual(rate.baseAsset.tokenId, 'slip44:0');
-      }
+      // Exchange rates table is populated by background price feed workers
+      // In test environment without active workers, expect empty results
+      strictEqual(
+        data.data.exchangeRates.length,
+        0,
+        'Should have 0 exchange rates (no price feed workers in test)',
+      );
     });
 
     it('should filter exchange rates by source', async function () {
@@ -399,12 +429,13 @@ suite('Finance Configuration API', function () {
       assertProp((value: unknown) => typeof value === 'object' && value !== null, data, 'data');
       assertPropArray(data.data, 'exchangeRates');
 
-      // All rates should be from Binance source
-      for (const rate of data.data.exchangeRates) {
-        assertDefined(rate);
-        assertPropString(rate, 'source');
-        strictEqual(rate.source, 'binance');
-      }
+      // Exchange rates table is populated by background price feed workers
+      // In test environment without active workers, expect empty results
+      strictEqual(
+        data.data.exchangeRates.length,
+        0,
+        'Should have 0 exchange rates (no price feed workers in test)',
+      );
     });
 
     it('should require authentication', async function () {
@@ -421,21 +452,29 @@ suite('Finance Configuration API', function () {
   });
 
   describe('API Integration', function () {
-    it('should handle invalid query parameters gracefully', async function () {
+    it('should return validation error for invalid LTV parameter', async function () {
       // Test with invalid LTV values should return validation error
-      const response1 = await testUser.fetch('/api/currencies?minLtv=invalid');
+      const response = await testUser.fetch('/api/currencies?minLtv=invalid');
 
-      strictEqual(response1.status, 422); // 422 is correct for validation errors
+      strictEqual(response.status, 422); // 422 is correct for validation errors
+    });
 
+    it('should return empty results for non-existent blockchain key', async function () {
       // Test with invalid blockchain key format should return empty results
-      const response2 = await testUser.fetch('/api/currencies?blockchainKey=invalid-format');
+      const response = await testUser.fetch('/api/currencies?blockchainKey=invalid-format');
 
-      strictEqual(response2.status, 200);
-      const data2: unknown = await response2.json();
-      assertDefined(data2);
-      assertProp((value: unknown) => typeof value === 'object' && value !== null, data2, 'data');
-      assertPropArray(data2.data, 'currencies');
-      // Should return empty results for invalid blockchain key
+      strictEqual(response.status, 200);
+      const data: unknown = await response.json();
+      assertDefined(data);
+      assertProp((value: unknown) => typeof value === 'object' && value !== null, data, 'data');
+      assertPropArray(data.data, 'currencies');
+
+      // Verify exact count: 0 currencies (no matching blockchain)
+      strictEqual(
+        data.data.currencies.length,
+        0,
+        'Should have exactly 0 currencies for invalid blockchain key',
+      );
     });
 
     it('should return consistent data structure across endpoints', async function () {

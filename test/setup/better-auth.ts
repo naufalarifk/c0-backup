@@ -1,3 +1,5 @@
+import { env } from 'node:process';
+
 import { createAuthClient } from 'better-auth/client';
 import { twoFactorClient } from 'better-auth/plugins/two-factor';
 import { CookieJar, MemoryCookieStore } from 'tough-cookie';
@@ -36,18 +38,20 @@ export function setupBetterAuthClient(backendUrl: string) {
           });
         });
         clonedResponse.text().then(function (bodyText) {
-          // console.debug('[BetterAuthClientFetch]:', init?.method, response.url, {
-          //   status: response.status,
-          //   // resHeaders: Array.from(response.headers.entries()).reduce(
-          //   //   (acc, [key, value]) => {
-          //   //     acc[key] = value;
-          //   //     return acc;
-          //   //   },
-          //   //   {} as Record<string, string>,
-          //   // ),
-          //   reqBody: init?.body,
-          //   resBody: bodyText,
-          // });
+          if (env.AUTH_CLIENT_LOGS === '1' || env.AUTH_CLIENT_LOGS === 'true') {
+            console.debug('[authClientFetch]', init?.method, response.url, {
+              status: response.status,
+              // resHeaders: Array.from(response.headers.entries()).reduce(
+              //   (acc, [key, value]) => {
+              //     acc[key] = value;
+              //     return acc;
+              //   },
+              //   {} as Record<string, string>,
+              // ),
+              reqBody: init?.body,
+              resBody: bodyText,
+            });
+          }
         });
         return response;
       },

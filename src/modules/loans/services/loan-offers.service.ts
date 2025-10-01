@@ -1,4 +1,11 @@
+import type {
+  Invoice,
+  LenderCreatesLoanOfferResult,
+} from '../../../shared/repositories/loan.types';
+
 import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+
+import { assertDefined, assertPropNumber } from 'typeshaper';
 
 import { InvoiceService } from '../../../shared/invoice/invoice.service';
 import { InvoiceError } from '../../../shared/invoice/invoice.types';
@@ -15,6 +22,7 @@ import {
   InterestRateInvalidException,
   ValidationErrorException,
 } from '../exceptions/loan-exceptions';
+import { LoanCalculationService } from './loan-calculation.service';
 
 interface ListLoanOffersParams {
   page: number;
@@ -38,6 +46,7 @@ export class LoanOffersService {
     @Inject(CryptogadaiRepository)
     private readonly repository: CryptogadaiRepository,
     private readonly invoiceService: InvoiceService,
+    private readonly loanCalculationService: LoanCalculationService,
   ) {}
 
   /**
@@ -75,6 +84,32 @@ export class LoanOffersService {
         ? new Date(createLoanOfferDto.expirationDate)
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
+      // Fetch the principal currency to get decimal precision
+      const currencyRows = await this.repository.sql`
+        SELECT blockchain_key, token_id, decimals
+        FROM currencies
+        WHERE blockchain_key = ${createLoanOfferDto.principalBlockchainKey}
+          AND token_id = ${createLoanOfferDto.principalTokenId}
+      `;
+
+      if (currencyRows.length === 0) {
+        throw new CurrencyNotSupportedException(
+          createLoanOfferDto.principalBlockchainKey,
+          createLoanOfferDto.principalTokenId,
+        );
+      }
+
+      const principalCurrency = currencyRows[0];
+      assertDefined(principalCurrency);
+      // principalCurrency is validated above; no explicit any needed
+      assertPropNumber(principalCurrency, 'decimals');
+
+      // Convert totalAmount from human-readable to smallest unit
+      const totalAmountSmallestUnit = this.loanCalculationService.toSmallestUnit(
+        createLoanOfferDto.totalAmount,
+        principalCurrency.decimals,
+      );
+
       let invoiceDraft;
       try {
         invoiceDraft = await this.invoiceService.prepareInvoice({
@@ -84,13 +119,14 @@ export class LoanOffersService {
           accountBlockchainKey: createLoanOfferDto.principalBlockchainKey,
           accountTokenId: createLoanOfferDto.principalTokenId,
           invoiceType: 'LoanPrincipal',
-          invoicedAmount: createLoanOfferDto.totalAmount,
+          invoicedAmount: totalAmountSmallestUnit,
           prepaidAmount: '0',
           invoiceDate: createdDate,
           dueDate: expirationDate,
           expiredDate: expirationDate,
         });
       } catch (error) {
+        this.logger.error('Error preparing invoice:', error);
         if (
           error instanceof InvoiceError ||
           error.message?.includes('Wallet service not found') ||
@@ -104,13 +140,23 @@ export class LoanOffersService {
         throw error;
       }
 
-      const result = await this.repository.lenderCreatesLoanOffer({
+      // Convert min/max loan amounts to smallest unit
+      const minLoanAmountSmallestUnit = this.loanCalculationService.toSmallestUnit(
+        createLoanOfferDto.minLoanAmount || '1000',
+        principalCurrency.decimals,
+      );
+      const maxLoanAmountSmallestUnit = this.loanCalculationService.toSmallestUnit(
+        createLoanOfferDto.maxLoanAmount || createLoanOfferDto.totalAmount,
+        principalCurrency.decimals,
+      );
+
+      const result: LenderCreatesLoanOfferResult = await this.repository.lenderCreatesLoanOffer({
         lenderUserId: lenderId,
         principalBlockchainKey: createLoanOfferDto.principalBlockchainKey,
         principalTokenId: createLoanOfferDto.principalTokenId,
-        offeredPrincipalAmount: createLoanOfferDto.totalAmount,
-        minLoanPrincipalAmount: createLoanOfferDto.minLoanAmount || '1000000000000000000',
-        maxLoanPrincipalAmount: createLoanOfferDto.maxLoanAmount || createLoanOfferDto.totalAmount,
+        offeredPrincipalAmount: totalAmountSmallestUnit,
+        minLoanPrincipalAmount: minLoanAmountSmallestUnit,
+        maxLoanPrincipalAmount: maxLoanAmountSmallestUnit,
         interestRate: createLoanOfferDto.interestRate,
         termInMonthsOptions: createLoanOfferDto.termOptions,
         expirationDate,
@@ -135,6 +181,9 @@ export class LoanOffersService {
             result.lenderUserType === 'Individual' ? LenderType.INDIVIDUAL : LenderType.INSTITUTION,
           name: result.lenderUserName || 'Lender User',
           verified: true,
+          businessType: result.lenderBusinessType,
+          businessDescription: result.lenderBusinessDescription,
+          profilePictureUrl: result.lenderProfilePictureUrl,
         },
         principalCurrency: {
           blockchainKey: result.principalCurrency.blockchainKey,
@@ -144,9 +193,15 @@ export class LoanOffersService {
           decimals: result.principalCurrency.decimals,
           logoUrl: `https://assets.cryptogadai.com/currencies/${result.principalCurrency.symbol.toLowerCase()}.png`,
         },
-        totalAmount: result.offeredPrincipalAmount,
-        availableAmount: result.availablePrincipalAmount,
-        disbursedAmount: '0.000000000000000000',
+        totalAmount: this.loanCalculationService.fromSmallestUnit(
+          result.offeredPrincipalAmount,
+          result.principalCurrency.decimals,
+        ),
+        availableAmount: this.loanCalculationService.fromSmallestUnit(
+          result.availablePrincipalAmount,
+          result.principalCurrency.decimals,
+        ),
+        disbursedAmount: '0',
         interestRate: result.interestRate,
         termOptions: result.termInMonthsOptions,
         status: this.mapRepositoryStatusToDto(result.status),
@@ -154,7 +209,10 @@ export class LoanOffersService {
         publishedDate: undefined,
         fundingInvoice: {
           id: result.fundingInvoice.id,
-          amount: result.fundingInvoice.amount,
+          amount: this.loanCalculationService.fromSmallestUnit(
+            result.fundingInvoice.amount,
+            result.fundingInvoice.currency.decimals,
+          ),
           currency: {
             blockchainKey: result.fundingInvoice.currency.blockchainKey,
             tokenId: result.fundingInvoice.currency.tokenId,
@@ -229,9 +287,15 @@ export class LoanOffersService {
           decimals: offer.principalCurrency.decimals,
           logoUrl: `https://assets.cryptogadai.com/currencies/${offer.principalCurrency.symbol.toLowerCase()}.png`,
         },
-        totalAmount: offer.availablePrincipalAmount,
-        availableAmount: offer.availablePrincipalAmount,
-        disbursedAmount: '0.000000000000000000',
+        totalAmount: this.loanCalculationService.fromSmallestUnit(
+          offer.availablePrincipalAmount,
+          offer.principalCurrency.decimals,
+        ),
+        availableAmount: this.loanCalculationService.fromSmallestUnit(
+          offer.availablePrincipalAmount,
+          offer.principalCurrency.decimals,
+        ),
+        disbursedAmount: '0',
         interestRate: offer.interestRate,
         termOptions: offer.termInMonthsOptions,
         status: LoanOfferStatus.PUBLISHED,
@@ -239,7 +303,10 @@ export class LoanOffersService {
         publishedDate: offer.publishedDate.toISOString(),
         fundingInvoice: {
           id: `inv_${offer.id}`,
-          amount: offer.availablePrincipalAmount,
+          amount: this.loanCalculationService.fromSmallestUnit(
+            offer.availablePrincipalAmount,
+            offer.principalCurrency.decimals,
+          ),
           currency: {
             blockchainKey: offer.principalCurrency.blockchainKey,
             tokenId: offer.principalCurrency.tokenId,
@@ -308,9 +375,18 @@ export class LoanOffersService {
           decimals: offer.principalCurrency.decimals,
           logoUrl: `https://assets.cryptogadai.com/currencies/${offer.principalCurrency.symbol.toLowerCase()}.png`,
         },
-        totalAmount: offer.offeredPrincipalAmount,
-        availableAmount: offer.availablePrincipalAmount,
-        disbursedAmount: offer.disbursedPrincipalAmount,
+        totalAmount: this.loanCalculationService.fromSmallestUnit(
+          offer.offeredPrincipalAmount,
+          offer.principalCurrency.decimals,
+        ),
+        availableAmount: this.loanCalculationService.fromSmallestUnit(
+          offer.availablePrincipalAmount,
+          offer.principalCurrency.decimals,
+        ),
+        disbursedAmount: this.loanCalculationService.fromSmallestUnit(
+          offer.disbursedPrincipalAmount,
+          offer.principalCurrency.decimals,
+        ),
         interestRate: offer.interestRate,
         termOptions: offer.termInMonthsOptions,
         status: this.mapRepositoryStatusToDto(offer.status),
@@ -318,7 +394,10 @@ export class LoanOffersService {
         publishedDate: offer.publishedDate?.toISOString(),
         fundingInvoice: {
           id: `inv_${offer.id}`,
-          amount: offer.offeredPrincipalAmount,
+          amount: this.loanCalculationService.fromSmallestUnit(
+            offer.offeredPrincipalAmount,
+            offer.principalCurrency.decimals,
+          ),
           currency: {
             blockchainKey: offer.principalCurrency.blockchainKey,
             tokenId: offer.principalCurrency.tokenId,
@@ -436,6 +515,163 @@ export class LoanOffersService {
         );
       }
       throw new BadRequestException('Failed to update loan offer');
+    }
+  }
+
+  /**
+   * Get loan offer by ID
+   */
+  async getLoanOfferById(offerId: string): Promise<LoanOfferResponseDto> {
+    try {
+      const result = await this.repository.lenderGetsLoanOfferById({ loanOfferId: offerId });
+
+      const resultAny = result as {
+        id: string;
+        lenderUserId: string;
+        lenderUserType: 'Individual' | 'Institution' | string;
+        lenderUserName?: string;
+        lenderBusinessType?: string | null;
+        lenderBusinessDescription?: string | null;
+        principalCurrency: {
+          blockchainKey: string;
+          tokenId: string;
+          name: string;
+          symbol: string;
+          decimals: number;
+        };
+        offeredPrincipalAmount: string;
+        availablePrincipalAmount: string;
+        disbursedPrincipalAmount?: string | number | null;
+        interestRate: number;
+        termInMonthsOptions?: number[] | unknown;
+        status: 'Funding' | 'Published' | 'Closed' | 'Expired' | string;
+        createdDate: Date;
+        publishedDate?: Date | null;
+        expirationDate: Date;
+        fundingInvoice?:
+          | {
+              id: string | number;
+              amount: string | number;
+              currency: {
+                blockchainKey: string;
+                tokenId: string;
+                name: string;
+                symbol: string;
+                decimals: number;
+              };
+              walletAddress?: string | null;
+              expiryDate?: Date | null;
+              paidDate?: Date | null;
+              expiredDate?: Date | null;
+            }
+          | undefined;
+      };
+
+      const fundingInvoiceDto = resultAny.fundingInvoice
+        ? {
+            id: String(resultAny.fundingInvoice.id),
+            amount: this.loanCalculationService.fromSmallestUnit(
+              String(resultAny.fundingInvoice.amount),
+              resultAny.principalCurrency.decimals,
+            ),
+            currency: {
+              blockchainKey: resultAny.fundingInvoice.currency.blockchainKey,
+              tokenId: resultAny.fundingInvoice.currency.tokenId,
+              name: resultAny.fundingInvoice.currency.name,
+              symbol: resultAny.fundingInvoice.currency.symbol,
+              decimals: resultAny.fundingInvoice.currency.decimals,
+              logoUrl: `https://assets.cryptogadai.com/currencies/${resultAny.fundingInvoice.currency.symbol.toLowerCase()}.png`,
+            },
+            walletAddress: resultAny.fundingInvoice.walletAddress || '',
+            expiryDate: resultAny.fundingInvoice.expiryDate
+              ? typeof resultAny.fundingInvoice.expiryDate === 'string'
+                ? resultAny.fundingInvoice.expiryDate
+                : resultAny.fundingInvoice.expiryDate.toISOString()
+              : resultAny.expirationDate
+                ? resultAny.expirationDate.toISOString()
+                : new Date().toISOString(),
+            paidDate: resultAny.fundingInvoice.paidDate
+              ? String(resultAny.fundingInvoice.paidDate)
+              : undefined,
+            expiredDate: resultAny.fundingInvoice.expiredDate
+              ? String(resultAny.fundingInvoice.expiredDate)
+              : undefined,
+          }
+        : {
+            id: 'unknown',
+            amount: '0.000000000000000000',
+            currency: {
+              blockchainKey: resultAny.principalCurrency.blockchainKey,
+              tokenId: resultAny.principalCurrency.tokenId,
+              name: resultAny.principalCurrency.name,
+              symbol: resultAny.principalCurrency.symbol,
+              decimals: resultAny.principalCurrency.decimals,
+              logoUrl: `https://assets.cryptogadai.com/currencies/${resultAny.principalCurrency.symbol.toLowerCase()}.png`,
+            },
+            walletAddress: '',
+            expiryDate: resultAny.expirationDate
+              ? resultAny.expirationDate.toISOString()
+              : new Date().toISOString(),
+            paidDate: undefined,
+            expiredDate: undefined,
+          };
+
+      return {
+        id: resultAny.id,
+        lenderId: resultAny.lenderUserId,
+        lender: {
+          id: resultAny.lenderUserId,
+          type:
+            resultAny.lenderUserType === 'Individual'
+              ? LenderType.INDIVIDUAL
+              : LenderType.INSTITUTION,
+          name: resultAny.lenderUserName || 'Lender User',
+          verified: true,
+          businessType: resultAny.lenderBusinessType || undefined,
+          businessDescription: resultAny.lenderBusinessDescription || undefined,
+        },
+        principalCurrency: {
+          blockchainKey: resultAny.principalCurrency.blockchainKey,
+          tokenId: resultAny.principalCurrency.tokenId,
+          name: resultAny.principalCurrency.name,
+          symbol: resultAny.principalCurrency.symbol,
+          decimals: resultAny.principalCurrency.decimals,
+          logoUrl: `https://assets.cryptogadai.com/currencies/${resultAny.principalCurrency.symbol.toLowerCase()}.png`,
+        },
+        totalAmount: this.loanCalculationService.fromSmallestUnit(
+          resultAny.offeredPrincipalAmount,
+          resultAny.principalCurrency.decimals,
+        ),
+        availableAmount: this.loanCalculationService.fromSmallestUnit(
+          resultAny.availablePrincipalAmount,
+          resultAny.principalCurrency.decimals,
+        ),
+        disbursedAmount: this.loanCalculationService.fromSmallestUnit(
+          String(resultAny.disbursedPrincipalAmount || '0'),
+          resultAny.principalCurrency.decimals,
+        ),
+        interestRate: resultAny.interestRate,
+        termOptions: Array.isArray(resultAny.termInMonthsOptions)
+          ? (resultAny.termInMonthsOptions as unknown[]).map(Number)
+          : [],
+        status: this.mapRepositoryStatusToDto(
+          ['Funding', 'Published', 'Closed', 'Expired'].includes(resultAny.status)
+            ? (resultAny.status as 'Funding' | 'Published' | 'Closed' | 'Expired')
+            : 'Funding',
+        ),
+        createdDate: resultAny.createdDate.toISOString
+          ? resultAny.createdDate.toISOString()
+          : String(resultAny.createdDate),
+        publishedDate: resultAny.publishedDate
+          ? resultAny.publishedDate.toISOString
+            ? resultAny.publishedDate.toISOString()
+            : String(resultAny.publishedDate)
+          : undefined,
+        fundingInvoice: fundingInvoiceDto,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get loan offer by id', error);
+      throw new NotFoundException('Loan offer not found');
     }
   }
 }

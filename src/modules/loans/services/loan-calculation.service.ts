@@ -112,7 +112,7 @@ export class LoanCalculationService {
   public toSmallestUnit(amount: string, decimals: number): string {
     const bn = new BigNumber(amount);
     const multiplier = new BigNumber(10).pow(decimals);
-    return bn.multipliedBy(multiplier).integerValue(BigNumber.ROUND_DOWN).toString();
+    return bn.multipliedBy(multiplier).integerValue(BigNumber.ROUND_DOWN).toFixed(0);
   }
 
   /**
