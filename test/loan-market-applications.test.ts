@@ -167,7 +167,7 @@ suite('Loan Market API', function () {
       assertPropString(principalCurrency, 'symbol');
       strictEqual(principalCurrency.symbol, 'USDC');
 
-      // Verify logoUrl if present (per OpenAPI spec)
+      // Verify logoUrl is always present per OpenAPI spec
       assertPropString(principalCurrency, 'logoUrl');
       ok(principalCurrency.logoUrl.startsWith('http'));
     });
@@ -298,15 +298,17 @@ suite('Loan Market API', function () {
       assertPropString(collateralCurrency, 'symbol');
       strictEqual(collateralCurrency.symbol, 'ETH');
 
-      // Verify collateral invoice if present
-      ok('collateralInvoice' in application, 'collateralInvoice should be present');
-
+      // Verify collateral invoice is always present for created loan applications
+      assertPropDefined(application, 'collateralInvoice');
       const invoice = application.collateralInvoice;
       assertPropString(invoice, 'id');
       assertPropString(invoice, 'amount');
       assertPropDefined(invoice, 'currency');
       assertPropString(invoice, 'walletAddress');
       assertPropString(invoice, 'expiryDate');
+      // paidDate and expiredDate are nullable (not yet paid/expired)
+      assertProp(check(isNullable, isString), invoice, 'paidDate');
+      assertProp(check(isNullable, isString), invoice, 'expiredDate');
     });
 
     it('should create loan application with BTC collateral successfully', async function () {
@@ -456,15 +458,34 @@ suite('Loan Market API', function () {
   });
 
   describe('Loan Applications - List', function () {
-    let _borrower: Awaited<ReturnType<typeof createTestUser>>;
+    let borrower1: Awaited<ReturnType<typeof createTestUser>>;
+    let borrower2: Awaited<ReturnType<typeof createTestUser>>;
+    let borrower3: Awaited<ReturnType<typeof createTestUser>>;
     let lender: Awaited<ReturnType<typeof createTestUser>>;
 
     before(async function () {
-      _borrower = await createTestUser({
+      // Create borrowers
+      borrower1 = await createTestUser({
         testSetup,
         testId,
-        email: `list_apps_borrower_${testId}@test.com`,
-        name: 'List Apps Borrower',
+        email: `list_apps_borrower1_${testId}@test.com`,
+        name: 'List Apps Borrower 1',
+        userType: 'Individual',
+      });
+
+      borrower2 = await createTestUser({
+        testSetup,
+        testId,
+        email: `list_apps_borrower2_${testId}@test.com`,
+        name: 'List Apps Borrower 2',
+        userType: 'Individual',
+      });
+
+      borrower3 = await createTestUser({
+        testSetup,
+        testId,
+        email: `list_apps_borrower3_${testId}@test.com`,
+        name: 'List Apps Borrower 3',
         userType: 'Individual',
       });
 
@@ -475,6 +496,101 @@ suite('Loan Market API', function () {
         name: 'List Apps Lender',
         userType: 'Individual',
       });
+
+      // Create and publish loan applications
+      // Application 1: ETH collateral, Full liquidation
+      const app1Response = await borrower1.fetch('/api/loan-applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          collateralBlockchainKey: 'eip155:1',
+          collateralTokenId: 'slip44:60',
+          principalAmount: '5000.000000000000000000',
+          maxInterestRate: 15.0,
+          termMonths: 6,
+          liquidationMode: 'Full',
+          minLtvRatio: 0.5,
+        }),
+      });
+
+      strictEqual(app1Response.status, 201);
+      const app1Data = await app1Response.json();
+      assertDefined(app1Data);
+      assertPropDefined(app1Data, 'data');
+      assertPropString(app1Data.data, 'id');
+
+      // Pay the collateral invoice to publish the application
+      const payApp1Response = await fetch(
+        `${testSetup.backendUrl}/api/test/loan-applications/${app1Data.data.id}/collateral-invoice/mark-paid`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        },
+      );
+      ok(payApp1Response.ok, `Failed to mark invoice as paid: ${payApp1Response.status}`);
+
+      // Application 2: BTC collateral, Partial liquidation
+      const app2Response = await borrower2.fetch('/api/loan-applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          collateralBlockchainKey: 'bip122:000000000019d6689c085ae165831e93',
+          collateralTokenId: 'slip44:0',
+          principalAmount: '18000.000000000000000000',
+          maxInterestRate: 12.0,
+          termMonths: 12,
+          liquidationMode: 'Partial',
+          minLtvRatio: 0.4,
+        }),
+      });
+
+      strictEqual(app2Response.status, 201);
+      const app2Data = await app2Response.json();
+      assertDefined(app2Data);
+      assertPropDefined(app2Data, 'data');
+      assertPropString(app2Data.data, 'id');
+
+      const payApp2Response = await fetch(
+        `${testSetup.backendUrl}/api/test/loan-applications/${app2Data.data.id}/collateral-invoice/mark-paid`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        },
+      );
+      ok(payApp2Response.ok, `Failed to mark invoice as paid: ${payApp2Response.status}`);
+
+      // Application 3: SOL collateral, Full liquidation
+      const app3Response = await borrower3.fetch('/api/loan-applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          collateralBlockchainKey: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          collateralTokenId: 'slip44:501',
+          principalAmount: '2000.000000000000000000',
+          maxInterestRate: 18.0,
+          termMonths: 1,
+          liquidationMode: 'Full',
+          minLtvRatio: 0.3,
+        }),
+      });
+
+      strictEqual(app3Response.status, 201);
+      const app3Data = await app3Response.json();
+      assertDefined(app3Data);
+      assertPropDefined(app3Data, 'data');
+      assertPropString(app3Data.data, 'id');
+
+      const payApp3Response = await fetch(
+        `${testSetup.backendUrl}/api/test/loan-applications/${app3Data.data.id}/collateral-invoice/mark-paid`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        },
+      );
+      ok(payApp3Response.ok, `Failed to mark invoice as paid: ${payApp3Response.status}`);
     });
 
     it('should list published loan applications successfully', async function () {
@@ -500,6 +616,9 @@ suite('Loan Market API', function () {
       assertProp(v => typeof v === 'boolean', pagination, 'hasNext');
       assertProp(v => typeof v === 'boolean', pagination, 'hasPrev');
 
+      // Verify exact count: 3 applications were created in setup and all are published
+      strictEqual(responseData.applications.length, 3, 'Expected exactly 3 published applications');
+      strictEqual(pagination.total, 3, 'Expected total count of 3');
       ok(responseData.applications.length <= pagination.limit);
 
       assertPropArrayMapOf(responseData, 'applications', application => {
@@ -516,7 +635,7 @@ suite('Loan Market API', function () {
         assertProp(v => v === 'Published', application, 'status'); // Only published should be listed
         assertPropString(application, 'createdDate');
         assertPropString(application, 'expiryDate');
-
+        // publishedDate must be present for Published status applications
         assertPropString(application, 'publishedDate');
 
         // Verify borrower info
@@ -540,7 +659,12 @@ suite('Loan Market API', function () {
       assertPropDefined(data, 'data');
       assertPropArray(data.data, 'applications');
 
-      ok(data.data.applications.length > 0, 'Expected zero or more applications');
+      // Verify exact count: 1 ETH application was created in setup
+      strictEqual(
+        data.data.applications.length,
+        1,
+        'Expected exactly 1 ETH collateral application',
+      );
 
       data.data.applications.forEach(app => {
         assertDefined(app);
@@ -571,7 +695,12 @@ suite('Loan Market API', function () {
       assertPropDefined(data, 'data');
       assertPropArray(data.data, 'applications');
 
-      ok(data.data.applications.length > 0, 'Expected applications');
+      // Verify exact count: 2 Full liquidation mode applications were created in setup (app1: ETH Full, app3: SOL Full)
+      strictEqual(
+        data.data.applications.length,
+        2,
+        'Expected exactly 2 Full liquidation mode applications',
+      );
 
       data.data.applications.forEach(app => {
         assertDefined(app);
@@ -615,6 +744,37 @@ suite('Loan Market API', function () {
         name: 'My Apps Borrower',
         userType: 'Individual',
       });
+
+      // Create a few loan applications for this borrower
+      const app1Response = await borrower.fetch('/api/loan-applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          collateralBlockchainKey: 'eip155:1',
+          collateralTokenId: 'slip44:60',
+          principalAmount: '3000.000000000000000000',
+          maxInterestRate: 14.0,
+          termMonths: 3,
+          liquidationMode: 'Full',
+          minLtvRatio: 0.5,
+        }),
+      });
+      strictEqual(app1Response.status, 201);
+
+      const app2Response = await borrower.fetch('/api/loan-applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          collateralBlockchainKey: 'bip122:000000000019d6689c085ae165831e93',
+          collateralTokenId: 'slip44:0',
+          principalAmount: '15000.000000000000000000',
+          maxInterestRate: 11.0,
+          termMonths: 6,
+          liquidationMode: 'Partial',
+          minLtvRatio: 0.4,
+        }),
+      });
+      strictEqual(app2Response.status, 201);
     });
 
     it('should get my loan applications successfully', async function () {
@@ -632,7 +792,12 @@ suite('Loan Market API', function () {
       assertPropArray(responseData, 'applications');
       assertPropDefined(responseData, 'pagination');
 
-      ok(responseData.applications.length, 'Expected applications');
+      // Verify exact count: 2 applications were created for this borrower in setup
+      strictEqual(
+        responseData.applications.length,
+        2,
+        'Expected exactly 2 applications for this borrower',
+      );
 
       responseData.applications.forEach(application => {
         assertDefined(application);

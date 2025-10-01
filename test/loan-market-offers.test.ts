@@ -138,21 +138,21 @@ suite('Loan Market API', function () {
       // Verify decimals is within valid range (0-18) per OpenAPI spec
       ok(currency.decimals >= 0 && currency.decimals <= 18);
 
-      // Verify logoUrl if present (per OpenAPI spec)
-      if ('logoUrl' in currency && currency.logoUrl) {
-        assertPropString(currency, 'logoUrl');
-        ok(currency.logoUrl.startsWith('http'));
-      }
+      // Verify logoUrl is always present per OpenAPI spec
+      assertPropString(currency, 'logoUrl');
+      ok(currency.logoUrl.startsWith('http'));
 
-      // Verify funding invoice if present
-      if ('fundingInvoice' in offer) {
-        const invoice = offer.fundingInvoice;
-        assertPropString(invoice, 'id');
-        assertPropString(invoice, 'amount');
-        assertPropDefined(invoice, 'currency');
-        assertPropString(invoice, 'walletAddress');
-        assertPropString(invoice, 'expiryDate');
-      }
+      // Verify funding invoice is always present for created loan offers
+      assertPropDefined(offer, 'fundingInvoice');
+      const invoice = offer.fundingInvoice;
+      assertPropString(invoice, 'id');
+      assertPropString(invoice, 'amount');
+      assertPropDefined(invoice, 'currency');
+      assertPropString(invoice, 'walletAddress');
+      assertPropString(invoice, 'expiryDate');
+      // paidDate and expiredDate are nullable (not yet paid/expired)
+      assertProp(check(isNullable, isString), invoice, 'paidDate');
+      assertProp(check(isNullable, isString), invoice, 'expiredDate');
     });
 
     it('should create institution lender loan offer successfully', async function () {
@@ -189,11 +189,10 @@ suite('Loan Market API', function () {
       assertPropString(lender, 'type');
       strictEqual(lender.type, 'Institution');
 
-      assertPropString(lender, 'businessType');
-
-      // Verify profilePictureUrl if present (per OpenAPI spec)
-      assertPropString(lender, 'profilePictureUrl');
-      ok(lender.profilePictureUrl.startsWith('http'));
+      // businessType is optional for Institution lenders (present after KYC approval)
+      assertProp(check(isNullable, isString), lender, 'businessType');
+      // profilePictureUrl is optional (may be null)
+      assertProp(check(isNullable, isString), lender, 'profilePictureUrl');
     });
 
     it('should return 422 for invalid principal currency', async function () {
@@ -355,28 +354,25 @@ suite('Loan Market API', function () {
       assertProp(v => typeof v === 'boolean', pagination, 'hasNext');
       assertProp(v => typeof v === 'boolean', pagination, 'hasPrev');
 
-      if (responseData.offers.length > 0) {
-        assertPropArrayMapOf(responseData, 'offers', offer => {
-          assertDefined(offer);
-          assertPropString(offer, 'id');
-          assertPropString(offer, 'lenderId');
-          assertPropDefined(offer, 'lender');
-          assertPropDefined(offer, 'principalCurrency');
-          assertPropString(offer, 'totalAmount');
-          assertPropString(offer, 'availableAmount');
-          assertPropString(offer, 'disbursedAmount');
-          assertPropNumber(offer, 'interestRate');
-          assertPropArray(offer, 'termOptions');
-          assertProp(v => v === 'Published', offer, 'status'); // Only published offers should be listed
-          assertPropString(offer, 'createdDate');
+      // May have zero or more offers depending on data
+      assertPropArrayMapOf(responseData, 'offers', offer => {
+        assertDefined(offer);
+        assertPropString(offer, 'id');
+        assertPropString(offer, 'lenderId');
+        assertPropDefined(offer, 'lender');
+        assertPropDefined(offer, 'principalCurrency');
+        assertPropString(offer, 'totalAmount');
+        assertPropString(offer, 'availableAmount');
+        assertPropString(offer, 'disbursedAmount');
+        assertPropNumber(offer, 'interestRate');
+        assertPropArray(offer, 'termOptions');
+        assertProp(v => v === 'Published', offer, 'status'); // Only published offers should be listed
+        assertPropString(offer, 'createdDate');
+        // publishedDate must be present for Published status offers
+        assertPropString(offer, 'publishedDate');
 
-          if ('publishedDate' in offer) {
-            assertPropString(offer, 'publishedDate');
-          }
-
-          return offer;
-        });
-      }
+        return offer;
+      });
     });
 
     it('should filter loan offers by collateral currency', async function () {
@@ -410,14 +406,13 @@ suite('Loan Market API', function () {
       assertPropDefined(data, 'data');
       assertPropArray(data.data, 'offers');
 
-      if (data.data.offers.length > 0) {
-        data.data.offers.forEach(offer => {
-          assertDefined(offer);
-          assertPropDefined(offer, 'lender');
-          assertPropString(offer.lender, 'type');
-          strictEqual(offer.lender.type, 'Individual');
-        });
-      }
+      // Verify all returned offers match the filter (if any exist)
+      data.data.offers.forEach(offer => {
+        assertDefined(offer);
+        assertPropDefined(offer, 'lender');
+        assertPropString(offer.lender, 'type');
+        strictEqual(offer.lender.type, 'Individual');
+      });
     });
 
     it('should filter loan offers by amount range', async function () {
@@ -477,6 +472,39 @@ suite('Loan Market API', function () {
         name: 'My Offers Lender',
         userType: 'Individual',
       });
+
+      // Create 2 loan offers for this lender
+      const offer1Response = await lenderIndividual.fetch('/api/loan-offers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          principalBlockchainKey: 'eip155:56',
+          principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          totalAmount: '5000.000000000000000000',
+          interestRate: 10.0,
+          termOptions: [3, 6],
+          minLoanAmount: '500.000000000000000000',
+          maxLoanAmount: '5000.000000000000000000',
+          expirationDate: '2025-12-31T23:59:59Z',
+        }),
+      });
+      strictEqual(offer1Response.status, 201);
+
+      const offer2Response = await lenderIndividual.fetch('/api/loan-offers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          principalBlockchainKey: 'eip155:56',
+          principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          totalAmount: '8000.000000000000000000',
+          interestRate: 12.0,
+          termOptions: [1, 3],
+          minLoanAmount: '1000.000000000000000000',
+          maxLoanAmount: '8000.000000000000000000',
+          expirationDate: '2025-12-31T23:59:59Z',
+        }),
+      });
+      strictEqual(offer2Response.status, 201);
     });
 
     it('should get my loan offers successfully', async function () {
@@ -499,13 +527,14 @@ suite('Loan Market API', function () {
       assertPropArray(responseData, 'offers');
       assertPropDefined(responseData, 'pagination');
 
-      if (responseData.offers.length > 0) {
-        responseData.offers.forEach(offer => {
-          assertDefined(offer);
-          assertProp(check(isNumber, isString), offer, 'lenderId');
-          strictEqual(offer.lenderId, lenderIndividual.id);
-        });
-      }
+      // Verify exact count: 2 offers were created for this lender in setup
+      strictEqual(responseData.offers.length, 2, 'Expected exactly 2 offers for this lender');
+
+      responseData.offers.forEach(offer => {
+        assertDefined(offer);
+        assertProp(check(isNumber, isString), offer, 'lenderId');
+        strictEqual(offer.lenderId, lenderIndividual.id);
+      });
     });
 
     it('should support pagination for my offers', async function () {

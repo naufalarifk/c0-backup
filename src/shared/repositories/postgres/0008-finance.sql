@@ -185,7 +185,7 @@ INSERT INTO currencies (
    '0', '0', 60.0, 75.0, 70.0, 60.0, '0'), -- BNB as collateral: 50% max LTV (CONF-002)
   -- USDT on BSC (BEP-20) - loan currency
   ('eip155:56', 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d', 'Binance-Peg USD Coin', 'USDC', 18, 'https://cryptologos.cc/logos/tether-usdt-logo.png',
-   '0', '0', 0, 0, 0, 0, '0'), -- Individual: 500 USDT, withdrawal: 100 USDT (CONF-003)
+   '100000000000000000000', '100000000000000000000000', 0, 0, 0, 0, '0'), -- Min 100 USDC, Max 100000 USDC for loans
   -- Native SOL on Solana (collateral only)
   ('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp', 'slip44:501', 'Solana', 'SOL', 9, 'https://cryptologos.cc/logos/solana-sol-logo.png',
    '0', '0', 60.0, 75.0, 70.0, 60.0, '0'), -- SOL as collateral: 50% max LTV (CONF-002)

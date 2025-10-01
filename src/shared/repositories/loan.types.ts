@@ -149,6 +149,9 @@ export type LenderCreatesLoanOfferResult = {
   lenderUserId: string;
   lenderUserType: 'Individual' | 'Institution';
   lenderUserName: string;
+  lenderProfilePictureUrl?: string;
+  lenderBusinessType?: string;
+  lenderBusinessDescription?: string;
   principalCurrency: Currency;
   offeredPrincipalAmount: string;
   availablePrincipalAmount: string;

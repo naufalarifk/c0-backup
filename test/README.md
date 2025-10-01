@@ -32,3 +32,37 @@
   });
   /** the type of value is detetected as { name: string, items: { id: string }[] } */
   ```
+- Test setup and test check shall be deterministic. Use multiple test cases instead of conditional checks. This rules also applies to optional field, each optinal field state must be known from setup and check it properly whether it is defined or not, do not wrap optional field in "if" statement. For example:
+  ```ts
+  import { ok } from 'node:assert/strict';
+  import { assertDefined, assertProp, isNullable } from 'typeshaper';
+  // DO:
+  it('shall do something', function () {
+    const data = await retreiveDataFromSomewhereWithCreationDate();
+    assertDefined(data);
+    assertPropDefined(data, 'creationDate');
+    ok(data.creationDate instanceof Date, 'creationDate shall be a Date object');
+  });
+  it('shall do something else', function () {
+    const data = await setupDataFromSomewhereWithoutCreationDate();
+    assertDefined(data);
+    assertProp(isNullable, data, 'creationDate');
+  });
+  // DON'T:
+  it('shall do something', function () {
+    const data = await retreiveDataFromSomewhere();
+    assertDefined(data);
+    assertPropDefined(data, 'creationDate');
+    if (data.creationDate) {
+      ok(data.creationDate instanceof Date, 'creationDate shall be a Date object');
+    } else {
+      // this branch is not deterministic
+      // and may hide bugs in the code
+      // because the test may pass without checking the actual code path
+      // if the condition is not met
+      ok(true, 'creationDate is null or undefined');
+    }
+  });
+  ```
+- Any "if" statement in test case need to be critically scrutinize, 90% of the time it come from improper setup and asumtions.
+- Test must check how many items are in array, the test must know how many items are expected to be in the array from test setup.

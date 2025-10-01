@@ -57,9 +57,11 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
       const currencyUserRows = await tx.sql`
         SELECT
           c.blockchain_key, c.token_id, c.decimals, c.symbol, c.name,
-          u.user_type, u.name as user_name
+          u.user_type, u.name as user_name, u.profile_picture as profile_picture_url,
+          ia.business_type, ia.business_description
         FROM currencies c
         CROSS JOIN users u
+        LEFT JOIN institution_applications ia ON u.id = ia.applicant_user_id AND ia.status = 'Approved'
         WHERE c.blockchain_key = ${principalBlockchainKey}
           AND c.token_id = ${principalTokenId}
           AND u.id = ${lenderUserId}
@@ -205,6 +207,20 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
         lenderUserId: String(loanOffer.lender_user_id),
         lenderUserType: currencyUser.user_type as 'Individual' | 'Institution',
         lenderUserName: currencyUser.user_name,
+        lenderProfilePictureUrl:
+          'profile_picture_url' in currencyUser &&
+          typeof currencyUser.profile_picture_url === 'string'
+            ? currencyUser.profile_picture_url
+            : undefined,
+        lenderBusinessType:
+          'business_type' in currencyUser && typeof currencyUser.business_type === 'string'
+            ? currencyUser.business_type
+            : undefined,
+        lenderBusinessDescription:
+          'business_description' in currencyUser &&
+          typeof currencyUser.business_description === 'string'
+            ? currencyUser.business_description
+            : undefined,
         principalCurrency: {
           blockchainKey: currencyUser.blockchain_key,
           tokenId: currencyUser.token_id,
