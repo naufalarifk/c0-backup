@@ -1,7 +1,23 @@
+import type {
+  CleanupOrphanedSessionsResult,
+  CleanupStaleTokensResult,
+  PushTokenGetActiveParams,
+  PushTokenGetActiveResult,
+  PushTokenListByUserParams,
+  PushTokenListByUserResult,
+  PushTokenRegisterParams,
+  PushTokenRegisterResult,
+  PushTokenSyncParams,
+  PushTokenSyncResult,
+  PushTokenUnregisterParams,
+  PushTokenUnregisterResult,
+} from './push-tokens.types';
+
 import {
   assertArrayMapOf,
   assertDefined,
   assertProp,
+  assertPropBoolean,
   assertPropDefined,
   assertPropNullableString,
   assertPropString,
@@ -1669,6 +1685,368 @@ export abstract class UserRepository extends BetterAuthRepository {
       };
     } catch (error) {
       console.error('UserRepository', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  // ==================== Push Token Management ====================
+
+  /**
+   * Register or update push token (UPSERT)
+   * Uses push_token as unique key for re-login scenarios
+   */
+  async registerPushToken(params: PushTokenRegisterParams): Promise<PushTokenRegisterResult> {
+    const tx = await this.beginTransaction();
+
+    try {
+      const {
+        userId,
+        pushToken,
+        deviceId,
+        deviceType,
+        deviceName,
+        deviceModel,
+        currentSessionId,
+        registeredDate,
+      } = params;
+
+      // UPSERT by push_token (unique)
+      const rows = await tx.sql`
+        INSERT INTO push_tokens (
+          user_id,
+          push_token,
+          device_id,
+          device_type,
+          device_name,
+          device_model,
+          current_session_id,
+          is_active,
+          registered_date,
+          last_used_date
+        )
+        VALUES (
+          ${userId},
+          ${pushToken},
+          ${deviceId},
+          ${deviceType},
+          ${deviceName},
+          ${deviceModel},
+          ${currentSessionId},
+          true,
+          ${registeredDate},
+          NOW()
+        )
+        ON CONFLICT (push_token) DO UPDATE SET
+          current_session_id = ${currentSessionId},
+          device_name = ${deviceName},
+          is_active = true,
+          last_used_date = NOW(),
+          updated_date = NOW()
+        RETURNING id, user_id, push_token, device_id, (xmax = 0) AS is_new;
+      `;
+
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row, 'Push token registration failed');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isString, isNumber), row, 'user_id');
+        assertPropString(row, 'push_token');
+        assertPropNullableString(row, 'device_id');
+        assertPropBoolean(row, 'is_new');
+        return row;
+      });
+
+      const token = rows[0];
+
+      const result: PushTokenRegisterResult = {
+        id: String(token.id),
+        userId: String(token.user_id),
+        pushToken: token.push_token,
+        deviceId: token.device_id ?? null,
+        isNew: Boolean(token.is_new),
+      };
+
+      await tx.commitTransaction();
+      return result;
+    } catch (error) {
+      console.error('UserRepository.registerPushToken', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  /**
+   * Unregister push token (soft cleanup)
+   * Sets current_session_id to NULL instead of deleting
+   */
+  async unregisterPushToken(params: PushTokenUnregisterParams): Promise<PushTokenUnregisterResult> {
+    const tx = await this.beginTransaction();
+
+    try {
+      const { userId, currentSessionId } = params;
+
+      const rows = await tx.sql`
+        UPDATE push_tokens
+        SET
+          current_session_id = NULL,
+          last_used_date = NOW(),
+          updated_date = NOW()
+        WHERE
+          current_session_id = ${currentSessionId}
+          AND user_id = ${userId}
+        RETURNING id;
+      `;
+
+      await tx.commitTransaction();
+
+      return {
+        tokensUpdated: rows.length,
+      };
+    } catch (error) {
+      console.error('UserRepository.unregisterPushToken', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  /**
+   * Sync push token (update last_used_date and current_session_id)
+   * Used when app resumes to keep token fresh
+   */
+  async syncPushToken(params: PushTokenSyncParams): Promise<PushTokenSyncResult> {
+    const tx = await this.beginTransaction();
+
+    try {
+      const { userId, pushToken, deviceId, currentSessionId, lastUsedDate } = params;
+
+      const rows = await tx.sql`
+        UPDATE push_tokens
+        SET
+          current_session_id = ${currentSessionId},
+          is_active = true,
+          last_used_date = ${lastUsedDate},
+          updated_date = NOW()
+        WHERE
+          user_id = ${userId}
+          AND (push_token = ${pushToken} OR device_id = ${deviceId})
+        RETURNING id;
+      `;
+
+      await tx.commitTransaction();
+
+      return {
+        tokensSynced: rows.length,
+      };
+    } catch (error) {
+      console.error('UserRepository.syncPushToken', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  /**
+   * List push tokens by user
+   * Returns all devices registered for notifications
+   */
+  async listPushTokensByUser(
+    params: PushTokenListByUserParams,
+  ): Promise<PushTokenListByUserResult> {
+    const { userId, activeOnly = false } = params;
+
+    const rows = await this.sql`
+      SELECT
+        id,
+        push_token,
+        device_id,
+        device_type,
+        device_name,
+        device_model,
+        current_session_id,
+        is_active,
+        last_used_date
+      FROM push_tokens
+      WHERE
+        user_id = ${userId}
+        ${activeOnly ? this.sql`AND is_active = true` : this.sql``}
+      ORDER BY last_used_date DESC;
+    `;
+
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row, 'Failed to list push tokens');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertPropString(row, 'push_token');
+      assertPropNullableString(row, 'device_id');
+      assertPropString(row, 'device_type');
+      assertPropNullableString(row, 'device_name');
+      assertPropNullableString(row, 'device_model');
+      assertPropNullableString(row, 'current_session_id');
+      assertPropBoolean(row, 'is_active');
+      assertProp(isInstanceOf(Date), row, 'last_used_date');
+      return row;
+    });
+
+    const tokens = rows.map(row => ({
+      id: String(row.id),
+      pushToken: row.push_token,
+      deviceId: row.device_id ?? null,
+      deviceType: row.device_type as 'ios' | 'android',
+      deviceName: row.device_name ?? null,
+      deviceModel: row.device_model ?? null,
+      currentSessionId: row.current_session_id ?? null,
+      isActive: Boolean(row.is_active),
+      lastUsedDate: new Date(row.last_used_date),
+    }));
+
+    return { tokens };
+  }
+
+  /**
+   * Get active tokens for notification sending
+   * Supports flexible targeting (all, active_sessions, specific devices)
+   */
+  async getActiveTokensForUser(
+    params: PushTokenGetActiveParams,
+  ): Promise<PushTokenGetActiveResult> {
+    const { userId, targetDevices = 'all', deviceIds } = params;
+
+    const rows = await this.sql`
+      SELECT id, push_token, device_id, current_session_id
+      FROM push_tokens
+      WHERE
+        user_id = ${userId}
+        AND is_active = true
+        ${targetDevices === 'active_sessions' ? this.sql`AND current_session_id IS NOT NULL` : this.sql``}
+        ${targetDevices === 'specific' && deviceIds?.length ? this.sql`AND device_id = ANY(${deviceIds})` : this.sql``}
+    `;
+
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row, 'Failed to get active tokens');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertPropString(row, 'push_token');
+      assertPropNullableString(row, 'device_id');
+      assertPropNullableString(row, 'current_session_id');
+      return row;
+    });
+
+    const tokens = rows.map(row => ({
+      id: String(row.id),
+      pushToken: row.push_token,
+      deviceId: row.device_id ?? null,
+      currentSessionId: row.current_session_id ?? null,
+    }));
+
+    return { tokens };
+  }
+
+  /**
+   * Cleanup stale tokens (mark as inactive after 30 days)
+   * Scheduled job runs daily at 3 AM
+   */
+  async cleanupStaleTokens(): Promise<CleanupStaleTokensResult> {
+    const tx = await this.beginTransaction();
+
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const rows = await tx.sql`
+        UPDATE push_tokens
+        SET is_active = false, updated_date = NOW()
+        WHERE last_used_date < ${thirtyDaysAgo}
+          AND is_active = true
+        RETURNING id;
+      `;
+
+      await tx.commitTransaction();
+
+      console.log(`[UserRepository] Cleaned up ${rows.length} stale tokens`);
+
+      return {
+        staleTokensDeactivated: rows.length,
+      };
+    } catch (error) {
+      console.error('UserRepository.cleanupStaleTokens', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  /**
+   * Cleanup orphaned session references (Redis-specific)
+   * Nullifies current_session_id where session no longer exists in Redis
+   */
+  async cleanupOrphanedSessions(): Promise<CleanupOrphanedSessionsResult> {
+    const tx = await this.beginTransaction();
+
+    try {
+      // Get all tokens with session references
+      const tokens = await tx.sql`
+        SELECT id, current_session_id
+        FROM push_tokens
+        WHERE current_session_id IS NOT NULL
+      `;
+
+      assertArrayMapOf(tokens, function (row) {
+        assertDefined(row, 'Failed to get tokens with session references');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertPropString(row, 'current_session_id');
+        return row;
+      });
+
+      const orphanedIds: string[] = [];
+
+      // Check each session in Redis using repository's exists() method
+      for (const token of tokens) {
+        const sessionKey = `session:${token.current_session_id}`;
+        const exists = await this.exists(sessionKey);
+
+        if (!exists) {
+          orphanedIds.push(String(token.id));
+        }
+      }
+
+      // Nullify orphaned references
+      if (orphanedIds.length > 0) {
+        await tx.sql`
+          UPDATE push_tokens
+          SET current_session_id = NULL, updated_date = NOW()
+          WHERE id = ANY(${orphanedIds})
+        `;
+      }
+
+      await tx.commitTransaction();
+
+      console.log(`[UserRepository] Cleaned up ${orphanedIds.length} orphaned session references`);
+
+      return {
+        orphanedSessionsNullified: orphanedIds.length,
+      };
+    } catch (error) {
+      console.error('UserRepository.cleanupOrphanedSessions', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  /**
+   * Update last_used_date for sent notifications
+   * Keeps tokens fresh after successful notification delivery
+   */
+  async updateLastUsedAt(tokenIds: string[]): Promise<void> {
+    if (tokenIds.length === 0) return;
+
+    const tx = await this.beginTransaction();
+
+    try {
+      await tx.sql`
+        UPDATE push_tokens
+        SET last_used_date = NOW()
+        WHERE id = ANY(${tokenIds})
+      `;
+
+      await tx.commitTransaction();
+    } catch (error) {
+      console.error('UserRepository.updateLastUsedAt', error);
       await tx.rollbackTransaction();
       throw error;
     }

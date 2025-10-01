@@ -109,11 +109,14 @@ export class LoanRepaymentDueNotificationComposer extends NotificationComposer<L
       } as APNSNotificationPayload);
     }
 
-    // Expo notification
-    if (enrichedData.expoPushToken) {
+    // Expo notification - multi-device support
+    const tokens =
+      enrichedData.expoPushTokens ||
+      (enrichedData.expoPushToken ? [enrichedData.expoPushToken] : []);
+    for (const token of tokens) {
       payloads.push({
         channel: NotificationChannelEnum.Expo,
-        to: enrichedData.expoPushToken,
+        to: token,
         title: 'Payment Due',
         body: `Your loan repayment of ${formattedAmount} is due on ${formattedDate}`,
         priority: 'high',

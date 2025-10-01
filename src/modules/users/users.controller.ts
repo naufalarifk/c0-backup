@@ -6,7 +6,6 @@ import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Session } from '../auth/auth.decorator';
 import { AuthGuard } from '../auth/auth.guard';
 import { CreateCredentialProviderDto } from './dto/create-credential-provider.dto';
-import { UpdatePushTokenDto } from './dto/push-token.dto';
 import { SelectUserTypeDto } from './dto/select-user-type.dto';
 import { UsersService } from './users.service';
 
@@ -103,31 +102,5 @@ export class UsersController {
     return {
       memberships: [],
     };
-  }
-
-  @Post('push-token')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Update push notification token',
-    description: 'Allows users to update their push notification token for mobile notifications',
-    operationId: 'updatePushToken',
-  })
-  @ApiBody({
-    type: UpdatePushTokenDto,
-    description: 'Push token update data',
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Push token updated successfully',
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Invalid push token format',
-  })
-  async updatePushToken(
-    @Session() session: UserSession,
-    @Body() updatePushTokenDto: UpdatePushTokenDto,
-  ) {
-    return this.usersService.updatePushToken(session.user.id, updatePushTokenDto);
   }
 }

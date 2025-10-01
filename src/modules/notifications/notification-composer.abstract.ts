@@ -12,7 +12,8 @@ export const Composer = DiscoveryService.createDecorator<NotificationType>();
 export interface UserNotificationData {
   email?: string;
   phoneNumber?: string;
-  expoPushToken?: string;
+  expoPushToken?: string; // Legacy - single token
+  expoPushTokens?: string[]; // Multi-device support
   fcmToken?: string;
   apnsToken?: string;
   deviceToken?: string;
@@ -56,6 +57,7 @@ export abstract class NotificationComposer<T extends NotificationData = Notifica
       email: data.email || userNotificationData.email,
       phoneNumber: data.phoneNumber || userNotificationData.phoneNumber,
       expoPushToken: data.expoPushToken || userNotificationData.expoPushToken,
+      expoPushTokens: data.expoPushTokens || userNotificationData.expoPushTokens,
       fcmToken: data.fcmToken || userNotificationData.fcmToken,
       apnsToken: data.apnsToken || userNotificationData.apnsToken,
       deviceToken: data.deviceToken || userNotificationData.deviceToken,
@@ -68,8 +70,13 @@ export abstract class NotificationComposer<T extends NotificationData = Notifica
    * @returns true if no database fetch needed
    */
   private hasCompleteContactData(data: Partial<UserNotificationData>): boolean {
-    // Consider "complete" if has at least one primary channel (email OR expoPushToken OR phoneNumber)
-    return !!(data.email || data.expoPushToken || data.phoneNumber);
+    // Consider "complete" if has at least one primary channel (email OR expoPushToken/expoPushTokens OR phoneNumber)
+    return !!(
+      data.email ||
+      data.expoPushToken ||
+      (data.expoPushTokens && data.expoPushTokens.length > 0) ||
+      data.phoneNumber
+    );
   }
 
   /**
@@ -82,6 +89,7 @@ export abstract class NotificationComposer<T extends NotificationData = Notifica
       email: data.email,
       phoneNumber: data.phoneNumber,
       expoPushToken: data.expoPushToken,
+      expoPushTokens: data.expoPushTokens,
       fcmToken: data.fcmToken,
       apnsToken: data.apnsToken,
       deviceToken: data.deviceToken,
@@ -101,10 +109,23 @@ export abstract class NotificationComposer<T extends NotificationData = Notifica
     try {
       const user = await repository.userViewsProfile({ userId });
 
+      // Fetch active push tokens from multi-device system
+      let expoPushTokens: string[] = [];
+      try {
+        const { tokens } = await repository.getActiveTokensForUser({
+          userId,
+          targetDevices: 'active_sessions', // Only send to devices with active sessions
+        });
+        expoPushTokens = tokens.map(t => t.pushToken);
+      } catch (error) {
+        console.error(`Failed to fetch active push tokens for userId ${userId}:`, error);
+      }
+
       return {
         email: user.email || undefined,
         phoneNumber: user.phoneNumber || undefined,
-        expoPushToken: user.expoPushToken || undefined,
+        expoPushToken: expoPushTokens[0] || undefined, // Legacy - first token
+        expoPushTokens: expoPushTokens.length > 0 ? expoPushTokens : undefined,
         // Add other tokens when they become available in database
         fcmToken: undefined, // TODO: implement when FCM tokens are stored
         apnsToken: undefined, // TODO: implement when APNS tokens are stored

@@ -39,6 +39,7 @@ export class InMemoryCryptogadaiRepository extends CryptogadaiRepository {
       join(__dirname, './postgres/0012-loan-documents.sql'),
       join(__dirname, './postgres/0012-withdrawal.sql'),
       join(__dirname, './postgres/0013-loan-agreement-signatures.sql'),
+      join(__dirname, './postgres/0014-push-tokens.sql'),
     ];
 
     // this.#logger(`Found schema files: ${schemaPaths.map(file => file.name).join('\n')}`);
@@ -284,5 +285,20 @@ export class InMemoryCryptogadaiRepository extends CryptogadaiRepository {
       return undefined;
     }
     return this.#store.get(key);
+  }
+
+  async exists(...keys: string[]): Promise<number> {
+    let count = 0;
+    for (const key of keys) {
+      const exp = this.#expirations.get(key);
+      if (exp !== undefined && exp <= Date.now()) {
+        await this.del(key);
+        continue;
+      }
+      if (this.#store.has(key)) {
+        count++;
+      }
+    }
+    return count;
   }
 }

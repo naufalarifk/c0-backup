@@ -107,6 +107,7 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
      */
     const schemaPaths = [
       join(__dirname, './postgres/0002-user.sql'),
+      join(__dirname, './postgres/0003-user-preferences.sql'),
       join(__dirname, './postgres/0004-notification.sql'),
       join(__dirname, './postgres/0005-admin.sql'),
       join(__dirname, './postgres/0005-institution.sql'),
@@ -120,6 +121,7 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
       join(__dirname, './postgres/0012-loan-documents.sql'),
       join(__dirname, './postgres/0012-withdrawal.sql'),
       join(__dirname, './postgres/0013-loan-agreement-signatures.sql'),
+      join(__dirname, './postgres/0014-push-tokens.sql'),
     ];
 
     const client = await this.#pool.connect();
@@ -141,11 +143,11 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
 
         // Check if migrations have already been completed by the other service
         const checkResult = await client.query(`
-          SELECT table_name FROM information_schema.tables 
+          SELECT table_name FROM information_schema.tables
           WHERE table_schema = 'public' AND table_name IN (
-            'users', 'notifications', 'institutions', 'kyc_submissions', 
-            'platform_settings', 'blockchain_networks', 'currencies', 
-            'price_feeds', 'invoices', 'loans', 'loan_documents', 
+            'users', 'notifications', 'institutions', 'kyc_submissions',
+            'platform_settings', 'blockchain_networks', 'currencies',
+            'price_feeds', 'invoices', 'loans', 'loan_documents',
             'withdrawals', 'loan_agreement_signatures'
           )
         `);
@@ -292,6 +294,10 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
     } catch {
       return value;
     }
+  }
+
+  async exists(...keys: string[]): Promise<number> {
+    return await this.#redis.exists(...keys);
   }
 
   // === Redis Methods End ===

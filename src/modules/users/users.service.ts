@@ -5,7 +5,6 @@ import { hashPassword } from 'better-auth/crypto';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { UserDecidesUserTypeParams } from '../../shared/types';
 import { ensureExists, ensurePrecondition, ensureUnique, ResponseHelper } from '../../shared/utils';
-import { UpdatePushTokenDto } from './dto/push-token.dto';
 
 @Injectable()
 export class UsersService {
@@ -82,30 +81,5 @@ export class UsersService {
     const accounts = raw as { provider_id: string }[];
 
     return accounts.map(account => account.provider_id);
-  }
-
-  async updatePushToken(userId: string, updateData: UpdatePushTokenDto) {
-    // Format the token with ExponentPushToken prefix if provided
-    let formattedToken: string | undefined;
-    if (updateData.pushToken) {
-      // Add prefix if not already present
-      formattedToken = updateData.pushToken.startsWith('ExponentPushToken[')
-        ? updateData.pushToken
-        : `ExponentPushToken[${updateData.pushToken}]`;
-    }
-
-    const updatedProfile = await this.repo.userUpdatesProfile({
-      id: userId,
-      expoPushToken: formattedToken,
-      updateDate: new Date(),
-    });
-
-    return {
-      success: true,
-      message: updateData.pushToken
-        ? 'Push token updated successfully'
-        : 'Push token cleared successfully',
-      pushToken: updatedProfile.expoPushToken, // Keep as pushToken in API response for consistency
-    };
   }
 }

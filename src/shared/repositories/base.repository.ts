@@ -21,4 +21,5 @@ export abstract class BaseRepository extends DbRepository {
   abstract persist(key: string): Promise<void>;
   abstract del(key: string): Promise<void>;
   abstract get(key: string): Promise<unknown>;
+  abstract exists(...keys: string[]): Promise<number>;
 }
