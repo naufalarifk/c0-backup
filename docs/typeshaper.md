@@ -1,4 +1,4 @@
-# Type Handling Guidelines
+# Type Handling Guidelines using Typeshaper
 
 This repository employs strict type handling practices to ensure type safety and reliability throughout the codebase. Below are the guidelines for handling types effectively.
 

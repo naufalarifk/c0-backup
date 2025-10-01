@@ -329,6 +329,18 @@ export class LoanApplicationResponseDto {
   })
   @Type(() => InvoiceDto)
   collateralInvoice: InvoiceDto;
+
+  @ApiPropertyOptional({
+    description: 'Minimum acceptable LTV ratio',
+    example: 0.5,
+    minimum: 0,
+    maximum: 1,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  minLtvRatio?: number;
 }
 
 export class LoanApplicationListResponseDto {

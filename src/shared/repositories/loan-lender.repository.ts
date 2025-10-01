@@ -453,4 +453,122 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
       },
     };
   }
+
+  async lenderGetsLoanOfferById(params: { loanOfferId: string }) {
+    const { loanOfferId } = params;
+
+    const rows = await this.sql`
+      SELECT
+        lo.id,
+        lo.lender_user_id,
+        u.user_type as lender_user_type,
+        u.name as lender_name,
+        ia.business_type as lender_business_type,
+        ia.business_description as lender_business_description,
+        lo.offered_principal_amount,
+        lo.available_principal_amount,
+        lo.disbursed_principal_amount,
+        lo.interest_rate,
+        lo.term_in_months_options,
+        lo.status,
+        lo.created_date,
+        lo.published_date,
+        lo.expired_date,
+        c.blockchain_key,
+        c.token_id,
+        c.decimals,
+        c.symbol,
+        c.name as currency_name,
+        i.id as invoice_id,
+        i.invoiced_amount as invoice_amount,
+        i.wallet_address as invoice_wallet_address,
+        i.due_date as invoice_due_date,
+        i.paid_date as invoice_paid_date,
+        i.expired_date as invoice_expired_date
+      FROM loan_offers lo
+      JOIN currencies c ON lo.principal_currency_blockchain_key = c.blockchain_key
+        AND lo.principal_currency_token_id = c.token_id
+      JOIN users u ON lo.lender_user_id = u.id
+      LEFT JOIN institution_applications ia ON ia.applicant_user_id = u.id AND ia.status = 'Approved'
+      LEFT JOIN invoices i ON i.loan_offer_id = lo.id AND i.invoice_type = 'LoanPrincipal'
+      WHERE lo.id = ${loanOfferId}
+    `;
+
+    if (rows.length === 0) {
+      throw new Error('Loan offer not found');
+    }
+
+    const row = rows[0];
+    assertDefined(row);
+    const r = row as {
+      id: string | number;
+      lender_user_id: string | number;
+      lender_user_type: string;
+      lender_name: string;
+      lender_business_type?: string | null;
+      lender_business_description?: string | null;
+      offered_principal_amount: string | number;
+      available_principal_amount: string | number;
+      disbursed_principal_amount?: string | number | null;
+      interest_rate: string | number;
+      term_in_months_options?: unknown;
+      status: string;
+      created_date: Date;
+      published_date?: Date | null;
+      expired_date: Date;
+      blockchain_key: string;
+      token_id: string;
+      decimals: string | number;
+      symbol: string;
+      currency_name: string;
+      invoice_id?: string | number | null;
+      invoice_amount?: string | number;
+      invoice_wallet_address?: string | null;
+      invoice_due_date?: Date | null;
+      invoice_paid_date?: Date | null;
+      invoice_expired_date?: Date | null;
+    };
+
+    return {
+      id: String(r.id),
+      lenderUserId: String(r.lender_user_id),
+      lenderUserType: r.lender_user_type,
+      lenderUserName: r.lender_name,
+      lenderBusinessType: r.lender_business_type || undefined,
+      lenderBusinessDescription: r.lender_business_description || undefined,
+      principalCurrency: {
+        blockchainKey: r.blockchain_key,
+        tokenId: r.token_id,
+        decimals: Number(r.decimals),
+        symbol: r.symbol,
+        name: r.currency_name,
+      },
+      offeredPrincipalAmount: String(r.offered_principal_amount),
+      availablePrincipalAmount: String(r.available_principal_amount),
+      disbursedPrincipalAmount: String(r.disbursed_principal_amount || '0'),
+      interestRate: Number(r.interest_rate),
+      termInMonthsOptions: r.term_in_months_options || [],
+      status: r.status,
+      createdDate: r.created_date,
+      publishedDate: r.published_date || undefined,
+      expirationDate: r.expired_date,
+      fundingInvoice: r.invoice_id
+        ? {
+            id: String(r.invoice_id),
+            amount: String(r.invoice_amount),
+            currency: {
+              blockchainKey: r.blockchain_key,
+              tokenId: r.token_id,
+              name: r.currency_name,
+              symbol: r.symbol,
+              decimals: Number(r.decimals),
+            },
+            walletAddress: r.invoice_wallet_address || undefined,
+            expiryDate: r.invoice_due_date || undefined,
+            paidDate: r.invoice_paid_date || undefined,
+            expiredDate: r.invoice_expired_date || undefined,
+          }
+        : undefined,
+    };
+  }
 }

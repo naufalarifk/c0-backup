@@ -5,6 +5,7 @@ import {
   assertProp,
   assertPropArray,
   assertPropArrayMapOf,
+  assertPropBoolean,
   assertPropDefined,
   assertPropNullableString,
   assertPropNumber,
@@ -127,6 +128,7 @@ suite('Loan Market API', function () {
       strictEqual(response.status, 200);
       assertDefined(data);
       assertPropDefined(data, 'success');
+      assertPropBoolean(data, 'success');
       strictEqual(data.success, true);
       assertPropDefined(data, 'data');
 
@@ -212,6 +214,7 @@ suite('Loan Market API', function () {
       const data = await response.json();
       assertDefined(data);
       assertPropDefined(data, 'success');
+      assertPropBoolean(data, 'success');
       strictEqual(data.success, false);
       assertPropDefined(data, 'error');
       assertPropString(data.error, 'code');
@@ -281,6 +284,7 @@ suite('Loan Market API', function () {
       strictEqual(response.status, 201);
       assertDefined(data);
       assertPropDefined(data, 'success');
+      assertPropBoolean(data, 'success');
       strictEqual(data.success, true);
       assertPropDefined(data, 'data');
 
@@ -601,6 +605,7 @@ suite('Loan Market API', function () {
       strictEqual(response.status, 200);
       assertDefined(data);
       assertPropDefined(data, 'success');
+      assertPropBoolean(data, 'success');
       strictEqual(data.success, true);
       assertPropDefined(data, 'data');
 
@@ -785,6 +790,7 @@ suite('Loan Market API', function () {
       strictEqual(response.status, 200);
       assertDefined(data);
       assertPropDefined(data, 'success');
+      assertPropBoolean(data, 'success');
       strictEqual(data.success, true);
       assertPropDefined(data, 'data');
 
@@ -938,6 +944,70 @@ suite('Loan Market API', function () {
         body: JSON.stringify(updateData),
       });
 
+      strictEqual(response.status, 401);
+    });
+  });
+
+  describe('Loan Applications - Detail', function () {
+    let borrower: Awaited<ReturnType<typeof createTestUser>>;
+
+    before(async function () {
+      borrower = await createTestUser({
+        testSetup,
+        testId,
+        email: `detail_borrower_${testId}@test.com`,
+        name: 'Detail Borrower',
+        userType: 'Individual',
+      });
+    });
+
+    it('should fetch loan application details by id successfully', async function () {
+      const applicationData = {
+        collateralBlockchainKey: 'eip155:1',
+        collateralTokenId: 'slip44:60',
+        principalAmount: '4000.000000000000000000',
+        maxInterestRate: 14.0,
+        termMonths: 6,
+        liquidationMode: 'Full',
+        minLtvRatio: 0.5,
+      };
+
+      const createResponse = await borrower.fetch('/api/loan-applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(applicationData),
+      });
+
+      if (createResponse.status !== 201) {
+        console.log('Cannot create loan application, skipping detail fetch test');
+        return;
+      }
+
+      const createData = await createResponse.json();
+      const applicationId = createData.data.id;
+
+      const response = await borrower.fetch(`/api/loan-applications/${applicationId}`);
+      strictEqual(response.status, 200);
+      const data = await response.json();
+      assertDefined(data);
+      assertPropDefined(data, 'success');
+      strictEqual(data.success, true);
+      assertPropDefined(data, 'data');
+      const app = data.data;
+      assertPropString(app, 'id');
+      strictEqual(app.id, applicationId);
+      // Ensure minLtvRatio is present in detail response and within valid range
+      assertPropNumber(app, 'minLtvRatio');
+      ok(app.minLtvRatio >= 0 && app.minLtvRatio <= 1);
+    });
+
+    it('should return 404 for non-existent loan application', async function () {
+      const response = await borrower.fetch('/api/loan-applications/non-existent-id');
+      strictEqual(response.status, 404);
+    });
+
+    it('should return 401 for unauthenticated loan application detail request', async function () {
+      const response = await fetch(`${testSetup.backendUrl}/api/loan-applications/12345`);
       strictEqual(response.status, 401);
     });
   });

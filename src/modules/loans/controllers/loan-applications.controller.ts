@@ -281,4 +281,31 @@ export class LoanApplicationsController {
       data: loanApplication,
     };
   }
+
+  /**
+   * Get loan application details
+   */
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Get loan application details',
+    description: 'Retrieve detailed information about a specific loan application',
+  })
+  @ApiParam({ name: 'id', type: String, description: 'Loan application ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Loan application details',
+    type: LoanApplicationResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Loan application not found',
+    type: ErrorResponseDto,
+  })
+  async getLoanApplicationById(
+    @Param('id') id: string,
+  ): Promise<{ success: boolean; data: LoanApplicationResponseDto }> {
+    this.logger.log(`Fetching loan application details for id: ${id}`);
+    const application = await this.loanApplicationsService.getLoanApplicationById(id);
+    return { success: true, data: application };
+  }
 }

@@ -397,6 +397,7 @@ export class LoanApplicationsService {
           result.principalAmount,
           result.principalCurrency.decimals,
         ),
+        minLtvRatio: result.minLtvRatio !== undefined ? Number(result.minLtvRatio) : undefined,
         status: dtoStatus,
         createdDate: result.appliedDate.toISOString(),
         publishedDate: undefined, // Applications start in draft status
@@ -821,6 +822,161 @@ export class LoanApplicationsService {
         throw new BadRequestException('Loan application cannot be modified in its current status');
       }
       throw new BadRequestException('Failed to update loan application. Please try again.');
+    }
+  }
+
+  async getLoanApplicationById(applicationId: string): Promise<LoanApplicationResponseDto> {
+    try {
+      const result = await this.cryptogadaiRepository.borrowerGetsLoanApplicationById({
+        loanApplicationId: applicationId,
+      });
+
+      const r = result;
+
+      const collateralInvoiceDto = r.collateralInvoice
+        ? {
+            id: r.collateralInvoice.id,
+            amount: this.loanCalculationService.fromSmallestUnit(
+              r.collateralInvoice.amount,
+              r.collateralCurrency.decimals,
+            ),
+            currency: {
+              blockchainKey: r.collateralInvoice.currency.blockchainKey,
+              tokenId: r.collateralInvoice.currency.tokenId,
+              name: r.collateralInvoice.currency.name,
+              symbol: r.collateralInvoice.currency.symbol,
+              decimals: r.collateralInvoice.currency.decimals,
+              logoUrl: `https://assets.cryptogadai.com/currencies/${r.collateralInvoice.currency.symbol.toLowerCase()}.png`,
+            },
+            walletAddress: r.collateralInvoice.walletAddress || '',
+            expiryDate: r.collateralInvoice.expiryDate
+              ? String(r.collateralInvoice.expiryDate)
+              : r.expirationDate
+                ? r.expirationDate.toISOString
+                  ? r.expirationDate.toISOString()
+                  : String(r.expirationDate)
+                : '',
+            paidDate: r.collateralInvoice.paidDate
+              ? String(r.collateralInvoice.paidDate)
+              : undefined,
+            expiredDate: r.collateralInvoice.expiredDate
+              ? String(r.collateralInvoice.expiredDate)
+              : undefined,
+          }
+        : undefined;
+
+      // Map repository status to DTO status
+      let dtoStatus: LoanApplicationStatus;
+      switch (r.status) {
+        case 'PendingCollateral':
+          dtoStatus = LoanApplicationStatus.DRAFT;
+          break;
+        case 'Published':
+          dtoStatus = LoanApplicationStatus.PUBLISHED;
+          break;
+        case 'Matched':
+          dtoStatus = LoanApplicationStatus.MATCHED;
+          break;
+        case 'Cancelled':
+          dtoStatus = LoanApplicationStatus.CANCELLED;
+          break;
+        case 'Closed':
+          dtoStatus = LoanApplicationStatus.CLOSED;
+          break;
+        case 'Expired':
+          dtoStatus = LoanApplicationStatus.EXPIRED;
+          break;
+        default:
+          dtoStatus = LoanApplicationStatus.DRAFT;
+      }
+
+      const collateralInvoiceDtoFinal = collateralInvoiceDto
+        ? collateralInvoiceDto
+        : {
+            id: 'unknown',
+            amount: this.loanCalculationService.fromSmallestUnit(
+              '0',
+              r.collateralCurrency?.decimals || 18,
+            ),
+            currency: r.collateralCurrency
+              ? {
+                  blockchainKey: r.collateralCurrency.blockchainKey,
+                  tokenId: r.collateralCurrency.tokenId,
+                  name: r.collateralCurrency.name,
+                  symbol: r.collateralCurrency.symbol,
+                  decimals: r.collateralCurrency.decimals,
+                  logoUrl: `https://assets.cryptogadai.com/currencies/${r.collateralCurrency.symbol.toLowerCase()}.png`,
+                }
+              : {
+                  blockchainKey: 'unknown',
+                  tokenId: 'unknown',
+                  name: 'Unknown',
+                  symbol: 'UNK',
+                  decimals: 18,
+                  logoUrl: `https://assets.cryptogadai.com/currencies/unk.png`,
+                },
+            walletAddress: '',
+            expiryDate: r.expirationDate
+              ? r.expirationDate.toISOString
+                ? r.expirationDate.toISOString()
+                : String(r.expirationDate)
+              : '',
+            paidDate: undefined,
+            expiredDate: undefined,
+          };
+
+      return {
+        id: r.id,
+        borrowerId: r.borrowerUserId,
+        borrower: {
+          id: r.borrower.id,
+          type: r.borrower.type,
+          name: r.borrower.name,
+        },
+        collateralCurrency: {
+          blockchainKey: r.collateralCurrency.blockchainKey,
+          tokenId: r.collateralCurrency.tokenId,
+          symbol: r.collateralCurrency.symbol,
+          name: r.collateralCurrency.name,
+          decimals: r.collateralCurrency.decimals,
+          logoUrl: `https://assets.cryptogadai.com/currencies/${r.collateralCurrency.symbol.toLowerCase()}.png`,
+        },
+        principalCurrency: r.principalCurrency
+          ? {
+              blockchainKey: r.principalCurrency.blockchainKey,
+              tokenId: r.principalCurrency.tokenId,
+              symbol: r.principalCurrency.symbol,
+              name: r.principalCurrency.name,
+              decimals: r.principalCurrency.decimals,
+              logoUrl: `https://assets.cryptogadai.com/currencies/${r.principalCurrency.symbol.toLowerCase()}.png`,
+            }
+          : undefined,
+        principalAmount: this.loanCalculationService.fromSmallestUnit(
+          r.principalAmount,
+          r.principalCurrency.decimals,
+        ),
+        maxInterestRate: r.maxInterestRate,
+        termMonths: r.termInMonths,
+        liquidationMode:
+          r.liquidationMode === 'Partial' ? LiquidationMode.PARTIAL : LiquidationMode.FULL,
+        minLtvRatio: r.minLtvRatio !== undefined ? Number(r.minLtvRatio) : undefined,
+        status: dtoStatus,
+        createdDate: r.appliedDate.toISOString
+          ? r.appliedDate.toISOString()
+          : String(r.appliedDate),
+        publishedDate: r.publishedDate
+          ? r.publishedDate.toISOString
+            ? r.publishedDate.toISOString()
+            : String(r.publishedDate)
+          : undefined,
+        expiryDate: r.expirationDate.toISOString
+          ? r.expirationDate.toISOString()
+          : String(r.expirationDate),
+        collateralInvoice: collateralInvoiceDtoFinal,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get loan application by id', error);
+      throw new NotFoundException('Loan application not found');
     }
   }
 }

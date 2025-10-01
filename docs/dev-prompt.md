@@ -16,3 +16,7 @@ Expected result is proper e2e test strategy implementation in test directory fol
 ```
 Your responsibility is to develop CryptoGadai backend. Your scope includes all backend layers from schema, database, services, controllers, and tests related to @docs/api-plan/loan-market-openapi.yaml . Your task is to ensure that e2e test are properly implemented following specification and test guidelines. Run the test using command `pnpm build && node --import tsx --test $TEST_FILE_PATH`, the test files includes `./test/loan-market-applications.test.ts`, `./test/loan-market-edge-cases.test.ts`, and `./test/loan-market-offers.test.ts`
 ```
+
+```
+Your responsibility is to develop CryptoGadai backend. Your scope includes all backend layers from schema, database, services, controllers, and tests related to @docs/api-plan/loan-market-openapi.yaml . Your task is to add new endpoints: loan-offers details and loan-applications detail. Expected result are updated schema, implemented endpoints, and e2e tested. Run the test using command `pnpm build && node --import tsx --test $TEST_FILE_PATH`, the test files includes `./test/loan-market-applications.test.ts` and `./test/loan-market-offers.test.ts`
+```

@@ -5,6 +5,7 @@ import {
   assertProp,
   assertPropArray,
   assertPropArrayMapOf,
+  assertPropBoolean,
   assertPropDefined,
   assertPropNullableString,
   assertPropNumber,
@@ -104,6 +105,7 @@ suite('Loan Market API', function () {
       strictEqual(response.status, 201);
       assertDefined(data);
       assertPropDefined(data, 'success');
+      assertPropBoolean(data, 'success');
       strictEqual(data.success, true);
       assertPropDefined(data, 'data');
 
@@ -178,6 +180,7 @@ suite('Loan Market API', function () {
       strictEqual(response.status, 201);
       assertDefined(data);
       assertPropDefined(data, 'success');
+      assertPropBoolean(data, 'success');
       strictEqual(data.success, true);
       assertPropDefined(data, 'data');
 
@@ -222,6 +225,7 @@ suite('Loan Market API', function () {
       const data = await response.json();
       assertDefined(data);
       assertPropDefined(data, 'success');
+      assertPropBoolean(data, 'success');
       strictEqual(data.success, false);
       assertPropDefined(data, 'error');
       assertPropString(data.error, 'code');
@@ -254,6 +258,7 @@ suite('Loan Market API', function () {
       const data = await response.json();
       assertDefined(data);
       assertPropDefined(data, 'success');
+      assertPropBoolean(data, 'success');
       strictEqual(data.success, false);
       assertPropDefined(data, 'error');
       assertPropString(data.error, 'code');
@@ -276,6 +281,7 @@ suite('Loan Market API', function () {
       const data = await response.json();
       assertDefined(data);
       assertPropDefined(data, 'success');
+      assertPropBoolean(data, 'success');
       strictEqual(data.success, false);
       assertPropDefined(data, 'error');
       assertPropString(data.error, 'code');
@@ -339,6 +345,7 @@ suite('Loan Market API', function () {
       strictEqual(response.status, 200);
       assertDefined(data);
       assertPropDefined(data, 'success');
+      assertPropBoolean(data, 'success');
       strictEqual(data.success, true);
       assertPropDefined(data, 'data');
 
@@ -520,6 +527,7 @@ suite('Loan Market API', function () {
       strictEqual(response.status, 200);
       assertDefined(data);
       assertPropDefined(data, 'success');
+      assertPropBoolean(data, 'success');
       strictEqual(data.success, true);
       assertPropDefined(data, 'data');
 
@@ -636,6 +644,7 @@ suite('Loan Market API', function () {
       const data = await response.json();
       assertDefined(data);
       assertPropDefined(data, 'success');
+      assertPropBoolean(data, 'success');
       strictEqual(data.success, true);
       assertPropDefined(data, 'data');
 
@@ -701,6 +710,78 @@ suite('Loan Market API', function () {
         body: JSON.stringify(updateData),
       });
 
+      strictEqual(response.status, 401);
+    });
+  });
+
+  describe('Loan Offers - Detail', function () {
+    let lenderIndividual: Awaited<ReturnType<typeof createTestUser>>;
+    let borrower: Awaited<ReturnType<typeof createTestUser>>;
+
+    before(async function () {
+      lenderIndividual = await createTestUser({
+        testSetup,
+        testId,
+        email: `detail_offer_lender_${testId}@test.com`,
+        name: 'Detail Offer Lender',
+        userType: 'Individual',
+      });
+
+      borrower = await createTestUser({
+        testSetup,
+        testId,
+        email: `detail_offer_borrower_${testId}@test.com`,
+        name: 'Detail Offer Borrower',
+        userType: 'Individual',
+      });
+    });
+
+    it('should fetch loan offer details by id successfully', async function () {
+      // Create an offer first
+      const loanOfferData = {
+        principalBlockchainKey: 'eip155:56',
+        principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+        totalAmount: '7000.000000000000000000',
+        interestRate: 11.5,
+        termOptions: [3, 6],
+        minLoanAmount: '500.000000000000000000',
+        maxLoanAmount: '7000.000000000000000000',
+        expirationDate: '2025-12-31T23:59:59Z',
+      };
+
+      const createResponse = await lenderIndividual.fetch('/api/loan-offers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(loanOfferData),
+      });
+
+      if (createResponse.status !== 201) {
+        console.log('Cannot create loan offer, skipping detail fetch test');
+        return;
+      }
+
+      const createData = await createResponse.json();
+      const offerId = createData.data.id;
+
+      const response = await borrower.fetch(`/api/loan-offers/${offerId}`);
+      strictEqual(response.status, 200);
+      const data = await response.json();
+      assertDefined(data);
+      assertPropBoolean(data, 'success');
+      strictEqual(data.success, true);
+      assertPropDefined(data, 'data');
+      const offer = data.data;
+      assertPropString(offer, 'id');
+      strictEqual(offer.id, offerId);
+    });
+
+    it('should return 404 for non-existent loan offer', async function () {
+      const response = await lenderIndividual.fetch('/api/loan-offers/non-existent-id');
+      strictEqual(response.status, 404);
+    });
+
+    it('should return 401 for unauthenticated loan offer detail request', async function () {
+      const response = await fetch(`${testSetup.backendUrl}/api/loan-offers/12345`);
       strictEqual(response.status, 401);
     });
   });

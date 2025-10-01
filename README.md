@@ -51,6 +51,8 @@ This is the closest setup to production environment.
 
 ### Code Quality
 
+This project forbid the usage of `any` type in TypeScript. Follow the `typeshaper` guidelines.
+
 To maintain code quality, we use Biome for linting and formatting, and Lefthook for git hooks.
 - `pnpm format`: auto-formats the codebase using Biome.
 

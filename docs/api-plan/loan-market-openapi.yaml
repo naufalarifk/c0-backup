@@ -340,6 +340,26 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+    get:
+      tags: [Loan Offers]
+      summary: Get loan offer details
+      description: Retrieve detailed information about a specific loan offer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Loan offer details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanOfferResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   # Loan Applications
   /api/loan-applications/calculate:
     post:
@@ -774,6 +794,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/LoanApplicationResponse'
 
+    get:
+      tags: [Loan Applications]
+      summary: Get loan application details
+      description: Retrieve detailed information about a specific loan application
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Loan application details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanApplicationResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
   securitySchemes:
     apiKeyCookie:
@@ -792,7 +832,7 @@ components:
       in: query
       schema:
         type: integer
-        minimum: 1
+        minimum: 11
         default: 1
     Limit:
       name: limit
