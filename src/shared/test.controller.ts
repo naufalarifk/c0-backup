@@ -24,7 +24,7 @@ import { LoansService } from '../modules/loans/services/loans.service';
 import { CryptogadaiRepository } from './repositories/cryptogadai.repository';
 import { TelemetryLogger } from './telemetry.logger';
 
-@Controller()
+@Controller('test')
 export class TestController {
   #logger = new TelemetryLogger(TestController.name);
 
@@ -97,125 +97,6 @@ export class TestController {
       success: true,
       message: `Created ${result.users.length} test users`,
       users: result.users,
-    };
-  }
-
-  @Put('admin/kyc/:id/approve')
-  async approveKycTest(@Param('id') kycId: string) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Test endpoints are not available in production');
-    }
-
-    this.#logger.debug(`Attempting to approve KYC ${kycId}`);
-
-    if (!kycId) {
-      throw new BadRequestException('KYC ID is required');
-    }
-
-    // Check if KYC exists and is still pending
-    const checkRows = await this.repo.sql`
-      SELECT id, status FROM user_kycs WHERE id = ${kycId}
-    `;
-
-    this.#logger.debug(`KYC query result for ID ${kycId}:`, checkRows);
-
-    if (checkRows.length === 0) {
-      throw new NotFoundException('KYC submission not found');
-    }
-
-    assertArrayMapOf(checkRows, function (row) {
-      assertDefined(row);
-      assertProp(check(isString, isNumber), row, 'id');
-      assertPropString(row, 'status');
-      return row;
-    });
-
-    const currentKyc = checkRows[0];
-    this.#logger.debug(`Current KYC status: ${currentKyc.status}`);
-
-    if (currentKyc.status !== 'Submitted') {
-      throw new ConflictException(
-        `KYC has already been processed. Current status: ${currentKyc.status}`,
-      );
-    }
-
-    // Update KYC status to approved
-    await this.repo.sql`
-      UPDATE user_kycs
-      SET status = 'Verified',
-          verified_date = NOW()
-      WHERE id = ${kycId}
-    `;
-
-    this.#logger.debug(`Approved KYC ${kycId}`);
-
-    return {
-      success: true,
-      message: `KYC ${kycId} has been approved`,
-      kycId: Number(kycId),
-      processedDate: new Date().toISOString(),
-      processingAdmin: 'test-admin',
-    };
-  }
-
-  @Put('admin/kyc/:id/reject')
-  async rejectKycTest(@Param('id') kycId: string, @Body() body: { reason: string }) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Test endpoints are not available in production');
-    }
-
-    const { reason } = body;
-
-    if (!kycId) {
-      throw new BadRequestException('KYC ID is required');
-    }
-
-    if (!reason) {
-      throw new BadRequestException('Rejection reason is required');
-    }
-
-    if (reason.trim().length < 10) {
-      throw new BadRequestException('Rejection reason must be at least 10 characters long');
-    }
-
-    // Check if KYC exists and is still pending
-    const checkRows = await this.repo.sql`
-      SELECT id, status FROM user_kycs WHERE id = ${kycId}
-    `;
-
-    if (checkRows.length === 0) {
-      throw new NotFoundException('KYC submission not found');
-    }
-
-    assertArrayMapOf(checkRows, function (row) {
-      assertDefined(row);
-      assertProp(check(isString, isNumber), row, 'id');
-      assertPropString(row, 'status');
-      return row;
-    });
-
-    const currentKyc = checkRows[0];
-    if (currentKyc.status !== 'Submitted') {
-      throw new ConflictException('KYC has already been processed');
-    }
-
-    // Update KYC status to rejected
-    await this.repo.sql`
-      UPDATE user_kycs
-      SET status = 'Rejected',
-          rejected_date = NOW(),
-          rejection_reason = ${reason}
-      WHERE id = ${kycId}
-    `;
-
-    this.#logger.debug(`Rejected KYC ${kycId} with reason: ${reason}`);
-
-    return {
-      success: true,
-      message: `KYC ${kycId} has been rejected`,
-      kycId: Number(kycId),
-      processedDate: new Date().toISOString(),
-      processingAdmin: 'test-admin',
     };
   }
 
@@ -451,7 +332,7 @@ export class TestController {
     };
   }
 
-  @Post('test/loan-offers/:loanOfferId/funding-invoice/mark-paid')
+  @Post('loan-offers/:loanOfferId/funding-invoice/mark-paid')
   async markLoanOfferFundingInvoicePaid(
     @Param('loanOfferId') loanOfferId: string,
     @Body()
@@ -501,7 +382,7 @@ export class TestController {
     };
   }
 
-  @Post('test/loan-offers/:loanOfferId/normalize-amounts')
+  @Post('loan-offers/:loanOfferId/normalize-amounts')
   async normalizeLoanOfferAmounts(@Param('loanOfferId') loanOfferId: string) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('Test endpoints are not available in production');
@@ -519,7 +400,7 @@ export class TestController {
     };
   }
 
-  @Get('test/loan-offers/:loanOfferId')
+  @Get('loan-offers/:loanOfferId')
   async getLoanOfferStatus(@Param('loanOfferId') loanOfferId: string) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('Test endpoints are not available in production');
@@ -578,7 +459,7 @@ export class TestController {
     };
   }
 
-  @Post('test/loan-applications/:loanApplicationId/normalize-amounts')
+  @Post('loan-applications/:loanApplicationId/normalize-amounts')
   async normalizeLoanApplicationAmounts(@Param('loanApplicationId') loanApplicationId: string) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('Test endpoints are not available in production');
@@ -596,7 +477,7 @@ export class TestController {
     };
   }
 
-  @Post('test/loan-applications/:loanApplicationId/collateral-invoice/mark-paid')
+  @Post('loan-applications/:loanApplicationId/collateral-invoice/mark-paid')
   async markLoanApplicationCollateralInvoicePaid(
     @Param('loanApplicationId') loanApplicationId: string,
     @Body()
@@ -642,7 +523,7 @@ export class TestController {
     };
   }
 
-  @Get('test/loan-applications/:loanApplicationId')
+  @Get('loan-applications/:loanApplicationId')
   async getLoanApplicationStatus(@Param('loanApplicationId') loanApplicationId: string) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('Test endpoints are not available in production');
@@ -708,7 +589,7 @@ export class TestController {
     };
   }
 
-  @Post('test/loans/match-and-originate')
+  @Post('loans/match-and-originate')
   async matchAndOriginateLoan(
     @Body()
     body: {
@@ -835,7 +716,7 @@ export class TestController {
     };
   }
 
-  @Get('test/loans/:loanId/documents')
+  @Get('loans/:loanId/documents')
   async getLoanDocuments(@Param('loanId') loanId: string) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('Test endpoints are not available in production');
@@ -886,6 +767,269 @@ export class TestController {
     return {
       success: true,
       documents,
+    };
+  }
+
+  @Post('setup-account-balance-by-email')
+  async setupAccountBalanceByEmail(
+    @Body()
+    body: {
+      email: string;
+      currencyBlockchainKey: string;
+      currencyTokenId: string;
+      balance: string;
+    },
+  ) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Test endpoints are not available in production');
+    }
+
+    const { email, currencyBlockchainKey, currencyTokenId, balance } = body;
+
+    if (!email || typeof email !== 'string') {
+      throw new BadRequestException('email is required');
+    }
+    if (!currencyBlockchainKey || typeof currencyBlockchainKey !== 'string') {
+      throw new BadRequestException('currencyBlockchainKey is required');
+    }
+    if (!currencyTokenId || typeof currencyTokenId !== 'string') {
+      throw new BadRequestException('currencyTokenId is required');
+    }
+    if (!balance || typeof balance !== 'string') {
+      throw new BadRequestException('balance is required');
+    }
+
+    // Find user by email
+    const userRows = await this.repo.sql`
+      SELECT id FROM users WHERE email = ${email}
+    `;
+
+    if (userRows.length === 0) {
+      throw new NotFoundException(`User with email ${email} not found`);
+    }
+
+    const user = userRows[0];
+    assertDefined(user);
+    assertProp(check(isString, isNumber), user, 'id');
+    const userId = String(user.id);
+
+    // Create currency if it doesn't exist
+    // Generate a short symbol from token ID (max 16 chars for DB constraint)
+    const currencySymbol = currencyTokenId.substring(0, 16);
+    await this.repo.sql`
+      INSERT INTO currencies (
+        blockchain_key,
+        token_id,
+        name,
+        symbol,
+        decimals,
+        image
+      )
+      VALUES (
+        ${currencyBlockchainKey},
+        ${currencyTokenId},
+        'Test Currency',
+        ${currencySymbol},
+        18,
+        'https://assets.cryptogadai.com/currencies/default.png'
+      )
+      ON CONFLICT (blockchain_key, token_id)
+      DO NOTHING
+    `;
+
+    // Create account if it doesn't exist (with 0 balance initially)
+    await this.repo.sql`
+      INSERT INTO accounts (
+        user_id,
+        currency_blockchain_key,
+        currency_token_id,
+        balance,
+        account_type
+      )
+      VALUES (
+        ${userId},
+        ${currencyBlockchainKey},
+        ${currencyTokenId},
+        0,
+        'User'
+      )
+      ON CONFLICT (user_id, currency_blockchain_key, currency_token_id, account_type)
+      DO NOTHING
+    `;
+
+    // Insert account mutation to create balance - the trigger will update the account balance
+    await this.repo.sql`
+      INSERT INTO account_mutation_entries (
+        user_id,
+        currency_blockchain_key,
+        currency_token_id,
+        account_type,
+        mutation_type,
+        mutation_date,
+        amount
+      ) VALUES (
+        ${userId},
+        ${currencyBlockchainKey},
+        ${currencyTokenId},
+        'User',
+        'InvoiceReceived',
+        NOW(),
+        ${balance}
+      )
+    `;
+
+    this.#logger.debug(
+      `Set up account balance for user ${email}: ${balance} ${currencyTokenId} on ${currencyBlockchainKey}`,
+    );
+
+    return {
+      success: true,
+      message: `Account balance set up for ${email}`,
+      userId: Number(userId),
+      balance,
+      currency: {
+        blockchainKey: currencyBlockchainKey,
+        tokenId: currencyTokenId,
+      },
+    };
+  }
+
+  @Post('setup-account-mutations-by-email')
+  async setupAccountMutationsByEmail(
+    @Body()
+    body: {
+      email: string;
+      mutations: Array<{
+        currencyBlockchainKey: string;
+        currencyTokenId: string;
+        mutationType: string;
+        amount: string;
+        mutationDate?: string;
+      }>;
+    },
+  ) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Test endpoints are not available in production');
+    }
+
+    const { email, mutations } = body;
+
+    if (!email || typeof email !== 'string') {
+      throw new BadRequestException('email is required');
+    }
+    if (!mutations || !Array.isArray(mutations) || mutations.length === 0) {
+      throw new BadRequestException('mutations array is required and must not be empty');
+    }
+
+    // Find user by email
+    const userRows = await this.repo.sql`
+      SELECT id FROM users WHERE email = ${email}
+    `;
+
+    if (userRows.length === 0) {
+      throw new NotFoundException(`User with email ${email} not found`);
+    }
+
+    const user = userRows[0];
+    assertDefined(user);
+    assertProp(check(isString, isNumber), user, 'id');
+    const userId = String(user.id);
+
+    // Insert mutations
+    for (const mutation of mutations) {
+      const { currencyBlockchainKey, currencyTokenId, mutationType, amount, mutationDate } =
+        mutation;
+
+      if (!currencyBlockchainKey || typeof currencyBlockchainKey !== 'string') {
+        throw new BadRequestException('currencyBlockchainKey is required for each mutation');
+      }
+      if (!currencyTokenId || typeof currencyTokenId !== 'string') {
+        throw new BadRequestException('currencyTokenId is required for each mutation');
+      }
+      if (!mutationType || typeof mutationType !== 'string') {
+        throw new BadRequestException('mutationType is required for each mutation');
+      }
+      if (!amount || typeof amount !== 'string') {
+        throw new BadRequestException('amount is required for each mutation');
+      }
+
+      const effectiveMutationDate = mutationDate ? new Date(mutationDate) : new Date();
+
+      // Create currency if it doesn't exist
+      // Generate a short symbol from token ID (max 16 chars for DB constraint)
+      const currencySymbol = currencyTokenId.substring(0, 16);
+      await this.repo.sql`
+        INSERT INTO currencies (
+          blockchain_key,
+          token_id,
+          name,
+          symbol,
+          decimals,
+          image
+        )
+        VALUES (
+          ${currencyBlockchainKey},
+          ${currencyTokenId},
+          'Test Currency',
+          ${currencySymbol},
+          18,
+          'https://assets.cryptogadai.com/currencies/default.png'
+        )
+        ON CONFLICT (blockchain_key, token_id)
+        DO NOTHING
+      `;
+
+      // Create account if it doesn't exist
+      await this.repo.sql`
+        INSERT INTO accounts (
+          user_id,
+          currency_blockchain_key,
+          currency_token_id,
+          balance,
+          account_type
+        )
+        VALUES (
+          ${userId},
+          ${currencyBlockchainKey},
+          ${currencyTokenId},
+          0,
+          'User'
+        )
+        ON CONFLICT (user_id, currency_blockchain_key, currency_token_id, account_type)
+        DO NOTHING
+      `;
+
+      await this.repo.sql`
+        INSERT INTO account_mutation_entries (
+          user_id,
+          currency_blockchain_key,
+          currency_token_id,
+          account_type,
+          mutation_type,
+          mutation_date,
+          amount
+        ) VALUES (
+          ${userId},
+          ${currencyBlockchainKey},
+          ${currencyTokenId},
+          'User',
+          ${mutationType},
+          ${effectiveMutationDate},
+          ${amount}
+        )
+      `;
+
+      // Note: Balance is automatically updated by the apply_account_mutation_trigger
+      // No manual balance update needed
+    }
+
+    this.#logger.debug(`Set up ${mutations.length} account mutations for user ${email}`);
+
+    return {
+      success: true,
+      message: `${mutations.length} account mutations set up for ${email}`,
+      userId: Number(userId),
+      mutationsCount: mutations.length,
     };
   }
 }

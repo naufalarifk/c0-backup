@@ -101,6 +101,8 @@ export abstract class FinanceRepository extends UserRepository {
         a.balance,
         a.account_type,
         c.decimals as currency_decimals,
+        c.name as currency_name,
+        c.symbol as currency_symbol,
         -- Get latest exchange rate for valuation (crosschain to iso4217:usd)
         er.bid_price as exchange_rate,
         er.retrieval_date as rate_date,
@@ -127,6 +129,7 @@ export abstract class FinanceRepository extends UserRepository {
       LEFT JOIN currencies qc ON pf.quote_currency_token_id = qc.token_id
         AND qc.blockchain_key = 'crosschain'
       WHERE a.user_id = ${userId}
+        AND a.account_type = 'User'
       ORDER BY a.currency_blockchain_key, a.currency_token_id
     `;
 
@@ -144,6 +147,8 @@ export abstract class FinanceRepository extends UserRepository {
       assertProp(check(isString, isNumber), account, 'balance');
       assertPropString(account, 'account_type');
       assertProp(check(isString, isNumber), account, 'currency_decimals');
+      assertPropString(account, 'currency_name');
+      assertPropString(account, 'currency_symbol');
       assertProp(check(isNullable, isString, isNumber), account, 'exchange_rate');
       assertProp(check(isNullable, isInstanceOf(Date)), account, 'rate_date');
       assertProp(check(isNullable, isString), account, 'rate_source');
@@ -173,6 +178,9 @@ export abstract class FinanceRepository extends UserRepository {
         userId: String(account.user_id),
         currencyBlockchainKey: account.currency_blockchain_key,
         currencyTokenId: account.currency_token_id,
+        currencyName: account.currency_name,
+        currencySymbol: account.currency_symbol,
+        currencyDecimals: currencyDecimals,
         balance: String(account.balance),
         accountType: account.account_type,
         valuationAmount,

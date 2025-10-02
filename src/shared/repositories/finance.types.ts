@@ -10,6 +10,9 @@ export interface AccountBalance {
   userId: string;
   currencyBlockchainKey: string;
   currencyTokenId: string;
+  currencyName: string;
+  currencySymbol: string;
+  currencyDecimals: number;
   balance: string;
   accountType: string;
   valuationAmount?: string | null;

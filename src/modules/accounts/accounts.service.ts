@@ -167,30 +167,17 @@ export class AccountsService {
     }
   }
 
-  // TODO: DO ACTUAL CURRENCY MAPPING
   /**
    * Map database account to CurrencyDto
    */
   private mapToCurrencyDto(account: AccountBalance) {
-    const currencyMap: Record<string, { name: string; symbol: string; decimals: number }> = {
-      'slip44:0': { name: 'Bitcoin', symbol: 'BTC', decimals: 8 },
-      'slip44:60': { name: 'Ethereum', symbol: 'ETH', decimals: 18 },
-      'slip44:501': { name: 'Solana', symbol: 'SOL', decimals: 9 },
-    };
-
-    const currencyInfo = currencyMap[account.currencyTokenId] || {
-      name: 'Unknown',
-      symbol: 'UNK',
-      decimals: 18,
-    };
-
     return {
       blockchainKey: account.currencyBlockchainKey,
       tokenId: account.currencyTokenId,
-      name: currencyInfo.name,
-      symbol: currencyInfo.symbol,
-      decimals: currencyInfo.decimals,
-      logoUrl: `https://assets.cryptogadai.com/currencies/${currencyInfo.symbol.toLowerCase()}.png`,
+      name: account.currencyName,
+      symbol: account.currencySymbol,
+      decimals: account.currencyDecimals,
+      logoUrl: `https://assets.cryptogadai.com/currencies/${account.currencySymbol.toLowerCase()}.png`,
     };
   }
 
