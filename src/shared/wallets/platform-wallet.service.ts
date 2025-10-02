@@ -8,11 +8,20 @@ import { AppConfigService } from '../services/app-config.service';
 import { WalletFactory } from './Iwallet.service';
 import { IWallet } from './Iwallet.types';
 
+export interface PlatformHotWallet {
+  blockchainKey: string;
+  address: string;
+  derivationPath: string;
+  bip44CoinType: number;
+  wallet: IWallet;
+}
+
 @Injectable()
 export class PlatformWalletService {
   private readonly logger = new Logger(PlatformWalletService.name);
   private masterKey?: HDKey;
   private loadingMasterKey?: Promise<HDKey>;
+  private readonly hotWalletCache = new Map<string, Promise<PlatformHotWallet>>();
 
   constructor(
     private readonly walletFactory: WalletFactory,
@@ -62,10 +71,35 @@ export class PlatformWalletService {
     return { wallet, address, derivationPath };
   }
 
-  async getHotWallet(blockchainKey: string): Promise<IWallet> {
+  async getHotWallet(blockchainKey: string): Promise<PlatformHotWallet> {
+    let loadingHotWallet = this.hotWalletCache.get(blockchainKey);
+
+    if (!loadingHotWallet) {
+      loadingHotWallet = this.buildHotWallet(blockchainKey);
+      this.hotWalletCache.set(blockchainKey, loadingHotWallet);
+    }
+
+    try {
+      return await loadingHotWallet;
+    } catch (error) {
+      this.hotWalletCache.delete(blockchainKey);
+      throw error;
+    }
+  }
+
+  private async buildHotWallet(blockchainKey: string): Promise<PlatformHotWallet> {
     const masterKey = await this.getMasterKey();
     const walletService = this.walletFactory.getWalletService(blockchainKey);
-    return await walletService.getHotWallet(masterKey);
+    const wallet = await walletService.getHotWallet(masterKey);
+    const address = await wallet.getAddress();
+
+    return {
+      blockchainKey,
+      wallet,
+      address,
+      derivationPath: walletService.getHotWalletDerivationPath(),
+      bip44CoinType: walletService.bip44CoinType,
+    };
   }
 
   private async loadMasterKey(): Promise<HDKey> {

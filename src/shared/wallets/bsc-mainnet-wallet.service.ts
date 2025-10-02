@@ -5,7 +5,7 @@ import { ethers } from 'ethers';
 
 import { BaseEthereumWallet } from './base-ethereum-wallet';
 import { WalletProvider } from './Iwallet.service';
-import { IWallet, IWalletService } from './Iwallet.types';
+import { IWalletService } from './Iwallet.types';
 
 class BscMainnetWallet extends BaseEthereumWallet {
   protected provider: ethers.JsonRpcProvider;
@@ -28,13 +28,6 @@ export class BscMainnetWalletService extends IWalletService {
       this._provider = new ethers.JsonRpcProvider('https://bsc.publicnode.com');
     }
     return this._provider;
-  }
-
-  getHotWallet(masterKey: HDKey): Promise<IWallet> {
-    return this.derivedPathToWallet({
-      masterKey,
-      derivationPath: `m/44'/${this.bip44CoinType}'/0'/10/0`,
-    });
   }
 
   get bip44CoinType(): number {

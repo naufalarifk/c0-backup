@@ -8,9 +8,8 @@ import { ethers } from 'ethers';
 import invariant from 'tiny-invariant';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
-import { AppConfigService } from '../../shared/services/app-config.service';
+import { PlatformConfigService } from '../../shared/services/platform-config.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
-import { IWallet } from '../../shared/wallets/Iwallet.types';
 import { PlatformWalletService } from '../../shared/wallets/platform-wallet.service';
 import { FailureType } from '../admin/withdrawals/admin-withdrawal.dto';
 import { AdminWithdrawalsService } from '../admin/withdrawals/admin-withdrawals.service';
@@ -46,7 +45,7 @@ export class WithdrawalsProcessor extends WorkerHost {
     private readonly blockchainService: BlockchainService,
     private readonly adminWithdrawalsService: AdminWithdrawalsService,
     private readonly platformWalletService: PlatformWalletService,
-    private readonly configService: AppConfigService,
+    private readonly platformConfigService: PlatformConfigService,
     @InjectQueue('withdrawalsQueue')
     private readonly withdrawalsQueue: Queue<WithdrawalProcessingData | ConfirmationMonitoringData>,
   ) {
@@ -395,8 +394,18 @@ export class WithdrawalsProcessor extends WorkerHost {
     );
 
     try {
-      // 1. Load platform wallet securely
-      const platformWallet = await this.getPlatformWallet(params.currencyBlockchainKey);
+      // 1. Load platform hot wallet details
+      const [hotWallet, hotWalletConfig] = await Promise.all([
+        this.platformWalletService.getHotWallet(params.currencyBlockchainKey),
+        this.platformConfigService.getHotWalletConfig(params.currencyBlockchainKey),
+      ]);
+
+      invariant(
+        hotWallet.address === hotWalletConfig.address,
+        'Hot wallet address mismatch detected',
+      );
+
+      const platformWallet = hotWallet.wallet;
 
       // 2. Calculate precise transaction fee and validate amount
       const feeValidation = await this.validateTransactionFees(params);
@@ -412,7 +421,7 @@ export class WithdrawalsProcessor extends WorkerHost {
       const sendAmount = (parseFloat(params.amount) - actualFee).toString();
 
       // 4. Get sender address from platform wallet (HD wallet derived address)
-      const senderAddress = await platformWallet.getAddress();
+      const senderAddress = hotWalletConfig.address;
 
       // 5. Execute transfer using simplified wallet interface
       const transferParams = {
@@ -472,19 +481,6 @@ export class WithdrawalsProcessor extends WorkerHost {
       confirmations,
       failed: false,
     };
-  }
-
-  // Platform Wallet Management
-  private async getPlatformWallet(blockchainKey: string): Promise<IWallet> {
-    try {
-      // Use the centralized platform wallet service hot wallet
-      return await this.platformWalletService.getHotWallet(blockchainKey);
-    } catch (error) {
-      this.logger.error(`Failed to load platform wallet for ${blockchainKey}:`, error);
-      throw new Error(
-        `Platform wallet unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-    }
   }
 
   private async validateTransactionFees(params: {

@@ -20,7 +20,16 @@ export abstract class IWalletFactory {
 export abstract class IWalletService {
   abstract get bip44CoinType(): number;
 
-  abstract getHotWallet(masterKey: HDKey): Promise<IWallet>;
+  getHotWallet(masterKey: HDKey): Promise<IWallet> {
+    return this.derivedPathToWallet({
+      masterKey,
+      derivationPath: this.getHotWalletDerivationPath(),
+    });
+  }
+
+  getHotWalletDerivationPath(): string {
+    return `m/44'/${this.bip44CoinType}'/1005'/0/0`;
+  }
 
   abstract derivedPathToWallet({
     masterKey,

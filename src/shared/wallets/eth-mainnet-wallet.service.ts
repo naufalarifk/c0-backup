@@ -5,7 +5,7 @@ import { ethers } from 'ethers';
 
 import { BaseEthereumWallet } from './base-ethereum-wallet';
 import { WalletProvider } from './Iwallet.service';
-import { IWallet, IWalletService } from './Iwallet.types';
+import { IWalletService } from './Iwallet.types';
 
 class EthereumMainnetWallet extends BaseEthereumWallet {
   protected provider: ethers.JsonRpcProvider;
@@ -27,13 +27,6 @@ export class EthMainnetWalletService extends IWalletService {
       this._provider = new ethers.JsonRpcProvider(this.rpcUrl);
     }
     return this._provider;
-  }
-
-  getHotWallet(masterKey: HDKey): Promise<IWallet> {
-    return this.derivedPathToWallet({
-      masterKey,
-      derivationPath: `m/44'/${this.bip44CoinType}'/0'/10/0`,
-    });
   }
 
   get bip44CoinType(): number {
