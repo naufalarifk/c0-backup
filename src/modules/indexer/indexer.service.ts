@@ -310,6 +310,7 @@ export class IndexerService implements OnModuleInit {
       invoiceId: params.invoice.id,
       blockchainKey: params.blockchainKey,
       walletAddress: params.invoice.walletAddress,
+      walletDerivationPath: params.invoice.walletDerivationPath,
       transactionHash: params.transactionHash,
       amount: params.amount.toString(),
       detectedAt: new Date(params.detectedAtMs).toISOString(),

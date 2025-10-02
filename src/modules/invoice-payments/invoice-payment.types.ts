@@ -2,6 +2,7 @@ export interface InvoicePaymentJobData {
   invoiceId: string;
   blockchainKey: string;
   walletAddress: string;
+  walletDerivationPath: string;
   transactionHash: string;
   amount: string;
   detectedAt: string;

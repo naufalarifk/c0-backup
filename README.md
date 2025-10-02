@@ -63,3 +63,21 @@ To maintain code quality, we use Biome for linting and formatting, and Lefthook 
 - `docs/SRS-CG-v2.4-EN.md`: Software Requirement Specification document. The main source of truth for the project requirements.
 - `docs/api-plan/*-openapi.yaml`: The OpenAPI specifications for the backend to implement.
 - `docs/ui-descriptions/*.md`: The UI design transalated to textual descriptions. Useful for understanding UI/UX in text form.
+
+### Workers
+
+The backend includes several worker services that run as separate processes:
+
+- **API Server** (`start:api`) - Main REST API server for client applications
+- **Notification Worker** (`start:notification`) - Processes notification queue and sends push notifications, emails, and SMS
+- **Price Feed Worker** (`start:pricefeed`) - Periodically fetches and updates cryptocurrency prices
+- **Invoice Expiration Worker** (`start:invoice-expiration`) - Checks and expires overdue invoices
+- **Loan Matcher Worker** (`start:loan-matcher`) - Matches loan offers with loan requests
+- **Indexer Worker** (`start:indexer`) - Monitors blockchain transactions and detects invoice payments
+- **Wallet Balance Collector** (`start:wallet-balance-collector`) - Collects remaining balances from invoice wallets and transfers to hot wallet
+
+To start all workers: `pnpm start`
+
+To start individual workers: `pnpm start:<worker-name>` (e.g., `pnpm start:wallet-balance-collector`)
+
+To start workers in development mode with watch: `pnpm start:dev:<worker-name>`

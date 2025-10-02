@@ -84,6 +84,7 @@ export interface ActiveInvoiceRecord {
   id: string;
   userId: string;
   walletAddress: string;
+  walletDerivationPath: string;
   currencyBlockchainKey: string;
   currencyTokenId: string;
   accountBlockchainKey?: string | null;

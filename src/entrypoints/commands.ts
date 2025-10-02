@@ -10,6 +10,7 @@ import { NotificationModule } from '../modules/notifications/notification.module
 import { NotificationProcessor } from '../modules/notifications/notification.processor';
 import { PricefeedModule } from '../modules/pricefeed/pricefeed.module';
 import { PricefeedScheduler } from '../modules/pricefeed/pricefeed.scheduler';
+import { WalletBalanceCollectorModule } from '../modules/wallet-balance-collector/wallet-balance-collector.module';
 import { CryptogadaiRepository } from '../shared/repositories/cryptogadai.repository';
 import { TelemetryLogger } from '../shared/telemetry.logger';
 import { bootstrapUserApi } from './user-api.bootstrap';
@@ -23,7 +24,8 @@ export type CommandKey =
   | 'loan-matcher'
   | 'migration'
   | 'notification'
-  | 'pricefeed';
+  | 'pricefeed'
+  | 'wallet-balance-collector';
 
 export interface BootstrapContext {
   app: INestApplicationContext;
@@ -161,6 +163,19 @@ export const COMMAND_DEFINITIONS: Record<CommandKey, CommandDefinition> = {
       return {
         cleanup: () => {
           /** ignore */
+        },
+      };
+    },
+  },
+  'wallet-balance-collector': {
+    imports: [WalletBalanceCollectorModule],
+    usesBull: true,
+    async bootstrap() {
+      const logger = new TelemetryLogger('WalletBalanceCollectorWorker');
+      logger.log('Wallet balance collector worker started successfully');
+      return {
+        cleanup: () => {
+          logger.log('Wallet balance collector worker shutting down');
         },
       };
     },

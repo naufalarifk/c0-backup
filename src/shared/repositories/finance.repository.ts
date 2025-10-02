@@ -407,6 +407,7 @@ export abstract class FinanceRepository extends UserRepository {
         id,
         user_id,
         wallet_address,
+        wallet_derivation_path,
         currency_blockchain_key,
         currency_token_id,
         account_blockchain_key,
@@ -449,6 +450,7 @@ export abstract class FinanceRepository extends UserRepository {
       assertProp(check(isString, isNumber), row, 'id');
       assertProp(check(isString, isNumber), row, 'user_id');
       assertPropString(row, 'wallet_address');
+      assertPropString(row, 'wallet_derivation_path');
       assertPropString(row, 'currency_blockchain_key');
       assertPropString(row, 'currency_token_id');
       assertPropNullableString(row, 'account_blockchain_key');
@@ -465,6 +467,7 @@ export abstract class FinanceRepository extends UserRepository {
         id: String(row.id),
         userId: String(row.user_id),
         walletAddress: row.wallet_address as string,
+        walletDerivationPath: row.wallet_derivation_path as string,
         currencyBlockchainKey: row.currency_blockchain_key as string,
         currencyTokenId: row.currency_token_id as string,
         accountBlockchainKey: (row.account_blockchain_key as string | null) ?? null,

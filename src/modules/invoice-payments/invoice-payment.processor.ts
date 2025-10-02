@@ -3,6 +3,7 @@ import type { Job } from 'bullmq';
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 
+import { WalletBalanceCollectorQueueService } from '../wallet-balance-collector/wallet-balance-collector.queue.service';
 import { InvoicePaymentService } from './invoice-payment.service';
 import { InvoicePaymentJobData } from './invoice-payment.types';
 
@@ -11,12 +12,23 @@ import { InvoicePaymentJobData } from './invoice-payment.types';
 export class InvoicePaymentProcessor extends WorkerHost {
   private readonly logger = new Logger(InvoicePaymentProcessor.name);
 
-  constructor(private readonly invoicePaymentService: InvoicePaymentService) {
+  constructor(
+    private readonly invoicePaymentService: InvoicePaymentService,
+    private readonly walletBalanceCollectorQueue: WalletBalanceCollectorQueueService,
+  ) {
     super();
   }
 
   async process(job: Job<InvoicePaymentJobData>): Promise<void> {
-    const { invoiceId, transactionHash, amount, detectedAt } = job.data;
+    const {
+      invoiceId,
+      blockchainKey,
+      walletAddress,
+      walletDerivationPath,
+      transactionHash,
+      amount,
+      detectedAt,
+    } = job.data;
 
     this.logger.debug(
       `Processing invoice payment job ${job.id} for invoice ${invoiceId} (tx: ${transactionHash})`,
@@ -27,6 +39,20 @@ export class InvoicePaymentProcessor extends WorkerHost {
       transactionHash,
       amount,
       paymentDate: new Date(detectedAt),
+    });
+
+    // After recording payment, trigger balance collection
+    this.logger.debug(
+      `Triggering balance collection for invoice ${invoiceId} after payment recorded`,
+    );
+
+    await this.walletBalanceCollectorQueue.enqueueBalanceCollection({
+      invoiceId,
+      blockchainKey,
+      walletAddress,
+      walletDerivationPath,
+      transactionHash,
+      paidAmount: amount,
     });
   }
 
