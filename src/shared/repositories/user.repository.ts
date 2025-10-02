@@ -104,10 +104,9 @@ export abstract class UserRepository extends BetterAuthRepository {
         UPDATE users
         SET name = COALESCE(${name}, name),
             profile_picture = COALESCE(${profilePictureUrl}, profile_picture),
-            expo_push_token = COALESCE(${expoPushToken}, expo_push_token),
             updated_date = ${updateDate}
         WHERE id = ${id}
-        RETURNING id, name, profile_picture, expo_push_token, updated_date;
+        RETURNING id, name, profile_picture, updated_date;
       `;
 
       assertArrayMapOf(rows, function (row) {
@@ -115,7 +114,6 @@ export abstract class UserRepository extends BetterAuthRepository {
         assertProp(check(isString, isNumber), row, 'id');
         assertPropString(row, 'name');
         assertPropNullableString(row, 'profile_picture');
-        assertPropNullableString(row, 'expo_push_token');
         return row;
       });
 
@@ -125,7 +123,6 @@ export abstract class UserRepository extends BetterAuthRepository {
         id: String(user.id),
         name: user.name,
         profilePictureUrl: user.profile_picture,
-        expoPushToken: user.expo_push_token,
         updatedDate: updateDate,
       };
 
@@ -151,7 +148,7 @@ export abstract class UserRepository extends BetterAuthRepository {
              created_date, updated_date, google_id,
              user_type, user_type_selected_date,
              institution_user_id, institution_role,
-             kyc_id, business_name, business_type, expo_push_token
+             kyc_id, business_name, business_type
       FROM users
       WHERE id = ${userId}
       LIMIT 1
@@ -247,10 +244,7 @@ export abstract class UserRepository extends BetterAuthRepository {
         'business_type' in user && typeof user.business_type === 'string'
           ? user.business_type
           : null,
-      expoPushToken:
-        'expo_push_token' in user && typeof user.expo_push_token === 'string'
-          ? user.expo_push_token
-          : null,
+      expoPushToken: null, // TODO: push token on push_tokens table
     };
   }
 
