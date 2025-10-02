@@ -107,11 +107,26 @@ export class AccountsService {
   async getAccountMutations(
     accountId: string,
     query: GetAccountMutationsQueryDto,
+    userId?: string,
   ): Promise<AccountMutationsResponseDto> {
     try {
       const { page = 1, limit = 20, mutationType, fromDate, toDate } = query;
 
       const offset = (page - 1) * limit;
+
+      // Validate account ownership if userId is provided
+      if (userId) {
+        const accountCheck = await this.repository.sql`
+          SELECT user_id FROM accounts WHERE id = ${accountId}
+        `;
+        if (accountCheck.length === 0) {
+          throw new NotFoundException('Account not found');
+        }
+        const account = accountCheck[0] as { user_id: string | number };
+        if (String(account.user_id) !== userId) {
+          throw new NotFoundException('Account not found');
+        }
+      }
 
       const result = await this.repository.userViewsAccountTransactionHistory({
         accountId,
@@ -138,7 +153,9 @@ export class AccountsService {
           : mutation.withdrawalId
             ? 'withdrawal'
             : undefined,
-        balanceAfter: undefined, // TODO: Calculate or fetch from repository
+        // balanceAfter is optional and not currently calculated
+        // Future enhancement: Could be calculated by running sum of all mutations up to this point
+        balanceAfter: undefined,
       }));
 
       const totalPages = Math.ceil(result.totalCount / limit);

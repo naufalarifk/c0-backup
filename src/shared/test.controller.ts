@@ -814,8 +814,40 @@ export class TestController {
     const userId = String(user.id);
 
     // Create currency if it doesn't exist
-    // Generate a short symbol from token ID (max 16 chars for DB constraint)
-    const currencySymbol = currencyTokenId.substring(0, 16);
+    // Map common currencies to their proper symbols and decimals
+    let currencyName = 'Test Currency';
+    let currencySymbol = 'TEST';
+    let currencyDecimals = 18;
+
+    if (currencyTokenId === 'slip44:0') {
+      currencyName = 'Bitcoin';
+      currencySymbol = 'BTC';
+      currencyDecimals = 8;
+    } else if (currencyTokenId === 'slip44:60') {
+      currencyName = 'Ethereum';
+      currencySymbol = 'ETH';
+      currencyDecimals = 18;
+    } else if (currencyTokenId.startsWith('erc20:0x8ac76a51')) {
+      currencyName = 'USD Coin';
+      currencySymbol = 'USDC';
+      currencyDecimals = 18;
+    } else if (currencyTokenId.startsWith('erc20:0x55d398')) {
+      currencyName = 'Tether USD';
+      currencySymbol = 'USDT';
+      currencyDecimals = 18;
+    } else if (currencyTokenId === 'slip44:501') {
+      currencyName = 'Solana';
+      currencySymbol = 'SOL';
+      currencyDecimals = 9;
+    } else if (currencyTokenId === 'slip44:714') {
+      currencyName = 'Binance Coin';
+      currencySymbol = 'BNB';
+      currencyDecimals = 18;
+    } else {
+      // Generate a short symbol from token ID (max 16 chars for DB constraint)
+      currencySymbol = currencyTokenId.substring(0, 16);
+    }
+
     await this.repo.sql`
       INSERT INTO currencies (
         blockchain_key,
@@ -828,9 +860,9 @@ export class TestController {
       VALUES (
         ${currencyBlockchainKey},
         ${currencyTokenId},
-        'Test Currency',
+        ${currencyName},
         ${currencySymbol},
-        18,
+        ${currencyDecimals},
         'https://assets.cryptogadai.com/currencies/default.png'
       )
       ON CONFLICT (blockchain_key, token_id)
@@ -956,8 +988,40 @@ export class TestController {
       const effectiveMutationDate = mutationDate ? new Date(mutationDate) : new Date();
 
       // Create currency if it doesn't exist
-      // Generate a short symbol from token ID (max 16 chars for DB constraint)
-      const currencySymbol = currencyTokenId.substring(0, 16);
+      // Map common currencies to their proper symbols and decimals
+      let currencyName = 'Test Currency';
+      let currencySymbol = 'TEST';
+      let currencyDecimals = 18;
+
+      if (currencyTokenId === 'slip44:0') {
+        currencyName = 'Bitcoin';
+        currencySymbol = 'BTC';
+        currencyDecimals = 8;
+      } else if (currencyTokenId === 'slip44:60') {
+        currencyName = 'Ethereum';
+        currencySymbol = 'ETH';
+        currencyDecimals = 18;
+      } else if (currencyTokenId.startsWith('erc20:0x8ac76a51')) {
+        currencyName = 'USD Coin';
+        currencySymbol = 'USDC';
+        currencyDecimals = 18;
+      } else if (currencyTokenId.startsWith('erc20:0x55d398')) {
+        currencyName = 'Tether USD';
+        currencySymbol = 'USDT';
+        currencyDecimals = 18;
+      } else if (currencyTokenId === 'slip44:501') {
+        currencyName = 'Solana';
+        currencySymbol = 'SOL';
+        currencyDecimals = 9;
+      } else if (currencyTokenId === 'slip44:714') {
+        currencyName = 'Binance Coin';
+        currencySymbol = 'BNB';
+        currencyDecimals = 18;
+      } else {
+        // Generate a short symbol from token ID (max 16 chars for DB constraint)
+        currencySymbol = currencyTokenId.substring(0, 16);
+      }
+
       await this.repo.sql`
         INSERT INTO currencies (
           blockchain_key,
@@ -970,9 +1034,9 @@ export class TestController {
         VALUES (
           ${currencyBlockchainKey},
           ${currencyTokenId},
-          'Test Currency',
+          ${currencyName},
           ${currencySymbol},
-          18,
+          ${currencyDecimals},
           'https://assets.cryptogadai.com/currencies/default.png'
         )
         ON CONFLICT (blockchain_key, token_id)

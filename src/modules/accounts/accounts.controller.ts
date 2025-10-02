@@ -62,7 +62,7 @@ export class AccountsController {
   })
   async getAccountBalances(@Session() session: UserSession): Promise<AccountBalancesResponseDto> {
     const {
-      session: { id },
+      user: { id },
     } = session;
     this.logger.log(`Getting account balances for user: ${id}`);
     return await this.accountsService.getAccountBalances(id);
@@ -171,10 +171,10 @@ export class AccountsController {
     @Session() session: UserSession,
   ): Promise<AccountMutationsResponseDto> {
     const {
-      session: { id },
+      user: { id },
     } = session;
     this.logger.log(`Getting mutations for account: ${accountId}, user: ${id}`);
-    return await this.accountsService.getAccountMutations(accountId, query);
+    return await this.accountsService.getAccountMutations(accountId, query, id);
   }
 }
 
@@ -212,7 +212,7 @@ export class PortfolioController {
     @Session() session: UserSession,
   ): Promise<PortfolioAnalyticsResponseDto> {
     const {
-      session: { id },
+      user: { id },
     } = session;
     this.logger.log(`Getting portfolio analytics for user: ${id}`);
     return await this.accountsService.getPortfolioAnalytics(id);
@@ -244,7 +244,7 @@ export class PortfolioController {
     @Session() session: UserSession,
   ): Promise<PortfolioOverviewResponseDto> {
     const {
-      session: { id },
+      user: { id },
     } = session;
     this.logger.log(`Getting portfolio overview for user: ${id}`);
     return await this.accountsService.getPortfolioOverview(id);
