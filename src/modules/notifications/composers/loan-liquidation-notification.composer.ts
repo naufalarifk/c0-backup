@@ -1,8 +1,7 @@
 import type {
   AnyNotificationPayload,
-  APNSNotificationPayload,
   EmailNotificationPayload,
-  FCMNotificationPayload,
+  ExpoNotificationPayload,
   NotificationData,
   SMSNotificationPayload,
 } from '../notification.types';
@@ -11,23 +10,22 @@ import { Injectable } from '@nestjs/common';
 
 import { assertDefined, assertPropString } from 'typeshaper';
 
+import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { NotificationChannelEnum } from '../notification.types';
-import { Composer, NotificationComposer } from '../notification-composer.abstract';
+import {
+  Composer,
+  NotificationComposer,
+  type UserNotificationData,
+} from '../notification-composer.abstract';
 
 export type LoanLiquidationNotificationData = NotificationData & {
   type: 'LoanLiquidation';
   userId: string;
-  email?: string;
-  phoneNumber?: string;
-  deviceToken?: string;
-  fcmToken?: string;
-  apnsToken?: string;
   loanId: string;
   liquidationAmount: string;
-  sound?: string;
   originalAmount?: string;
   collateralType?: string;
-};
+} & Partial<UserNotificationData>;
 
 function assertLoanLiquidationNotificationData(
   data: unknown,
@@ -41,56 +39,55 @@ function assertLoanLiquidationNotificationData(
 @Injectable()
 @Composer('LoanLiquidation')
 export class LoanLiquidationNotificationComposer extends NotificationComposer<LoanLiquidationNotificationData> {
+  constructor(repository: CryptogadaiRepository) {
+    super(repository);
+  }
+
   async composePayloads(data: unknown): Promise<AnyNotificationPayload[]> {
     assertLoanLiquidationNotificationData(data);
+
+    // ✨ Smart enrichment: Auto-fetch and merge user contact data
+    const enrichedData = await this.enrichWithUserData(data);
 
     const payloads: AnyNotificationPayload[] = [];
 
     // Send email notification if email is present
-    if (data.email) {
+    if (enrichedData.email) {
       payloads.push({
         channel: NotificationChannelEnum.Email,
-        to: data.email,
+        to: enrichedData.email,
         subject: 'Urgent: Loan Liquidation Notice - CryptoGadai',
-        htmlBody: this.renderEmailHtmlBody(data),
-        textBody: this.renderEmailTextBody(data),
+        htmlBody: this.renderEmailHtmlBody(enrichedData),
+        textBody: this.renderEmailTextBody(enrichedData),
       } as EmailNotificationPayload);
     }
 
     // Send SMS notification if phoneNumber is present
-    if (data.phoneNumber) {
+    if (enrichedData.phoneNumber) {
       payloads.push({
         channel: NotificationChannelEnum.SMS,
-        to: data.phoneNumber,
-        message: `URGENT: Your loan ${data.loanId} has been liquidated for $${data.liquidationAmount}. Please check your account immediately.`,
+        to: enrichedData.phoneNumber,
+        message: `URGENT: Your loan ${enrichedData.loanId} has been liquidated for $${enrichedData.liquidationAmount}. Please check your account immediately.`,
       } as SMSNotificationPayload);
     }
 
-    // Send FCM notification if fcmToken or deviceToken is present
-    if (data.fcmToken || data.deviceToken) {
+    // Expo notification - multi-device support
+    const tokens =
+      enrichedData.expoPushTokens ||
+      (enrichedData.expoPushToken ? [enrichedData.expoPushToken] : []);
+    for (const token of tokens) {
       payloads.push({
-        channel: NotificationChannelEnum.FCM,
-        to: data.fcmToken || data.deviceToken,
+        channel: NotificationChannelEnum.Expo,
+        to: token,
         title: 'Loan Liquidation Alert',
-        body: `Your loan has been liquidated for $${data.liquidationAmount}`,
+        body: `Your loan has been liquidated for $${enrichedData.liquidationAmount}`,
+        priority: 'high',
         data: {
-          loanId: data.loanId,
-          liquidationAmount: data.liquidationAmount,
           type: 'LoanLiquidation',
+          loanId: enrichedData.loanId,
+          liquidationAmount: enrichedData.liquidationAmount,
         },
-      } as FCMNotificationPayload);
-    }
-
-    // Send APNS notification if apnsToken is present
-    if (data.apnsToken) {
-      payloads.push({
-        channel: NotificationChannelEnum.APN,
-        to: data.apnsToken,
-        title: 'Loan Liquidation Alert',
-        body: `Your loan has been liquidated for $${data.liquidationAmount}`,
-        badge: 1,
-        sound: data.sound || 'default',
-      } as APNSNotificationPayload);
+      } as ExpoNotificationPayload);
     }
 
     return payloads;

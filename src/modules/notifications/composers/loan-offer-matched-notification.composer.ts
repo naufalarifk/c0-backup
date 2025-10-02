@@ -1,39 +1,38 @@
 import type {
   AnyNotificationPayload,
-  APNSNotificationPayload,
   EmailNotificationPayload,
+  ExpoNotificationPayload,
   NotificationData,
   SMSNotificationPayload,
 } from '../notification.types';
 
 import { Injectable } from '@nestjs/common';
 
-import { assertDefined, assertPropString, hasProp, hasPropDefined } from 'typeshaper';
+import { assertDefined, assertPropString } from 'typeshaper';
 
+import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { NotificationChannelEnum } from '../notification.types';
-import { Composer, NotificationComposer } from '../notification-composer.abstract';
+import {
+  Composer,
+  NotificationComposer,
+  type UserNotificationData,
+} from '../notification-composer.abstract';
 
 export type LoanOfferMatchedNotificationData = NotificationData & {
   type: 'LoanOfferMatched';
   userId: string;
-  email?: string;
-  phoneNumber?: string;
-  deviceToken?: string;
   loanOfferId: string;
   amount: string;
   interestRate: string;
   term?: string;
   matchScore?: string;
-};
+} & Partial<UserNotificationData>;
 
 function assertLoanOfferMatchedNotificationData(
   data: unknown,
 ): asserts data is LoanOfferMatchedNotificationData {
   assertDefined(data, 'Notification data is required');
   assertPropString(data, 'userId', 'User ID is required');
-  if (hasPropDefined(data, 'deviceToken')) {
-    assertPropString(data, 'deviceToken', 'Device token is required');
-  }
   assertPropString(data, 'loanOfferId', 'Loan offer ID is required');
   assertPropString(data, 'amount', 'Amount is required');
   assertPropString(data, 'interestRate', 'Interest rate is required');
@@ -42,40 +41,55 @@ function assertLoanOfferMatchedNotificationData(
 @Injectable()
 @Composer('LoanOfferMatched')
 export class LoanOfferMatchedNotificationComposer extends NotificationComposer<LoanOfferMatchedNotificationData> {
+  constructor(repository: CryptogadaiRepository) {
+    super(repository);
+  }
+
   async composePayloads(data: unknown): Promise<AnyNotificationPayload[]> {
     assertLoanOfferMatchedNotificationData(data);
+
+    // ✨ Smart enrichment: Auto-fetch and merge user contact data
+    const enrichedData = await this.enrichWithUserData(data);
 
     const payloads: AnyNotificationPayload[] = [];
 
     // Send email notification if email is present
-    if (data.email) {
+    if (enrichedData.email) {
       payloads.push({
         channel: NotificationChannelEnum.Email,
-        to: data.email,
+        to: enrichedData.email,
         subject: 'New Loan Offer Available - CryptoGadai',
-        htmlBody: this.renderEmailHtmlBody(data),
-        textBody: this.renderEmailTextBody(data),
+        htmlBody: this.renderEmailHtmlBody(enrichedData),
+        textBody: this.renderEmailTextBody(enrichedData),
       } as EmailNotificationPayload);
     }
 
     // Send SMS notification if phoneNumber is present
-    if (data.phoneNumber) {
+    if (enrichedData.phoneNumber) {
       payloads.push({
         channel: NotificationChannelEnum.SMS,
-        to: data.phoneNumber,
-        message: `New loan offer: $${data.amount} at ${data.interestRate}${data.term ? ` for ${data.term}` : ''}. Review: /loans/${data.loanOfferId}`,
+        to: enrichedData.phoneNumber,
+        message: `New loan offer: $${enrichedData.amount} at ${enrichedData.interestRate}${enrichedData.term ? ` for ${enrichedData.term}` : ''}. Review: /loans/${enrichedData.loanOfferId}`,
       } as SMSNotificationPayload);
     }
 
-    // Send APNS notification if deviceToken is present
-    if (data.deviceToken) {
+    // Expo notification - multi-device support
+    const tokens =
+      enrichedData.expoPushTokens ||
+      (enrichedData.expoPushToken ? [enrichedData.expoPushToken] : []);
+    for (const token of tokens) {
       payloads.push({
-        channel: NotificationChannelEnum.APN,
-        to: data.deviceToken,
+        channel: NotificationChannelEnum.Expo,
+        to: token,
         title: 'Loan Offer Matched',
-        body: `New loan offer: ${data.amount} at ${data.interestRate}${data.term ? ` for ${data.term}` : ''}`,
-        badge: 1,
-      } as APNSNotificationPayload);
+        body: `New loan offer: ${enrichedData.amount} at ${enrichedData.interestRate}${enrichedData.term ? ` for ${enrichedData.term}` : ''}`,
+        data: {
+          type: 'LoanOfferMatched',
+          loanOfferId: enrichedData.loanOfferId,
+          amount: enrichedData.amount,
+          interestRate: enrichedData.interestRate,
+        },
+      } as ExpoNotificationPayload);
     }
 
     return payloads;

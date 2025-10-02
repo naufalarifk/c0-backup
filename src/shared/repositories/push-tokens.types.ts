@@ -1,6 +1,6 @@
 // Push token management types
 
-import type { ExpoPushTicket } from 'expo-server-sdk';
+import type { ExpoPushTicket, ExpoPushToken } from 'expo-server-sdk';
 
 export type PushTokenRegisterParams = {
   userId: string;
@@ -16,7 +16,7 @@ export type PushTokenRegisterParams = {
 export type PushTokenRegisterResult = {
   id: string;
   userId: string;
-  pushToken: string;
+  pushToken: ExpoPushToken;
   deviceId: string | null;
   isNew: boolean; // true if created, false if updated
 };
@@ -32,7 +32,7 @@ export type PushTokenUnregisterResult = {
 
 export type PushTokenSyncParams = {
   userId: string;
-  pushToken?: string;
+  pushToken?: ExpoPushToken;
   deviceId?: string;
   currentSessionId: string;
   lastUsedDate: Date;
@@ -50,7 +50,7 @@ export type PushTokenListByUserParams = {
 export type PushTokenListByUserResult = {
   tokens: Array<{
     id: string;
-    pushToken: string;
+    pushToken: ExpoPushToken;
     deviceId: string | null;
     deviceType: 'ios' | 'android';
     deviceName?: string | null;
@@ -70,7 +70,7 @@ export type PushTokenGetActiveParams = {
 export type PushTokenGetActiveResult = {
   tokens: Array<{
     id: string;
-    pushToken: string;
+    pushToken: ExpoPushToken;
     deviceId: string | null;
     currentSessionId?: string | null;
   }>;

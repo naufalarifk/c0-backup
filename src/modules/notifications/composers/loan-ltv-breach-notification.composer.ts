@@ -1,8 +1,7 @@
 import type {
   AnyNotificationPayload,
-  APNSNotificationPayload,
   EmailNotificationPayload,
-  FCMNotificationPayload,
+  ExpoNotificationPayload,
   NotificationData,
   SMSNotificationPayload,
 } from '../notification.types';
@@ -11,22 +10,23 @@ import { Injectable } from '@nestjs/common';
 
 import { assertDefined, assertPropString } from 'typeshaper';
 
+import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { NotificationChannelEnum } from '../notification.types';
-import { Composer, NotificationComposer } from '../notification-composer.abstract';
+import {
+  Composer,
+  NotificationComposer,
+  type UserNotificationData,
+} from '../notification-composer.abstract';
 
 export type LoanLtvBreachNotificationData = NotificationData & {
   type: 'LoanLtvBreach';
   userId: string;
-  email?: string;
-  phoneNumber?: string;
-  fcmToken?: string;
-  apnsToken?: string;
   loanId: string;
   currentLtv: string;
   thresholdLtv: string;
   collateralValue?: string;
   loanAmount?: string;
-};
+} & Partial<UserNotificationData>;
 
 function assertLoanLtvBreachNotificationData(
   data: unknown,
@@ -41,57 +41,56 @@ function assertLoanLtvBreachNotificationData(
 @Injectable()
 @Composer('LoanLtvBreach')
 export class LoanLtvBreachNotificationComposer extends NotificationComposer<LoanLtvBreachNotificationData> {
+  constructor(repository: CryptogadaiRepository) {
+    super(repository);
+  }
+
   async composePayloads(data: unknown): Promise<AnyNotificationPayload[]> {
     assertLoanLtvBreachNotificationData(data);
+
+    // ✨ Smart enrichment: Auto-fetch and merge user contact data
+    const enrichedData = await this.enrichWithUserData(data);
 
     const payloads: AnyNotificationPayload[] = [];
 
     // Send email notification if email is present
-    if (data.email) {
+    if (enrichedData.email) {
       payloads.push({
         channel: NotificationChannelEnum.Email,
-        to: data.email,
+        to: enrichedData.email,
         subject: 'Alert: LTV Threshold Breach - CryptoGadai',
-        htmlBody: this.renderEmailHtmlBody(data),
-        textBody: this.renderEmailTextBody(data),
+        htmlBody: this.renderEmailHtmlBody(enrichedData),
+        textBody: this.renderEmailTextBody(enrichedData),
       } as EmailNotificationPayload);
     }
 
     // Send SMS notification if phoneNumber is present
-    if (data.phoneNumber) {
+    if (enrichedData.phoneNumber) {
       payloads.push({
         channel: NotificationChannelEnum.SMS,
-        to: data.phoneNumber,
-        message: `ALERT: Your loan ${data.loanId} LTV is ${data.currentLtv}, exceeding the ${data.thresholdLtv} threshold. Please add collateral to avoid liquidation.`,
+        to: enrichedData.phoneNumber,
+        message: `ALERT: Your loan ${enrichedData.loanId} LTV is ${enrichedData.currentLtv}, exceeding the ${enrichedData.thresholdLtv} threshold. Please add collateral to avoid liquidation.`,
       } as SMSNotificationPayload);
     }
 
-    // Send FCM notification if fcmToken is present
-    if (data.fcmToken) {
+    // Expo notification - multi-device support
+    const tokens =
+      enrichedData.expoPushTokens ||
+      (enrichedData.expoPushToken ? [enrichedData.expoPushToken] : []);
+    for (const token of tokens) {
       payloads.push({
-        channel: NotificationChannelEnum.FCM,
-        to: data.fcmToken,
+        channel: NotificationChannelEnum.Expo,
+        to: token,
         title: 'LTV Alert - Action Required',
-        body: `Your loan LTV is ${data.currentLtv}, exceeding ${data.thresholdLtv} threshold`,
+        body: `Your loan LTV is ${enrichedData.currentLtv}, exceeding ${enrichedData.thresholdLtv} threshold`,
+        priority: 'high',
         data: {
-          loanId: data.loanId,
-          currentLtv: data.currentLtv,
-          thresholdLtv: data.thresholdLtv,
           type: 'LoanLtvBreach',
+          loanId: enrichedData.loanId,
+          currentLtv: enrichedData.currentLtv,
+          thresholdLtv: enrichedData.thresholdLtv,
         },
-      } as FCMNotificationPayload);
-    }
-
-    // Send APNS notification if apnsToken is present
-    if (data.apnsToken) {
-      payloads.push({
-        channel: NotificationChannelEnum.APN,
-        to: data.apnsToken,
-        title: 'LTV Alert - Action Required',
-        body: `Your loan LTV is ${data.currentLtv}, exceeding ${data.thresholdLtv} threshold`,
-        badge: 1,
-        sound: 'default',
-      } as APNSNotificationPayload);
+      } as ExpoNotificationPayload);
     }
 
     return payloads;

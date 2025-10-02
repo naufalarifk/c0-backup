@@ -1,7 +1,7 @@
 import type {
   AnyNotificationPayload,
   EmailNotificationPayload,
-  FCMNotificationPayload,
+  ExpoNotificationPayload,
   NotificationData,
   SMSNotificationPayload,
 } from '../notification.types';
@@ -10,21 +10,21 @@ import { Injectable } from '@nestjs/common';
 
 import { assertDefined, assertPropString } from 'typeshaper';
 
+import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { NotificationChannelEnum } from '../notification.types';
-import { Composer, NotificationComposer } from '../notification-composer.abstract';
+import {
+  Composer,
+  NotificationComposer,
+  type UserNotificationData,
+} from '../notification-composer.abstract';
 
 export type SuspiciousLoginAttemptNotificationData = NotificationData & {
   type: 'SuspiciousLoginAttempt';
   userId: string;
-  email?: string;
-  phoneNumber?: string;
-  fcmToken?: string;
-  deviceToken?: string;
-  apnsToken?: string;
   location?: string;
   ipAddress?: string;
   timestamp?: string;
-};
+} & Partial<UserNotificationData>;
 
 function assertSuspiciousLoginAttemptNotificationData(
   data: unknown,
@@ -36,47 +36,58 @@ function assertSuspiciousLoginAttemptNotificationData(
 @Injectable()
 @Composer('SuspiciousLoginAttempt')
 export class SuspiciousLoginAttemptNotificationComposer extends NotificationComposer<SuspiciousLoginAttemptNotificationData> {
+  constructor(repository: CryptogadaiRepository) {
+    super(repository);
+  }
+
   async composePayloads(data: unknown): Promise<AnyNotificationPayload[]> {
     assertSuspiciousLoginAttemptNotificationData(data);
 
+    // ✨ Smart enrichment: Auto-fetch and merge user contact data
+    const enrichedData = await this.enrichWithUserData(data);
+
     const payloads: AnyNotificationPayload[] = [];
-    const location = data.location || 'Unknown Location';
-    const timestamp = data.timestamp || new Date().toISOString();
+    const location = enrichedData.location || 'Unknown Location';
+    const timestamp = enrichedData.timestamp || new Date().toISOString();
 
     // Email notification
-    if (data.email) {
+    if (enrichedData.email) {
       payloads.push({
         channel: NotificationChannelEnum.Email,
-        to: data.email,
+        to: enrichedData.email,
         subject: 'Security Alert - Suspicious Login Attempt',
-        htmlBody: this.renderEmailHtmlBody(data.email, location, timestamp),
-        textBody: this.renderEmailTextBody(data.email, location, timestamp),
+        htmlBody: this.renderEmailHtmlBody(enrichedData.email, location, timestamp),
+        textBody: this.renderEmailTextBody(enrichedData.email, location, timestamp),
       } as EmailNotificationPayload);
     }
 
     // SMS notification
-    if (data.phoneNumber) {
+    if (enrichedData.phoneNumber) {
       payloads.push({
         channel: NotificationChannelEnum.SMS,
-        to: data.phoneNumber,
+        to: enrichedData.phoneNumber,
         message: `Security Alert: Suspicious login attempt from ${location}. If this wasn't you, secure your account immediately. - CryptoGadai`,
       } as SMSNotificationPayload);
     }
 
-    // FCM notification
-    if (data.deviceToken || data.fcmToken) {
+    // Expo notification - multi-device support
+    const tokens =
+      enrichedData.expoPushTokens ||
+      (enrichedData.expoPushToken ? [enrichedData.expoPushToken] : []);
+    for (const token of tokens) {
       payloads.push({
-        channel: NotificationChannelEnum.FCM,
-        to: data.deviceToken || data.fcmToken!,
+        channel: NotificationChannelEnum.Expo,
+        to: token,
         title: 'Security Alert - Suspicious Activity',
         body: `Suspicious login attempt detected from ${location}`,
+        priority: 'high',
         data: {
           type: 'SuspiciousLoginAttempt',
-          userId: data.userId,
+          userId: enrichedData.userId,
           location: location,
           timestamp: timestamp,
         },
-      } as FCMNotificationPayload);
+      } as ExpoNotificationPayload);
     }
 
     return payloads;

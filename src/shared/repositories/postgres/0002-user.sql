@@ -10,7 +10,6 @@ CREATE TABLE IF NOT EXISTS users (
   email_verified_date TIMESTAMP,
   created_date TIMESTAMP DEFAULT NOW(),
   updated_date TIMESTAMP DEFAULT NOW(),
-  password_hash TEXT,
   google_id TEXT UNIQUE,
 
   -- Two-factor authentication fields (for 2FA plugin)

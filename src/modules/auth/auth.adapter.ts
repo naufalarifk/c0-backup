@@ -1,4 +1,6 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: integration */
+
+import type { Session } from 'better-auth';
 import type { AdapterDebugLogs } from 'better-auth/adapters';
 
 import { BetterAuthError } from 'better-auth';
@@ -34,7 +36,7 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
         if (model === 'user') {
           return userRepo.betterAuthCreateUser(data) as any;
         } else if (model === 'session') {
-          return userRepo.betterAuthCreateSession(data) as any;
+          return userRepo.betterAuthCreateSession(data as unknown as Session) as any;
         } else if (model === 'account') {
           return userRepo.betterAuthCreateAccount(data) as any;
         } else if (model === 'verification') {

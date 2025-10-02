@@ -1,23 +1,15 @@
+import { Session } from 'better-auth';
 import {
   assertArrayMapOf,
   assertDefined,
-  assertNullableBoolean,
-  assertNullableNumber,
-  assertNullableString,
   assertProp,
-  assertPropBoolean,
   assertPropDefined,
   assertPropNullableBoolean,
-  assertPropNullableFunction,
-  assertPropNullableNumber,
   assertPropNullableString,
-  assertPropNumber,
   assertPropString,
   assertString,
   check,
   isArray,
-  isBoolean,
-  isFunction,
   isInstanceOf,
   isNullable,
   isNumber,
@@ -817,7 +809,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
   }
 
   // Session methods for better-auth (using Redis)
-  async betterAuthCreateSession(data: unknown): Promise<BetterAuthRecord> {
+  async betterAuthCreateSession<T extends Session>(data: T): Promise<BetterAuthRecord> {
     try {
       const payload = ensureRecord(data, 'BetterAuthRepository.betterAuthCreateSession payload');
 
@@ -833,16 +825,17 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       const createdAt = normalizeDateInput(readOptionalDateInput(payload, 'createdAt'), new Date());
       const updatedAt = normalizeDateInput(readOptionalDateInput(payload, 'updatedAt'), new Date());
-      const expiresAtInput = readOptionalDateInput(payload, 'expiresAt');
-      const expiresAt = expiresAtInput ? normalizeDateInput(expiresAtInput, updatedAt) : undefined;
+      const expiresAt = normalizeDateInput(readOptionalDateInput(payload, 'expiresAt'), new Date());
 
-      const session: BetterAuthRecord = {
+      const session: Session = {
         id: String(sessionId),
-        token,
-        userId,
         createdAt,
         updatedAt,
-        ...(expiresAt ? { expiresAt } : {}),
+        userId,
+        expiresAt,
+        token,
+        ipAddress: data.ipAddress,
+        userAgent: data.userAgent,
       };
 
       const user = await this.betterAuthFindOneUser([
@@ -863,7 +856,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
         session,
         user,
       };
-      await this.set(token, JSON.stringify(sessionWithUser), ttl);
+      await this.set(token, sessionWithUser, ttl);
 
       await this.set(`session:token:${token}`, sessionId, ttl);
       await this.set(`session:userId:${userId}`, sessionId, ttl);
@@ -1032,7 +1025,9 @@ export abstract class BetterAuthRepository extends BaseRepository {
       const sessionToken = readOptionalString(session, 'token');
 
       await this.del(`session:${sessionId}`);
+      await this.del(`session:userId:${session.userId}`);
       if (sessionToken) {
+        await this.del(sessionToken);
         await this.del(`session:token:${sessionToken}`);
       }
 

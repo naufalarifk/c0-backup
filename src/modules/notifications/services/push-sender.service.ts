@@ -9,6 +9,7 @@ import { Injectable } from '@nestjs/common';
 import { Expo, ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
 
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { AppConfigService } from '../../../shared/services/app-config.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 
 @Injectable()
@@ -16,8 +17,13 @@ export class PushSenderService {
   private readonly logger = new TelemetryLogger(PushSenderService.name);
   private readonly expo: Expo;
 
-  constructor(private readonly repository: CryptogadaiRepository) {
-    this.expo = new Expo();
+  constructor(
+    private readonly repository: CryptogadaiRepository,
+    private readonly configService: AppConfigService,
+  ) {
+    this.expo = new Expo({
+      accessToken: this.configService.notificationConfig.expo.accessToken,
+    });
   }
 
   /**

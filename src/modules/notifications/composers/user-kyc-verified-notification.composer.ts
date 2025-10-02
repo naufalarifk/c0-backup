@@ -1,7 +1,6 @@
 import type {
   AnyNotificationPayload,
-  APNSNotificationPayload,
-  FCMNotificationPayload,
+  ExpoNotificationPayload,
   NotificationData,
   SMSNotificationPayload,
 } from '../notification.types';
@@ -10,31 +9,25 @@ import { Injectable } from '@nestjs/common';
 
 import { assertDefined, assertPropNullableString, assertPropString } from 'typeshaper';
 
+import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { NotificationChannelEnum } from '../notification.types';
-import { Composer, NotificationComposer } from '../notification-composer.abstract';
+import {
+  Composer,
+  NotificationComposer,
+  type UserNotificationData,
+} from '../notification-composer.abstract';
 
 export type UserKycVerifiedNotificationData = NotificationData & {
-  phoneNumber?: string;
-  fcmToken?: string;
-  apnsToken?: string;
+  userId: string;
   verificationLevel?: string;
   name?: string;
-  badgeCount?: number;
-};
+} & Partial<UserNotificationData>;
 
 function assertUserKycVerifiedNotificationData(
   data: unknown,
 ): asserts data is UserKycVerifiedNotificationData {
   assertDefined(data, 'Notification data is required');
-  if (typeof data === 'object' && data !== null && 'phoneNumber' in data) {
-    assertPropNullableString(data, 'phoneNumber');
-  }
-  if (typeof data === 'object' && data !== null && 'fcmToken' in data) {
-    assertPropNullableString(data, 'fcmToken');
-  }
-  if (typeof data === 'object' && data !== null && 'apnsToken' in data) {
-    assertPropNullableString(data, 'apnsToken');
-  }
+  assertPropString(data, 'userId');
   if (typeof data === 'object' && data !== null && 'verificationLevel' in data) {
     assertPropNullableString(data, 'verificationLevel');
   }
@@ -46,36 +39,41 @@ function assertUserKycVerifiedNotificationData(
 @Injectable()
 @Composer('UserKycVerified')
 export class UserKycVerifiedNotificationComposer extends NotificationComposer<UserKycVerifiedNotificationData> {
+  constructor(repository: CryptogadaiRepository) {
+    super(repository);
+  }
+
   async composePayloads(data: unknown): Promise<AnyNotificationPayload[]> {
     assertUserKycVerifiedNotificationData(data);
+
+    // ✨ Smart enrichment: Auto-fetch and merge user contact data
+    const enrichedData = await this.enrichWithUserData(data);
+
     const payloads: AnyNotificationPayload[] = [];
 
-    if (data.phoneNumber) {
+    if (enrichedData.phoneNumber) {
       payloads.push({
         channel: NotificationChannelEnum.SMS,
-        to: data.phoneNumber,
-        message: this.renderSMSMessage(data),
+        to: enrichedData.phoneNumber,
+        message: this.renderSMSMessage(enrichedData),
       } as SMSNotificationPayload);
     }
 
-    if (data.fcmToken) {
+    // Expo notification - multi-device support
+    const tokens =
+      enrichedData.expoPushTokens ||
+      (enrichedData.expoPushToken ? [enrichedData.expoPushToken] : []);
+    for (const token of tokens) {
       payloads.push({
-        channel: NotificationChannelEnum.FCM,
-        to: data.fcmToken,
+        channel: NotificationChannelEnum.Expo,
+        to: token,
         title: 'KYC Verification Successful',
-        body: this.renderPushMessage(data),
-      } as FCMNotificationPayload);
-    }
-
-    if (data.apnsToken) {
-      payloads.push({
-        channel: NotificationChannelEnum.APN,
-        to: data.apnsToken,
-        title: 'KYC Verified Successfully',
-        body: this.renderPushMessage(data),
-        badge: data.badgeCount || 1,
-        sound: 'default',
-      } as APNSNotificationPayload);
+        body: this.renderPushMessage(enrichedData),
+        data: {
+          type: 'UserKycVerified',
+          verificationLevel: enrichedData.verificationLevel,
+        },
+      } as ExpoNotificationPayload);
     }
 
     return await Promise.resolve(payloads);

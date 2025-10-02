@@ -1,6 +1,6 @@
 import type {
   AnyNotificationPayload,
-  FCMNotificationPayload,
+  ExpoNotificationPayload,
   NotificationData,
 } from '../notification.types';
 
@@ -38,9 +38,9 @@ export class InvoiceCreatedNotificationComposer extends NotificationComposer<Inv
 
     const payloads: AnyNotificationPayload[] = [];
 
-    // FCM notification
+    // Expo notification
     payloads.push({
-      channel: NotificationChannelEnum.FCM,
+      channel: NotificationChannelEnum.Expo,
       to: data.deviceToken,
       title: 'New Invoice Created',
       body: `Invoice ${data.invoiceId} for ${data.amount} has been created`,
@@ -50,7 +50,7 @@ export class InvoiceCreatedNotificationComposer extends NotificationComposer<Inv
         amount: data.amount,
         clickAction: data.clickAction || `/invoices/${data.invoiceId}`,
       },
-    } as FCMNotificationPayload);
+    } as ExpoNotificationPayload);
 
     return payloads;
   }
