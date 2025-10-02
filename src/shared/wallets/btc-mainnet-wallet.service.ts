@@ -161,13 +161,6 @@ export class BtcMainnetWalletService extends IWalletService {
     return 0;
   }
 
-  getHotWallet(masterKey: HDKey): Promise<IWallet> {
-    return this.derivedPathToWallet({
-      masterKey,
-      derivationPath: `m/44'/${this.bip44CoinType}'/0'/10/0`,
-    });
-  }
-
   derivedPathToWallet({
     masterKey,
     derivationPath,

@@ -15,6 +15,7 @@ import { MailerService } from './services/mailer.service';
 import { MinioService } from './services/minio.service';
 import { MinioMockController } from './services/minio-mock.controller';
 import { MinioMockService } from './services/minio-mock.service';
+import { PlatformConfigService } from './services/platform-config.service';
 import { RedisService } from './services/redis.service';
 import { TelemetryService } from './services/telemetry.service';
 import { TwilioService } from './services/twilio.service';
@@ -23,6 +24,7 @@ import { WalletsModule } from './wallets/wallets.module';
 const providers: Provider[] = [
   AppConfigService,
   CacheService,
+  PlatformConfigService,
   EmailService,
   FileValidatorService,
   MailerService,

@@ -5,7 +5,7 @@ import { Connection } from '@solana/web3.js';
 
 import { BaseSolanaWallet } from './base-solana-wallet';
 import { WalletProvider } from './Iwallet.service';
-import { IWallet, IWalletService } from './Iwallet.types';
+import { IWalletService } from './Iwallet.types';
 
 class SolanaMainnetWallet extends BaseSolanaWallet {
   protected connection: Connection;
@@ -31,13 +31,6 @@ export class SolMainnetWalletService extends IWalletService {
 
   get bip44CoinType(): number {
     return 501;
-  }
-
-  async getHotWallet(masterKey: HDKey): Promise<IWallet> {
-    // Use the default BIP44 path for Solana: m/44'/501'/0'/0'
-    const derivationPath = `m/44'/${this.bip44CoinType}'/0'/0'`;
-    const wallet = await this.derivedPathToWallet({ masterKey, derivationPath });
-    return wallet;
   }
 
   derivedPathToWallet({

@@ -4,17 +4,13 @@ import type { WithdrawalProcessingData } from './withdrawals-queue.service';
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 
-import { HDKey } from '@scure/bip32';
-import { mnemonicToSeed } from '@scure/bip39';
 import { ethers } from 'ethers';
 import invariant from 'tiny-invariant';
 
-import { CryptographyService } from '../../shared/cryptography/cryptography.service';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
-import { AppConfigService } from '../../shared/services/app-config.service';
+import { PlatformConfigService } from '../../shared/services/platform-config.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
-import { WalletFactory } from '../../shared/wallets/Iwallet.service';
-import { IWallet } from '../../shared/wallets/Iwallet.types';
+import { PlatformWalletService } from '../../shared/wallets/platform-wallet.service';
 import { FailureType } from '../admin/withdrawals/admin-withdrawal.dto';
 import { AdminWithdrawalsService } from '../admin/withdrawals/admin-withdrawals.service';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
@@ -48,9 +44,8 @@ export class WithdrawalsProcessor extends WorkerHost {
     private readonly notificationQueueService: NotificationQueueService,
     private readonly blockchainService: BlockchainService,
     private readonly adminWithdrawalsService: AdminWithdrawalsService,
-    private readonly walletFactory: WalletFactory,
-    private readonly configService: AppConfigService,
-    private readonly cryptographyService: CryptographyService,
+    private readonly platformWalletService: PlatformWalletService,
+    private readonly platformConfigService: PlatformConfigService,
     @InjectQueue('withdrawalsQueue')
     private readonly withdrawalsQueue: Queue<WithdrawalProcessingData | ConfirmationMonitoringData>,
   ) {
@@ -399,8 +394,18 @@ export class WithdrawalsProcessor extends WorkerHost {
     );
 
     try {
-      // 1. Load platform wallet securely
-      const platformWallet = await this.getPlatformWallet(params.currencyBlockchainKey);
+      // 1. Load platform hot wallet details
+      const [hotWallet, hotWalletConfig] = await Promise.all([
+        this.platformWalletService.getHotWallet(params.currencyBlockchainKey),
+        this.platformConfigService.getHotWalletConfig(params.currencyBlockchainKey),
+      ]);
+
+      invariant(
+        hotWallet.address === hotWalletConfig.address,
+        'Hot wallet address mismatch detected',
+      );
+
+      const platformWallet = hotWallet.wallet;
 
       // 2. Calculate precise transaction fee and validate amount
       const feeValidation = await this.validateTransactionFees(params);
@@ -416,7 +421,7 @@ export class WithdrawalsProcessor extends WorkerHost {
       const sendAmount = (parseFloat(params.amount) - actualFee).toString();
 
       // 4. Get sender address from platform wallet (HD wallet derived address)
-      const senderAddress = await platformWallet.getAddress();
+      const senderAddress = hotWalletConfig.address;
 
       // 5. Execute transfer using simplified wallet interface
       const transferParams = {
@@ -476,82 +481,6 @@ export class WithdrawalsProcessor extends WorkerHost {
       confirmations,
       failed: false,
     };
-  }
-
-  // Platform Wallet Management
-  private async getPlatformWallet(blockchainKey: string): Promise<IWallet> {
-    try {
-      // Get platform master seed securely from config
-      const platformSeed = await this.getSecurePlatformSeed();
-      const masterKey = HDKey.fromMasterSeed(platformSeed);
-
-      // Get wallet service for the specific blockchain
-      const walletService = this.walletFactory.getWalletService(blockchainKey);
-
-      // Get the hot wallet (platform's operational wallet)
-      return await walletService.getHotWallet(masterKey);
-    } catch (error) {
-      this.logger.error(`Failed to load platform wallet for ${blockchainKey}:`, error);
-      throw new Error(
-        `Platform wallet unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-    }
-  }
-
-  private async getSecurePlatformSeed(): Promise<Buffer> {
-    const walletConfig = this.configService.walletConfig;
-    const cryptoConfig = this.configService.cryptographyConfig;
-
-    // In test mode, allow mnemonic-based seed generation
-    if (walletConfig.enableTestMode && walletConfig.platformMasterMnemonic) {
-      this.logger.warn('Using test mode platform seed - NOT for production use');
-      const seed = await mnemonicToSeed(walletConfig.platformMasterMnemonic);
-      return Buffer.from(seed);
-    }
-
-    try {
-      // Production mode: Use Vault for secure seed management
-      if (cryptoConfig.engine === 'vault') {
-        this.logger.log('Retrieving platform seed from Vault');
-
-        // Get encrypted seed from Vault
-        const secretData = await this.cryptographyService.getSecret('wallet/platform-seed');
-
-        if (!secretData || typeof secretData !== 'object') {
-          throw new Error('Platform seed not found in Vault');
-        }
-
-        const secretObj = secretData as Record<string, unknown>;
-        const encryptedSeed = secretObj.encrypted_seed as string;
-
-        if (!encryptedSeed) {
-          throw new Error('Encrypted seed not found in Vault secret');
-        }
-
-        // Decrypt using Vault Transit engine
-        const decryptResult = await this.cryptographyService.decrypt(
-          'platform-wallet',
-          encryptedSeed,
-        );
-        const seedHex = decryptResult.plaintext;
-
-        // Convert from hex to Buffer
-        return Buffer.from(seedHex, 'hex');
-      } else {
-        // Local encryption fallback (less secure)
-        if (!walletConfig.platformSeedEncrypted || !walletConfig.platformSeedEncryptionKey) {
-          throw new Error('Platform seed configuration missing - security critical');
-        }
-
-        // TODO: Implement local AES-256-GCM decryption
-        throw new Error('Local encryption not yet implemented - use Vault for production');
-      }
-    } catch (error) {
-      this.logger.error('Failed to retrieve platform seed:', error);
-      throw new Error(
-        `Platform seed access failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-    }
   }
 
   private async validateTransactionFees(params: {
