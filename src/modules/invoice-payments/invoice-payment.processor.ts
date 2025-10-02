@@ -47,7 +47,6 @@ export class InvoicePaymentProcessor extends WorkerHost {
     );
 
     await this.walletBalanceCollectorQueue.enqueueBalanceCollection({
-      invoiceId,
       blockchainKey,
       walletAddress,
       walletDerivationPath,

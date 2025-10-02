@@ -3,7 +3,7 @@ import type { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 
-import { WalletBalanceCollectionJobData } from './wallet-balance-collector.types';
+import { WalletBalanceCollectionJobData } from './balance-collection.types';
 
 export interface EnqueueWalletBalanceCollectionOptions {
   delay?: number;
@@ -36,8 +36,6 @@ export class WalletBalanceCollectorQueueService {
       priority: options.priority ?? 5,
     });
 
-    this.logger.debug(
-      `Queued wallet balance collection job ${job.id} for invoice ${data.invoiceId} (${data.blockchainKey})`,
-    );
+    this.logger.debug(`Queued wallet balance collection job ${job.id} (${data.blockchainKey})`);
   }
 }

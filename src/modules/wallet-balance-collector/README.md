@@ -133,3 +133,9 @@ For Ethereum-based chains, the service reserves gas for the transfer transaction
 4. Add support for SPL token collection
 5. Optimize gas estimation for Ethereum transfers
 6. Add configurable gas reserve thresholds
+
+
+
+## TODO 
+
+1. delete invoice id params as it is no longer needed
