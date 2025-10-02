@@ -1781,14 +1781,9 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const rows = await tx.sql`
         UPDATE push_tokens
-        SET
-          current_session_id = NULL,
-          last_used_date = NOW(),
-          updated_date = NOW()
-        WHERE
-          current_session_id = ${currentSessionId}
-          AND user_id = ${userId}
-        RETURNING id;
+        SET current_session_id = NULL, last_used_date = NOW(), updated_date = NOW()
+        WHERE current_session_id = ${currentSessionId} AND user_id = ${userId}
+        RETURNING id
       `;
 
       await tx.commitTransaction();
@@ -1815,15 +1810,9 @@ export abstract class UserRepository extends BetterAuthRepository {
 
       const rows = await tx.sql`
         UPDATE push_tokens
-        SET
-          current_session_id = ${currentSessionId},
-          is_active = true,
-          last_used_date = ${lastUsedDate},
-          updated_date = NOW()
-        WHERE
-          user_id = ${userId}
-          AND (push_token = ${pushToken} OR device_id = ${deviceId})
-        RETURNING id;
+        SET current_session_id = ${currentSessionId}, is_active = true, last_used_date = ${lastUsedDate}, updated_date = NOW()
+        WHERE user_id = ${userId} AND (push_token = ${pushToken} OR device_id = ${deviceId})
+        RETURNING id
       `;
 
       await tx.commitTransaction();
@@ -1847,23 +1836,23 @@ export abstract class UserRepository extends BetterAuthRepository {
   ): Promise<PushTokenListByUserResult> {
     const { userId, activeOnly = false } = params;
 
-    const rows = await this.sql`
-      SELECT
-        id,
-        push_token,
-        device_id,
-        device_type,
-        device_name,
-        device_model,
-        current_session_id,
-        is_active,
-        last_used_date
-      FROM push_tokens
-      WHERE
-        user_id = ${userId}
-        ${activeOnly ? this.sql`AND is_active = true` : this.sql``}
-      ORDER BY last_used_date DESC;
-    `;
+    let rows;
+
+    if (activeOnly) {
+      rows = await this.sql`
+        SELECT id, push_token, device_id, device_type, device_name, device_model, current_session_id, is_active, last_used_date
+        FROM push_tokens
+        WHERE user_id = ${userId} AND is_active = true
+        ORDER BY last_used_date DESC
+      `;
+    } else {
+      rows = await this.sql`
+        SELECT id, push_token, device_id, device_type, device_name, device_model, current_session_id, is_active, last_used_date
+        FROM push_tokens
+        WHERE user_id = ${userId}
+        ORDER BY last_used_date DESC
+      `;
+    }
 
     assertArrayMapOf(rows, function (row) {
       assertDefined(row, 'Failed to list push tokens');
@@ -1903,15 +1892,29 @@ export abstract class UserRepository extends BetterAuthRepository {
   ): Promise<PushTokenGetActiveResult> {
     const { userId, targetDevices = 'all', deviceIds } = params;
 
-    const rows = await this.sql`
-      SELECT id, push_token, device_id, current_session_id
-      FROM push_tokens
-      WHERE
-        user_id = ${userId}
-        AND is_active = true
-        ${targetDevices === 'active_sessions' ? this.sql`AND current_session_id IS NOT NULL` : this.sql``}
-        ${targetDevices === 'specific' && deviceIds?.length ? this.sql`AND device_id = ANY(${deviceIds})` : this.sql``}
-    `;
+    // Build query based on target devices
+    let rows;
+
+    if (targetDevices === 'active_sessions') {
+      rows = await this.sql`
+        SELECT id, push_token, device_id, current_session_id
+        FROM push_tokens
+        WHERE user_id = ${userId} AND is_active = true AND current_session_id IS NOT NULL
+      `;
+    } else if (targetDevices === 'specific' && deviceIds?.length) {
+      rows = await this.sql`
+        SELECT id, push_token, device_id, current_session_id
+        FROM push_tokens
+        WHERE user_id = ${userId} AND is_active = true AND device_id = ANY(${deviceIds})
+      `;
+    } else {
+      // targetDevices === 'all' or default
+      rows = await this.sql`
+        SELECT id, push_token, device_id, current_session_id
+        FROM push_tokens
+        WHERE user_id = ${userId} AND is_active = true
+      `;
+    }
 
     assertArrayMapOf(rows, function (row) {
       assertDefined(row, 'Failed to get active tokens');
@@ -1946,9 +1949,8 @@ export abstract class UserRepository extends BetterAuthRepository {
       const rows = await tx.sql`
         UPDATE push_tokens
         SET is_active = false, updated_date = NOW()
-        WHERE last_used_date < ${thirtyDaysAgo}
-          AND is_active = true
-        RETURNING id;
+        WHERE last_used_date < ${thirtyDaysAgo} AND is_active = true
+        RETURNING id
       `;
 
       await tx.commitTransaction();

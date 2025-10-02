@@ -26,25 +26,24 @@ import { NotificationService } from './notification.service';
 import { NotificationComposerFactory } from './notification-composer.factory';
 import { NotificationProviderFactory } from './notification-provider.factory';
 import { NotificationQueueService } from './notification-queue.service';
-import { NotificationsModule } from './notifications.module';
 import { APNSNotificationProvider } from './providers/apns-notification.provider';
 import { EmailNotificationProvider } from './providers/email-notification.provider';
 import { ExpoNotificationProvider } from './providers/expo-notification.provider';
 import { FCMNotificationProvider } from './providers/fcm-notification.provider';
 import { SMSNotificationProvider } from './providers/sms-notification.provider';
+import { PushSenderService } from './services/push-sender.service';
 @Module({
   imports: [
     DiscoveryModule,
-    NotificationsModule,
     BullModule.registerQueue({
       name: 'notificationQueue',
     }),
   ],
-  controllers: [],
   providers: [
     // Core services
     NotificationService,
     NotificationQueueService,
+    PushSenderService,
 
     // Factories
     NotificationComposerFactory,

@@ -76,14 +76,31 @@ export type PushTokenGetActiveResult = {
   }>;
 };
 
+/**
+ * Notification data payload (matches expo-app NotificationData)
+ */
+export type NotificationDataPayload = {
+  type?: string; // Notification type for filtering
+  action?: string; // Action identifier for handlers
+  targetScreen?: string; // Screen to navigate to (e.g., '/(tabs)/profile', '/loan/123')
+  deepLink?: string; // Deep link URL
+  metadata?: Record<string, unknown>; // Additional contextual data
+  [key: string]: unknown; // Allow additional fields
+};
+
 export type SendPushNotificationParams = {
   userId: string;
   title: string;
   body: string;
-  data?: Record<string, unknown>;
+  data?: NotificationDataPayload;
   targetDevices?: 'all' | 'active_sessions' | 'specific';
   deviceIds?: string[];
   priority?: 'high' | 'normal';
+  sound?: boolean | string;
+  badge?: number;
+  channelId?: string; // Android channel
+  categoryId?: string; // iOS category
+  subtitle?: string; // iOS subtitle
 };
 
 export type SendPushNotificationResult = {

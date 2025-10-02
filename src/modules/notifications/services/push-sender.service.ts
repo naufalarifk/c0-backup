@@ -38,6 +38,11 @@ export class PushSenderService {
       targetDevices = 'active_sessions',
       deviceIds,
       priority,
+      sound = 'default',
+      badge,
+      channelId,
+      categoryId,
+      subtitle,
     } = params;
 
     // Get active tokens for user
@@ -62,14 +67,18 @@ export class PushSenderService {
       return { sent: 0, failed: 0, tickets: [] };
     }
 
-    // Build push messages
+    // Build push messages with full Expo support
     const messages: ExpoPushMessage[] = validTokens.map(token => ({
       to: token.pushToken,
-      sound: 'default',
+      sound: typeof sound === 'string' ? sound : sound ? 'default' : undefined,
       title,
       body,
+      subtitle, // iOS only
       data: data || {},
       priority: priority === 'high' ? 'high' : 'default',
+      badge, // iOS badge count
+      channelId, // Android channel
+      categoryId, // iOS category for actions
     }));
 
     try {
