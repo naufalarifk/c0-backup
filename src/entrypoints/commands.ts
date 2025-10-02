@@ -153,6 +153,19 @@ export const COMMAND_DEFINITIONS: Record<CommandKey, CommandDefinition> = {
       };
     },
   },
+  'wallet-balance-collector': {
+    imports: [WalletBalanceCollectorModule],
+    usesBull: true,
+    async bootstrap() {
+      const logger = new TelemetryLogger('WalletBalanceCollectorWorker');
+      logger.log('Wallet balance collector worker started successfully');
+      return {
+        cleanup: () => {
+          logger.log('Wallet balance collector worker shutting down');
+        },
+      };
+    },
+  },
   migration: {
     async bootstrap({ app }) {
       const logger = new TelemetryLogger('MigrationRunner');
@@ -163,19 +176,6 @@ export const COMMAND_DEFINITIONS: Record<CommandKey, CommandDefinition> = {
       return {
         cleanup: () => {
           /** ignore */
-        },
-      };
-    },
-  },
-  'wallet-balance-collector': {
-    imports: [WalletBalanceCollectorModule],
-    usesBull: true,
-    async bootstrap() {
-      const logger = new TelemetryLogger('WalletBalanceCollectorWorker');
-      logger.log('Wallet balance collector worker started successfully');
-      return {
-        cleanup: () => {
-          logger.log('Wallet balance collector worker shutting down');
         },
       };
     },

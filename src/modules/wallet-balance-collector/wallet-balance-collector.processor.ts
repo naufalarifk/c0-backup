@@ -3,8 +3,8 @@ import type { Job } from 'bullmq';
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 
+import { WalletBalanceCollectionJobData } from './balance-collection.types';
 import { WalletBalanceCollectorService } from './wallet-balance-collector.service';
-import { WalletBalanceCollectionJobData } from './wallet-balance-collector.types';
 
 @Injectable()
 @Processor('walletBalanceCollectorQueue')
@@ -16,14 +16,13 @@ export class WalletBalanceCollectorProcessor extends WorkerHost {
   }
 
   async process(job: Job<WalletBalanceCollectionJobData>): Promise<void> {
-    const { invoiceId, blockchainKey, walletAddress, walletDerivationPath } = job.data;
+    const { blockchainKey, walletAddress, walletDerivationPath } = job.data;
 
     this.logger.debug(
-      `Processing wallet balance collection job ${job.id} for invoice ${invoiceId} (blockchain: ${blockchainKey})`,
+      `Processing wallet balance collection job ${job.id} (blockchain: ${blockchainKey})`,
     );
 
     await this.walletBalanceCollectorService.collectBalance({
-      invoiceId,
       blockchainKey,
       walletAddress,
       walletDerivationPath,
@@ -32,15 +31,11 @@ export class WalletBalanceCollectorProcessor extends WorkerHost {
 
   @OnWorkerEvent('completed')
   onCompleted(job: Job<WalletBalanceCollectionJobData>) {
-    this.logger.debug(
-      `Wallet balance collection job ${job.id} completed for invoice ${job.data.invoiceId}`,
-    );
+    this.logger.debug(`Wallet balance collection job ${job.id} completed`);
   }
 
   @OnWorkerEvent('failed')
   onFailed(job: Job<WalletBalanceCollectionJobData>, error: Error) {
-    this.logger.error(
-      `Wallet balance collection job ${job.id} failed for invoice ${job.data.invoiceId}: ${error.message}`,
-    );
+    this.logger.error(`Wallet balance collection job ${job.id} failed: ${error.message}`);
   }
 }

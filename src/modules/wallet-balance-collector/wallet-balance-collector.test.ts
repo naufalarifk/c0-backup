@@ -1,4 +1,5 @@
-import type { Job } from 'bullmq';
+import type { Job, Queue } from 'bullmq';
+import type { WalletBalanceCollectorService } from './wallet-balance-collector.service';
 import type { WalletBalanceCollectionJobData } from './wallet-balance-collector.types';
 
 import assert from 'node:assert';
@@ -48,10 +49,12 @@ describe('Wallet Balance Collector Queue & Processor Tests', () => {
     };
 
     // Create service instances with type assertions
-    // biome-ignore lint/suspicious/noExplicitAny: Test mocking requires any for complex interfaces
-    queueService = new WalletBalanceCollectorQueueService(mockQueue as any);
-    // biome-ignore lint/suspicious/noExplicitAny: Test mocking requires any for complex interfaces
-    processor = new WalletBalanceCollectorProcessor(mockWalletBalanceCollectorService as any);
+    queueService = new WalletBalanceCollectorQueueService(
+      mockQueue as unknown as Queue<WalletBalanceCollectionJobData>,
+    );
+    processor = new WalletBalanceCollectorProcessor(
+      mockWalletBalanceCollectorService as unknown as WalletBalanceCollectorService,
+    );
   });
 
   afterEach(() => {
@@ -62,7 +65,6 @@ describe('Wallet Balance Collector Queue & Processor Tests', () => {
     it('should queue wallet balance collection job', async () => {
       // Arrange
       const jobData: WalletBalanceCollectionJobData = {
-        invoiceId: '123',
         blockchainKey: 'eip155:1',
         walletAddress: '0xABC123',
         walletDerivationPath: "m/44'/60'/5'/0/123",
@@ -88,7 +90,6 @@ describe('Wallet Balance Collector Queue & Processor Tests', () => {
     it('should use default options when not provided', async () => {
       // Arrange
       const jobData: WalletBalanceCollectionJobData = {
-        invoiceId: '456',
         blockchainKey: 'eip155:56',
         walletAddress: '0xXYZ789',
         walletDerivationPath: "m/44'/60'/5'/0/456",
@@ -99,7 +100,7 @@ describe('Wallet Balance Collector Queue & Processor Tests', () => {
 
       // Assert
       const addCall = mockQueue.add.mock.calls[0];
-      const options = addCall.arguments[2];
+      const options = addCall.arguments[2] as unknown as { attempts: number; priority: number };
       assert.strictEqual(options.attempts, 5, 'Default attempts should be 5');
       assert.strictEqual(options.priority, 5, 'Default priority should be 5');
     });
@@ -109,7 +110,6 @@ describe('Wallet Balance Collector Queue & Processor Tests', () => {
     it('should process wallet balance collection job', async () => {
       // Arrange
       const jobData: WalletBalanceCollectionJobData = {
-        invoiceId: '789',
         blockchainKey: 'eip155:1',
         walletAddress: '0xTEST',
         walletDerivationPath: "m/44'/60'/5'/0/789",
@@ -132,19 +132,11 @@ describe('Wallet Balance Collector Queue & Processor Tests', () => {
       );
 
       const collectCall = mockWalletBalanceCollectorService.collectBalance.mock.calls[0];
-      assert.strictEqual(collectCall.arguments[0].invoiceId, '789', 'Should pass invoice ID');
+      const collectedArgs = collectCall.arguments[0] as unknown as WalletBalanceCollectionJobData;
+      assert.strictEqual(collectedArgs.blockchainKey, 'eip155:1', 'Should pass blockchain key');
+      assert.strictEqual(collectedArgs.walletAddress, '0xTEST', 'Should pass wallet address');
       assert.strictEqual(
-        collectCall.arguments[0].blockchainKey,
-        'eip155:1',
-        'Should pass blockchain key',
-      );
-      assert.strictEqual(
-        collectCall.arguments[0].walletAddress,
-        '0xTEST',
-        'Should pass wallet address',
-      );
-      assert.strictEqual(
-        collectCall.arguments[0].walletDerivationPath,
+        collectedArgs.walletDerivationPath,
         "m/44'/60'/5'/0/789",
         'Should pass derivation path',
       );
