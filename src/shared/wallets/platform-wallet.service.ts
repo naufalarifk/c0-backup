@@ -62,6 +62,12 @@ export class PlatformWalletService {
     return { wallet, address, derivationPath };
   }
 
+  async getHotWallet(blockchainKey: string): Promise<IWallet> {
+    const masterKey = await this.getMasterKey();
+    const walletService = this.walletFactory.getWalletService(blockchainKey);
+    return await walletService.getHotWallet(masterKey);
+  }
+
   private async loadMasterKey(): Promise<HDKey> {
     const walletConfig = this.appConfigService.walletConfig;
 

@@ -25,6 +25,15 @@ describe('LoanMatcherService - Real Database Integration', () => {
   const createdApplicationIds: string[] = [];
   const createdOfferIds: string[] = [];
 
+  // Counter for generating unique derivation paths in tests
+  let derivationPathCounter = 1000;
+
+  // Helper function to generate unique test derivation paths
+  function generateTestDerivationPath(type: 'collateral' | 'funding' = 'collateral'): string {
+    const account = type === 'collateral' ? 0 : 1;
+    return `m/44'/60'/0'/${account}/${++derivationPathCounter}`;
+  }
+
   before(async () => {
     // Create the testing module with real in-memory database
     const repositoryInstance = new InMemoryCryptogadaiRepository();
@@ -148,7 +157,7 @@ describe('LoanMatcherService - Real Database Integration', () => {
       liquidationMode: 'Partial',
       appliedDate: new Date(),
       expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      collateralWalletDerivationPath: `m/44'/60'/0'/0/${Date.now() % 1000000}`,
+      collateralWalletDerivationPath: generateTestDerivationPath('collateral'),
       collateralWalletAddress: `0x${Date.now().toString(16).padStart(40, '0')}`,
       provisionAmount: '0',
       minLtvRatio: 0.5,
@@ -193,7 +202,7 @@ describe('LoanMatcherService - Real Database Integration', () => {
       termInMonthsOptions: options.termOptions || [12, 24, 36],
       expirationDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
       createdDate: new Date(),
-      fundingWalletDerivationPath: `m/44'/60'/0'/1/${Date.now() % 1000000}`,
+      fundingWalletDerivationPath: generateTestDerivationPath('funding'),
       fundingWalletAddress: `0x${(Date.now() + 1000).toString(16).padStart(40, '0')}`,
       fundingInvoiceId: 1,
       fundingInvoicePrepaidAmount: '0',
@@ -409,7 +418,7 @@ describe('LoanMatcherService - Real Database Integration', () => {
       termInMonthsOptions: [12, 24, 36], // Multiple term options
       expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
       createdDate: new Date(),
-      fundingWalletDerivationPath: `m/44'/60'/0'/0/${Date.now() + 10}`,
+      fundingWalletDerivationPath: generateTestDerivationPath('funding'),
       fundingWalletAddress: '0x9876543210987654321098765432109876543210',
       fundingInvoiceId: 1,
       fundingInvoicePrepaidAmount: '0',
@@ -437,7 +446,7 @@ describe('LoanMatcherService - Real Database Integration', () => {
       liquidationMode: 'Partial',
       appliedDate: new Date(),
       expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      collateralWalletDerivationPath: `m/44'/60'/0'/0/${Date.now()}`,
+      collateralWalletDerivationPath: generateTestDerivationPath('collateral'),
       collateralWalletAddress: '0x1234567890123456789012345678901234567890',
       // removed duplicate properties
       collateralInvoiceId: 10,
@@ -586,7 +595,7 @@ describe('LoanMatcherService - Real Database Integration', () => {
       liquidationMode: 'Partial',
       appliedDate: new Date(),
       expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      collateralWalletDerivationPath: `m/44'/60'/0'/0/${Date.now() + 1}`,
+      collateralWalletDerivationPath: generateTestDerivationPath('collateral'),
       collateralWalletAddress: '0x1111111111111111111111111111111111111111',
       provisionAmount: '0',
       minLtvRatio: 0.5,
@@ -614,7 +623,7 @@ describe('LoanMatcherService - Real Database Integration', () => {
       liquidationMode: 'Partial',
       appliedDate: new Date(),
       expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      collateralWalletDerivationPath: `m/44'/60'/0'/0/${Date.now() + 2}`,
+      collateralWalletDerivationPath: generateTestDerivationPath('collateral'),
       collateralWalletAddress: '0x2222222222222222222222222222222222222222',
       provisionAmount: '0',
       minLtvRatio: 0.5,
@@ -731,7 +740,7 @@ describe('LoanMatcherService - Real Database Integration', () => {
       termInMonthsOptions: [12, 24],
       expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       createdDate: new Date(),
-      fundingWalletDerivationPath: `m/44'/60'/0'/0/${Date.now() + 11}`,
+      fundingWalletDerivationPath: generateTestDerivationPath('funding'),
       fundingWalletAddress: '0x3333333333333333333333333333333333333333',
       fundingInvoiceId: 1,
       fundingInvoicePrepaidAmount: '0',
@@ -752,7 +761,7 @@ describe('LoanMatcherService - Real Database Integration', () => {
       termInMonthsOptions: [12, 24, 36],
       expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       createdDate: new Date(),
-      fundingWalletDerivationPath: `m/44'/60'/0'/0/${Date.now() + 12}`,
+      fundingWalletDerivationPath: generateTestDerivationPath('funding'),
       fundingWalletAddress: '0x4444444444444444444444444444444444444444',
       fundingInvoiceId: 2,
       fundingInvoicePrepaidAmount: '0',
@@ -776,7 +785,7 @@ describe('LoanMatcherService - Real Database Integration', () => {
       liquidationMode: 'Partial',
       appliedDate: new Date(),
       expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      collateralWalletDerivationPath: `m/44'/60'/0'/0/${Date.now() + 3}`,
+      collateralWalletDerivationPath: generateTestDerivationPath('collateral'),
       collateralWalletAddress: '0x5555555555555555555555555555555555555555',
       provisionAmount: '0',
       minLtvRatio: 0.5,
