@@ -39,8 +39,8 @@ export class ProfileService {
       ...profile,
       // Convert id to number as expected by tests
       id: Number(profile.id),
-      // Add field aliases expected by tests
-      profilePictureUrl: profile.profilePicture || null,
+      // Add field aliases expected by tests - use converted URL
+      profilePictureUrl: image || null,
       googleId: profile.googleId || null,
       createdDate: profile.createdAt?.toISOString() || null,
       // Add missing OpenAPI schema fields

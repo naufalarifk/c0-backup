@@ -17,17 +17,26 @@ export interface UploadResult {
 export class MinioService implements OnModuleInit {
   private readonly logger = new TelemetryLogger(MinioService.name);
   private client: Minio.Client;
+  private isLocalMode = false;
 
   constructor(private readonly configService: AppConfigService) {}
 
   async onModuleInit() {
     const config = this.configService.minioConfig;
 
+    // Check if running in local/test mode
+    this.isLocalMode = config.endpoint === 'local';
+
     // Parse endpoint properly to handle URLs with protocol
     let endPoint: string;
     let port: number;
 
-    if (config.endpoint.startsWith('http://') || config.endpoint.startsWith('https://')) {
+    if (this.isLocalMode) {
+      // Use in-memory mock for local mode
+      endPoint = 'localhost';
+      port = 9000;
+      this.logger.log('Minio running in LOCAL mode - using mock storage');
+    } else if (config.endpoint.startsWith('http://') || config.endpoint.startsWith('https://')) {
       const url = new URL(config.endpoint);
       endPoint = url.hostname;
       port = url.port ? parseInt(url.port) : url.protocol === 'https:' ? 443 : 80;
@@ -46,8 +55,10 @@ export class MinioService implements OnModuleInit {
       secretKey: config.secretKey,
     });
 
-    // Test connection and create default buckets
-    await this.client.listBuckets();
+    if (!this.isLocalMode) {
+      // Test connection and create default buckets
+      await this.client.listBuckets();
+    }
     await this.ensureDefaultBuckets();
 
     this.logger.log('Minio connected successfully');
@@ -69,6 +80,17 @@ export class MinioService implements OnModuleInit {
 
     // Ensure bucket exists
     await this.ensureBucketExists(bucketName);
+
+    // In local mode, just return mock upload result
+    if (this.isLocalMode) {
+      this.logger.log(`Mock file upload in local mode: ${bucketName}/${objectName}`);
+      return {
+        bucket: bucketName,
+        objectName,
+        size: buffer.length,
+        etag: 'mock-etag',
+      };
+    }
 
     // Auto-detect content type
     const contentType = getMimeType(fileName) || 'application/octet-stream';
@@ -145,6 +167,10 @@ export class MinioService implements OnModuleInit {
    * Get presigned download URL
    */
   async getFileUrl(bucketName: string, objectName: string, expiry = 300): Promise<string> {
+    // In local mode, return a mock data URL since we don't have real MinIO
+    if (this.isLocalMode) {
+      return `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==`;
+    }
     return await this.client.presignedGetObject(bucketName, objectName, expiry);
   }
 
@@ -190,6 +216,12 @@ export class MinioService implements OnModuleInit {
    * Create bucket if not exists
    */
   private async ensureBucketExists(bucketName: string): Promise<void> {
+    // Skip bucket operations in local mode
+    if (this.isLocalMode) {
+      this.logger.log(`Skipping bucket creation in local mode: ${bucketName}`);
+      return;
+    }
+
     try {
       const exists = await this.client.bucketExists(bucketName);
       if (!exists) {
