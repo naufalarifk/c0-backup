@@ -23,7 +23,7 @@ export async function runFinanceRepositoryTestSuite(
     describe('Account & Balance Management', function () {
       it('should create user account with initial zero balance', async function () {
         // Create test user who wants to create an account
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [{ email: 'accountholder@test.com', name: 'Account Holder' }],
         });
 
@@ -48,7 +48,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should handle account creation with existing currency (upsert)', async function () {
         // Create test user who will create duplicate account
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [{ email: 'duplicateuser@test.com', name: 'Duplicate User' }],
         });
 
@@ -79,7 +79,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should retrieve account balances for user', async function () {
         // Create test user who will have multiple accounts
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [{ email: 'multiaccountuser@test.com', name: 'Multi Account User' }],
         });
 
@@ -124,7 +124,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should retrieve account transaction history with pagination', async function () {
         // Create test user who will have transaction history
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [{ email: 'transactionuser@test.com', name: 'Transaction User' }],
         });
 
@@ -175,7 +175,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should filter transaction history by mutation type', async function () {
         // Create test user who will have filtered transactions
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [{ email: 'filtereduser@test.com', name: 'Filtered User' }],
         });
 
@@ -222,7 +222,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should filter transaction history by date range', async function () {
         // Create test user who will have date-filtered transactions
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [{ email: 'datefilteruser@test.com', name: 'Date Filter User' }],
         });
 
@@ -270,7 +270,7 @@ export async function runFinanceRepositoryTestSuite(
     describe('Invoice Management', function () {
       it('should create invoice with payment address', async function () {
         // Create test borrower who needs loan collateral invoice
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [{ email: 'borrower@test.com', name: 'Test Borrower' }],
         });
 
@@ -303,7 +303,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should create invoice without due date', async function () {
         // Create test borrower who needs loan principal invoice without due date
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [{ email: 'principalborrower@test.com', name: 'Principal Borrower' }],
         });
 
@@ -327,7 +327,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should record blockchain payment for invoice', async function () {
         // Create test user who will pay invoice via blockchain
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [{ email: 'invoicepayer@test.com', name: 'Invoice Payer' }],
         });
 
@@ -353,7 +353,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         const paymentDate = new Date('2024-01-01T04:00:00Z');
-        const paymentResult = await repo.blockchainDetectsInvoicePayment({
+        const paymentResult = await repo.platformRecordInvoicePayment({
           invoiceId: invoiceResult.id,
           paymentHash: '0xabcdef1234567890abcdef1234567890abcdef12345678',
           amount: '1000000',
@@ -369,7 +369,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should update invoice status', async function () {
         // Create test user whose invoice will expire
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [{ email: 'expiredinvoiceuser@test.com', name: 'Expired Invoice User' }],
         });
 
@@ -417,7 +417,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should view invoice details', async function () {
         // Create test user who wants to view invoice details
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [{ email: 'invoiceviewer@test.com', name: 'Invoice Viewer' }],
         });
 
@@ -471,7 +471,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should view active but expired invoices', async function () {
         // Create test users who will have invoices
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [
             { email: 'expireduser1@test.com', name: 'Expired User 1' },
             { email: 'expireduser2@test.com', name: 'Expired User 2' },
@@ -588,7 +588,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should set active but expired invoice as expired', async function () {
         // Create test user who has an expired invoice
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [{ email: 'toexpireuser@test.com', name: 'To Expire User' }],
         });
 
@@ -636,7 +636,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should throw error when setting non-active invoice as expired', async function () {
         // Create test user who has a paid invoice
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [{ email: 'paidinvoiceuser@test.com', name: 'Paid Invoice User' }],
         });
 
@@ -690,7 +690,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should handle pagination for viewing active but expired invoices', async function () {
         // Create test users with multiple expired invoices
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [
             { email: 'pagination1@test.com', name: 'Pagination User 1' },
             { email: 'pagination2@test.com', name: 'Pagination User 2' },
@@ -775,7 +775,7 @@ export async function runFinanceRepositoryTestSuite(
     describe('Withdrawal Management', function () {
       it('should register withdrawal beneficiary', async function () {
         // Create test user who wants to register withdrawal address
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [{ email: 'withdrawer@test.com', name: 'Test Withdrawer' }],
         });
 
@@ -796,7 +796,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should view user withdrawal beneficiaries', async function () {
         // Create test user who has multiple withdrawal beneficiaries
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [{ email: 'multibeneficiaryuser@test.com', name: 'Multi Beneficiary User' }],
         });
 
@@ -836,7 +836,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should request withdrawal', async function () {
         // Create test user who wants to withdraw funds
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [{ email: 'withdrawalrequester@test.com', name: 'Withdrawal Requester' }],
         });
 
@@ -888,7 +888,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should process withdrawal with sent status', async function () {
         // Create test user whose withdrawal will be sent
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [{ email: 'sentwithdrawaluser@test.com', name: 'Sent Withdrawal User' }],
         });
 
@@ -945,7 +945,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should process withdrawal with confirmed status', async function () {
         // Create test user whose withdrawal will be confirmed
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [
             {
               email: 'confirmedwithdrawaluser@test.com',
@@ -1011,7 +1011,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should process withdrawal with failed status', async function () {
         // Create test user whose withdrawal will fail
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [{ email: 'failedwithdrawaluser@test.com', name: 'Failed Withdrawal User' }],
         });
 
@@ -1081,7 +1081,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should approve withdrawal refund', async function () {
         // Create test user whose withdrawal refund needs approval and admin reviewer
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [
             { email: 'refunduser@test.com', name: 'Refund User' },
             { email: 'reviewer100@test.com', name: 'Test Reviewer 100', role: 'Admin' },
@@ -1146,7 +1146,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should reject withdrawal refund', async function () {
         // Create test user whose withdrawal refund will be rejected and admin reviewer
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [
             { email: 'rejectedrefunduser@test.com', name: 'Rejected Refund User' },
             { email: 'reviewer101@test.com', name: 'Test Reviewer 101', role: 'Admin' },
@@ -1214,7 +1214,7 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should throw error when approving refund for non-failed withdrawal', async function () {
         // Create test user and admin reviewer for error scenario
-        const userCreationResult = await repo.systemCreatesTestUsers({
+        const userCreationResult = await repo.testCreatesUsers({
           users: [
             { email: 'errorrefunduser@test.com', name: 'Error Refund User' },
             { email: 'reviewer102@test.com', name: 'Test Reviewer 102', role: 'Admin' },

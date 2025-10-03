@@ -89,7 +89,7 @@ export class TestController {
       throw new Error('users array is required');
     }
 
-    const result = await this.repo.systemCreatesTestUsers({ users });
+    const result = await this.repo.testCreatesUsers({ users });
 
     this.#logger.debug(`Created ${result.users.length} test users`);
 

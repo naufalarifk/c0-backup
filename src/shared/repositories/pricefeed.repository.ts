@@ -173,7 +173,7 @@ export abstract class PricefeedRepository extends FinanceRepository {
     }
   }
 
-  async systemCreatesTestPriceFeeds(params: {
+  async testCreatesPriceFeeds(params: {
     priceFeeds: Array<{
       blockchainKey: string;
       baseCurrencyTokenId: string;
@@ -197,7 +197,7 @@ export abstract class PricefeedRepository extends FinanceRepository {
     }
   }
 
-  async systemCreatesTestExchangeRates(params: {
+  async testCreatesExchangeRates(params: {
     exchangeRates: Array<{
       priceFeedId: string;
       bidPrice: string;
@@ -222,7 +222,7 @@ export abstract class PricefeedRepository extends FinanceRepository {
     }
   }
 
-  async systemFindsTestPriceFeedId(params: {
+  async testViewsPriceFeedId(params: {
     blockchainKey: string;
     baseCurrencyTokenId: string;
     quoteCurrencyTokenId: string;

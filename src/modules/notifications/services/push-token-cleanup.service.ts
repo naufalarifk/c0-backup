@@ -33,7 +33,7 @@ export class PushTokenCleanupService {
     try {
       const startTime = Date.now();
 
-      const result = await this.repository.cleanupOrphanedSessions();
+      const result = await this.repository.platformCleanupOrphanedSessions();
 
       const duration = Date.now() - startTime;
 
@@ -53,7 +53,7 @@ export class PushTokenCleanupService {
   async manualCleanup(): Promise<{ orphanedSessionsNullified: number }> {
     this.logger.log('Manual cleanup triggered');
 
-    const result = await this.repository.cleanupOrphanedSessions();
+    const result = await this.repository.platformCleanupOrphanedSessions();
 
     this.logger.log(
       `Manual cleanup completed: ${result.orphanedSessionsNullified} orphaned sessions`,

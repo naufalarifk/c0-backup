@@ -117,7 +117,7 @@ export class WithdrawalsService {
     );
 
     // 8. Daily limit check (prevent exceeding daily withdrawal limits)
-    const { remainingLimit } = await this.repo.getRemainingDailyWithdrawalLimit({
+    const { remainingLimit } = await this.repo.userViewsRemainingDailyWithdrawalLimit({
       userId: user.id,
       currencyBlockchainKey: createWithdrawalDto.currencyBlockchainKey,
       currencyTokenId: createWithdrawalDto.currencyTokenId,
@@ -246,7 +246,7 @@ export class WithdrawalsService {
     ensureValid(withdrawal.state === 'failed', 'Only failed withdrawals are eligible for refund');
 
     // Update withdrawal status to refund requested
-    await this.repo.updateWithdrawalStatus({
+    await this.repo.platformUpdatesWithdatawalStatus({
       withdrawalId,
       status: 'RefundRequested',
       refundRequestedDate: new Date(),

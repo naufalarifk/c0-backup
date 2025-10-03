@@ -112,7 +112,7 @@ export abstract class NotificationComposer<T extends NotificationData = Notifica
       // Fetch active push tokens from multi-device system
       let expoPushTokens: string[] = [];
       try {
-        const { tokens } = await repository.getActiveTokensForUser({
+        const { tokens } = await repository.platformViewsActivePushTokens({
           userId,
           targetDevices: 'active_sessions', // Only send to devices with active sessions
         });

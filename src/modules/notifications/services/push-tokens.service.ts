@@ -19,7 +19,7 @@ export class PushTokensService {
    * Create or update push token for current device and session
    */
   async createToken(userId: string, dto: CreatePushTokenDto): Promise<CreatePushTokenResponseDto> {
-    const result = await this.repository.registerPushToken({
+    const result = await this.repository.userRegisterPushToken({
       userId,
       pushToken: dto.pushToken,
       deviceId: dto.deviceId,
@@ -42,7 +42,7 @@ export class PushTokensService {
    * Delete push token (soft cleanup - nullify session reference)
    */
   async deleteToken(userId: string, currentSessionId: string): Promise<DeletePushTokenResponseDto> {
-    const result = await this.repository.unregisterPushToken({
+    const result = await this.repository.userUnregisterPushToken({
       userId,
       currentSessionId,
     });
@@ -61,7 +61,7 @@ export class PushTokensService {
    * Update push token (update last_used_date and session reference)
    */
   async updateToken(userId: string, dto: UpdatePushTokenDto): Promise<UpdatePushTokenResponseDto> {
-    const result = await this.repository.syncPushToken({
+    const result = await this.repository.userSyncPushToken({
       userId,
       pushToken: dto.pushToken,
       deviceId: dto.deviceId,
@@ -82,7 +82,7 @@ export class PushTokensService {
     userId: string,
     query: ListPushTokensQueryDto,
   ): Promise<ListPushTokensResponseDto> {
-    const { tokens } = await this.repository.listPushTokensByUser({
+    const { tokens } = await this.repository.platformViewsPushTokens({
       userId,
       activeOnly: query.activeOnly,
     });

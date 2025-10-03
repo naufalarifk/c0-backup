@@ -520,7 +520,7 @@ export class LoansService {
       });
 
       // 8. Update liquidation target amount in database
-      await this.repository.systemUpdatesLiquidationTargetAmount({
+      await this.repository.platformUpdatesLiquidationTargetAmount({
         loanId,
         liquidationTargetAmount,
       });

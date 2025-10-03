@@ -92,13 +92,13 @@ export async function runLoanLenderRepositoryTestSuite(
             emailVerified: true,
           });
 
-          await repo.systemCreatesTestBlockchains({
+          await repo.testCreatesBlockchains({
             blockchains: [
               { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
             ],
           });
 
-          await repo.systemCreatesTestCurrencies({
+          await repo.testCreatesCurrencies({
             currencies: [
               {
                 blockchainKey: 'eip155:56',
@@ -198,13 +198,13 @@ export async function runLoanLenderRepositoryTestSuite(
             emailVerified: true,
           });
 
-          await repo.systemCreatesTestBlockchains({
+          await repo.testCreatesBlockchains({
             blockchains: [
               { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
             ],
           });
 
-          await repo.systemCreatesTestCurrencies({
+          await repo.testCreatesCurrencies({
             currencies: [
               {
                 blockchainKey: 'eip155:56',
@@ -266,13 +266,13 @@ export async function runLoanLenderRepositoryTestSuite(
             emailVerified: true,
           });
 
-          await repo.systemCreatesTestBlockchains({
+          await repo.testCreatesBlockchains({
             blockchains: [
               { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
             ],
           });
 
-          await repo.systemCreatesTestCurrencies({
+          await repo.testCreatesCurrencies({
             currencies: [
               {
                 blockchainKey: 'eip155:56',
@@ -330,13 +330,13 @@ export async function runLoanLenderRepositoryTestSuite(
             emailVerified: true,
           });
 
-          await repo.systemCreatesTestBlockchains({
+          await repo.testCreatesBlockchains({
             blockchains: [
               { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
             ],
           });
 
-          await repo.systemCreatesTestCurrencies({
+          await repo.testCreatesCurrencies({
             currencies: [
               {
                 blockchainKey: 'eip155:56',
@@ -385,13 +385,13 @@ export async function runLoanLenderRepositoryTestSuite(
             emailVerified: true,
           });
 
-          await repo.systemCreatesTestBlockchains({
+          await repo.testCreatesBlockchains({
             blockchains: [
               { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
             ],
           });
 
-          await repo.systemCreatesTestCurrencies({
+          await repo.testCreatesCurrencies({
             currencies: [
               {
                 blockchainKey: 'eip155:56',
@@ -447,13 +447,13 @@ export async function runLoanLenderRepositoryTestSuite(
             emailVerified: true,
           });
 
-          await repo.systemCreatesTestBlockchains({
+          await repo.testCreatesBlockchains({
             blockchains: [
               { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
             ],
           });
 
-          await repo.systemCreatesTestCurrencies({
+          await repo.testCreatesCurrencies({
             currencies: [
               {
                 blockchainKey: 'eip155:56',
@@ -539,13 +539,13 @@ export async function runLoanLenderRepositoryTestSuite(
             emailVerified: true,
           });
 
-          await repo.systemCreatesTestBlockchains({
+          await repo.testCreatesBlockchains({
             blockchains: [
               { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
             ],
           });
 
-          await repo.systemCreatesTestCurrencies({
+          await repo.testCreatesCurrencies({
             currencies: [
               {
                 blockchainKey: 'eip155:56',
@@ -685,13 +685,13 @@ export async function runLoanLenderRepositoryTestSuite(
             emailVerified: true,
           });
 
-          await repo.systemCreatesTestBlockchains({
+          await repo.testCreatesBlockchains({
             blockchains: [
               { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
             ],
           });
 
-          await repo.systemCreatesTestCurrencies({
+          await repo.testCreatesCurrencies({
             currencies: [
               {
                 blockchainKey: 'eip155:56',

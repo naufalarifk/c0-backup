@@ -184,7 +184,7 @@ export async function runLoanPlatformRepositoryTestSuite(
               emailVerified: true,
             });
 
-            await repo.systemCreatesTestBlockchains({
+            await repo.testCreatesBlockchains({
               blockchains: [
                 { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
               ],
@@ -245,7 +245,7 @@ export async function runLoanPlatformRepositoryTestSuite(
               emailVerified: true,
             });
 
-            await repo.systemCreatesTestBlockchains({
+            await repo.testCreatesBlockchains({
               blockchains: [
                 { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
                 { key: 'bitcoin', name: 'Bitcoin', shortName: 'BTC', image: 'btc.png' },
@@ -349,7 +349,7 @@ export async function runLoanPlatformRepositoryTestSuite(
             emailVerified: true,
           });
 
-          await repo.systemCreatesTestBlockchains({
+          await repo.testCreatesBlockchains({
             blockchains: [
               { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
             ],
@@ -428,7 +428,7 @@ export async function runLoanPlatformRepositoryTestSuite(
             emailVerified: true,
           });
 
-          await repo.systemCreatesTestBlockchains({
+          await repo.testCreatesBlockchains({
             blockchains: [
               { key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' },
             ],
@@ -500,7 +500,7 @@ export async function runLoanPlatformRepositoryTestSuite(
           emailVerified: true,
         });
 
-        await repo.systemCreatesTestBlockchains({
+        await repo.testCreatesBlockchains({
           blockchains: [{ key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' }],
         });
 
@@ -806,7 +806,7 @@ export async function runLoanPlatformRepositoryTestSuite(
           emailVerified: true,
         });
 
-        await repo.systemCreatesTestBlockchains({
+        await repo.testCreatesBlockchains({
           blockchains: [{ key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' }],
         });
 

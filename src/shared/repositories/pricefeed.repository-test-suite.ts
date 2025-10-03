@@ -23,7 +23,7 @@ export async function runPricefeedRepositoryTestSuite(
     describe('Exchange Rate Management', function () {
       it('should retrieve exchange rates with filters', async function () {
         // First create some test data with valid currency combinations on same blockchain
-        await repo.systemCreatesTestPriceFeeds({
+        await repo.testCreatesPriceFeeds({
           priceFeeds: [
             {
               blockchainKey: 'crosschain',
@@ -52,7 +52,7 @@ export async function runPricefeedRepositoryTestSuite(
           ],
         });
 
-        const ethBinancePriceFeedResult = await repo.systemFindsTestPriceFeedId({
+        const ethBinancePriceFeedResult = await repo.testViewsPriceFeedId({
           blockchainKey: 'crosschain',
           baseCurrencyTokenId: 'slip44:60',
           quoteCurrencyTokenId: 'iso4217:usd',
@@ -60,7 +60,7 @@ export async function runPricefeedRepositoryTestSuite(
         });
         const ethBinancePriceFeedId = ethBinancePriceFeedResult.id;
 
-        const ethCoinbasePriceFeedResult = await repo.systemFindsTestPriceFeedId({
+        const ethCoinbasePriceFeedResult = await repo.testViewsPriceFeedId({
           blockchainKey: 'crosschain',
           baseCurrencyTokenId: 'slip44:60',
           quoteCurrencyTokenId: 'iso4217:usd',
@@ -68,7 +68,7 @@ export async function runPricefeedRepositoryTestSuite(
         });
         const ethCoinbasePriceFeedId = ethCoinbasePriceFeedResult.id;
 
-        await repo.systemCreatesTestExchangeRates({
+        await repo.testCreatesExchangeRates({
           exchangeRates: [
             {
               priceFeedId: ethBinancePriceFeedId,
@@ -108,7 +108,7 @@ export async function runPricefeedRepositoryTestSuite(
 
       it('should retrieve all exchange rates without filters', async function () {
         // Create test data with valid currency combinations
-        await repo.systemCreatesTestPriceFeeds({
+        await repo.testCreatesPriceFeeds({
           priceFeeds: [
             {
               blockchainKey: 'crosschain',
@@ -126,7 +126,7 @@ export async function runPricefeedRepositoryTestSuite(
         });
 
         const ethPriceFeedId = (
-          await repo.systemFindsTestPriceFeedId({
+          await repo.testViewsPriceFeedId({
             blockchainKey: 'crosschain',
             baseCurrencyTokenId: 'slip44:60',
             quoteCurrencyTokenId: 'iso4217:usd',
@@ -134,14 +134,14 @@ export async function runPricefeedRepositoryTestSuite(
         ).id;
 
         const bnbPriceFeedId = (
-          await repo.systemFindsTestPriceFeedId({
+          await repo.testViewsPriceFeedId({
             blockchainKey: 'crosschain',
             baseCurrencyTokenId: 'slip44:714',
             quoteCurrencyTokenId: 'iso4217:usd',
           })
         ).id;
 
-        await repo.systemCreatesTestExchangeRates({
+        await repo.testCreatesExchangeRates({
           exchangeRates: [
             {
               priceFeedId: ethPriceFeedId,
@@ -182,7 +182,7 @@ export async function runPricefeedRepositoryTestSuite(
 
       it('should update exchange rate', async function () {
         // First create a price feed for testing with valid currency combination
-        await repo.systemCreatesTestPriceFeeds({
+        await repo.testCreatesPriceFeeds({
           priceFeeds: [
             {
               blockchainKey: 'crosschain',
@@ -194,7 +194,7 @@ export async function runPricefeedRepositoryTestSuite(
         });
 
         // Get the price feed
-        const priceFeedResult = await repo.systemFindsTestPriceFeedId({
+        const priceFeedResult = await repo.testViewsPriceFeedId({
           blockchainKey: 'crosschain',
           baseCurrencyTokenId: 'slip44:60',
           quoteCurrencyTokenId: 'iso4217:usd',

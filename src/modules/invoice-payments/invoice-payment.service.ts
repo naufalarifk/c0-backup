@@ -17,7 +17,7 @@ export class InvoicePaymentService {
 
   async recordPayment(params: RecordPaymentParams): Promise<void> {
     try {
-      await this.repository.blockchainDetectsInvoicePayment({
+      await this.repository.platformRecordInvoicePayment({
         invoiceId: params.invoiceId,
         paymentHash: params.transactionHash,
         amount: params.amount,

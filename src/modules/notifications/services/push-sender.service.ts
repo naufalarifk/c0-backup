@@ -52,7 +52,7 @@ export class PushSenderService {
       deviceIds,
     };
 
-    const { tokens } = await this.repository.getActiveTokensForUser(activeParams);
+    const { tokens } = await this.repository.platformViewsActivePushTokens(activeParams);
 
     if (tokens.length === 0) {
       this.logger.warn(`No active push tokens found for user ${userId}`);
@@ -114,7 +114,7 @@ export class PushSenderService {
         .map(token => token.id);
 
       if (successfulTokenIds.length > 0) {
-        await this.repository.updateLastUsedAt(successfulTokenIds);
+        await this.repository.platformUpdatesLastUsedPushTokens(successfulTokenIds);
       }
 
       this.logger.log(`Push notifications sent to user ${userId}: ${sent} sent, ${failed} failed`);

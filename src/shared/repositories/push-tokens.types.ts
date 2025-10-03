@@ -2,7 +2,7 @@
 
 import type { ExpoPushTicket, ExpoPushToken } from 'expo-server-sdk';
 
-export type PushTokenRegisterParams = {
+export type UserRegisterPushTokenParams = {
   userId: string;
   pushToken: string;
   deviceId: string;
@@ -13,7 +13,7 @@ export type PushTokenRegisterParams = {
   registeredDate: Date;
 };
 
-export type PushTokenRegisterResult = {
+export type UserRegisterPushTokenResult = {
   id: string;
   userId: string;
   pushToken: ExpoPushToken;
@@ -21,16 +21,16 @@ export type PushTokenRegisterResult = {
   isNew: boolean; // true if created, false if updated
 };
 
-export type PushTokenUnregisterParams = {
+export type UserUnregisterPushTokenParams = {
   userId: string;
   currentSessionId: string;
 };
 
-export type PushTokenUnregisterResult = {
+export type UserUnregisterPushTokenResult = {
   tokensUpdated: number;
 };
 
-export type PushTokenSyncParams = {
+export type UserSyncPushTokenParams = {
   userId: string;
   pushToken?: ExpoPushToken;
   deviceId?: string;
@@ -38,7 +38,7 @@ export type PushTokenSyncParams = {
   lastUsedDate: Date;
 };
 
-export type PushTokenSyncResult = {
+export type UserSyncPushTokenResult = {
   tokensSynced: number;
 };
 

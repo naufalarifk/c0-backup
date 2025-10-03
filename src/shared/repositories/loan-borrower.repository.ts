@@ -35,8 +35,8 @@ import {
   BorrowerUpdatesLoanApplicationResult,
   BorrowerViewsMyLoanApplicationsParams,
   BorrowerViewsMyLoanApplicationsResult,
-  SystemUpdatesLiquidationTargetAmountParams,
-  SystemUpdatesLiquidationTargetAmountResult,
+  PlatformUpdatesLiquidationTargetAmountParams,
+  PlatformUpdatesLiquidationTargetAmountResult,
 } from './loan.types';
 import { LoanLenderRepository } from './loan-lender.repository';
 
@@ -1235,9 +1235,9 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   /**
    * Data-only method: Update liquidation target amount with pre-calculated value
    */
-  async systemUpdatesLiquidationTargetAmount(
-    params: SystemUpdatesLiquidationTargetAmountParams,
-  ): Promise<SystemUpdatesLiquidationTargetAmountResult> {
+  async platformUpdatesLiquidationTargetAmount(
+    params: PlatformUpdatesLiquidationTargetAmountParams,
+  ): Promise<PlatformUpdatesLiquidationTargetAmountResult> {
     const { loanId, liquidationTargetAmount } = params;
 
     const tx = await this.beginTransaction();

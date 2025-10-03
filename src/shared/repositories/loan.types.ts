@@ -651,12 +651,12 @@ export type BorrowerRequestsEarlyLiquidationResult = {
   };
 };
 
-export type SystemUpdatesLiquidationTargetAmountParams = {
+export type PlatformUpdatesLiquidationTargetAmountParams = {
   loanId: string;
   liquidationTargetAmount: string; // Pre-calculated in smallest units by service layer
 };
 
-export type SystemUpdatesLiquidationTargetAmountResult = {
+export type PlatformUpdatesLiquidationTargetAmountResult = {
   loanId: string;
   liquidationTargetAmount: string;
 };

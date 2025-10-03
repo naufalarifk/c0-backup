@@ -1,0 +1,305 @@
+import {
+  assertArrayMapOf,
+  assertDefined,
+  assertProp,
+  assertPropBoolean,
+  assertPropNullableString,
+  assertPropString,
+  check,
+  isInstanceOf,
+  isNumber,
+  isString,
+} from 'typeshaper';
+
+import {
+  CleanupOrphanedSessionsResult,
+  CleanupStaleTokensResult,
+  PushTokenGetActiveParams,
+  PushTokenGetActiveResult,
+  PushTokenListByUserParams,
+  PushTokenListByUserResult,
+} from './push-tokens.types';
+import { PlatformNotifyUserParams, PlatformNotifyUserResult } from './user.types';
+import { UserAdminRepository } from './user-admin.repository';
+
+export abstract class UserPlatformRepository extends UserAdminRepository {
+  async platformNotifyUser(params: PlatformNotifyUserParams): Promise<PlatformNotifyUserResult> {
+    const tx = await this.beginTransaction();
+    try {
+      const {
+        userId,
+        type,
+        title,
+        content,
+        creationDate = new Date(),
+        userKycId: _userKycId,
+        institutionApplicationId: _institutionApplicationId,
+      } = params;
+
+      // For now, create notification without optional fields due to in-memory database limitations
+      // The optional fields will be handled in production with proper PostgreSQL migrations
+      let rows;
+      try {
+        rows = await tx.sql`
+          INSERT INTO notifications (user_id, type, title, content, creation_date)
+          VALUES (${userId}, ${type}, ${title}, ${content}, ${creationDate})
+          RETURNING id, user_id
+        `;
+      } catch (insertError) {
+        console.error('UserRepository Error during notification INSERT:', insertError);
+        try {
+          await tx.rollbackTransaction();
+        } catch (rollbackError) {
+          console.error('UserRepository Error during rollback:', rollbackError);
+        }
+        throw new Error('Failed to create notification');
+      }
+
+      if (rows.length === 0) {
+        try {
+          await tx.rollbackTransaction();
+        } catch (rollbackError) {
+          console.error('UserRepository Error during rollback:', rollbackError);
+        }
+        throw new Error('Failed to create notification');
+      }
+
+      const notification = rows[0];
+      assertDefined(notification);
+      assertProp(check(isString, isNumber), notification, 'id');
+      assertProp(check(isString, isNumber), notification, 'user_id');
+
+      await tx.commitTransaction();
+
+      return {
+        id: String(notification.id),
+        userId: String(notification.user_id),
+      };
+    } catch (error) {
+      console.error('UserRepository', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  /**
+   * List push tokens by user
+   * Returns all devices registered for notifications
+   */
+  async platformViewsPushTokens(
+    params: PushTokenListByUserParams,
+  ): Promise<PushTokenListByUserResult> {
+    const { userId, activeOnly = false } = params;
+
+    let rows;
+
+    if (activeOnly) {
+      rows = await this.sql`
+        SELECT id, push_token, device_id, device_type, device_name, device_model, current_session_id, is_active, last_used_date
+        FROM push_tokens
+        WHERE user_id = ${userId} AND is_active = true
+        ORDER BY last_used_date DESC
+      `;
+    } else {
+      rows = await this.sql`
+        SELECT id, push_token, device_id, device_type, device_name, device_model, current_session_id, is_active, last_used_date
+        FROM push_tokens
+        WHERE user_id = ${userId}
+        ORDER BY last_used_date DESC
+      `;
+    }
+
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row, 'Failed to list push tokens');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertPropString(row, 'push_token');
+      assertPropNullableString(row, 'device_id');
+      assertPropString(row, 'device_type');
+      assertPropNullableString(row, 'device_name');
+      assertPropNullableString(row, 'device_model');
+      assertPropNullableString(row, 'current_session_id');
+      assertPropBoolean(row, 'is_active');
+      assertProp(isInstanceOf(Date), row, 'last_used_date');
+      return row;
+    });
+
+    const tokens = rows.map(row => ({
+      id: String(row.id),
+      pushToken: row.push_token,
+      deviceId: row.device_id ?? null,
+      deviceType: row.device_type as 'ios' | 'android',
+      deviceName: row.device_name ?? null,
+      deviceModel: row.device_model ?? null,
+      currentSessionId: row.current_session_id ?? null,
+      isActive: Boolean(row.is_active),
+      lastUsedDate: new Date(row.last_used_date),
+    }));
+
+    return { tokens };
+  }
+
+  /**
+   * Get active tokens for notification sending
+   * Supports flexible targeting (all, active_sessions, specific devices)
+   */
+  async platformViewsActivePushTokens(
+    params: PushTokenGetActiveParams,
+  ): Promise<PushTokenGetActiveResult> {
+    const { userId, targetDevices = 'all', deviceIds } = params;
+
+    // Build query based on target devices
+    let rows;
+
+    if (targetDevices === 'active_sessions') {
+      rows = await this.sql`
+        SELECT id, push_token, device_id, current_session_id
+        FROM push_tokens
+        WHERE user_id = ${userId} AND is_active = true AND current_session_id IS NOT NULL
+      `;
+    } else if (targetDevices === 'specific' && deviceIds?.length) {
+      rows = await this.sql`
+        SELECT id, push_token, device_id, current_session_id
+        FROM push_tokens
+        WHERE user_id = ${userId} AND is_active = true AND device_id = ANY(${deviceIds})
+      `;
+    } else {
+      // targetDevices === 'all' or default
+      rows = await this.sql`
+        SELECT id, push_token, device_id, current_session_id
+        FROM push_tokens
+        WHERE user_id = ${userId} AND is_active = true
+      `;
+    }
+
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row, 'Failed to get active tokens');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertPropString(row, 'push_token');
+      assertPropNullableString(row, 'device_id');
+      assertPropNullableString(row, 'current_session_id');
+      return row;
+    });
+
+    const tokens = rows.map(row => ({
+      id: String(row.id),
+      pushToken: row.push_token,
+      deviceId: row.device_id ?? null,
+      currentSessionId: row.current_session_id ?? null,
+    }));
+
+    return { tokens };
+  }
+
+  /**
+   * Cleanup stale tokens (mark as inactive after 30 days)
+   * Scheduled job runs daily at 3 AM
+   */
+  async paltformCleanupStaleTokens(): Promise<CleanupStaleTokensResult> {
+    const tx = await this.beginTransaction();
+
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const rows = await tx.sql`
+        UPDATE push_tokens
+        SET is_active = false, updated_date = NOW()
+        WHERE last_used_date < ${thirtyDaysAgo} AND is_active = true
+        RETURNING id
+      `;
+
+      await tx.commitTransaction();
+
+      console.log(`[UserRepository] Cleaned up ${rows.length} stale tokens`);
+
+      return {
+        staleTokensDeactivated: rows.length,
+      };
+    } catch (error) {
+      console.error('UserRepository.cleanupStaleTokens', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  /**
+   * Cleanup orphaned session references (Redis-specific)
+   * Nullifies current_session_id where session no longer exists in Redis
+   */
+  async platformCleanupOrphanedSessions(): Promise<CleanupOrphanedSessionsResult> {
+    const tx = await this.beginTransaction();
+
+    try {
+      // Get all tokens with session references
+      const tokens = await tx.sql`
+        SELECT id, current_session_id
+        FROM push_tokens
+        WHERE current_session_id IS NOT NULL
+      `;
+
+      assertArrayMapOf(tokens, function (row) {
+        assertDefined(row, 'Failed to get tokens with session references');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertPropString(row, 'current_session_id');
+        return row;
+      });
+
+      const orphanedIds: string[] = [];
+
+      // Check each session in Redis using repository's exists() method
+      for (const token of tokens) {
+        const sessionKey = `session:${token.current_session_id}`;
+        const exists = await this.exists(sessionKey);
+
+        if (!exists) {
+          orphanedIds.push(String(token.id));
+        }
+      }
+
+      // Nullify orphaned references
+      if (orphanedIds.length > 0) {
+        await tx.sql`
+          UPDATE push_tokens
+          SET current_session_id = NULL, updated_date = NOW()
+          WHERE id = ANY(${orphanedIds})
+        `;
+      }
+
+      await tx.commitTransaction();
+
+      console.log(`[UserRepository] Cleaned up ${orphanedIds.length} orphaned session references`);
+
+      return {
+        orphanedSessionsNullified: orphanedIds.length,
+      };
+    } catch (error) {
+      console.error('UserRepository.cleanupOrphanedSessions', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+
+  /**
+   * Update last_used_date for sent notifications
+   * Keeps tokens fresh after successful notification delivery
+   */
+  async platformUpdatesLastUsedPushTokens(tokenIds: string[]): Promise<void> {
+    if (tokenIds.length === 0) return;
+
+    const tx = await this.beginTransaction();
+
+    try {
+      await tx.sql`
+        UPDATE push_tokens
+        SET last_used_date = NOW()
+        WHERE id = ANY(${tokenIds})
+      `;
+
+      await tx.commitTransaction();
+    } catch (error) {
+      console.error('UserRepository.updateLastUsedAt', error);
+      await tx.rollbackTransaction();
+      throw error;
+    }
+  }
+}
