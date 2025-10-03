@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 
 import { SharedModule } from '../../shared/shared.module';
 import { DocumentModule } from '../documents/document.module';
+import { IndexerModule } from '../indexer/indexer.module';
 import { LoanApplicationsController } from './controllers/loan-applications.controller';
 import { LoanOffersController } from './controllers/loan-offers.controller';
 import { LoansController } from './controllers/loans.controller';
@@ -16,6 +17,7 @@ import { LoansService } from './services/loans.service';
   imports: [
     SharedModule,
     DocumentModule,
+    IndexerModule,
     BullModule.registerQueue({
       name: 'documentQueue',
     }),

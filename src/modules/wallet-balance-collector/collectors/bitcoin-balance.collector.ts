@@ -6,8 +6,8 @@ import type {
 import { Injectable } from '@nestjs/common';
 
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
-import { WalletFactory } from '../../../shared/wallets/Iwallet.service';
-import { PlatformWalletService } from '../../../shared/wallets/platform-wallet.service';
+import { WalletConfig } from '../../../shared/wallets/wallet.config';
+import { WalletFactory } from '../../../shared/wallets/wallet.factory';
 import { BlockchainNetworkEnum } from '../balance-collection.types';
 import { BalanceCollector } from '../balance-collector.abstract';
 import { CollectorFlag } from '../balance-collector.factory';
@@ -24,10 +24,7 @@ export class BitcoinBalanceCollector extends BalanceCollector {
   // Minimum balance to keep for transaction fees (0.0001 BTC = 10,000 satoshis)
   private readonly MIN_BALANCE_SATOSHIS = BigInt(10000);
 
-  constructor(
-    private readonly platformWalletService: PlatformWalletService,
-    private readonly walletFactory: WalletFactory,
-  ) {
+  constructor(private readonly walletFactory: WalletFactory) {
     super();
   }
 
@@ -74,8 +71,9 @@ export class BitcoinBalanceCollector extends BalanceCollector {
       }
 
       // Get hot wallet address
-      const hotWallet = await this.platformWalletService.getHotWallet(request.blockchainKey);
-      const hotWalletAddress = hotWallet.address;
+      const blockchain = this.walletFactory.getBlockchain(request.blockchainKey);
+      const hotWallet = await blockchain.getHotWallet();
+      const hotWalletAddress = await hotWallet.getAddress();
 
       // Transfer balance
       const transferResult = await this.transferToHotWallet(
@@ -153,12 +151,8 @@ export class BitcoinBalanceCollector extends BalanceCollector {
     const transferAmountBtc = Number(transferAmountSatoshis) / 100000000;
 
     // Get invoice wallet
-    const masterKey = await this.platformWalletService.getMasterKey();
-    const walletService = this.walletFactory.getWalletService(BlockchainNetworkEnum.BitcoinMainnet);
-    const invoiceWallet = await walletService.derivedPathToWallet({
-      masterKey,
-      derivationPath: invoiceWalletDerivationPath,
-    });
+    const blockchain = this.walletFactory.getBlockchain(BlockchainNetworkEnum.BitcoinMainnet);
+    const invoiceWallet = await blockchain.derivedPathToWallet(invoiceWalletDerivationPath);
 
     // Transfer
     const result = await invoiceWallet.transfer({

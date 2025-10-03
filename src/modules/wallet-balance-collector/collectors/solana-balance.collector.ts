@@ -8,8 +8,7 @@ import { Injectable } from '@nestjs/common';
 import { Connection, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
-import { WalletFactory } from '../../../shared/wallets/Iwallet.service';
-import { PlatformWalletService } from '../../../shared/wallets/platform-wallet.service';
+import { WalletFactory } from '../../../shared/wallets/wallet.factory';
 import { BlockchainNetworkEnum } from '../balance-collection.types';
 import { BalanceCollector } from '../balance-collector.abstract';
 import { CollectorFlag } from '../balance-collector.factory';
@@ -35,10 +34,7 @@ export class SolanaBalanceCollector extends BalanceCollector {
     return this._connection;
   }
 
-  constructor(
-    private readonly platformWalletService: PlatformWalletService,
-    private readonly walletFactory: WalletFactory,
-  ) {
+  constructor(private readonly walletFactory: WalletFactory) {
     super();
   }
 
@@ -84,8 +80,12 @@ export class SolanaBalanceCollector extends BalanceCollector {
       }
 
       // Get hot wallet address
-      const hotWallet = await this.platformWalletService.getHotWallet(request.blockchainKey);
-      const hotWalletAddress = hotWallet.address;
+      const blockchain = this.walletFactory.getBlockchain(request.blockchainKey);
+      if (!blockchain) {
+        throw new Error(`Unsupported blockchain: ${request.blockchainKey}`);
+      }
+      const hotWallet = await blockchain.getHotWallet();
+      const hotWalletAddress = await hotWallet.getAddress();
 
       // Transfer balance
       const transferResult = await this.transferToHotWallet(
@@ -144,12 +144,11 @@ export class SolanaBalanceCollector extends BalanceCollector {
     const transferAmountSol = Number(transferAmountLamports) / LAMPORTS_PER_SOL;
 
     // Get invoice wallet
-    const masterKey = await this.platformWalletService.getMasterKey();
-    const walletService = this.walletFactory.getWalletService(BlockchainNetworkEnum.SolanaMainnet);
-    const invoiceWallet = await walletService.derivedPathToWallet({
-      masterKey,
-      derivationPath: invoiceWalletDerivationPath,
-    });
+    const blockchain = this.walletFactory.getBlockchain(BlockchainNetworkEnum.SolanaMainnet);
+    if (!blockchain) {
+      throw new Error(`Unsupported blockchain: ${BlockchainNetworkEnum.SolanaMainnet}`);
+    }
+    const invoiceWallet = await blockchain.derivedPathToWallet(invoiceWalletDerivationPath);
 
     // Transfer
     const result = await invoiceWallet.transfer({

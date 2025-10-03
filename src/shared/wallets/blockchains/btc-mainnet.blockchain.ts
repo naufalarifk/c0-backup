@@ -4,9 +4,12 @@ import { HDKey } from '@scure/bip32';
 import * as bitcoin from 'bitcoinjs-lib';
 import invariant from 'tiny-invariant';
 
-import { BaseBitcoinWallet, BitcoinRpcClient } from './base-bitcoin-wallet';
-import { WalletProvider } from './Iwallet.service';
-import { IWallet, IWalletService } from './Iwallet.types';
+import { TelemetryLogger } from '../../telemetry.logger';
+import { Blockchain } from '../blockchain.abstract';
+import { Wallet } from '../wallet.abstract';
+import { WalletConfig } from '../wallet.config';
+import { WalletProvider } from '../wallet.factory';
+import { BitcoinRpcClient, BtcWallet } from '../wallets/btc.wallet';
 
 export class BaseBitcoinRpcClient implements BitcoinRpcClient {
   constructor(
@@ -130,7 +133,7 @@ class BitcoinMainnetRpcClient extends BaseBitcoinRpcClient {
   }
 }
 
-class BtcMainnetWallet extends BaseBitcoinWallet {
+class BtcMainnetWallet extends BtcWallet {
   protected network = bitcoin.networks.bitcoin;
   protected rpcClient: BitcoinRpcClient;
 
@@ -142,8 +145,12 @@ class BtcMainnetWallet extends BaseBitcoinWallet {
 
 @Injectable()
 @WalletProvider('bip122:000000000019d6689c085ae165831e93')
-export class BtcMainnetWalletService extends IWalletService {
+export class BtcMainnetBlockchain extends Blockchain {
   protected network = bitcoin.networks.bitcoin;
+
+  constructor(private readonly walletConfig: WalletConfig) {
+    super();
+  }
 
   private _rpcClient?: BitcoinRpcClient;
   protected get rpcClient(): BitcoinRpcClient {
@@ -161,25 +168,10 @@ export class BtcMainnetWalletService extends IWalletService {
     return 0;
   }
 
-  derivedPathToWallet({
-    masterKey,
-    derivationPath,
-  }: {
-    masterKey: HDKey;
-    derivationPath: string;
-  }): Promise<IWallet> {
-    return new Promise((resolve, reject) => {
-      try {
-        const { privateKey } = masterKey.derive(derivationPath);
-        invariant(privateKey, 'Private key is undefined');
-        resolve(this.createWallet(privateKey));
-      } catch (error) {
-        reject(error instanceof Error ? error : new Error('Unknown error in wallet derivation'));
-      }
-    });
-  }
-
-  protected createWallet(privateKey: Uint8Array): IWallet {
+  async derivedPathToWallet(derivationPath: string): Promise<Wallet> {
+    const masterKey = await this.walletConfig.getMasterKey();
+    const { privateKey } = masterKey.derive(derivationPath);
+    invariant(privateKey, 'Private key is undefined');
     return new BtcMainnetWallet(privateKey, this.rpcClient);
   }
 }

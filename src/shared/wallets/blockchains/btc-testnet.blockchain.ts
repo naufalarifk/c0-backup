@@ -2,10 +2,10 @@ import { Injectable } from '@nestjs/common';
 
 import * as bitcoin from 'bitcoinjs-lib';
 
-import { BaseBitcoinWallet, BitcoinRpcClient } from './base-bitcoin-wallet';
-import { BaseBitcoinRpcClient, BtcMainnetWalletService } from './btc-mainnet-wallet.service';
-import { WalletProvider } from './Iwallet.service';
-import { IWallet } from './Iwallet.types';
+import { Wallet } from '../wallet.abstract';
+import { WalletProvider } from '../wallet.factory';
+import { BitcoinRpcClient, BtcWallet } from '../wallets/btc.wallet';
+import { BaseBitcoinRpcClient, BtcMainnetBlockchain } from './btc-mainnet.blockchain';
 
 class BitcoinTestnetRpcClient extends BaseBitcoinRpcClient {
   constructor() {
@@ -32,7 +32,7 @@ class BitcoinTestnetRpcClient extends BaseBitcoinRpcClient {
   }
 }
 
-class BtcTestnetWallet extends BaseBitcoinWallet {
+class BtcTestnetWallet extends BtcWallet {
   protected network = bitcoin.networks.testnet;
   protected rpcClient: BitcoinRpcClient;
 
@@ -44,7 +44,7 @@ class BtcTestnetWallet extends BaseBitcoinWallet {
 
 @Injectable()
 @WalletProvider('bip122:000000000933ea01ad0ee984209779ba61f8d4362f5cb2f17e5e2c77d0d0dffc')
-export class BtcTestnetWalletService extends BtcMainnetWalletService {
+export class BtcTestnetWalletService extends BtcMainnetBlockchain {
   protected network = bitcoin.networks.testnet;
 
   get bip44CoinType(): number {
@@ -55,7 +55,7 @@ export class BtcTestnetWalletService extends BtcMainnetWalletService {
     return new BitcoinTestnetRpcClient();
   }
 
-  protected createWallet(privateKey: Uint8Array): IWallet {
+  protected createWallet(privateKey: Uint8Array): Wallet {
     return new BtcTestnetWallet(privateKey, this.rpcClient);
   }
 }

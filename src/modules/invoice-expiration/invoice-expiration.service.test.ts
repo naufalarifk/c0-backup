@@ -17,10 +17,16 @@ interface MockNotificationQueueService {
   queueNotification: ReturnType<typeof mock.fn>;
 }
 
+interface MockIndexerEventService {
+  addWallet: ReturnType<typeof mock.fn>;
+  removeWallet: ReturnType<typeof mock.fn>;
+}
+
 describe('Invoice Expiration Service - Native Node Test', () => {
   let invoiceExpirationService: InvoiceExpirationService;
   let mockFinanceRepository: MockFinanceRepository;
   let mockNotificationQueueService: MockNotificationQueueService;
+  let mockIndexerEventService: MockIndexerEventService;
 
   const mockExpiredInvoices: ExpiredInvoiceData[] = [
     {
@@ -31,6 +37,7 @@ describe('Invoice Expiration Service - Native Node Test', () => {
       invoicedAmount: '1000.00',
       paidAmount: '0.00',
       walletAddress: '0x123...abc',
+      walletDerivationPath: "m/44'/60'/0'/0/1",
       invoiceType: 'Loan',
       status: 'Pending',
       invoiceDate: new Date('2024-01-01'),
@@ -45,6 +52,7 @@ describe('Invoice Expiration Service - Native Node Test', () => {
       invoicedAmount: '500.00',
       paidAmount: '100.00',
       walletAddress: '0x456...def',
+      walletDerivationPath: "m/44'/60'/0'/0/2",
       invoiceType: 'Fee',
       status: 'PartiallyPaid',
       invoiceDate: new Date('2024-01-05'),
@@ -79,12 +87,19 @@ describe('Invoice Expiration Service - Native Node Test', () => {
       queueNotification: mock.fn(() => Promise.resolve()),
     };
 
+    mockIndexerEventService = {
+      addWallet: mock.fn(() => Promise.resolve()),
+      removeWallet: mock.fn(() => Promise.resolve()),
+    };
+
     // Create service instance with mocked dependencies
     invoiceExpirationService = new InvoiceExpirationService(
       // biome-ignore lint/suspicious/noExplicitAny: Test mocking requires any for complex repository interface
       mockFinanceRepository as any,
       // biome-ignore lint/suspicious/noExplicitAny: Test mocking requires any for complex service interface
       mockNotificationQueueService as any,
+      // biome-ignore lint/suspicious/noExplicitAny: Test mocking requires any for complex service interface
+      mockIndexerEventService as any,
     );
   });
 
@@ -132,6 +147,19 @@ describe('Invoice Expiration Service - Native Node Test', () => {
         2,
         'Should call expiration method twice',
       );
+
+      assert.strictEqual(
+        mockIndexerEventService.removeWallet.mock.callCount(),
+        2,
+        'Should deregister all expired wallets from indexer',
+      );
+
+      const [firstRemoveCall] = mockIndexerEventService.removeWallet.mock.calls;
+      const firstRemoveArgs = firstRemoveCall?.arguments ?? [];
+      assert.strictEqual(firstRemoveArgs[0], 'eip155:1');
+      assert.strictEqual(firstRemoveArgs[1], 'USDC');
+      assert.strictEqual(firstRemoveArgs[2], '0x123...abc');
+      assert.strictEqual(firstRemoveArgs[3], "m/44'/60'/0'/0/1");
 
       // Verify notifications were sent
       assert.strictEqual(

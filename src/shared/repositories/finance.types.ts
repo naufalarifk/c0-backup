@@ -108,7 +108,7 @@ export interface PlatformViewsActiveInvoicesParams {
 }
 
 export interface BlockchainDetectsInvoicePaymentParams {
-  invoiceId: string;
+  walletAddress: string;
   paymentHash: string;
   amount: string;
   paymentDate: Date;
@@ -396,6 +396,7 @@ export interface ActiveButExpiredInvoice {
   invoicedAmount: string;
   paidAmount: string;
   walletAddress: string;
+  walletDerivationPath: string;
   invoiceType: string;
   status: string;
   invoiceDate: Date;

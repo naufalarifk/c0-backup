@@ -134,7 +134,7 @@ export abstract class FinancePlatformRepository extends FinanceAdminRepository {
   async platformRecordInvoicePayment(
     params: BlockchainDetectsInvoicePaymentParams,
   ): Promise<BlockchainDetectsInvoicePaymentResult> {
-    const { invoiceId, paymentHash, amount, paymentDate } = params;
+    const { walletAddress, paymentHash, amount, paymentDate } = params;
 
     const tx = await this.beginTransaction();
     try {
@@ -146,7 +146,7 @@ export abstract class FinancePlatformRepository extends FinanceAdminRepository {
           payment_date
         )
         VALUES (
-          ${invoiceId},
+          (SELECT id FROM invoices WHERE wallet_address = ${walletAddress} ORDER BY id LIMIT 1),
           ${paymentHash},
           ${amount},
           ${paymentDate.toISOString()}
@@ -203,6 +203,7 @@ export abstract class FinancePlatformRepository extends FinanceAdminRepository {
         currency_token_id,
         invoiced_amount,
         paid_amount,
+        wallet_derivation_path,
         wallet_address,
         invoice_type,
         status,
@@ -230,6 +231,7 @@ export abstract class FinancePlatformRepository extends FinanceAdminRepository {
         assertPropString(invoice, 'currency_token_id');
         assertProp(check(isString, isNumber), invoice, 'invoiced_amount');
         assertProp(check(isString, isNumber), invoice, 'paid_amount');
+        assertPropString(invoice, 'wallet_derivation_path');
         assertPropString(invoice, 'wallet_address');
         assertPropString(invoice, 'invoice_type');
         assertPropString(invoice, 'status');
@@ -243,6 +245,7 @@ export abstract class FinancePlatformRepository extends FinanceAdminRepository {
           currencyTokenId: invoice.currency_token_id,
           invoicedAmount: String(invoice.invoiced_amount),
           paidAmount: String(invoice.paid_amount),
+          walletDerivationPath: invoice.wallet_derivation_path,
           walletAddress: invoice.wallet_address,
           invoiceType: invoice.invoice_type,
           status: invoice.status,

@@ -4,6 +4,7 @@ import Redis from 'ioredis';
 import { Pool } from 'pg';
 
 import { AppConfigService } from '../services/app-config.service';
+import { RedisService } from '../services/redis.service';
 import { CryptogadaiRepository } from './cryptogadai.repository';
 import { InMemoryCryptogadaiRepository } from './in-memory-cryptogadai.repository';
 import { PgRedisCryptogadaiRepository } from './pg-redis-cryptogadai.repository';
@@ -13,7 +14,10 @@ import { PricefeedRepository } from './pricefeed.repository';
   providers: [
     {
       provide: CryptogadaiRepository,
-      async useFactory(appConfig: AppConfigService): Promise<CryptogadaiRepository> {
+      async useFactory(
+        appConfig: AppConfigService,
+        redis: RedisService,
+      ): Promise<CryptogadaiRepository> {
         if (appConfig.databaseUrl === ':inmemory:') {
           const repo = new InMemoryCryptogadaiRepository();
           await repo.connect();
@@ -33,12 +37,13 @@ import { PricefeedRepository } from './pricefeed.repository';
           keepAlive: true,
           keepAliveInitialDelayMillis: 0,
         });
-        const redis = new Redis(appConfig.redisConfig);
+
         const repo = new PgRedisCryptogadaiRepository(pool, redis);
         await repo.connect();
+
         return repo;
       },
-      inject: [AppConfigService],
+      inject: [AppConfigService, RedisService],
     },
     {
       provide: PricefeedRepository,

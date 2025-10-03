@@ -28,30 +28,18 @@ export class TelemetryLogger implements LoggerService {
     this.logger = logs.getLogger(this.serviceName, this.serviceVersion);
   }
 
-  /**
-   * Log a debug message
-   */
   debug(message: string, ...optionalParams: unknown[]): void {
     this.emitLog('debug', message, optionalParams);
   }
 
-  /**
-   * Log an info message
-   */
   log(message: string, ...optionalParams: unknown[]): void {
     this.emitLog('info', message, optionalParams);
   }
 
-  /**
-   * Log a warning message
-   */
   warn(message: string, ...optionalParams: unknown[]): void {
     this.emitLog('warn', message, optionalParams);
   }
 
-  /**
-   * Log an error message
-   */
   error(message: unknown, ...optionalParams: unknown[]): void {
     if (typeof message === 'string') {
       this.emitLog('error', message, optionalParams);
@@ -67,16 +55,10 @@ export class TelemetryLogger implements LoggerService {
     }
   }
 
-  /**
-   * Log a verbose message (alias for debug)
-   */
   verbose(message: string, context?: LogContext): void {
     this.debug(message, context);
   }
 
-  /**
-   * Log with business context
-   */
   business(operation: string, success: boolean, context?: LogContext): void {
     this.emitLog(success ? 'info' : 'error', `Business operation: ${operation}`, {
       ...context,
@@ -86,9 +68,6 @@ export class TelemetryLogger implements LoggerService {
     });
   }
 
-  /**
-   * Log HTTP request
-   */
   httpRequest(
     method: string,
     url: string,
@@ -107,9 +86,6 @@ export class TelemetryLogger implements LoggerService {
     });
   }
 
-  /**
-   * Log database operation
-   */
   database(operation: string, table: string, duration: number, context?: LogContext): void {
     this.emitLog('info', `Database ${operation} on ${table}`, {
       ...context,
@@ -120,9 +96,6 @@ export class TelemetryLogger implements LoggerService {
     });
   }
 
-  /**
-   * Log with custom attributes
-   */
   custom(
     level: 'debug' | 'info' | 'warn' | 'error',
     message: string,
@@ -131,9 +104,6 @@ export class TelemetryLogger implements LoggerService {
     this.emitLog(level, message, { ...attributes, type: 'custom' });
   }
 
-  /**
-   * Private method to handle the actual logging
-   */
   private emitLog(
     level: 'debug' | 'info' | 'warn' | 'error',
     message: string,
@@ -176,9 +146,6 @@ export class TelemetryLogger implements LoggerService {
     console[consoleMethod](`[${level.toUpperCase()}] ${message}`, ...optionalParams);
   }
 
-  /**
-   * Convert log level to OpenTelemetry severity number
-   */
   private getSeverityNumber(level: string): number {
     switch (level) {
       case 'debug':
@@ -194,9 +161,6 @@ export class TelemetryLogger implements LoggerService {
     }
   }
 
-  /**
-   * Create a child logger with additional context
-   */
   child(context: LogContext): TelemetryLogger {
     const childLogger = new TelemetryLogger(this.serviceName, this.serviceVersion);
     // Store the base context for all future logs
@@ -204,9 +168,6 @@ export class TelemetryLogger implements LoggerService {
     return childLogger;
   }
 
-  /**
-   * Set global log level (affects all loggers)
-   */
   static setGlobalLogLevel(level: 'debug' | 'info' | 'warn' | 'error'): void {
     process.env.LOG_LEVEL = level;
   }

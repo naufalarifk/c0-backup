@@ -8,9 +8,9 @@ import {
 } from '@solana/web3.js';
 import invariant from 'tiny-invariant';
 
-import { IWallet, WalletTransferParams } from './Iwallet.types';
+import { Wallet, WalletTransferParams } from '../wallet.abstract';
 
-export abstract class BaseSolanaWallet extends IWallet {
+export abstract class SolWallet extends Wallet {
   protected abstract connection: Connection;
 
   constructor(protected readonly privateKey: Uint8Array<ArrayBufferLike>) {
@@ -20,20 +20,6 @@ export abstract class BaseSolanaWallet extends IWallet {
   async getAddress(): Promise<string> {
     const keypair = this.createKeypair();
     return keypair.publicKey.toBase58();
-  }
-
-  private createKeypair(): Keypair {
-    // Solana expects a 64-byte secret key, but HDKey provides 32 bytes
-    // For Solana, we use the 32-byte private key as seed to generate the keypair
-    if (this.privateKey.length === 32) {
-      return Keypair.fromSeed(new Uint8Array(this.privateKey));
-    } else if (this.privateKey.length === 64) {
-      return Keypair.fromSecretKey(new Uint8Array(this.privateKey));
-    } else {
-      throw new Error(
-        `Invalid private key length: ${this.privateKey.length}. Expected 32 or 64 bytes.`,
-      );
-    }
   }
 
   async transfer(params: WalletTransferParams): Promise<{ txHash: string }> {
@@ -77,6 +63,20 @@ export abstract class BaseSolanaWallet extends IWallet {
       invariant(
         false,
         `Transfer failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
+
+  private createKeypair(): Keypair {
+    // Solana expects a 64-byte secret key, but HDKey provides 32 bytes
+    // For Solana, we use the 32-byte private key as seed to generate the keypair
+    if (this.privateKey.length === 32) {
+      return Keypair.fromSeed(new Uint8Array(this.privateKey));
+    } else if (this.privateKey.length === 64) {
+      return Keypair.fromSecretKey(new Uint8Array(this.privateKey));
+    } else {
+      throw new Error(
+        `Invalid private key length: ${this.privateKey.length}. Expected 32 or 64 bytes.`,
       );
     }
   }

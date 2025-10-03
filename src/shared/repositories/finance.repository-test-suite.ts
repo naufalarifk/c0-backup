@@ -354,7 +354,7 @@ export async function runFinanceRepositoryTestSuite(
 
         const paymentDate = new Date('2024-01-01T04:00:00Z');
         const paymentResult = await repo.platformRecordInvoicePayment({
-          invoiceId: invoiceResult.id,
+          walletAddress: invoiceResult.walletAddress,
           paymentHash: '0xabcdef1234567890abcdef1234567890abcdef12345678',
           amount: '1000000',
           paymentDate,
@@ -578,6 +578,7 @@ export async function runFinanceRepositoryTestSuite(
           equal(typeof invoice.invoicedAmount, 'string');
           equal(typeof invoice.paidAmount, 'string');
           equal(typeof invoice.walletAddress, 'string');
+          equal(typeof invoice.walletDerivationPath, 'string');
           equal(typeof invoice.invoiceType, 'string');
           equal(typeof invoice.status, 'string');
           ok(invoice.invoiceDate instanceof Date);

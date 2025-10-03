@@ -1,41 +1,31 @@
 import { Module } from '@nestjs/common';
+import { DiscoveryModule } from '@nestjs/core';
 
 import { SharedModule } from '../../shared/shared.module';
 import { InvoicePaymentModule } from '../invoice-payments/invoice-payment.module';
-import { ActiveInvoiceStoreService } from './active-invoice-store.service';
 import { BitcoinService } from './btc.service';
-import { EthereumService } from './eth.service';
-import { IndexerProcessor } from './indexer.processor';
-import { IndexerService } from './indexer.service';
-import { MemoryStoreService } from './memory-store.service';
-import { SolanaService } from './sol.service';
+import { IndexerEventService } from './indexer-event.service';
+import { BitcoinMainnetIndexerListener } from './listeners/bitcoin-mainnet.listener';
+import { BscMainnetIndexerListener } from './listeners/bsc-mainnet.listener';
+import { CgTestnetIndexerListener } from './listeners/cg-testnet.listener';
+import { EthereumMainnetIndexerListener } from './listeners/ethereum-mainnet.listener';
+import { EthereumSepoliaIndexerListener } from './listeners/ethereum-sepolia.listener';
+import { SolanaMainnetIndexerListener } from './listeners/solana-mainnet.listener';
 
 @Module({
-  imports: [SharedModule, InvoicePaymentModule],
+  imports: [SharedModule, InvoicePaymentModule, DiscoveryModule],
   providers: [
-    // Core indexer service
-    IndexerService,
-
-    // Indexer processor for worker mode
-    IndexerProcessor,
-
-    // Blockchain services
+    IndexerEventService,
     BitcoinService,
-    EthereumService,
-    SolanaService,
 
-    // Storage service
-    MemoryStoreService,
-    ActiveInvoiceStoreService,
+    // Indexer Listeners
+    BitcoinMainnetIndexerListener,
+    BscMainnetIndexerListener,
+    EthereumMainnetIndexerListener,
+    EthereumSepoliaIndexerListener,
+    SolanaMainnetIndexerListener,
+    CgTestnetIndexerListener,
   ],
-  exports: [
-    IndexerService,
-    IndexerProcessor,
-    BitcoinService,
-    EthereumService,
-    SolanaService,
-    MemoryStoreService,
-    ActiveInvoiceStoreService,
-  ],
+  exports: [IndexerEventService],
 })
 export class IndexerModule {}

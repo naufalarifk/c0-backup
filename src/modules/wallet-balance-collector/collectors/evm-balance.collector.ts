@@ -9,8 +9,7 @@ import { Injectable } from '@nestjs/common';
 import { ethers } from 'ethers';
 
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
-import { WalletFactory } from '../../../shared/wallets/Iwallet.service';
-import { PlatformWalletService } from '../../../shared/wallets/platform-wallet.service';
+import { WalletFactory } from '../../../shared/wallets/wallet.factory';
 import { BlockchainNetworkEnum, getBlockchainType } from '../balance-collection.types';
 import { BalanceCollector } from '../balance-collector.abstract';
 import { CollectorFlag } from '../balance-collector.factory';
@@ -27,10 +26,7 @@ export class EVMBalanceCollector extends BalanceCollector {
   // Gas reserve: 21000 gas * 20 gwei
   protected readonly GAS_RESERVE = BigInt(21000) * BigInt(20000000000);
 
-  constructor(
-    private readonly platformWalletService: PlatformWalletService,
-    private readonly walletFactory: WalletFactory,
-  ) {
+  constructor(private readonly walletFactory: WalletFactory) {
     super();
   }
 
@@ -75,8 +71,12 @@ export class EVMBalanceCollector extends BalanceCollector {
       }
 
       // Get hot wallet address
-      const hotWallet = await this.platformWalletService.getHotWallet(request.blockchainKey);
-      const hotWalletAddress = hotWallet.address;
+      const blockchain = this.walletFactory.getBlockchain(request.blockchainKey);
+      if (!blockchain) {
+        throw new Error(`Unsupported blockchain: ${request.blockchainKey}`);
+      }
+      const hotWallet = await blockchain.getHotWallet();
+      const hotWalletAddress = await hotWallet.getAddress();
 
       // Transfer balance
       const transferResult = await this.transferToHotWallet(
@@ -131,14 +131,11 @@ export class EVMBalanceCollector extends BalanceCollector {
     const transferAmountEth = ethers.formatEther(transferAmount);
 
     // Get invoice wallet
-    const masterKey = await this.platformWalletService.getMasterKey();
-    const walletService = this.walletFactory.getWalletService(
-      BlockchainNetworkEnum.EthereumMainnet,
-    );
-    const invoiceWallet = await walletService.derivedPathToWallet({
-      masterKey,
-      derivationPath: invoiceWalletDerivationPath,
-    });
+    const blockchain = this.walletFactory.getBlockchain(BlockchainNetworkEnum.EthereumMainnet);
+    if (!blockchain) {
+      throw new Error(`Unsupported blockchain: ${BlockchainNetworkEnum.EthereumMainnet}`);
+    }
+    const invoiceWallet = await blockchain.derivedPathToWallet(invoiceWalletDerivationPath);
 
     // Transfer
     const result = await invoiceWallet.transfer({

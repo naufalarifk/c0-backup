@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 
 import { SharedModule } from '../../shared/shared.module';
+import { IndexerModule } from '../indexer/indexer.module';
 import { NotificationModule } from '../notifications/notification.module';
 import { InvoiceExpirationProcessor } from './invoice-expiration.processor';
 import { InvoiceExpirationService } from './invoice-expiration.service';
@@ -12,6 +13,7 @@ import { InvoiceExpirationQueueService } from './invoice-expiration-queue.servic
   imports: [
     SharedModule,
     NotificationModule,
+    IndexerModule,
     ScheduleModule.forRoot(),
     BullModule.registerQueue({
       name: 'invoiceExpirationQueue',

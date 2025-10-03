@@ -1,11 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
-import { PlatformWalletService } from '../wallets/platform-wallet.service';
+import { WalletService } from '../wallets/wallet.service';
 
 export interface HotWalletConfig {
   blockchainKey: string;
   address: string;
-  derivationPath: string;
   bip44CoinType: number;
 }
 
@@ -13,7 +12,7 @@ export interface HotWalletConfig {
 export class PlatformConfigService {
   private readonly hotWalletConfigCache = new Map<string, Promise<HotWalletConfig>>();
 
-  constructor(private readonly platformWalletService: PlatformWalletService) {}
+  constructor(private readonly platformWalletService: WalletService) {}
 
   async getHotWalletConfig(blockchainKey: string): Promise<HotWalletConfig> {
     let loadingConfig = this.hotWalletConfigCache.get(blockchainKey);
@@ -22,7 +21,6 @@ export class PlatformConfigService {
       loadingConfig = this.platformWalletService.getHotWallet(blockchainKey).then(hotWallet => ({
         blockchainKey: hotWallet.blockchainKey,
         address: hotWallet.address,
-        derivationPath: hotWallet.derivationPath,
         bip44CoinType: hotWallet.bip44CoinType,
       }));
 

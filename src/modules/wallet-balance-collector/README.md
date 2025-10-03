@@ -43,7 +43,7 @@ Balance Collection Worker Processes Job
 
 The module integrates with the invoice payment flow:
 
-1. **IndexerService** detects payment and enqueues payment detection job (includes derivation path)
+1. **Indexer listeners** detect payments and enqueue detection jobs (derivation path included)
 2. **InvoicePaymentProcessor** records the payment in the database
 3. **InvoicePaymentProcessor** enqueues balance collection job
 4. **WalletBalanceCollectorProcessor** processes the job and collects remaining balance

@@ -9,6 +9,7 @@ import { InvoiceIdGenerator } from './invoice/invoice-id.generator';
 import { RepositoryModule } from './repositories/repository.module';
 import { AppConfigService } from './services/app-config.service';
 import { CacheService } from './services/cache.service';
+import { CgTestnetBlockchainEventService } from './services/cg-testnet-blockchain-event.service';
 import { EmailService } from './services/email.service';
 import { FileValidatorService } from './services/file-validator.service';
 import { MailerService } from './services/mailer.service';
@@ -19,7 +20,7 @@ import { PlatformConfigService } from './services/platform-config.service';
 import { RedisService } from './services/redis.service';
 import { TelemetryService } from './services/telemetry.service';
 import { TwilioService } from './services/twilio.service';
-import { WalletsModule } from './wallets/wallets.module';
+import { WalletModule } from './wallets/wallet.module';
 
 const providers: Provider[] = [
   AppConfigService,
@@ -31,6 +32,7 @@ const providers: Provider[] = [
   RedisService,
   TelemetryInterceptor,
   TelemetryService,
+  CgTestnetBlockchainEventService,
   TwilioService,
   InvoiceIdGenerator,
   InvoiceService,
@@ -50,8 +52,8 @@ const providers: Provider[] = [
 @Global()
 @Module({
   providers,
-  imports: [CryptographyModule, RepositoryModule, WalletsModule],
+  imports: [CryptographyModule, RepositoryModule, WalletModule],
   controllers: [MinioMockController],
-  exports: [...providers, CryptographyModule, RepositoryModule, WalletsModule],
+  exports: [...providers, CryptographyModule, RepositoryModule, WalletModule],
 })
 export class SharedModule {}

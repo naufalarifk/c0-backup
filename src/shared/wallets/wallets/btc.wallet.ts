@@ -3,7 +3,7 @@ import * as ecPair from 'ecpair';
 import invariant from 'tiny-invariant';
 import * as ecc from 'tiny-secp256k1';
 
-import { IWallet, WalletTransferParams } from './Iwallet.types';
+import { Wallet, WalletTransferParams } from '../wallet.abstract';
 
 export interface BitcoinRpcClient {
   sendRawTransaction(hexString: string): Promise<string>;
@@ -17,7 +17,7 @@ export interface BitcoinRpcClient {
   >;
 }
 
-export abstract class BaseBitcoinWallet extends IWallet {
+export abstract class BtcWallet extends Wallet {
   protected abstract network: bitcoin.Network;
   protected abstract rpcClient: BitcoinRpcClient;
 

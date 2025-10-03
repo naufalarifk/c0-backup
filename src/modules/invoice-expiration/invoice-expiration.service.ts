@@ -10,6 +10,7 @@ import { ActiveButExpiredInvoice } from 'src/shared/repositories/finance.types.j
 import { assertProp, isInstanceOf } from 'typeshaper';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { IndexerEventService } from '../indexer/indexer-event.service';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
 
 @Injectable()
@@ -20,6 +21,7 @@ export class InvoiceExpirationService {
     @Inject(CryptogadaiRepository)
     private readonly repository: CryptogadaiRepository,
     private readonly notificationQueueService: NotificationQueueService,
+    private readonly indexerEventService: IndexerEventService,
   ) {}
 
   async processExpiredInvoices(
@@ -112,6 +114,13 @@ export class InvoiceExpirationService {
       invoiceId: invoice.id,
       expiredDate,
     });
+
+    await this.indexerEventService.removeWallet(
+      invoice.currencyBlockchainKey,
+      invoice.currencyTokenId,
+      invoice.walletAddress,
+      invoice.walletDerivationPath,
+    );
 
     this.logger.log(
       `Successfully expired invoice ${invoice.id} (${invoice.invoiceType}) for user ${invoice.userId}`,

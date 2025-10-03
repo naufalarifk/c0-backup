@@ -221,3 +221,50 @@ INSERT INTO accounts (user_id, currency_blockchain_key, currency_token_id, balan
   (1, 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp', 'slip44:501', 0, 'PlatformEscrow'),
   (1, 'crosschain', 'iso4217:usd', 0, 'PlatformFee')
 ON CONFLICT (user_id, currency_blockchain_key, currency_token_id, account_type) DO NOTHING;
+
+-- Testnet / Devnet currencies: native coins and representative test stablecoins
+INSERT INTO currencies (
+  blockchain_key, token_id, name, symbol, decimals, image,
+  min_loan_principal_amount, max_loan_principal_amount,
+  max_ltv, ltv_warning_threshold, ltv_critical_threshold, ltv_liquidation_threshold,
+  min_withdrawal_amount
+) VALUES
+  ('bip122:000000000933ea01ad0ee984209779ba', 'slip44:0', 'Bitcoin Testnet', 'TBTC', 8, 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+   '0', '0', 0, 0, 0, 0, '0'),
+  ('eip155:11155111', 'slip44:60', 'Sepolia ETH', 'ETH', 18, 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
+   '0', '0', 0, 0, 0, 0, '0'),
+  ('eip155:97', 'slip44:714', 'BNB Testnet', 'BNB', 18, 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
+   '0', '0', 0, 0, 0, 0, '0'),
+  ('solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1', 'slip44:501', 'Solana Devnet', 'SOL', 9, 'https://cryptologos.cc/logos/solana-sol-logo.png',
+   '0', '0', 0, 0, 0, 0, '0'),
+  ('eip155:11155111', 'erc20:0x1c7d4b196cb0c7b01d743fbc6116a902379c7238', 'USD Coin (Sepolia)', 'USDC', 6, 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
+   '100000000', '100000000000', 0, 0, 0, 0, '0'), -- Sepolia USDC (100 USDC min)
+  ('eip155:97', 'erc20:0x221c5b1a293aac1187ed3a7d7d2d9ad7fe1f3fb0', 'Tether USD (BSC Testnet)', 'USDT', 18, 'https://cryptologos.cc/logos/tether-usdt-logo.png',
+   '0', '0', 0, 0, 0, 0, '0'), -- Example BEP-20 USDT on BSC testnet
+  ('solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1', 'spl:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr', 'USD Coin (Solana Devnet)', 'USDC', 6, 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
+   '0', '0', 0, 0, 0, 0, '0'),
+  ('cg:testnet', 'mock:native', 'Mockchain Coin', 'MCK', 18, 'https://assets.cryptogadai.com/currencies/mockchain.png',
+   '0', '0', 0, 0, 0, 0, '0'),
+  ('cg:testnet', 'mock:usd', 'Mockchain Dollar', 'MUSD', 18, 'https://assets.cryptogadai.com/currencies/mockchain-usd.png',
+   '100000000000000000000', '100000000000000000000000', 0, 0, 0, 0, '0')
+ON CONFLICT (blockchain_key, token_id) DO UPDATE SET
+  min_loan_principal_amount = EXCLUDED.min_loan_principal_amount,
+  max_loan_principal_amount = EXCLUDED.max_loan_principal_amount,
+  max_ltv = EXCLUDED.max_ltv,
+  ltv_warning_threshold = EXCLUDED.ltv_warning_threshold,
+  ltv_critical_threshold = EXCLUDED.ltv_critical_threshold,
+  ltv_liquidation_threshold = EXCLUDED.ltv_liquidation_threshold,
+  min_withdrawal_amount = EXCLUDED.min_withdrawal_amount;
+
+-- Platform accounts for testnets/devnets (user_id = 1)
+INSERT INTO accounts (user_id, currency_blockchain_key, currency_token_id, balance, account_type) VALUES
+  (1, 'bip122:000000000933ea01ad0ee984209779ba', 'slip44:0', 0, 'PlatformEscrow'),
+  (1, 'eip155:11155111', 'slip44:60', 0, 'PlatformEscrow'),
+  (1, 'eip155:97', 'slip44:714', 0, 'PlatformEscrow'),
+  (1, 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1', 'slip44:501', 0, 'PlatformEscrow'),
+  (1, 'eip155:11155111', 'erc20:0x1c7d4b196cb0c7b01d743fbc6116a902379c7238', 0, 'PlatformEscrow'),
+  (1, 'eip155:97', 'erc20:0x221c5b1a293aac1187ed3a7d7d2d9ad7fe1f3fb0', 0, 'PlatformEscrow'),
+  (1, 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1', 'spl:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr', 0, 'PlatformEscrow'),
+  (1, 'cg:testnet', 'mock:native', 0, 'PlatformEscrow'),
+  (1, 'cg:testnet', 'mock:usd', 0, 'PlatformEscrow')
+ON CONFLICT (user_id, currency_blockchain_key, currency_token_id, account_type) DO NOTHING;

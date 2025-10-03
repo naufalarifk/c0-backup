@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { Redis } from 'ioredis';
 import { Pool, PoolClient } from 'pg';
 
+import { RedisService } from '../services/redis.service';
 import { TelemetryLogger } from '../telemetry.logger';
 import { DbRepository } from './base.repository';
 import { CryptogadaiRepository } from './cryptogadai.repository';
@@ -64,11 +65,11 @@ export class PgRedisDbRepository extends DbRepository {
 
 export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
   #pool: Pool;
-  #redis: Redis;
+  #redis: RedisService;
   #logger = new TelemetryLogger(PgRedisCryptogadaiRepository.name);
   #isClosed = false;
 
-  constructor(pool: Pool, redis: Redis) {
+  constructor(pool: Pool, redis: RedisService) {
     super();
     this.#pool = pool;
     this.#redis = redis;
@@ -192,7 +193,7 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
       return;
     }
     this.#isClosed = true;
-    await Promise.all([this.#pool.end(), this.#redis.quit()]);
+    await Promise.all([this.#pool.end()]);
   }
 
   // === Postgres Methods Begin ===

@@ -1,14 +1,14 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { DiscoveryService, Reflector } from '@nestjs/core';
 
-import { IWalletFactory, IWalletService } from './Iwallet.types';
+import { Blockchain } from './blockchain.abstract';
 
 const BLOCKCHAIN_KEY = 'BLOCKCHAIN_KEY';
 export const WalletProvider = (key: string) => Reflect.metadata(BLOCKCHAIN_KEY, key);
 
 @Injectable()
-export class WalletFactory implements IWalletFactory, OnModuleInit {
-  private services = new Map<string, IWalletService>();
+export class WalletFactory implements OnModuleInit {
+  private services = new Map<string, Blockchain>();
 
   constructor(
     private readonly discovery: DiscoveryService,
@@ -25,14 +25,14 @@ export class WalletFactory implements IWalletFactory, OnModuleInit {
       const blockchainKey = this.reflector.get<string>(BLOCKCHAIN_KEY, instance.constructor);
 
       if (blockchainKey && 'derivedPathToWallet' in instance) {
-        this.services.set(blockchainKey, instance as IWalletService);
+        this.services.set(blockchainKey, instance as Blockchain);
       }
     }
 
     console.log(`WalletFactory initialized with:`, [...this.services.keys()]);
   }
 
-  getWalletService(blockchainKey: string): IWalletService {
+  getBlockchain(blockchainKey: string): Blockchain {
     const service = this.services.get(blockchainKey);
     if (!service) throw new Error(`Wallet service not found: ${blockchainKey}`);
     return service;

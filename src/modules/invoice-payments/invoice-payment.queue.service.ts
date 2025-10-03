@@ -37,7 +37,7 @@ export class InvoicePaymentQueueService {
     });
 
     this.logger.debug(
-      `Queued invoice payment detection job ${job.id} for invoice ${data.invoiceId} (${data.blockchainKey})`,
+      `Queued invoice payment detection job ${job.id} from address ${data.walletAddress} with txid ${data.transactionHash}`,
     );
   }
 }

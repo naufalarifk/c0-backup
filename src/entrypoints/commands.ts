@@ -3,7 +3,6 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 
 import { DocumentModule } from '../modules/documents/document.module';
 import { IndexerModule } from '../modules/indexer/indexer.module';
-import { IndexerProcessor } from '../modules/indexer/indexer.processor';
 import { InvoiceExpirationModule } from '../modules/invoice-expiration/invoice-expiration.module';
 import { LoanMatcherModule } from '../modules/loan-matcher/loan-matcher.module';
 import { NotificationModule } from '../modules/notifications/notification.module';
@@ -125,17 +124,13 @@ export const COMMAND_DEFINITIONS: Record<CommandKey, CommandDefinition> = {
   },
   indexer: {
     imports: [IndexerModule],
-    async bootstrap({ app }) {
+    async bootstrap() {
       const logger = new TelemetryLogger('IndexerWorker');
-      const processor = app.get(IndexerProcessor);
-      await processor.start();
       logger.log('Indexer worker started successfully');
 
       return {
-        cleanup: async () => {
-          logger.log('Stopping Indexer worker');
-          await processor.stop();
-          logger.log('Indexer worker stopped');
+        cleanup: () => {
+          logger.log('Indexer worker shutting down');
         },
       };
     },

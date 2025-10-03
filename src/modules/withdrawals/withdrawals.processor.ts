@@ -10,7 +10,7 @@ import invariant from 'tiny-invariant';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { PlatformConfigService } from '../../shared/services/platform-config.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
-import { PlatformWalletService } from '../../shared/wallets/platform-wallet.service';
+import { WalletService } from '../../shared/wallets/wallet.service';
 import { FailureType } from '../admin/withdrawals/admin-withdrawal.dto';
 import { AdminWithdrawalsService } from '../admin/withdrawals/admin-withdrawals.service';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
@@ -44,7 +44,7 @@ export class WithdrawalsProcessor extends WorkerHost {
     private readonly notificationQueueService: NotificationQueueService,
     private readonly blockchainService: BlockchainService,
     private readonly adminWithdrawalsService: AdminWithdrawalsService,
-    private readonly platformWalletService: PlatformWalletService,
+    private readonly platformWalletService: WalletService,
     private readonly platformConfigService: PlatformConfigService,
     @InjectQueue('withdrawalsQueue')
     private readonly withdrawalsQueue: Queue<WithdrawalProcessingData | ConfirmationMonitoringData>,

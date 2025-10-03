@@ -3,12 +3,13 @@ import type { TransactionRequest } from 'ethers';
 import { ethers } from 'ethers';
 import invariant from 'tiny-invariant';
 
-import { IWallet, WalletTransferParams } from './Iwallet.types';
+import { Wallet, WalletTransferParams } from '../wallet.abstract';
 
-export abstract class BaseEthereumWallet extends IWallet {
-  protected abstract provider: ethers.JsonRpcProvider;
-
-  constructor(protected readonly privateKey: Uint8Array<ArrayBufferLike>) {
+export class EthWallet extends Wallet {
+  constructor(
+    protected readonly privateKey: Uint8Array<ArrayBufferLike>,
+    protected readonly provider: ethers.JsonRpcProvider,
+  ) {
     super();
   }
 

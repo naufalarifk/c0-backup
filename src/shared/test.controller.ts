@@ -22,6 +22,7 @@ import {
 
 import { LoansService } from '../modules/loans/services/loans.service';
 import { CryptogadaiRepository } from './repositories/cryptogadai.repository';
+import { CgTestnetBlockchainEventService } from './services/cg-testnet-blockchain-event.service';
 import { TelemetryLogger } from './telemetry.logger';
 
 @Controller('test')
@@ -31,6 +32,7 @@ export class TestController {
   constructor(
     private readonly repo: CryptogadaiRepository,
     private readonly loansService: LoansService,
+    private readonly testBlockchainEvents: CgTestnetBlockchainEventService,
   ) {}
 
   @Get('test')
@@ -1094,6 +1096,91 @@ export class TestController {
       message: `${mutations.length} account mutations set up for ${email}`,
       userId: Number(userId),
       mutationsCount: mutations.length,
+    };
+  }
+
+  @Post('cg-testnet-blockchain-payments')
+  async dispatchMockBlockchainPayment(
+    @Body()
+    body: {
+      blockchainKey?: string;
+      tokenId?: string;
+      address?: string;
+      amount?: string;
+      txHash?: string;
+      sender?: string;
+      timestamp?: string | number;
+    },
+  ) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Test endpoints are not available in production');
+    }
+
+    if (!body || typeof body !== 'object') {
+      throw new BadRequestException('request body is required');
+    }
+
+    const blockchainKey =
+      typeof body.blockchainKey === 'string' && body.blockchainKey.trim().length > 0
+        ? body.blockchainKey
+        : 'cg:testnet';
+
+    if (!body.tokenId || typeof body.tokenId !== 'string') {
+      throw new BadRequestException('tokenId is required');
+    }
+    if (!body.address || typeof body.address !== 'string') {
+      throw new BadRequestException('address is required');
+    }
+    if (!body.amount || typeof body.amount !== 'string') {
+      throw new BadRequestException('amount is required');
+    }
+    if (!body.txHash || typeof body.txHash !== 'string') {
+      throw new BadRequestException('txHash is required');
+    }
+
+    let timestamp: number | undefined;
+    if (body.timestamp !== undefined) {
+      if (typeof body.timestamp === 'number' && Number.isFinite(body.timestamp)) {
+        timestamp = Math.floor(body.timestamp);
+      } else if (typeof body.timestamp === 'string') {
+        const parsed = Date.parse(body.timestamp);
+        if (Number.isNaN(parsed)) {
+          throw new BadRequestException(
+            'timestamp must be a valid ISO date string or epoch seconds',
+          );
+        }
+        timestamp = Math.floor(parsed / 1000);
+      } else {
+        throw new BadRequestException('timestamp must be a number or ISO date string');
+      }
+    }
+
+    await this.testBlockchainEvents.dispatchPayment({
+      blockchainKey: blockchainKey.toLowerCase(),
+      tokenId: body.tokenId,
+      address: body.address,
+      amount: body.amount,
+      txHash: body.txHash,
+      sender:
+        typeof body.sender === 'string' && body.sender.trim().length > 0 ? body.sender : undefined,
+      timestamp,
+    });
+
+    this.#logger.debug('Dispatched cg:testnet blockchain payment event', {
+      blockchainKey,
+      tokenId: body.tokenId,
+      address: body.address,
+      txHash: body.txHash,
+    });
+
+    return {
+      success: true,
+      blockchainKey,
+      tokenId: body.tokenId,
+      address: body.address,
+      amount: body.amount,
+      txHash: body.txHash,
+      timestamp,
     };
   }
 }

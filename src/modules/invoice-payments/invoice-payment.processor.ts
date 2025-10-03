@@ -31,11 +31,11 @@ export class InvoicePaymentProcessor extends WorkerHost {
     } = job.data;
 
     this.logger.debug(
-      `Processing invoice payment job ${job.id} for invoice ${invoiceId} (tx: ${transactionHash})`,
+      `Processing invoice payment job ${job.id} for invoice of wallet ${walletAddress} on blockchain ${blockchainKey}`,
     );
 
     await this.invoicePaymentService.recordPayment({
-      invoiceId,
+      walletAddress,
       transactionHash,
       amount,
       paymentDate: new Date(detectedAt),
@@ -43,7 +43,7 @@ export class InvoicePaymentProcessor extends WorkerHost {
 
     // After recording payment, trigger balance collection
     this.logger.debug(
-      `Triggering balance collection for invoice ${invoiceId} after payment recorded`,
+      `Triggering balance collection for invoice if wallet ${walletAddress} on blockchain ${blockchainKey}`,
     );
 
     await this.walletBalanceCollectorQueue.enqueueBalanceCollection({
@@ -57,13 +57,15 @@ export class InvoicePaymentProcessor extends WorkerHost {
 
   @OnWorkerEvent('completed')
   onCompleted(job: Job<InvoicePaymentJobData>) {
-    this.logger.debug(`Invoice payment job ${job.id} completed for invoice ${job.data.invoiceId}`);
+    this.logger.debug(
+      `Invoice payment job ${job.id} completed for invoice of wallet ${job.data.walletAddress}`,
+    );
   }
 
   @OnWorkerEvent('failed')
   onFailed(job: Job<InvoicePaymentJobData>, error: Error) {
     this.logger.error(
-      `Invoice payment job ${job.id} failed for invoice ${job.data.invoiceId}: ${error.message}`,
+      `Invoice payment job ${job.id} failed for invoice of wallet ${job.data.walletAddress}: ${error.message}`,
     );
   }
 }

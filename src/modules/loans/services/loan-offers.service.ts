@@ -10,6 +10,7 @@ import { assertDefined, assertPropNumber } from 'typeshaper';
 import { InvoiceService } from '../../../shared/invoice/invoice.service';
 import { InvoiceError } from '../../../shared/invoice/invoice.types';
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { IndexerEventService } from '../../indexer/indexer-event.service';
 import { LenderType, LoanOfferStatus, PaginationMetaDto } from '../dto/common.dto';
 import {
   CreateLoanOfferDto,
@@ -43,10 +44,10 @@ export class LoanOffersService {
   private readonly logger = new Logger(LoanOffersService.name);
 
   constructor(
-    @Inject(CryptogadaiRepository)
-    private readonly repository: CryptogadaiRepository,
+    private readonly indexerEventService: IndexerEventService,
     private readonly invoiceService: InvoiceService,
     private readonly loanCalculationService: LoanCalculationService,
+    private readonly repository: CryptogadaiRepository,
   ) {}
 
   /**
@@ -171,6 +172,13 @@ export class LoanOffersService {
         fundingWalletDerivationPath: invoiceDraft.walletDerivationPath,
         fundingWalletAddress: invoiceDraft.walletAddress,
       });
+
+      this.indexerEventService.addWallet(
+        createLoanOfferDto.principalBlockchainKey,
+        createLoanOfferDto.principalTokenId,
+        invoiceDraft.walletAddress,
+        invoiceDraft.walletDerivationPath,
+      );
 
       return {
         id: result.id,

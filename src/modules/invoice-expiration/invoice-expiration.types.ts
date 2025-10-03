@@ -12,6 +12,7 @@ export interface ExpiredInvoiceData {
   invoicedAmount: string;
   paidAmount: string;
   walletAddress: string;
+  walletDerivationPath: string;
   invoiceType: string;
   status: string;
   invoiceDate: Date;

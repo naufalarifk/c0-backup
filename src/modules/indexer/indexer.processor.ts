@@ -1,29 +1,40 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { DiscoveryService } from '@nestjs/core';
 
-import { IndexerService } from './indexer.service';
+import { TelemetryLogger } from '../../shared/telemetry.logger';
+import { IndexerListener } from './indexer-listener.abstract';
 
 @Injectable()
-export class IndexerProcessor {
-  private readonly logger = new Logger(IndexerProcessor.name);
+export class IndexerProcessor implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new TelemetryLogger(IndexerProcessor.name);
 
-  constructor(readonly _indexerService: IndexerService) {}
+  constructor(private readonly discovery: DiscoveryService) {}
 
-  async start(): Promise<void> {
-    this.logger.log('Starting blockchain indexer processor...');
+  #startedListeners = new Set<IndexerListener>();
 
-    try {
-      // The IndexerService onModuleInit will start the blockchain subscriptions
-      this.logger.log('Blockchain indexer processor started successfully');
-      this.logger.log('Subscriptions active for BTC, ETH, and SOL networks');
-    } catch (error) {
-      this.logger.error('Failed to start blockchain indexer processor:', error);
-      throw error;
+  async onModuleInit() {
+    if (this.#startedListeners.size > 0) {
+      await this.onModuleDestroy();
+    }
+
+    const listeners = this.discovery.getProviders().filter(wrapper => {
+      return wrapper.instance && wrapper.instance instanceof IndexerListener;
+    });
+
+    for (const wrapper of listeners) {
+      const listener = wrapper.instance as IndexerListener;
+      await listener.start();
+      this.#startedListeners.add(listener);
     }
   }
 
-  async stop(): Promise<void> {
-    this.logger.log('Stopping blockchain indexer processor...');
-    // Add any cleanup logic here if needed
-    this.logger.log('Blockchain indexer processor stopped');
+  async onModuleDestroy() {
+    for (const listener of this.#startedListeners) {
+      try {
+        await listener.stop();
+      } catch (error) {
+        this.logger.error('Error stopping indexer listener', error);
+      }
+    }
   }
 }

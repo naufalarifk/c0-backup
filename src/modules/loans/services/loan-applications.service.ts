@@ -10,6 +10,7 @@ import {
 import { InvoiceService } from '../../../shared/invoice/invoice.service';
 import { InvoiceError } from '../../../shared/invoice/invoice.types';
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { IndexerEventService } from '../../indexer/indexer-event.service';
 import { LiquidationMode, LoanApplicationStatus, PaginationMetaDto } from '../dto/common.dto';
 import {
   CreateLoanApplicationDto,
@@ -31,8 +32,8 @@ export class LoanApplicationsService {
   private readonly logger = new Logger(LoanApplicationsService.name);
 
   constructor(
-    @Inject(CryptogadaiRepository)
     private readonly cryptogadaiRepository: CryptogadaiRepository,
+    private readonly indexerEventService: IndexerEventService,
     private readonly invoiceService: InvoiceService,
     private readonly loanCalculationService: LoanCalculationService,
   ) {}
@@ -381,6 +382,13 @@ export class LoanApplicationsService {
         default:
           dtoStatus = LoanApplicationStatus.DRAFT;
       }
+
+      this.indexerEventService.addWallet(
+        createLoanApplicationDto.collateralBlockchainKey,
+        createLoanApplicationDto.collateralTokenId,
+        walletAddress,
+        invoiceDraft.walletDerivationPath,
+      );
 
       return {
         id: result.id,
