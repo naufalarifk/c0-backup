@@ -12,6 +12,8 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
+import { MatcherStrategyType } from './loan-matcher-strategy.abstract';
+import { LoanMatcherStrategyFactory } from './loan-matcher-strategy.factory';
 
 @Injectable()
 export class LoanMatcherService {
@@ -21,6 +23,7 @@ export class LoanMatcherService {
     @Inject(CryptogadaiRepository)
     private readonly repository: CryptogadaiRepository,
     private readonly notificationQueueService: NotificationQueueService,
+    private readonly strategyFactory: LoanMatcherStrategyFactory,
   ) {}
 
   /**
@@ -211,9 +214,41 @@ export class LoanMatcherService {
 
   /**
    * Find loan offers that are compatible with the given application
-   * Compatibility is based on: principal amount, interest rate, duration, collateral type
+   * Uses strategy pattern for different matching algorithms
    */
   private async findCompatibleOffers(
+    application: MatchableLoanApplication,
+    targetOfferId?: string,
+    lenderCriteria?: LenderMatchingCriteria,
+    borrowerCriteria?: BorrowerMatchingCriteria,
+  ): Promise<CompatibleLoanOffer[]> {
+    // Try to use enhanced strategy if criteria provided
+    if (lenderCriteria || borrowerCriteria) {
+      const strategy = this.strategyFactory.getStrategy(MatcherStrategyType.Enhanced);
+      if (strategy) {
+        this.logger.debug('Using enhanced matching strategy');
+        return await strategy.findCompatibleOffers(
+          application,
+          targetOfferId,
+          lenderCriteria,
+          borrowerCriteria,
+        );
+      }
+    }
+
+    // Fallback to legacy matching logic
+    return this.findCompatibleOffersLegacy(
+      application,
+      targetOfferId,
+      lenderCriteria,
+      borrowerCriteria,
+    );
+  }
+
+  /**
+   * Legacy matching logic (preserved for backward compatibility)
+   */
+  private async findCompatibleOffersLegacy(
     application: MatchableLoanApplication,
     targetOfferId?: string,
     lenderCriteria?: LenderMatchingCriteria,
@@ -586,7 +621,7 @@ export class LoanMatcherService {
         application.collateralDepositAmount,
       );
       const principalAmount = parseFloat(application.principalAmount);
-      const ltvRatio = collateralValue > 0 ? (principalAmount / collateralValue) * 100 : 0;
+      const ltvRatio = collateralValue > 0 ? principalAmount / collateralValue : 0;
 
       const matchResult = await this.repository.platformMatchesLoanOffers({
         loanApplicationId: application.id,
