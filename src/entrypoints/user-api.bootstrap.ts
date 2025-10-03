@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { WsAdapter } from '@nestjs/platform-ws';
 
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
@@ -77,6 +78,7 @@ export async function bootstrapUserApi(app: NestExpressApplication) {
   );
 
   app.useGlobalPipes(new ValidationPipe(validationOptions));
+  app.useWebSocketAdapter(new WsAdapter(app));
 
   if (configService.documentationEnabled) {
     await docs(app, configService.authConfig.url);

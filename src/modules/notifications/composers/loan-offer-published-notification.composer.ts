@@ -12,7 +12,8 @@ import { NotificationChannelEnum } from '../notification.types';
 import { Composer, NotificationComposer } from '../notification-composer.abstract';
 
 export type SMSLoanOfferPublishedNotificationData = NotificationData & {
-  phoneNumber: string;
+  userId: string;
+  phoneNumber?: string;
   loanOfferId?: string;
   amount?: string;
   interestRate?: string;
@@ -25,8 +26,9 @@ function assertSMSLoanOfferPublishedNotificationData(
   data: unknown,
 ): asserts data is SMSLoanOfferPublishedNotificationData {
   assertDefined(data, 'Notification data is required');
-  assertPropString(data, 'phoneNumber', 'Phone number is required');
+  assertPropString(data, 'userId', 'User ID is required');
   if (typeof data === 'object' && data !== null) {
+    if ('phoneNumber' in data) assertPropNullableString(data, 'phoneNumber');
     if ('loanOfferId' in data) assertPropNullableString(data, 'loanOfferId');
     if ('amount' in data) assertPropNullableString(data, 'amount');
     if ('interestRate' in data) assertPropNullableString(data, 'interestRate');
@@ -41,13 +43,45 @@ function assertSMSLoanOfferPublishedNotificationData(
 export class LoanOfferPublishedNotificationComposer extends NotificationComposer<SMSLoanOfferPublishedNotificationData> {
   async composePayloads(data: unknown): Promise<AnyNotificationPayload[]> {
     assertSMSLoanOfferPublishedNotificationData(data);
-    return await Promise.resolve([
-      {
+
+    const payloads: AnyNotificationPayload[] = [];
+    const title = 'Loan Offer Published';
+    const content = `Your loan offer has been published${data.amount ? ` for $${data.amount}` : ''}${data.interestRate ? ` at ${data.interestRate}` : ''}${data.term ? ` for ${data.term}` : ''}.`;
+
+    // Database notification (always save to database)
+    payloads.push({
+      channel: NotificationChannelEnum.Database,
+      userId: data.userId,
+      type: 'LoanOfferPublished',
+      title,
+      content,
+    });
+
+    // Realtime notification (always publish for connected clients)
+    payloads.push({
+      channel: NotificationChannelEnum.Realtime,
+      userId: data.userId,
+      type: 'LoanOfferPublished',
+      title,
+      content,
+      metadata: {
+        loanOfferId: data.loanOfferId,
+        amount: data.amount,
+        interestRate: data.interestRate,
+        term: data.term,
+      },
+    });
+
+    // SMS notification if phone number is available
+    if (data.phoneNumber) {
+      payloads.push({
         channel: NotificationChannelEnum.SMS,
         to: data.phoneNumber,
         message: this.renderSMSMessage(data),
-      } as SMSNotificationPayload,
-    ]);
+      } as SMSNotificationPayload);
+    }
+
+    return payloads;
   }
 
   private renderSMSMessage(data: SMSLoanOfferPublishedNotificationData): string {

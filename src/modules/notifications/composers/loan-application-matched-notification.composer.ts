@@ -44,6 +44,35 @@ export class LoanApplicationMatchedNotificationComposer extends NotificationComp
     assertLoanApplicationMatchedNotificationParam(data);
 
     const payloads: AnyNotificationPayload[] = [];
+    const userId = String(data.userId);
+    const title = 'Loan Application Matched!';
+    const content = `Your loan application has been matched with a lender. Principal: $${data.principalAmount}, Rate: ${data.interestRate}%, Term: ${data.termInMonths} months.`;
+
+    // Database notification (always save to database)
+    payloads.push({
+      channel: NotificationChannelEnum.Database,
+      userId,
+      type: 'LoanApplicationMatched',
+      title,
+      content,
+    });
+
+    // Realtime notification (always publish for connected clients)
+    payloads.push({
+      channel: NotificationChannelEnum.Realtime,
+      userId,
+      type: 'LoanApplicationMatched',
+      title,
+      content,
+      metadata: {
+        loanApplicationId: data.loanApplicationId,
+        loanOfferId: data.loanOfferId,
+        principalAmount: data.principalAmount,
+        interestRate: data.interestRate,
+        termInMonths: data.termInMonths,
+        matchedDate: data.matchedDate,
+      },
+    });
 
     // Email notification if email is available
     if (data.userEmail) {

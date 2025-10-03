@@ -203,6 +203,15 @@ export class AppConfigService {
     };
   }
 
+  get realtimeConfig() {
+    return {
+      tokenTtlSeconds: this.getNumber('REALTIME_TOKEN_TTL_SECONDS', 300),
+      handshakeTimeoutMs: this.getNumber('REALTIME_HANDSHAKE_TIMEOUT_MS', 10000),
+      maxSubscriptionsPerConnection: this.getNumber('REALTIME_MAX_SUBSCRIPTIONS', 50),
+      redisChannel: this.getString('REALTIME_REDIS_CHANNEL', 'realtime:events'),
+    } as const;
+  }
+
   get redisConfig(): RedisOptions {
     return {
       host: this.getString('REDIS_HOST', 'localhost'),

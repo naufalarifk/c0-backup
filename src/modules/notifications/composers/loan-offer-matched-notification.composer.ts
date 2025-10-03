@@ -52,6 +52,33 @@ export class LoanOfferMatchedNotificationComposer extends NotificationComposer<L
     const enrichedData = await this.enrichWithUserData(data);
 
     const payloads: AnyNotificationPayload[] = [];
+    const title = 'Loan Offer Matched';
+    const content = `Your loan offer has been matched with a borrower. Amount: $${enrichedData.amount}, Rate: ${enrichedData.interestRate}${enrichedData.term ? `, Term: ${enrichedData.term}` : ''}.`;
+
+    // Database notification (always save to database)
+    payloads.push({
+      channel: NotificationChannelEnum.Database,
+      userId: enrichedData.userId,
+      type: 'LoanOfferMatched',
+      title,
+      content,
+    });
+
+    // Realtime notification (always publish for connected clients)
+    payloads.push({
+      channel: NotificationChannelEnum.Realtime,
+      userId: enrichedData.userId,
+      type: 'LoanOfferMatched',
+      title,
+      content,
+      metadata: {
+        loanOfferId: enrichedData.loanOfferId,
+        amount: enrichedData.amount,
+        interestRate: enrichedData.interestRate,
+        term: enrichedData.term,
+        matchScore: enrichedData.matchScore,
+      },
+    });
 
     // Send email notification if email is present
     if (enrichedData.email) {

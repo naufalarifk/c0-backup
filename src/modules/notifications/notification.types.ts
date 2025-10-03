@@ -6,6 +6,8 @@ export const NotificationChannelEnum = {
   FCM: 'FCM' as const,
   APN: 'APN' as const,
   Expo: 'Expo' as const,
+  Database: 'Database' as const,
+  Realtime: 'Realtime' as const,
 } as const;
 
 export function assertIsNotificationChannel(value: unknown): asserts value is NotificationChannel {
@@ -80,6 +82,24 @@ export interface SMSNotificationPayload extends NotificationPayload {
   message: string;
 }
 
+export interface DatabaseNotificationPayload extends NotificationPayload {
+  channel: typeof NotificationChannelEnum.Database;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  content: string;
+}
+
+export interface RealtimeNotificationPayload extends NotificationPayload {
+  channel: typeof NotificationChannelEnum.Realtime;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  content: string;
+  notificationId?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface NotificationData {
   type: NotificationType;
   [key: string]: unknown;
@@ -90,4 +110,6 @@ export type AnyNotificationPayload =
   | SMSNotificationPayload
   | FCMNotificationPayload
   | APNSNotificationPayload
-  | ExpoNotificationPayload;
+  | ExpoNotificationPayload
+  | DatabaseNotificationPayload
+  | RealtimeNotificationPayload;

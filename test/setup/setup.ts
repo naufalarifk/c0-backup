@@ -2,6 +2,8 @@ import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { env } from 'node:process';
 
+import { WritableString } from './stream';
+
 export async function setup() {
   const redisPort = String(20000 + Math.floor(Math.random() * 5000));
   const mailpitSmtpPort = String(25000 + Math.floor(Math.random() * 5000));
@@ -191,10 +193,17 @@ export async function setup() {
           reject(new Error(`Failed to start CG Backend: ${error.message}`));
         }
       });
+      const writableString = new WritableString();
+      cgBackend.stdout?.pipe(writableString);
+      cgBackend.stderr?.pipe(writableString);
       cgBackend.on('exit', function (code) {
         if (resolvable) {
           resolvable = false;
-          reject(new Error(`CG Backend process exited with code ${code}`));
+          reject(
+            new Error(
+              `CG Backend process exited with code ${code}. Output:\n${writableString.toString()}`,
+            ),
+          );
         }
       });
     }),

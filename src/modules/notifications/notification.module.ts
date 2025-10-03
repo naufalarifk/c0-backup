@@ -6,6 +6,8 @@ import { BeneficiaryVerificationNotificationComposer } from './composers/benefic
 import { EmailVerificationNotificationComposer } from './composers/email-verification-notification.composer';
 import { InvoiceCreatedNotificationComposer } from './composers/invoice-created-notification.composer';
 import { InvoicePaidNotificationComposer } from './composers/invoice-paid-notification.composer';
+import { LoanApplicationMatchedNotificationComposer } from './composers/loan-application-matched-notification.composer';
+import { LoanApplicationPublishedNotificationComposer } from './composers/loan-application-published-notification.composer';
 import { LoanLiquidationNotificationComposer } from './composers/loan-liquidation-notification.composer';
 import { LoanLtvBreachNotificationComposer } from './composers/loan-ltv-breach-notification.composer';
 import { LoanOfferMatchedNotificationComposer } from './composers/loan-offer-matched-notification.composer';
@@ -27,9 +29,11 @@ import { NotificationComposerFactory } from './notification-composer.factory';
 import { NotificationProviderFactory } from './notification-provider.factory';
 import { NotificationQueueService } from './notification-queue.service';
 import { APNSNotificationProvider } from './providers/apns-notification.provider';
+import { DatabaseNotificationProvider } from './providers/database-notification.provider';
 import { EmailNotificationProvider } from './providers/email-notification.provider';
 import { ExpoNotificationProvider } from './providers/expo-notification.provider';
 import { FCMNotificationProvider } from './providers/fcm-notification.provider';
+import { RealtimeNotificationProvider } from './providers/realtime-notification.provider';
 import { SMSNotificationProvider } from './providers/sms-notification.provider';
 import { PushSenderService } from './services/push-sender.service';
 @Module({
@@ -55,12 +59,16 @@ import { PushSenderService } from './services/push-sender.service';
     FCMNotificationProvider,
     APNSNotificationProvider,
     ExpoNotificationProvider,
+    DatabaseNotificationProvider,
+    RealtimeNotificationProvider,
 
     // Notification Composers
     BeneficiaryVerificationNotificationComposer,
     EmailVerificationNotificationComposer,
     InvoiceCreatedNotificationComposer,
     InvoicePaidNotificationComposer,
+    LoanApplicationMatchedNotificationComposer,
+    LoanApplicationPublishedNotificationComposer,
     LoanLiquidationNotificationComposer,
     LoanLtvBreachNotificationComposer,
     LoanOfferMatchedNotificationComposer,
