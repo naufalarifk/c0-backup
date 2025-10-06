@@ -199,6 +199,10 @@ export class EthereumService implements OnModuleInit {
    * Get ERC-20 token information
    */
   async getERC20TokenInfo(contractAddress: string): Promise<EthereumTokenInfo> {
+    if (!this.provider) {
+      return { name: 'Unknown', symbol: 'UNK', decimals: 18 };
+    }
+
     try {
       const contract = new ethers.Contract(
         contractAddress,
@@ -227,6 +231,10 @@ export class EthereumService implements OnModuleInit {
    * Check if an address is a contract
    */
   async isContractAddress(address: string): Promise<boolean> {
+    if (!this.provider) {
+      return false;
+    }
+
     try {
       const code = await this.provider.getCode(address);
       return code !== '0x';

@@ -266,6 +266,54 @@ async function waitWithTimeout<T>(
   ]);
 }
 
+/**
+ * Helper to wait for a specific notification type within notification.created events
+ */
+async function waitForNotificationType(
+  ws: Awaited<ReturnType<typeof connectWebSocket>>,
+  notificationType: string,
+  timeoutMs = 15000,
+): Promise<{ event: string; data: unknown }> {
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeoutMs) {
+    // Check existing messages for the notification type
+    const existingMessage = ws.messages.find(msg => {
+      if (msg.event !== 'notification.created') return false;
+      const data = msg.data as { type?: string };
+      return data?.type === notificationType;
+    });
+
+    if (existingMessage) {
+      return existingMessage;
+    }
+
+    // Wait for next notification.created event
+    try {
+      const remainingTime = timeoutMs - (Date.now() - startTime);
+      if (remainingTime <= 0) break;
+
+      const event = await waitWithTimeout(
+        ws.waitForEvent('notification.created'),
+        remainingTime,
+        'Timeout waiting for notification.created event',
+      );
+
+      const data = event.data as { type?: string };
+      if (data?.type === notificationType) {
+        return event;
+      }
+    } catch (error) {
+      // Timeout or other error
+      break;
+    }
+  }
+
+  throw new Error(
+    `Timeout waiting for notification type: ${notificationType} (waited ${timeoutMs}ms)`,
+  );
+}
+
 suite('Loan Match with Realtime Events', function () {
   let testId: string;
   let testSetup: Awaited<ReturnType<typeof setup>>;
@@ -430,14 +478,11 @@ suite('Loan Match with Realtime Events', function () {
       // Give the system time to process the invoice payment and send notifications
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Debug: Log all received messages
-      console.log('DEBUG: All lender websocket messages received so far:', lenderWs.messages);
-
-      // Wait for notification.created event with a longer timeout for queue processing
-      const notificationEvent = await waitWithTimeout(
-        lenderWs.waitForEvent('notification.created'),
+      // Wait for LoanOfferPublished notification type
+      const notificationEvent = await waitForNotificationType(
+        lenderWs,
+        'LoanOfferPublished',
         30000,
-        'Timeout waiting for loan offer published notification',
       );
 
       assertDefined(notificationEvent);
@@ -453,12 +498,8 @@ suite('Loan Match with Realtime Events', function () {
       assertPropString(notificationData, 'content');
       assertPropString(notificationData, 'createdAt');
 
-      // Verify notification type is related to loan offer published
-      ok(
-        notificationData.type === 'LoanOfferPublished' ||
-          notificationData.type.includes('LoanOffer'),
-        'Notification should be related to loan offer published',
-      );
+      // Verify notification type
+      strictEqual(notificationData.type, 'LoanOfferPublished');
 
       // Verify loan offer is now published
       const response = await lender.fetch(`/api/loan-offers/${lenderOfferId}`);
@@ -600,11 +641,11 @@ suite('Loan Match with Realtime Events', function () {
       // Give the system time to process the invoice payment and send notifications
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Wait for notification.created event with a longer timeout for queue processing
-      const notificationEvent = await waitWithTimeout(
-        borrowerWs.waitForEvent('notification.created'),
+      // Wait for LoanApplicationPublished notification type
+      const notificationEvent = await waitForNotificationType(
+        borrowerWs,
+        'LoanApplicationPublished',
         30000,
-        'Timeout waiting for loan application published notification',
       );
 
       assertDefined(notificationEvent);
@@ -616,12 +657,8 @@ suite('Loan Match with Realtime Events', function () {
       assertDefined(notificationData);
       assertPropString(notificationData, 'type');
 
-      // Verify notification type is related to loan application published
-      ok(
-        notificationData.type === 'LoanApplicationPublished' ||
-          notificationData.type.includes('LoanApplication'),
-        'Notification should be related to loan application published',
-      );
+      // Verify notification type
+      strictEqual(notificationData.type, 'LoanApplicationPublished');
 
       // Verify loan application is now published (or already matched if the matcher was very fast)
       const response = await borrower.fetch(`/api/loan-applications/${borrowerApplicationId}`);
@@ -671,10 +708,6 @@ suite('Loan Match with Realtime Events', function () {
     });
 
     it('user lender and user borrower should receive realtime websocket event for loan matched', async function () {
-      // TODO: Fix notification queue processing - notifications are not being received in time
-      // Skipping for now as core functionality (matching) is working correctly
-      return;
-      /*
       ok(lenderWs, 'Lender WebSocket must be connected');
       ok(borrowerWs, 'Borrower WebSocket must be connected');
 
@@ -682,10 +715,10 @@ suite('Loan Match with Realtime Events', function () {
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Wait for lender notification about loan match
-      const lenderNotificationEvent = await waitWithTimeout(
-        lenderWs.waitForEvent('notification.created'),
+      const lenderNotificationEvent = await waitForNotificationType(
+        lenderWs,
+        'LoanOfferMatched',
         15000,
-        'Timeout waiting for lender loan matched notification',
       );
 
       assertDefined(lenderNotificationEvent);
@@ -701,10 +734,10 @@ suite('Loan Match with Realtime Events', function () {
       strictEqual(lenderNotificationData.type, 'LoanOfferMatched');
 
       // Wait for borrower notification about loan match
-      const borrowerNotificationEvent = await waitWithTimeout(
-        borrowerWs.waitForEvent('notification.created'),
+      const borrowerNotificationEvent = await waitForNotificationType(
+        borrowerWs,
+        'LoanApplicationMatched',
         15000,
-        'Timeout waiting for borrower loan matched notification',
       );
 
       assertDefined(borrowerNotificationEvent);
@@ -718,7 +751,6 @@ suite('Loan Match with Realtime Events', function () {
 
       // Verify notification is about loan application matching
       strictEqual(borrowerNotificationData.type, 'LoanApplicationMatched');
-      */
     });
 
     it('should verify loan offer and loan application status after matched', async function () {
@@ -735,6 +767,7 @@ suite('Loan Match with Realtime Events', function () {
       assertPropString(offer, 'status');
       assertPropString(offer, 'disbursedAmount');
       assertPropString(offer, 'availableAmount');
+      assertPropString(offer, 'totalAmount');
 
       // Available amount should be reduced after matching (funds reserved)
       const availableAmount = parseFloat(offer.availableAmount);

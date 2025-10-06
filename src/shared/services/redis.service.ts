@@ -27,63 +27,64 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private readonly subscribingChannels = new Set<string>();
   private readonly patternSubscribing = new Set<string>();
 
-  constructor(private readonly configService: AppConfigService) {}
+  constructor(private readonly configService: AppConfigService) {
+    // Initialize Redis client in constructor to ensure it's available before onModuleInit
+    this.redis = new Redis(this.configService.redisConfig);
+    // this.redis.on('connect', () => this.logger.log('Connected to Redis'));
+    this.redis.on('ready', () => this.logger.log('Redis connection is ready'));
+    this.redis.on('error', error => this.logger.error('Redis connection error:', error));
+    this.redis.on('close', () => this.logger.warn('Redis connection closed'));
+    this.redis.on('reconnecting', () => this.logger.log('Reconnecting to Redis...'));
 
-  async onModuleInit() {
-    try {
-      this.redis = new Redis(this.configService.redisConfig);
-      // this.redis.on('connect', () => this.logger.log('Connected to Redis'));
-      this.redis.on('ready', () => this.logger.log('Redis connection is ready'));
-      this.redis.on('error', error => this.logger.error('Redis connection error:', error));
-      this.redis.on('close', () => this.logger.warn('Redis connection closed'));
-      this.redis.on('reconnecting', () => this.logger.log('Reconnecting to Redis...'));
+    // Create a dedicated subscriber client by duplicating the main connection.
+    // Duplicate preserves connection options and prevents the subscriber from
+    // blocking the publisher/client from issuing regular commands.
+    this.subClient = this.redis.duplicate();
+    // this.subClient.on('connect', () => this.logger.log('Redis subClient connected'));
+    this.subClient.on('ready', () => this.logger.log('Redis subClient ready'));
+    this.subClient.on('error', err => this.logger.error('Redis subClient error:', err));
+    this.subClient.on('close', () => this.logger.warn('Redis subClient closed'));
+    this.subClient.on('reconnecting', () => this.logger.log('Redis subClient reconnecting...'));
 
-      // Create a dedicated subscriber client by duplicating the main connection.
-      // Duplicate preserves connection options and prevents the subscriber from
-      // blocking the publisher/client from issuing regular commands.
-      this.subClient = this.redis.duplicate();
-      // this.subClient.on('connect', () => this.logger.log('Redis subClient connected'));
-      this.subClient.on('ready', () => this.logger.log('Redis subClient ready'));
-      this.subClient.on('error', err => this.logger.error('Redis subClient error:', err));
-      this.subClient.on('close', () => this.logger.warn('Redis subClient closed'));
-      this.subClient.on('reconnecting', () => this.logger.log('Redis subClient reconnecting...'));
+    // Dispatch incoming channel messages to registered handlers.
+    this.subClient.on('message', (channel: string, message: string) => {
+      const handlers = this.channelHandlers.get(channel);
+      if (!handlers || handlers.size === 0) return;
+      const payload = this.safeParseMessage(message);
+      handlers.forEach(handler => {
+        try {
+          // Fire-and-forget: handlers can be async but we don't await them here.
+          void Promise.resolve(handler(payload, channel));
+        } catch (err) {
+          this.logger.error(`Error in channel handler for ${channel}:`, err as Error);
+        }
+      });
+    });
 
-      // Dispatch incoming channel messages to registered handlers.
-      this.subClient.on('message', (channel: string, message: string) => {
-        const handlers = this.channelHandlers.get(channel);
-        if (!handlers || handlers.size === 0) return;
+    // Dispatch pattern messages: (pattern, channel, message)
+    this.subClient.on('pmessage', (_pattern: string, channel: string, message: string) => {
+      // Notify handlers registered for the specific pattern(s)
+      this.patternHandlers.forEach((set, pattern) => {
+        // ioredis ensures that pmessage provides the pattern that matched,
+        // but we'll call handlers for the pattern key.
+        if (set.size === 0) return;
         const payload = this.safeParseMessage(message);
-        handlers.forEach(handler => {
+        set.forEach(handler => {
           try {
-            // Fire-and-forget: handlers can be async but we don't await them here.
             void Promise.resolve(handler(payload, channel));
           } catch (err) {
-            this.logger.error(`Error in channel handler for ${channel}:`, err as Error);
+            this.logger.error(
+              `Error in pattern handler for ${pattern} (channel ${channel}):`,
+              err as Error,
+            );
           }
         });
       });
+    });
+  }
 
-      // Dispatch pattern messages: (pattern, channel, message)
-      this.subClient.on('pmessage', (_pattern: string, channel: string, message: string) => {
-        // Notify handlers registered for the specific pattern(s)
-        this.patternHandlers.forEach((set, pattern) => {
-          // ioredis ensures that pmessage provides the pattern that matched,
-          // but we'll call handlers for the pattern key.
-          if (set.size === 0) return;
-          const payload = this.safeParseMessage(message);
-          set.forEach(handler => {
-            try {
-              void Promise.resolve(handler(payload, channel));
-            } catch (err) {
-              this.logger.error(
-                `Error in pattern handler for ${pattern} (channel ${channel}):`,
-                err as Error,
-              );
-            }
-          });
-        });
-      });
-
+  async onModuleInit() {
+    try {
       // Test connection
       await this.ping();
       this.logger.log('Redis service initialized successfully');
