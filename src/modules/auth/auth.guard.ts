@@ -1,8 +1,7 @@
 import type { CanActivate, ExecutionContext } from '@nestjs/common';
-import type { Auth } from 'better-auth';
 import type { Request } from 'express';
 import type { UserViewsProfileResult } from '../../shared/types';
-import type { UserSession } from './types';
+import type { AuthModuleConfig, UserSession } from './types';
 
 import { ForbiddenException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -11,7 +10,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 
 import { Roles } from '../../decorators/roles.decorator';
 import { Optional, Public } from './auth.decorator';
-import { AUTH_INSTANCE_KEY } from './auth.symbols';
+import { AUTH_MODULE_OPTIONS } from './auth.symbols';
 
 /**
  * NestJS guard that handles authentication and authorization for protected routes
@@ -23,8 +22,8 @@ export class AuthGuard implements CanActivate {
   constructor(
     @Inject(Reflector)
     private readonly reflector: Reflector,
-    @Inject(AUTH_INSTANCE_KEY)
-    private readonly auth: Auth,
+    @Inject(AUTH_MODULE_OPTIONS)
+    private readonly options: AuthModuleConfig,
   ) {}
 
   /**
@@ -35,18 +34,19 @@ export class AuthGuard implements CanActivate {
    */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
-    const session = (await this.auth.api.getSession({
-      headers: fromNodeHeaders(request.headers),
-    })) as UserSession;
-
-    request.session = session;
-    request.user = session?.user ?? null; // useful for observability tools like Sentry
 
     const isPublic = this.reflector.getAllAndOverride(Public, [
       context.getHandler(),
       context.getClass(),
     ]);
     if (isPublic) return true;
+
+    const session = (await this.options.auth.api.getSession({
+      headers: fromNodeHeaders(request.headers),
+    })) as UserSession;
+
+    request.session = session;
+    request.user = session?.user ?? null; // useful for observability tools like Sentry
 
     const isOptional = this.reflector.getAllAndOverride(Optional, [
       context.getHandler(),

@@ -8,7 +8,7 @@ import type {
 } from 'better-auth/plugins';
 
 import { sso } from '@better-auth/sso';
-import { betterAuth } from 'better-auth';
+import { Auth } from 'better-auth';
 import {
   admin,
   customSession,
@@ -29,8 +29,6 @@ export interface UserSession extends Session {
   session: Session['session'] & SessionWithImpersonatedBy;
 }
 
-export type AuthInstance = ReturnType<typeof betterAuth>;
-
 export type PluginEndpoints = ReturnType<typeof twoFactor>['endpoints'] &
   ReturnType<typeof phoneNumber>['endpoints'] &
   ReturnType<typeof admin<AdminOptions>>['endpoints'] &
@@ -39,6 +37,18 @@ export type PluginEndpoints = ReturnType<typeof twoFactor>['endpoints'] &
   ReturnType<typeof customSession>['endpoints'] &
   ReturnType<typeof openAPI>['endpoints'];
 
-export interface ExtendedAuth extends AuthInstance {
-  api: AuthInstance['api'] & PluginEndpoints;
+export interface ExtendedAuth extends Auth {
+  api: Auth['api'] & PluginEndpoints;
+}
+
+export type AuthModuleFeatures = {
+  disableExceptionFilter: boolean;
+  disableGlobalAuthGuard: boolean;
+  disableTrustedOriginsCors: boolean;
+  disableBodyParser: boolean;
+};
+
+export interface AuthModuleConfig<T extends ExtendedAuth = ExtendedAuth>
+  extends AuthModuleFeatures {
+  auth: T;
 }
