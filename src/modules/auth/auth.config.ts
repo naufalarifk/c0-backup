@@ -262,9 +262,12 @@ export class AuthConfig {
   }
 
   private advanced(): BetterAuthOptions['advanced'] {
+    const sameSite = this.configService.isProduction ? 'strict' : 'none';
+
     return {
       cookiePrefix: this.configService.authConfig.cookiePrefix,
-      useSecureCookies: this.configService.isProduction,
+      // When sameSite is 'none', secure must be true for browser compatibility
+      useSecureCookies: sameSite === 'none' ? true : this.configService.isProduction,
       disableCSRFCheck: false,
       crossSubDomainCookies: {
         enabled: !this.configService.isProduction,
@@ -272,7 +275,7 @@ export class AuthConfig {
       defaultCookieAttributes: {
         httpOnly: true,
         secure: true,
-        sameSite: this.configService.isProduction ? 'Strict' : 'None',
+        sameSite,
       },
     };
   }

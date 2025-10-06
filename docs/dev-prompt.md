@@ -57,9 +57,11 @@ Loan match test flows is as follow:
 - backend shall send realtime websocket event to test
 - test shall receive realtime websocket event for collateral invoice paid
 - backend shall match loan offer and loan application
+- backend shall record loan origination and loan disbursement automatically on match (TODO)
 - user lender shall receive realtime websocket event for loan matched
 - user borrower shall receive realtime websocket event for loan matched
 - test shall verify loan offer and loan application status after matched
+- test shall verify /api/loans for correct loan data agreement (TODO)
 
 Your task is to implement, improve, fix, and align any incorrect, missing, or incomplete test case and or implementation to make the flow above works as expected.
 

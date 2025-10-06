@@ -1,8 +1,9 @@
 import { BullModule } from '@nestjs/bullmq';
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
 
 import { SharedModule } from '../../shared/shared.module';
+import { LoansModule } from '../loans/loans.module';
 import { NotificationModule } from '../notifications/notification.module';
 import { LoanMatcherProcessor } from './loan-matcher.processor';
 import { LoanMatcherService } from './loan-matcher.service';
@@ -18,6 +19,7 @@ import { EnhancedLoanMatcherStrategy } from './strategies/enhanced-loan-matcher.
     DiscoveryModule,
     SharedModule,
     NotificationModule,
+    forwardRef(() => LoansModule),
   ],
   providers: [
     LoanMatcherService,

@@ -602,7 +602,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
       SELECT COUNT(*) as total
       FROM loan_applications
       WHERE borrower_user_id = ${params.borrowerUserId}
-        AND (${params.status}::text IS NULL OR status = ${params.status})
+        AND (${params.status ?? null} IS NULL OR status = ${params.status ?? null})
     `;
 
     const totalCount = Number(
@@ -654,7 +654,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
       JOIN currencies c2 ON la.collateral_currency_blockchain_key = c2.blockchain_key
         AND la.collateral_currency_token_id = c2.token_id
       WHERE la.borrower_user_id = ${params.borrowerUserId}
-        AND (${params.status}::text IS NULL OR la.status = ${params.status})
+        AND (${params.status ?? null} IS NULL OR la.status = ${params.status ?? null})
       ORDER BY la.applied_date DESC
       LIMIT ${validatedLimit}
       OFFSET ${offset}

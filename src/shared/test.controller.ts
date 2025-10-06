@@ -224,6 +224,37 @@ export class TestController {
     };
   }
 
+  @Post('query-institution-application')
+  async queryInstitutionApplication(@Body() body: { email: string }) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Test endpoints are not available in production');
+    }
+
+    const { email } = body;
+    if (!email || typeof email !== 'string') {
+      throw new BadRequestException('email is required');
+    }
+
+    // Get the latest institution application for the user with this email
+    const rows = await this.repo.sql`
+      SELECT ia.*
+      FROM institution_applications ia
+      JOIN users u ON ia.applicant_user_id = u.id
+      WHERE u.email = ${email}
+      ORDER BY ia.submitted_date DESC
+      LIMIT 1
+    `;
+
+    if (rows.length === 0) {
+      throw new NotFoundException(`No institution application found for email ${email}`);
+    }
+
+    return {
+      success: true,
+      application: rows[0],
+    };
+  }
+
   @Post('test-admin-institution-approve-by-email')
   async approveInstitutionByEmail(@Body() body: { email: string }) {
     if (process.env.NODE_ENV === 'production') {

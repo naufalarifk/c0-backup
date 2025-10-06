@@ -8,9 +8,11 @@ import type {
   MatchedLoanPair,
 } from './loan-matcher.types';
 
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { LoanCalculationService } from '../loans/services/loan-calculation.service';
+import { LoansService } from '../loans/services/loans.service';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
 import { MatcherStrategyType } from './loan-matcher-strategy.abstract';
 import { LoanMatcherStrategyFactory } from './loan-matcher-strategy.factory';
@@ -24,6 +26,10 @@ export class LoanMatcherService {
     private readonly repository: CryptogadaiRepository,
     private readonly notificationQueueService: NotificationQueueService,
     private readonly strategyFactory: LoanMatcherStrategyFactory,
+    @Inject(forwardRef(() => LoansService))
+    private readonly loansService: LoansService,
+    @Inject(forwardRef(() => LoanCalculationService))
+    private readonly loanCalculationService: LoanCalculationService,
   ) {}
 
   /**
@@ -115,6 +121,37 @@ export class LoanMatcherService {
               if (matchResult) {
                 matchedLoans.push(matchResult);
                 matchedPairs++;
+
+                // Automatically originate and disburse loan after matching
+                try {
+                  const loanId = await this.originateLoanFromMatch(
+                    matchResult,
+                    application,
+                    bestOffer,
+                  );
+                  this.logger.log(
+                    `Loan originated successfully: ${loanId} for application ${application.id} and offer ${bestOffer.id}`,
+                  );
+
+                  // Automatically disburse the loan to activate it
+                  try {
+                    await this.repository.platformDisbursesPrincipal({
+                      loanId,
+                      disbursementDate: new Date(),
+                    });
+                    this.logger.log(`Loan disbursed successfully: ${loanId}`);
+                  } catch (disbursementError) {
+                    this.logger.error(
+                      `Failed to disburse loan ${loanId}: ${disbursementError instanceof Error ? disbursementError.message : String(disbursementError)}`,
+                    );
+                    // Continue even if disbursement fails - loan is still originated
+                  }
+                } catch (error) {
+                  this.logger.error(
+                    `Failed to originate loan for match ${application.id} and ${bestOffer.id}: ${error instanceof Error ? error.message : String(error)}`,
+                  );
+                  // Continue even if origination fails - match is still valid
+                }
 
                 // Send notifications about the match
                 await this.sendMatchNotifications(matchResult);
@@ -685,6 +722,61 @@ export class LoanMatcherService {
     } catch (error) {
       this.logger.error(`Failed to send match notifications:`, error);
       // Don't throw error as the match itself was successful
+    }
+  }
+
+  /**
+   * Originate loan from a matched loan application and offer
+   */
+  private async originateLoanFromMatch(
+    match: MatchedLoanPair,
+    application: MatchableLoanApplication,
+    offer: CompatibleLoanOffer,
+  ): Promise<string> {
+    try {
+      // Get platform provision rate
+      const platformConfig = await this.repository.platformRetrievesProvisionRate();
+      const provisionRate = Number(platformConfig.loanProvisionRate);
+
+      // Calculate all loan origination parameters
+      const originationParams = this.loanCalculationService.calculateLoanOriginationParams({
+        principalAmount: match.principalAmount,
+        interestRate: match.interestRate,
+        termInMonths: match.termInMonths,
+        collateralAmount: application.collateralDepositAmount,
+        matchedLtvRatio: match.ltvRatio,
+        matchedCollateralValuationAmount: match.collateralValuationAmount,
+        provisionRate,
+      });
+
+      // Originate the loan
+      const result = await this.loansService.originateLoan({
+        loanOfferId: match.loanOfferId,
+        loanApplicationId: match.loanApplicationId,
+        principalAmount: originationParams.principalAmount,
+        interestAmount: originationParams.interestAmount,
+        repaymentAmount: originationParams.repaymentAmount,
+        redeliveryFeeAmount: originationParams.redeliveryFeeAmount,
+        redeliveryAmount: originationParams.redeliveryAmount,
+        premiAmount: originationParams.premiAmount,
+        liquidationFeeAmount: originationParams.liquidationFeeAmount,
+        minCollateralValuation: originationParams.minCollateralValuation,
+        mcLtvRatio: originationParams.mcLtvRatio,
+        collateralAmount: originationParams.collateralAmount,
+        originationDate: match.matchedDate,
+        maturityDate: originationParams.maturityDate,
+      });
+
+      this.logger.debug(
+        `Loan originated for application ${match.loanApplicationId} and offer ${match.loanOfferId}`,
+      );
+
+      return result.loanId;
+    } catch (error) {
+      this.logger.error(
+        `Failed to originate loan from match: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw error;
     }
   }
 }
