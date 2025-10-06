@@ -341,6 +341,22 @@ export class LoanApplicationResponseDto {
   @Min(0)
   @Max(1)
   minLtvRatio?: number;
+
+  @ApiPropertyOptional({
+    description: 'Matched loan offer identifier',
+    example: 'offer_123',
+  })
+  @IsOptional()
+  @IsString()
+  matchedLoanOfferId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Matched LTV ratio',
+    example: 0.6,
+  })
+  @IsOptional()
+  @IsNumber()
+  matchedLtvRatio?: number;
 }
 
 export class LoanApplicationListResponseDto {

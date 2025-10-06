@@ -1,6 +1,14 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
-import { assertDefined, assertProp, assertPropString, check, isNumber, isString } from 'typeshaper';
+import {
+  assertDefined,
+  assertProp,
+  assertPropString,
+  check,
+  isNullable,
+  isNumber,
+  isString,
+} from 'typeshaper';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { LoanMatcherQueueService } from '../loan-matcher/loan-matcher-queue.service';
@@ -35,6 +43,9 @@ export class InvoicePaymentService {
       this.logger.log(
         `Recorded invoice payment ${params.transactionHash} for invoice by wallet ${params.walletAddress}`,
       );
+
+      // Send realtime notification for invoice payment
+      await this.#notifyInvoicePayment(params.walletAddress);
 
       // Check if this payment resulted in publishing a loan offer or loan application
       await this.#checkAndNotifyLoanOfferPublished(params.walletAddress);
@@ -196,6 +207,90 @@ export class InvoicePaymentService {
       );
     } catch (error) {
       this.logger.error('Failed to check and notify loan application published:', error);
+      // Don't throw, as this is a notification failure, not a payment processing failure
+    }
+  }
+
+  async #notifyInvoicePayment(walletAddress: string): Promise<void> {
+    try {
+      // Query the invoice to get its updated status and type
+      const rows = await this.repository.sql`
+        SELECT
+          inv.id,
+          inv.user_id,
+          inv.status,
+          inv.loan_offer_id,
+          inv.loan_application_id,
+          inv.invoiced_amount,
+          inv.paid_amount
+        FROM invoices inv
+        WHERE inv.wallet_address = ${walletAddress}
+        ORDER BY inv.id DESC
+        LIMIT 1
+      `;
+
+      if (rows.length === 0) {
+        this.logger.warn(`No invoice found for wallet ${walletAddress}`);
+        return;
+      }
+
+      const invoice = rows[0] as Record<string, unknown>;
+      assertDefined(invoice);
+      assertProp(check(isString, isNumber), invoice, 'id');
+      assertProp(check(isString, isNumber), invoice, 'user_id');
+      assertPropString(invoice, 'status');
+      assertProp(check(isNullable, isString, isNumber), invoice, 'loan_offer_id');
+      assertProp(check(isNullable, isString, isNumber), invoice, 'loan_application_id');
+      assertProp(check(isString, isNumber), invoice, 'invoiced_amount');
+      assertProp(check(isString, isNumber), invoice, 'paid_amount');
+
+      const userId = String(invoice.user_id);
+      const invoiceId = String(invoice.id);
+      const status = invoice.status;
+      const isLoanOffer = invoice.loan_offer_id !== null;
+      const isLoanApplication = invoice.loan_application_id !== null;
+      const invoicedAmount = String(invoice.invoiced_amount);
+      const paidAmount = String(invoice.paid_amount);
+
+      // Determine notification type based on invoice type and status
+      let notificationType:
+        | 'LoanOfferInvoicePartiallyPaid'
+        | 'LoanOfferInvoiceFullyPaid'
+        | 'LoanApplicationCollateralInvoicePartiallyPaid'
+        | 'LoanApplicationCollateralInvoiceFullyPaid'
+        | null = null;
+
+      if (isLoanOffer && status === 'PartiallyPaid') {
+        notificationType = 'LoanOfferInvoicePartiallyPaid';
+      } else if (isLoanOffer && status === 'Paid') {
+        notificationType = 'LoanOfferInvoiceFullyPaid';
+      } else if (isLoanApplication && status === 'PartiallyPaid') {
+        notificationType = 'LoanApplicationCollateralInvoicePartiallyPaid';
+      } else if (isLoanApplication && status === 'Paid') {
+        notificationType = 'LoanApplicationCollateralInvoiceFullyPaid';
+      }
+
+      if (!notificationType) {
+        this.logger.log(
+          `No realtime notification needed for invoice ${invoiceId} (status: ${status}, isLoanOffer: ${isLoanOffer}, isLoanApplication: ${isLoanApplication})`,
+        );
+        return;
+      }
+
+      // Queue realtime notification
+      await this.notificationQueue.queueNotification({
+        type: notificationType,
+        userId: userId,
+        invoiceId: invoiceId,
+        invoicedAmount: invoicedAmount,
+        paidAmount: paidAmount,
+      });
+
+      this.logger.log(
+        `Queued ${notificationType} realtime notification for invoice ${invoiceId} (user: ${userId})`,
+      );
+    } catch (error) {
+      this.logger.error('Failed to notify invoice payment:', error);
       // Don't throw, as this is a notification failure, not a payment processing failure
     }
   }

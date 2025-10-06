@@ -978,6 +978,8 @@ export class LoanApplicationsService {
         liquidationMode:
           r.liquidationMode === 'Partial' ? LiquidationMode.PARTIAL : LiquidationMode.FULL,
         minLtvRatio: r.minLtvRatio !== undefined ? Number(r.minLtvRatio) : undefined,
+        matchedLoanOfferId: r.loanOfferId,
+        matchedLtvRatio: r.matchedLtvRatio,
         status: dtoStatus,
         createdDate: r.appliedDate.toISOString
           ? r.appliedDate.toISOString()

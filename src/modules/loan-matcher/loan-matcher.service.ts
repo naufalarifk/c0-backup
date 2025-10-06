@@ -585,7 +585,11 @@ export class LoanMatcherService {
         ask_price: number;
         source_date: Date;
       };
-      const bidPrice = Number(exchangeRate.bid_price);
+
+      // Exchange rate is stored in smallest units (e.g., 1000000000000000000 for 1.0 USD)
+      // We need to convert it to decimal form
+      const QUOTE_CURRENCY_DECIMALS = 18;
+      const bidPrice = Number(exchangeRate.bid_price) / Math.pow(10, QUOTE_CURRENCY_DECIMALS);
       const collateralAmountNum = Number(collateralAmount);
 
       // Calculate current collateral value: amount * exchange rate

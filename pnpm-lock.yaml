@@ -312,6 +312,9 @@ importers:
       ws:
         specifier: ^8.18.3
         version: 8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      wtfnode:
+        specifier: ^0.10.1
+        version: 0.10.1
 
 packages:
 
@@ -7446,6 +7449,11 @@ packages:
         optional: true
       utf-8-validate:
         optional: true
+
+  wtfnode@0.10.1:
+    resolution: {integrity: sha512-4mcHdlvcdSytsbFueN6QYZxmh5K7REawBk//ZOrJrtVOe548Qsq4GNEm/OUfZATqDnsX4g8uBbzmN7NdEZx09Q==}
+    engines: {node: '>=0.10.0'}
+    hasBin: true
 
   xcode@3.0.1:
     resolution: {integrity: sha512-kCz5k7J7XbJtjABOvkc5lJmkiDh8VhjVCGNiqdKCscmVpdVUpEAyXv1xmCLkQJ5dsHqx3IPO4XW+NTDhU/fatA==}
@@ -16299,6 +16307,8 @@ snapshots:
     optionalDependencies:
       bufferutil: 4.0.9
       utf-8-validate: 5.0.10
+
+  wtfnode@0.10.1: {}
 
   xcode@3.0.1:
     dependencies:

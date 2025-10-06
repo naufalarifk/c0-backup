@@ -32,14 +32,14 @@ export function before(fn: () => Promise<void>) {
 
 export function after(fn: () => Promise<void>) {
   test.after(async function () {
+    if (typeof fn === 'function') {
+      await Promise.resolve(fn());
+    }
     if (earlyExit) {
       console.debug('Recent fetch logs:');
       for (const log of getFetchLogs().slice(-10)) {
         console.debug(log);
       }
-    }
-    if (typeof fn === 'function') {
-      await Promise.resolve(fn());
     }
   });
 }

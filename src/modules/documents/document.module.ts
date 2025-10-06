@@ -4,7 +4,6 @@ import { DiscoveryModule } from '@nestjs/core';
 
 import { SharedModule } from '../../shared/shared.module';
 import { LoanAgreementComposer } from './composers/loan-agreement.composer';
-import { DocumentProcessor } from './document.processor';
 import { DocumentService } from './document.service';
 import { DocumentCompletionProcessor } from './document-completion.processor';
 import { DocumentComposerFactory } from './document-composer.factory';
@@ -26,7 +25,6 @@ import { MinioStorageProvider } from './providers/minio-storage.provider';
     // Core services
     DocumentService,
     DocumentQueueService,
-    DocumentProcessor,
     DocumentCompletionProcessor,
     DocumentEventService,
 

@@ -1381,11 +1381,51 @@ export class TestController {
       }
     }
 
+    // Query the invoice to get the currency and convert amount to smallest units if needed
+    const invoiceRows = await this.repo.sql`
+      SELECT inv.invoiced_amount, c.decimals
+      FROM invoices inv
+      JOIN currencies c ON c.blockchain_key = inv.currency_blockchain_key AND c.token_id = inv.currency_token_id
+      WHERE inv.wallet_address = ${body.address}
+      ORDER BY inv.id DESC
+      LIMIT 1
+    `;
+
+    let finalAmount = body.amount;
+    if (invoiceRows.length > 0) {
+      const invoice = invoiceRows[0];
+      assertDefined(invoice);
+      assertProp(check(isString, isNumber), invoice, 'invoiced_amount');
+      assertProp(check(isNumber), invoice, 'decimals');
+
+      const invoicedAmount = String(invoice.invoiced_amount);
+      const decimals = Number(invoice.decimals);
+
+      // Check if the provided amount needs conversion to smallest units
+      // If amount doesn't contain a decimal point and is much smaller than invoiced amount,
+      // assume it's in human-readable format and needs conversion
+      if (!body.amount.includes('.')) {
+        const amountNum = BigInt(body.amount);
+        const invoicedAmountNum = BigInt(invoicedAmount);
+
+        // If the amount is less than 1/1000 of the invoiced amount, it's likely in human-readable format
+        if (amountNum * BigInt(1000) < invoicedAmountNum) {
+          // Convert to smallest units: amount * 10^decimals
+          finalAmount = (amountNum * BigInt(10) ** BigInt(decimals)).toString();
+          this.#logger.debug('Converted payment amount to smallest units', {
+            originalAmount: body.amount,
+            convertedAmount: finalAmount,
+            decimals,
+          });
+        }
+      }
+    }
+
     await this.testBlockchainEvents.dispatchPayment({
       blockchainKey: blockchainKey.toLowerCase(),
       tokenId: body.tokenId,
       address: body.address,
-      amount: body.amount,
+      amount: finalAmount,
       txHash: body.txHash,
       sender:
         typeof body.sender === 'string' && body.sender.trim().length > 0 ? body.sender : undefined,
@@ -1397,6 +1437,7 @@ export class TestController {
       tokenId: body.tokenId,
       address: body.address,
       txHash: body.txHash,
+      amount: finalAmount,
     });
 
     return {
@@ -1404,7 +1445,7 @@ export class TestController {
       blockchainKey,
       tokenId: body.tokenId,
       address: body.address,
-      amount: body.amount,
+      amount: finalAmount,
       txHash: body.txHash,
       timestamp,
     };

@@ -153,7 +153,14 @@ export class LoanCalculationService {
     const provisionRateBN = this.percentageToDecimal(platformConfig.loanProvisionRate);
     const minLtvRatioBN = this.percentageToDecimal(platformConfig.loanMinLtvRatio);
     const maxLtvRatioBN = this.percentageToDecimal(platformConfig.loanMaxLtvRatio);
-    const exchangeRateBN = new BigNumber(exchangeRate.bidPrice);
+
+    // Exchange rate is stored in smallest units (e.g., 1000000000000000000 for 1.0 USD)
+    // We need to convert it to decimal form by dividing by 10^decimals
+    // Assuming the quote currency (USD) has 18 decimals
+    const QUOTE_CURRENCY_DECIMALS = 18;
+    const exchangeRateBN = new BigNumber(exchangeRate.bidPrice).dividedBy(
+      new BigNumber(10).pow(QUOTE_CURRENCY_DECIMALS),
+    );
 
     // Calculate provision amount (keep in smallest units)
     const provisionAmountBN = principalAmountBN.multipliedBy(provisionRateBN);
@@ -210,7 +217,14 @@ export class LoanCalculationService {
     const provisionRateBN = this.percentageToDecimal(platformConfig.loanProvisionRate);
     const minLtvRatioBN = this.percentageToDecimal(platformConfig.loanMinLtvRatio);
     const maxLtvRatioBN = this.percentageToDecimal(platformConfig.loanMaxLtvRatio);
-    const exchangeRateBN = new BigNumber(exchangeRate.bidPrice);
+
+    // Exchange rate is stored in smallest units (e.g., 1000000000000000000 for 1.0 USD)
+    // We need to convert it to decimal form by dividing by 10^decimals
+    // Assuming the quote currency (USD) has 18 decimals
+    const QUOTE_CURRENCY_DECIMALS = 18;
+    const exchangeRateBN = new BigNumber(exchangeRate.bidPrice).dividedBy(
+      new BigNumber(10).pow(QUOTE_CURRENCY_DECIMALS),
+    );
 
     // Calculate provision amount (keep in smallest units)
     const provisionAmountBN = principalAmountBN.multipliedBy(provisionRateBN);

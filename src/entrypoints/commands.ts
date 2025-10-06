@@ -1,18 +1,21 @@
 import type { DynamicModule, INestApplicationContext, Provider, Type } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 
+import { DiscoveryModule } from '@nestjs/core';
+
 import { DocumentModule } from '../modules/documents/document.module';
+import { DocumentProcessor } from '../modules/documents/document.processor';
 import { IndexerModule } from '../modules/indexer/indexer.module';
+import { IndexerProcessor } from '../modules/indexer/indexer.processor';
 import { InvoiceExpirationModule } from '../modules/invoice-expiration/invoice-expiration.module';
 import { InvoicePaymentModule } from '../modules/invoice-payments/invoice-payment.module';
 import { InvoicePaymentProcessor } from '../modules/invoice-payments/invoice-payment.processor';
 import { LoanMatcherModule } from '../modules/loan-matcher/loan-matcher.module';
-import { LoanMatcherProcessor } from '../modules/loan-matcher/loan-matcher.processor';
 import { NotificationModule } from '../modules/notifications/notification.module';
-import { NotificationProcessor } from '../modules/notifications/notification.processor';
 import { PricefeedModule } from '../modules/pricefeed/pricefeed.module';
 import { PricefeedScheduler } from '../modules/pricefeed/pricefeed.scheduler';
 import { WalletBalanceCollectorModule } from '../modules/wallet-balance-collector/wallet-balance-collector.module';
+import { WalletBalanceCollectorProcessor } from '../modules/wallet-balance-collector/wallet-balance-collector.processor';
 import { CryptogadaiRepository } from '../shared/repositories/cryptogadai.repository';
 import { TelemetryLogger } from '../shared/telemetry.logger';
 import { bootstrapUserApi } from './user-api.bootstrap';
@@ -59,7 +62,6 @@ export const COMMAND_DEFINITIONS: Record<CommandKey, CommandDefinition> = {
   },
   notification: {
     imports: [NotificationModule],
-    providers: [NotificationProcessor],
     usesBull: true,
     async bootstrap() {
       const logger = new TelemetryLogger('NotificationWorker');
@@ -113,7 +115,6 @@ export const COMMAND_DEFINITIONS: Record<CommandKey, CommandDefinition> = {
   },
   'loan-matcher': {
     imports: [LoanMatcherModule],
-    providers: [LoanMatcherProcessor],
     usesBull: true,
     async bootstrap() {
       const logger = new TelemetryLogger('LoanMatcherWorker');
@@ -142,7 +143,8 @@ export const COMMAND_DEFINITIONS: Record<CommandKey, CommandDefinition> = {
     },
   },
   indexer: {
-    imports: [IndexerModule],
+    imports: [IndexerModule, DiscoveryModule],
+    providers: [IndexerProcessor],
     async bootstrap() {
       const logger = new TelemetryLogger('IndexerWorker');
       logger.log('Indexer worker started successfully');
@@ -156,6 +158,7 @@ export const COMMAND_DEFINITIONS: Record<CommandKey, CommandDefinition> = {
   },
   document: {
     imports: [DocumentModule],
+    providers: [DocumentProcessor],
     usesBull: true,
     async bootstrap() {
       const logger = new TelemetryLogger('DocumentWorker');
@@ -169,6 +172,7 @@ export const COMMAND_DEFINITIONS: Record<CommandKey, CommandDefinition> = {
   },
   'wallet-balance-collector': {
     imports: [WalletBalanceCollectorModule],
+    providers: [WalletBalanceCollectorProcessor],
     usesBull: true,
     async bootstrap() {
       const logger = new TelemetryLogger('WalletBalanceCollectorWorker');

@@ -9,7 +9,6 @@ import { BSCBalanceCollector } from './collectors/bsc-balance.collector';
 import { EVMBalanceCollector } from './collectors/evm-balance.collector';
 import { SepoliaBalanceCollector } from './collectors/sepolia-balance.collector';
 import { SolanaBalanceCollector } from './collectors/solana-balance.collector';
-import { WalletBalanceCollectorProcessor } from './wallet-balance-collector.processor';
 import { WalletBalanceCollectorQueueService } from './wallet-balance-collector.queue.service';
 import { WalletBalanceCollectorService } from './wallet-balance-collector.service';
 
@@ -34,7 +33,6 @@ import { WalletBalanceCollectorService } from './wallet-balance-collector.servic
     // Core services
     WalletBalanceCollectorService,
     WalletBalanceCollectorQueueService,
-    WalletBalanceCollectorProcessor,
     BalanceCollectorFactory,
     // Blockchain-specific collectors
     EVMBalanceCollector,
