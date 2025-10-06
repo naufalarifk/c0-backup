@@ -1,5 +1,5 @@
 import { BullModule } from '@nestjs/bullmq';
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 
 import { SharedModule } from '../../shared/shared.module';
 import { LoanMatcherModule } from '../loan-matcher/loan-matcher.module';
@@ -12,7 +12,7 @@ import { InvoicePaymentService } from './invoice-payment.service';
   imports: [
     SharedModule,
     NotificationModule,
-    LoanMatcherModule,
+    forwardRef(() => LoanMatcherModule),
     WalletBalanceCollectorModule,
     BullModule.registerQueue({
       name: 'invoicePaymentQueue',

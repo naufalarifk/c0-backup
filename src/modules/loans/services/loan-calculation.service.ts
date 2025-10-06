@@ -356,4 +356,101 @@ export class LoanCalculationService {
 
     return repaymentAmountBN.plus(premiAmountBN).plus(liquidationFeeAmountBN).toString();
   }
+
+  /**
+   * Calculate all loan origination parameters from matched offer and application
+   * All amounts are expected to be in smallest units
+   */
+  calculateLoanOriginationParams(params: {
+    principalAmount: string;
+    interestRate: number;
+    termInMonths: number;
+    collateralAmount: string;
+    matchedLtvRatio: number;
+    matchedCollateralValuationAmount: string;
+    provisionRate: number; // e.g., 3 for 3%
+  }): {
+    principalAmount: string;
+    interestAmount: string;
+    repaymentAmount: string;
+    redeliveryFeeAmount: string;
+    redeliveryAmount: string;
+    premiAmount: string;
+    liquidationFeeAmount: string;
+    minCollateralValuation: string;
+    mcLtvRatio: number;
+    collateralAmount: string;
+    maturityDate: Date;
+  } {
+    const {
+      principalAmount,
+      interestRate,
+      termInMonths,
+      collateralAmount,
+      matchedLtvRatio,
+      matchedCollateralValuationAmount,
+      provisionRate,
+    } = params;
+
+    // Convert to BigNumber for precise calculations
+    const principalAmountBN = new BigNumber(principalAmount);
+    const interestRateBN = this.percentageToDecimal(interestRate);
+    const provisionRateBN = this.percentageToDecimal(provisionRate);
+
+    // Calculate interest amount (simple interest for the term)
+    const interestAmountBN = principalAmountBN.multipliedBy(interestRateBN);
+    const interestAmount = interestAmountBN.integerValue(BigNumber.ROUND_DOWN).toString();
+
+    // Calculate provision/premi amount (origination fee)
+    const premiAmountBN = principalAmountBN.multipliedBy(provisionRateBN);
+    const premiAmount = premiAmountBN.integerValue(BigNumber.ROUND_DOWN).toString();
+
+    // Calculate liquidation fee (fixed 2% of principal as per common practice)
+    const liquidationFeeRateBN = this.percentageToDecimal(2);
+    const liquidationFeeAmountBN = principalAmountBN.multipliedBy(liquidationFeeRateBN);
+    const liquidationFeeAmount = liquidationFeeAmountBN
+      .integerValue(BigNumber.ROUND_DOWN)
+      .toString();
+
+    // Calculate repayment amount (principal + interest + provision)
+    const repaymentAmountBN = principalAmountBN.plus(interestAmountBN).plus(premiAmountBN);
+    const repaymentAmount = repaymentAmountBN.integerValue(BigNumber.ROUND_DOWN).toString();
+
+    // Calculate redelivery fee (1% of interest amount)
+    const redeliveryFeeRateBN = this.percentageToDecimal(1);
+    const redeliveryFeeAmountBN = interestAmountBN.multipliedBy(redeliveryFeeRateBN);
+    const redeliveryFeeAmount = redeliveryFeeAmountBN.integerValue(BigNumber.ROUND_DOWN).toString();
+
+    // Calculate redelivery amount (repayment - redelivery fee)
+    const redeliveryAmountBN = repaymentAmountBN.minus(redeliveryFeeAmountBN);
+    const redeliveryAmount = redeliveryAmountBN.integerValue(BigNumber.ROUND_DOWN).toString();
+
+    // Calculate minimum collateral valuation (repayment + premi + liquidation fee)
+    const minCollateralValuationBN = repaymentAmountBN.plus(liquidationFeeAmountBN);
+    const minCollateralValuation = minCollateralValuationBN
+      .integerValue(BigNumber.ROUND_DOWN)
+      .toString();
+
+    // Calculate margin call LTV ratio (principal / min collateral valuation)
+    const mcLtvRatio = principalAmountBN.dividedBy(minCollateralValuationBN).toNumber();
+
+    // Calculate maturity date (origination date + term in months)
+    const originationDate = new Date();
+    const maturityDate = new Date(originationDate);
+    maturityDate.setMonth(maturityDate.getMonth() + termInMonths);
+
+    return {
+      principalAmount,
+      interestAmount,
+      repaymentAmount,
+      redeliveryFeeAmount,
+      redeliveryAmount,
+      premiAmount,
+      liquidationFeeAmount,
+      minCollateralValuation,
+      mcLtvRatio,
+      collateralAmount,
+      maturityDate,
+    };
+  }
 }

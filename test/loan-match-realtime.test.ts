@@ -789,29 +789,88 @@ suite('Loan Match with Realtime Events', function () {
       strictEqual(application.matchedLoanOfferId, lenderOfferId);
       assertPropNumber(application, 'matchedLtvRatio');
       ok(application.matchedLtvRatio > 0 && application.matchedLtvRatio <= 1);
+    });
 
-      // TODO: Active loan creation happens in a separate step after matching
-      // Commenting out for now as matching flow is working correctly
-      /*
-      // Verify loan exists and is active
-      const loansResponse = await borrower.fetch('/api/loans/my-loans');
-      strictEqual(loansResponse.status, 200);
-      const loansData = await loansResponse.json();
-      assertDefined(loansData);
-      assertPropDefined(loansData, 'data');
-      assertPropArray(loansData.data, 'loans');
+    it('should verify loans exist in /api/loans after matching and origination', async function () {
+      ok(borrower, 'Borrower must exist');
+      ok(lender, 'Lender must exist');
 
-      // Verify exactly one loan exists for this borrower
-      strictEqual(loansData.data.loans.length, 1, 'Exactly one loan should exist');
+      // Note: With automatic loan origination after matching, loan records should be created
+      // immediately after the match is successful.
 
-      const loan = loansData.data.loans[0];
-      assertDefined(loan);
-      assertPropString(loan, 'id');
-      assertPropString(loan, 'status');
-      assertPropString(loan, 'principalAmount');
-      assertPropString(loan, 'collateralAmount');
-      assertPropNumber(loan, 'interestRate');
-      */
+      // Query loans for borrower - should have 1 loan
+      const borrowerLoansResponse = await borrower.fetch('/api/loans');
+      strictEqual(borrowerLoansResponse.status, 200);
+      const borrowerLoansData = await borrowerLoansResponse.json();
+      assertDefined(borrowerLoansData);
+      assertPropDefined(borrowerLoansData, 'data');
+      assertPropArray(borrowerLoansData.data, 'loans');
+      strictEqual(
+        borrowerLoansData.data.loans.length,
+        1,
+        'Borrower should have exactly 1 loan after matching and origination',
+      );
+
+      // Verify borrower loan details
+      const borrowerLoan = borrowerLoansData.data.loans[0];
+      assertDefined(borrowerLoan);
+      assertPropString(borrowerLoan, 'id');
+      assertPropString(borrowerLoan, 'borrowerId');
+      assertPropString(borrowerLoan, 'lenderId');
+      assertPropString(borrowerLoan, 'principalAmount');
+      assertPropString(borrowerLoan, 'collateralAmount');
+      assertPropNumber(borrowerLoan, 'interestRate');
+      assertPropNumber(borrowerLoan, 'termMonths');
+      assertPropNumber(borrowerLoan, 'currentLtv');
+      assertPropNumber(borrowerLoan, 'maxLtvRatio');
+      assertPropString(borrowerLoan, 'status');
+      assertPropString(borrowerLoan, 'originationDate');
+      assertPropString(borrowerLoan, 'maturityDate');
+
+      // Status should be ACTIVE after automatic disbursement
+      // Note: platformDisbursesPrincipal updates status from 'Originated' to 'Active'
+      // which maps to 'ACTIVE' in the API
+      strictEqual(
+        borrowerLoan.status,
+        'ACTIVE',
+        `Expected status to be ACTIVE after automatic disbursement, got ${borrowerLoan.status}`,
+      );
+
+      // Disbursement date should be set after automatic disbursement
+      assertPropString(borrowerLoan, 'disbursementDate');
+      ok(
+        borrowerLoan.disbursementDate,
+        'Disbursement date should be set after automatic disbursement',
+      );
+
+      // Query loans for lender - should have 1 loan
+      const lenderLoansResponse = await lender.fetch('/api/loans');
+      strictEqual(lenderLoansResponse.status, 200);
+      const lenderLoansData = await lenderLoansResponse.json();
+      assertDefined(lenderLoansData);
+      assertPropDefined(lenderLoansData, 'data');
+      assertPropArray(lenderLoansData.data, 'loans');
+      strictEqual(
+        lenderLoansData.data.loans.length,
+        1,
+        'Lender should have exactly 1 loan after matching and origination',
+      );
+
+      // Verify lender loan details
+      const lenderLoan = lenderLoansData.data.loans[0];
+      assertDefined(lenderLoan);
+      assertPropString(lenderLoan, 'id');
+      assertPropString(lenderLoan, 'borrowerId');
+      assertPropString(lenderLoan, 'lenderId');
+
+      // Verify both borrower and lender see the same loan
+      strictEqual(borrowerLoan.id, lenderLoan.id, 'Borrower and lender should see the same loan');
+      strictEqual(
+        borrowerLoan.borrowerId,
+        borrower.id,
+        'Loan borrower ID should match borrower user ID',
+      );
+      strictEqual(borrowerLoan.lenderId, lender.id, 'Loan lender ID should match lender user ID');
     });
   });
 });
