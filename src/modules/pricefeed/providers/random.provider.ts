@@ -10,6 +10,9 @@ export class RandomPriceFeedProvider extends AbstractPriceFeedProvider {
     'slip44:714': 650, // BNB in USD
     'slip44:501': 180, // SOL in USD
     'iso4217:usd': 1.0, // USD in USD (stable)
+    'mock:native': 2000, // MCK (Mockchain Coin) in USD - test currency
+    'mock:usd': 1.0, // MUSD (Mockchain Dollar) - test stablecoin
+    'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d': 1.0, // USDC on BSC - stablecoin
   };
 
   async fetchPrice(request: PriceFeedRequest): Promise<PriceData> {

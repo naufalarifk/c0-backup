@@ -399,10 +399,11 @@ BEGIN
     IF loan_offer_record.id IS NOT NULL AND loan_offer_record.status = 'Funding' THEN
       
       -- Update loan offer status to 'Published' and set published_date
-      UPDATE loan_offers 
-      SET 
+      -- Use GREATEST to ensure published_date is never before created_date
+      UPDATE loan_offers
+      SET
         status = 'Published',
-        published_date = NEW.paid_date
+        published_date = GREATEST(NEW.paid_date, created_date)
       WHERE id = NEW.loan_offer_id;
       
       -- Move principal from lender's user account to platform escrow
@@ -503,10 +504,11 @@ BEGIN
     IF loan_application_record.id IS NOT NULL AND loan_application_record.status = 'PendingCollateral' THEN
       
       -- Update loan application status to 'Published' and set published_date
-      UPDATE loan_applications 
-      SET 
+      -- Use GREATEST to ensure published_date is never before applied_date
+      UPDATE loan_applications
+      SET
         status = 'Published',
-        published_date = NEW.paid_date,
+        published_date = GREATEST(NEW.paid_date, applied_date),
         collateral_prepaid_amount = loan_application_record.collateral_deposit_amount
       WHERE id = NEW.loan_application_id;
       

@@ -11,6 +11,7 @@ import {
   assertPropNumber,
   assertPropString,
   check,
+  hasPropString,
   isNullable,
   isNumber,
   isString,
@@ -621,6 +622,9 @@ suite('Loan Market API', function () {
       }
 
       const createData = await createResponse.json();
+      assertDefined(createData);
+      assertPropDefined(createData, 'data');
+      assertPropString(createData.data, 'id');
       const offerId = createData.data.id;
 
       // Now update the offer
@@ -666,6 +670,12 @@ suite('Loan Market API', function () {
 
       if (response.status === 404) {
         const data = await response.json();
+        assertDefined(data);
+        assertProp(
+          check(isNullable, (v): v is { code: string } => hasPropString(v, 'code')),
+          data,
+          'error',
+        );
         if (data.error?.code === ERROR_CODES.NOT_FOUND) {
           // Expected behavior
           return;
@@ -761,6 +771,9 @@ suite('Loan Market API', function () {
       }
 
       const createData = await createResponse.json();
+      assertDefined(createData);
+      assertPropDefined(createData, 'data');
+      assertPropString(createData.data, 'id');
       const offerId = createData.data.id;
 
       const response = await borrower.fetch(`/api/loan-offers/${offerId}`);

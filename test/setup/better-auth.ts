@@ -1,10 +1,15 @@
+/** biome-ignore-all lint/suspicious/noExplicitAny: integration */
 import { env } from 'node:process';
 
 import { createAuthClient } from 'better-auth/client';
 import { twoFactorClient } from 'better-auth/plugins/two-factor';
 import { CookieJar, MemoryCookieStore } from 'tough-cookie';
 
-export function setupBetterAuthClient(backendUrl: string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function setupBetterAuthClient(backendUrl: string): {
+  authClient: any;
+  cookieJar: CookieJar;
+} {
   const cookieJar = new CookieJar(new MemoryCookieStore(), {
     prefixSecurity: 'silent',
     rejectPublicSuffixes: false,
@@ -12,10 +17,7 @@ export function setupBetterAuthClient(backendUrl: string) {
   const authClient = createAuthClient({
     baseURL: backendUrl,
     fetchOptions: {
-      async customFetchImpl(
-        input: string | URL | globalThis.Request,
-        init?: RequestInit,
-      ): Promise<Response> {
+      async customFetchImpl(input: string | URL | globalThis.Request, init?: RequestInit) {
         const headers = new Headers(init?.headers);
         const cookie = await new Promise<string | undefined>((resolve, reject) => {
           cookieJar.getCookieString(input?.toString(), function (error, cookies) {

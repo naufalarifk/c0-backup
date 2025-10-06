@@ -283,13 +283,13 @@ export class BlockchainService {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as Record<string, unknown>;
 
       return {
-        fastestFee: data.fastestFee || 50,
-        halfHourFee: data.halfHourFee || 20,
-        hourFee: data.hourFee || 10,
-        economyFee: data.economyFee || 5,
+        fastestFee: typeof data.fastestFee === 'number' ? data.fastestFee : 50,
+        halfHourFee: typeof data.halfHourFee === 'number' ? data.halfHourFee : 20,
+        hourFee: typeof data.hourFee === 'number' ? data.hourFee : 10,
+        economyFee: typeof data.economyFee === 'number' ? data.economyFee : 5,
       };
     } catch (error) {
       this.logger.warn('mempool.space API failed, trying blockstream...', error);
@@ -297,14 +297,14 @@ export class BlockchainService {
       // Fallback: Blockstream API
       try {
         const response = await fetch('https://blockstream.info/api/fee-estimates');
-        const data = await response.json();
+        const data = (await response.json()) as Record<string, unknown>;
 
         // Blockstream returns fee estimates for different confirmation targets
         return {
-          fastestFee: Math.ceil(data['1'] || 50), // 1 block (~10 min)
-          halfHourFee: Math.ceil(data['3'] || 20), // 3 blocks (~30 min)
-          hourFee: Math.ceil(data['6'] || 10), // 6 blocks (~1 hour)
-          economyFee: Math.ceil(data['144'] || 5), // 144 blocks (~24 hours)
+          fastestFee: Math.ceil(typeof data['1'] === 'number' ? data['1'] : 50), // 1 block (~10 min)
+          halfHourFee: Math.ceil(typeof data['3'] === 'number' ? data['3'] : 20), // 3 blocks (~30 min)
+          hourFee: Math.ceil(typeof data['6'] === 'number' ? data['6'] : 10), // 6 blocks (~1 hour)
+          economyFee: Math.ceil(typeof data['144'] === 'number' ? data['144'] : 5), // 144 blocks (~24 hours)
         };
       } catch (fallbackError) {
         this.logger.error('All Bitcoin fee APIs failed:', fallbackError);

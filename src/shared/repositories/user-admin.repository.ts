@@ -4,10 +4,11 @@ import {
   assertProp,
   assertPropString,
   check,
+  isBoolean,
   isInstanceOf,
   isNullable,
-  isNumber,
   isString,
+  setPropValue,
 } from 'typeshaper';
 
 import {
@@ -37,14 +38,12 @@ export abstract class UserAdminRepository extends UserUserRepository {
   async adminApprovesKyc(params: AdminApprovesKycParams): Promise<AdminApprovesKycResult> {
     const tx = await this.beginTransaction();
     try {
-      const { kycId, verifierUserId, approvalDate } = params;
-
       const rows = await tx.sql`
         UPDATE user_kycs
-        SET verifier_user_id = ${verifierUserId},
-            verified_date = ${approvalDate}
-        WHERE id = ${kycId} AND verified_date IS NULL AND rejected_date IS NULL
-        RETURNING id, user_id, verified_date;
+        SET verifier_user_id = ${params.verifierUserId},
+            verified_date = ${params.approvalDate}
+        WHERE id = ${params.kycId} AND verified_date IS NULL AND rejected_date IS NULL
+        RETURNING id::text AS id, user_id::text AS "userId", verified_date AS "verifiedDate";
       `;
 
       if (rows.length === 0) {
@@ -52,19 +51,16 @@ export abstract class UserAdminRepository extends UserUserRepository {
         throw new Error('KYC approval failed');
       }
 
-      const kyc = rows[0];
-      assertDefined(kyc, 'KYC not found or already processed');
-      assertProp(check(isString, isNumber), kyc, 'id');
-      assertProp(check(isString, isNumber), kyc, 'user_id');
-      assertProp(isInstanceOf(Date), kyc, 'verified_date');
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row, 'KYC not found or already processed');
+        assertPropString(row, 'id');
+        assertPropString(row, 'userId');
+        assertProp(isInstanceOf(Date), row, 'verifiedDate');
+        return row;
+      });
 
       await tx.commitTransaction();
-
-      return {
-        id: String(kyc.id),
-        userId: String(kyc.user_id),
-        verifiedDate: kyc.verified_date,
-      };
+      return rows[0];
     } catch (error) {
       console.error('UserRepository', error);
       await tx.rollbackTransaction();
@@ -75,15 +71,13 @@ export abstract class UserAdminRepository extends UserUserRepository {
   async adminRejectsKyc(params: AdminRejectsKycParams): Promise<AdminRejectsKycResult> {
     const tx = await this.beginTransaction();
     try {
-      const { kycId, verifierUserId, rejectionReason, rejectionDate } = params;
-
       const rows = await tx.sql`
         UPDATE user_kycs
-        SET verifier_user_id = ${verifierUserId},
-            rejected_date = ${rejectionDate},
-            rejection_reason = ${rejectionReason}
-        WHERE id = ${kycId} AND verified_date IS NULL AND rejected_date IS NULL
-        RETURNING id, user_id, rejected_date;
+        SET verifier_user_id = ${params.verifierUserId},
+            rejected_date = ${params.rejectionDate},
+            rejection_reason = ${params.rejectionReason}
+        WHERE id = ${params.kycId} AND verified_date IS NULL AND rejected_date IS NULL
+        RETURNING id::text AS id, user_id::text AS "userId", rejected_date AS "rejectedDate";
       `;
 
       if (rows.length === 0) {
@@ -91,19 +85,16 @@ export abstract class UserAdminRepository extends UserUserRepository {
         throw new Error('KYC not found or already processed');
       }
 
-      const kyc = rows[0];
-      assertDefined(kyc, 'KYC not found or already processed');
-      assertProp(check(isString, isNumber), kyc, 'id');
-      assertProp(check(isString, isNumber), kyc, 'user_id');
-      assertProp(isInstanceOf(Date), kyc, 'rejected_date');
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row, 'KYC not found or already processed');
+        assertPropString(row, 'id');
+        assertPropString(row, 'userId');
+        assertProp(isInstanceOf(Date), row, 'rejectedDate');
+        return row;
+      });
 
       await tx.commitTransaction();
-
-      return {
-        id: String(kyc.id),
-        userId: String(kyc.user_id),
-        rejectedDate: kyc.rejected_date,
-      };
+      return rows[0];
     } catch (error) {
       console.error('UserRepository', error);
       await tx.rollbackTransaction();
@@ -112,32 +103,24 @@ export abstract class UserAdminRepository extends UserUserRepository {
   }
 
   async adminViewsPendingKYCs(): Promise<AdminViewPendingKycsResult> {
-    const rows = await this.sql`
-      SELECT id, user_id, name, nik, submitted_date
+    const kycs = await this.sql`
+      SELECT id::text AS id, user_id::text AS "userId", name, nik, submitted_date AS "submittedDate"
       FROM user_kycs
       WHERE verified_date IS NULL AND rejected_date IS NULL
       ORDER BY submitted_date ASC
     `;
 
-    const kycs = rows;
+    assertArrayMapOf(kycs, function (row) {
+      assertDefined(row);
+      assertPropString(row, 'id');
+      assertPropString(row, 'userId');
+      assertPropString(row, 'name');
+      assertPropString(row, 'nik');
+      assertProp(isInstanceOf(Date), row, 'submittedDate');
+      return row;
+    });
 
-    return {
-      kycs: kycs.map(function (kyc: unknown) {
-        assertDefined(kyc);
-        assertProp(check(isString, isNumber), kyc, 'id');
-        assertProp(check(isString, isNumber), kyc, 'user_id');
-        assertPropString(kyc, 'name');
-        assertPropString(kyc, 'nik');
-        assertProp(isInstanceOf(Date), kyc, 'submitted_date');
-        return {
-          id: String(kyc.id),
-          userId: String(kyc.user_id),
-          name: kyc.name,
-          nik: kyc.nik,
-          submittedDate: kyc.submitted_date,
-        };
-      }),
-    };
+    return { kycs };
   }
 
   async adminApprovesInstitutionApplication(
@@ -145,13 +128,10 @@ export abstract class UserAdminRepository extends UserUserRepository {
   ): Promise<AdminApprovesInstitutionApplicationResult> {
     const tx = await this.beginTransaction();
     try {
-      const { applicationId, reviewerUserId, approvalDate } = params;
-
-      // Get application details
       const rows = await tx.sql`
-        SELECT id, applicant_user_id, business_name
+        SELECT id::text AS "applicationId", applicant_user_id::text AS "institutionId"
         FROM institution_applications
-        WHERE id = ${applicationId} AND verified_date IS NULL AND rejected_date IS NULL
+        WHERE id = ${params.applicationId} AND verified_date IS NULL AND rejected_date IS NULL
       `;
 
       if (rows.length === 0) {
@@ -159,25 +139,21 @@ export abstract class UserAdminRepository extends UserUserRepository {
         throw new Error('Application not found or already processed');
       }
 
-      const application = rows[0];
-      assertDefined(application, 'Application not found or already processed');
-      assertProp(check(isString, isNumber), application, 'id');
-      assertProp(check(isString, isNumber), application, 'applicant_user_id');
-      assertPropString(application, 'business_name');
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row, 'Application not found or already processed');
+        assertPropString(row, 'applicationId');
+        assertPropString(row, 'institutionId');
+        return row;
+      });
 
-      // Update application status (trigger will handle user update)
       await tx.sql`
         UPDATE institution_applications
-        SET reviewer_user_id = ${reviewerUserId}, verified_date = ${approvalDate}
-        WHERE id = ${applicationId}
+        SET reviewer_user_id = ${params.reviewerUserId}, verified_date = ${params.approvalDate}
+        WHERE id = ${params.applicationId}
       `;
 
       await tx.commitTransaction();
-
-      return {
-        institutionId: String(application.applicant_user_id), // The applicant becomes the institution owner
-        applicationId: String(applicationId),
-      };
+      return rows[0];
     } catch (error) {
       console.error('UserRepository', error);
       await tx.rollbackTransaction();
@@ -190,15 +166,13 @@ export abstract class UserAdminRepository extends UserUserRepository {
   ): Promise<AdminRejectsInstitutionApplicationResult> {
     const tx = await this.beginTransaction();
     try {
-      const { applicationId, reviewerUserId, rejectionReason, rejectionDate } = params;
-
       const rows = await tx.sql`
         UPDATE institution_applications
-        SET reviewer_user_id = ${reviewerUserId},
-            rejected_date = ${rejectionDate},
-            rejection_reason = ${rejectionReason}
-        WHERE id = ${applicationId} AND verified_date IS NULL AND rejected_date IS NULL
-        RETURNING id, rejected_date;
+        SET reviewer_user_id = ${params.reviewerUserId},
+            rejected_date = ${params.rejectionDate},
+            rejection_reason = ${params.rejectionReason}
+        WHERE id = ${params.applicationId} AND verified_date IS NULL AND rejected_date IS NULL
+        RETURNING id::text AS id, rejected_date AS "rejectedDate";
       `;
 
       if (rows.length === 0) {
@@ -206,16 +180,15 @@ export abstract class UserAdminRepository extends UserUserRepository {
         throw new Error('Application rejection failed');
       }
 
-      const application = rows[0];
-      assertDefined(application, 'Application not found or already processed');
-      assertProp(check(isString, isNumber), application, 'id');
-      assertProp(isInstanceOf(Date), application, 'rejected_date');
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row, 'Application not found or already processed');
+        assertPropString(row, 'id');
+        assertProp(isInstanceOf(Date), row, 'rejectedDate');
+        return row;
+      });
 
       await tx.commitTransaction();
-      return {
-        id: String(application.id),
-        rejectedDate: application.rejected_date,
-      };
+      return rows[0];
     } catch (error) {
       console.error('UserRepository', error);
       await tx.rollbackTransaction();
@@ -223,43 +196,33 @@ export abstract class UserAdminRepository extends UserUserRepository {
     }
   }
 
-  // Institution membership management (explicit methods for services to call)
   async adminAddUserToInstitution(
     params: AdminAddUserToInstitutionParams,
   ): Promise<AdminAddUserToInstitutionResult> {
     const tx = await this.beginTransaction();
     try {
-      const { userId, institutionId, role, assignedDate: _assignedDate } = params;
-
       const rows = await tx.sql`
         UPDATE users
-        SET institution_user_id = ${institutionId}, institution_role = ${role}
-        WHERE id = ${userId}
-        RETURNING id, institution_user_id, institution_role;
+        SET institution_user_id = ${params.institutionId}, institution_role = ${params.role}
+        WHERE id = ${params.userId}
+        RETURNING id::text AS "userId", institution_user_id::text AS "institutionId", institution_role AS role;
       `;
 
-      if (!rows || (Array.isArray(rows) && rows.length === 0)) {
+      if (rows.length === 0) {
         await tx.rollbackTransaction();
         throw new Error('Failed to add user to institution');
       }
 
       assertArrayMapOf(rows, function (row) {
         assertDefined(row, 'Failed to add user to institution');
-        assertProp(check(isString, isNumber), row, 'id');
-        assertProp(check(isString, isNumber), row, 'institution_user_id');
-        assertPropString(row, 'institution_role');
+        assertPropString(row, 'userId');
+        assertPropString(row, 'institutionId');
+        assertPropString(row, 'role');
         return row;
       });
 
-      const row = Array.isArray(rows) ? rows[0] : rows;
-
       await tx.commitTransaction();
-
-      return {
-        userId: String(row.id),
-        institutionId: String(row.institution_user_id),
-        role: row.institution_role,
-      };
+      return rows[0];
     } catch (error) {
       console.error('UserRepository', error);
       await tx.rollbackTransaction();
@@ -272,35 +235,27 @@ export abstract class UserAdminRepository extends UserUserRepository {
   ): Promise<AdminRemoveUserFromInstitutionResult> {
     const tx = await this.beginTransaction();
     try {
-      const { userId, removedDate: _removedDate } = params;
-
       const rows = await tx.sql`
         UPDATE users
         SET institution_user_id = NULL, institution_role = NULL
-        WHERE id = ${userId}
-        RETURNING id;
+        WHERE id = ${params.userId}
+        RETURNING id::text AS "userId", true AS removed;
       `;
 
       assertArrayMapOf(rows, function (row) {
         assertDefined(row, 'Failed to remove user from institution');
-        assertProp(check(isString, isNumber), row, 'id');
+        assertPropString(row, 'userId');
+        assertProp(isBoolean, row, 'removed');
         return row;
       });
 
       if (rows.length === 0) {
-        const returnValue = { userId, removed: false };
         await tx.commitTransaction();
-        return returnValue;
+        return { userId: params.userId, removed: false };
       }
 
-      const row = rows[0];
-
       await tx.commitTransaction();
-
-      return {
-        userId: String(row.id),
-        removed: true,
-      };
+      return rows[0];
     } catch (error) {
       console.error('UserRepository', error);
       await tx.rollbackTransaction();
@@ -308,76 +263,74 @@ export abstract class UserAdminRepository extends UserUserRepository {
     }
   }
 
-  // Test-specific methods for verifying internal state
   async adminChecksUserKycId(
     params: AdminChecksUserKycIdParams,
   ): Promise<AdminChecksUserKycIdResult> {
-    const { userId } = params;
+    const rows = await this.sql`
+      SELECT id::text AS "userId", kyc_id::text AS "kycId" FROM users WHERE id = ${params.userId}
+    `;
 
-    const rows = await this.sql`SELECT kyc_id FROM users WHERE id = ${userId}`;
-    const user = rows[0];
-    assertDefined(user, 'User not found');
-    assertProp(check(isString, isNumber), user, 'kyc_id');
+    if (rows.length === 0) {
+      throw new Error('User not found');
+    }
 
-    return {
-      userId: String(userId),
-      kycId: user.kyc_id ? String(user.kyc_id) : null,
-    };
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row, 'User not found');
+      assertPropString(row, 'userId');
+      assertProp(check(isNullable, isString), row, 'kycId');
+      setPropValue(row, 'kycId', row.kycId ?? null);
+      return row;
+    });
+
+    return rows[0];
   }
 
   async adminChecksUserInstitutionData(
     params: AdminChecksUserInstitutionDataParams,
   ): Promise<AdminChecksUserInstitutionDataResult> {
-    const { userId } = params;
-
     const rows = await this.sql`
-      SELECT institution_user_id, institution_role FROM users WHERE id = ${userId}
+      SELECT id::text AS "userId", institution_user_id::text AS "institutionUserId", institution_role AS "institutionRole"
+      FROM users WHERE id = ${params.userId}
     `;
-    const user = rows[0];
-    assertDefined(user, 'User not found');
 
-    return {
-      userId: String(userId),
-      institutionUserId: 'institution_user_id' in user ? String(user.institution_user_id) : null,
-      institutionRole:
-        'institution_role' in user && user.institution_role ? String(user.institution_role) : null,
-    };
+    if (rows.length === 0) {
+      throw new Error('User not found');
+    }
+
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row, 'User not found');
+      assertPropString(row, 'userId');
+      assertProp(check(isNullable, isString), row, 'institutionUserId');
+      assertProp(check(isNullable, isString), row, 'institutionRole');
+      setPropValue(row, 'institutionUserId', row.institutionUserId ?? null);
+      setPropValue(row, 'institutionRole', row.institutionRole ?? null);
+      return row;
+    });
+
+    return rows[0];
   }
 
   async adminViewsNotificationsByType(
     params: AdminViewsNotificationsByTypeParams,
   ): Promise<AdminViewsNotificationsByTypeResult> {
-    const { userId, type } = params;
-
     const rows = await this.sql`
-      SELECT type, title, content, user_kyc_id, institution_application_id FROM notifications
-      WHERE user_id = ${userId} AND type = ${type}
+      SELECT type, title, content, user_kyc_id::text AS "userKycId", institution_application_id::text AS "institutionApplicationId"
+      FROM notifications
+      WHERE user_id = ${params.userId} AND type = ${params.type}
     `;
 
-    const notifications = rows;
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row);
+      assertPropString(row, 'type');
+      assertPropString(row, 'title');
+      assertPropString(row, 'content');
+      assertProp(check(isNullable, isString), row, 'userKycId');
+      assertProp(check(isNullable, isString), row, 'institutionApplicationId');
+      setPropValue(row, 'userKycId', row.userKycId ?? undefined);
+      setPropValue(row, 'institutionApplicationId', row.institutionApplicationId ?? undefined);
+      return row;
+    });
 
-    return {
-      notifications: notifications.map(function (notification: unknown) {
-        assertDefined(notification);
-        assertPropString(notification, 'type');
-        assertPropString(notification, 'title');
-        assertPropString(notification, 'content');
-        assertProp(check(isNullable, isString, isNumber), notification, 'user_kyc_id');
-        assertProp(
-          check(isNullable, isString, isNumber),
-          notification,
-          'institution_application_id',
-        );
-        return {
-          type: notification.type,
-          title: notification.title,
-          content: notification.content,
-          userKycId: notification.user_kyc_id ? String(notification.user_kyc_id) : undefined,
-          institutionApplicationId: notification.institution_application_id
-            ? String(notification.institution_application_id)
-            : undefined,
-        };
-      }),
-    };
+    return { notifications: rows };
   }
 }

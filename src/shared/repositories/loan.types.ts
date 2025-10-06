@@ -34,6 +34,7 @@ export type BorrowerGetsPlatformConfigResult = {
 };
 
 export type BorrowerGetsExchangeRateParams = {
+  collateralBlockchainKey?: string;
   collateralTokenId: string;
   asOfDate?: Date;
 };

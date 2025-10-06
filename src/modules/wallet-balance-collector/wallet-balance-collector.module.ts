@@ -1,5 +1,6 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
+import { DiscoveryModule } from '@nestjs/core';
 
 import { SharedModule } from '../../shared/shared.module';
 import { BalanceCollectorFactory } from './balance-collector.factory';
@@ -14,6 +15,7 @@ import { WalletBalanceCollectorService } from './wallet-balance-collector.servic
 
 @Module({
   imports: [
+    DiscoveryModule,
     SharedModule,
     BullModule.registerQueue({
       name: 'walletBalanceCollectorQueue',

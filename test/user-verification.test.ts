@@ -75,7 +75,7 @@ suite('User Verification API E2E Tests', function () {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        userId: adminUser.id,
+        userId: String(adminUser.id),
       }),
     });
 
@@ -486,6 +486,9 @@ suite('User Verification API E2E Tests', function () {
 
       ok(response.ok, 'KYC submission should be successful');
       const responseData = await response.json();
+      assertDefined(responseData);
+      assertPropDefined(responseData, 'kycSubmission');
+      assertPropNumber(responseData.kycSubmission, 'id');
       kycSubmissionId = responseData.kycSubmission.id;
     });
 
@@ -631,6 +634,9 @@ suite('User Verification API E2E Tests', function () {
         }
 
         const responseData = await response.json();
+        assertDefined(responseData);
+        assertPropDefined(responseData, 'kycSubmission');
+        assertPropNumber(responseData.kycSubmission, 'id');
         if (!responseData.kycSubmission || !responseData.kycSubmission.id) {
           throw new Error(`Invalid response structure: ${JSON.stringify(responseData)}`);
         }
@@ -722,6 +728,9 @@ suite('User Verification API E2E Tests', function () {
         }
 
         const responseData = await response.json();
+        assertDefined(responseData);
+        assertPropDefined(responseData, 'kycSubmission');
+        assertPropNumber(responseData.kycSubmission, 'id');
         if (!responseData.kycSubmission || !responseData.kycSubmission.id) {
           throw new Error(`Invalid response structure: ${JSON.stringify(responseData)}`);
         }
@@ -1121,6 +1130,9 @@ suite('User Verification API E2E Tests', function () {
 
       ok(response.ok, 'Institution application submission should be successful');
       const responseData = await response.json();
+      assertDefined(responseData);
+      assertPropDefined(responseData, 'application');
+      assertPropNumber(responseData.application, 'id');
       institutionApplicationId = responseData.application.id;
     });
 
@@ -1292,6 +1304,9 @@ suite('User Verification API E2E Tests', function () {
         }
 
         const responseData = await response.json();
+        assertDefined(responseData);
+        assertPropDefined(responseData, 'application');
+        assertPropNumber(responseData.application, 'id');
         if (!responseData.application || !responseData.application.id) {
           throw new Error(`Invalid response structure: ${JSON.stringify(responseData)}`);
         }
@@ -1388,6 +1403,9 @@ suite('User Verification API E2E Tests', function () {
         }
 
         const responseData = await response.json();
+        assertDefined(responseData);
+        assertPropDefined(responseData, 'application');
+        assertPropNumber(responseData.application, 'id');
         if (!responseData.application || !responseData.application.id) {
           throw new Error(`Invalid response structure: ${JSON.stringify(responseData)}`);
         }

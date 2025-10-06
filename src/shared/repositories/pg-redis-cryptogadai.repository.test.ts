@@ -1,8 +1,11 @@
+import type { RedisService } from '../services/redis.service';
+
 import Redis from 'ioredis';
 import { Pool } from 'pg';
 import { GenericContainer } from 'testcontainers';
 import { LogWaitStrategy } from 'testcontainers/build/wait-strategies/log-wait-strategy';
 
+import { RedisService } from '../services/redis.service';
 import { runBaseRepositoryTestSuite } from './base.repository-test-suite';
 import { PgRedisCryptogadaiRepository } from './pg-redis-cryptogadai.repository';
 
@@ -43,7 +46,7 @@ runBaseRepositoryTestSuite(
       host: 'localhost',
       port: redisPort,
     });
-    const repo = new PgRedisCryptogadaiRepository(pgPool, redisClient);
+    const repo = new PgRedisCryptogadaiRepository(pgPool, redisClient as unknown as RedisService);
     await repo.connect();
     await repo.migrate();
     const originalClose = PgRedisCryptogadaiRepository.prototype.close;

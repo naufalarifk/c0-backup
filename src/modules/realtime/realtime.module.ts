@@ -6,6 +6,7 @@ import { RealtimeEventRegistry, registerDefaultRealtimeEvents } from './realtime
 import { RealtimeGateway } from './realtime.gateway';
 import { RealtimeAuthTokensService } from './services/realtime-auth-tokens.service';
 import { RealtimeConnectionsService } from './services/realtime-connections.service';
+import { RealtimeEventsService } from './services/realtime-events.service';
 import { RealtimeRedisSubscriberService } from './services/realtime-redis-subscriber.service';
 
 @Module({
@@ -15,6 +16,7 @@ import { RealtimeRedisSubscriberService } from './services/realtime-redis-subscr
     RealtimeGateway,
     RealtimeAuthTokensService,
     RealtimeConnectionsService,
+    RealtimeEventsService,
     RealtimeRedisSubscriberService,
     RealtimeEventRegistry,
     {
@@ -26,6 +28,6 @@ import { RealtimeRedisSubscriberService } from './services/realtime-redis-subscr
       },
     },
   ],
-  exports: [RealtimeAuthTokensService, RealtimeEventRegistry],
+  exports: [RealtimeAuthTokensService, RealtimeEventRegistry, RealtimeEventsService],
 })
 export class RealtimeModule {}

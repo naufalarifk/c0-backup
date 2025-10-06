@@ -261,8 +261,6 @@ export class LoanMatcherService {
       // In production, this would fetch the specific offer by ID
       // For now, we'll check if it exists in the general query results
       const allOffers = await this.repository.platformListsAvailableLoanOffers({
-        collateralBlockchainKey: application.collateralBlockchainKey,
-        collateralTokenId: application.collateralTokenId,
         principalBlockchainKey: application.principalBlockchainKey,
         principalTokenId: application.principalTokenId,
         limit: 100, // Get more to find the specific one
@@ -274,13 +272,11 @@ export class LoanMatcherService {
 
     console.log(
       `[DEBUG] Fetching offers for application ${application.id}: ` +
-        `collateral ${application.collateralBlockchainKey}:${application.collateralTokenId}, ` +
-        `principal ${application.principalBlockchainKey}:${application.principalTokenId}`,
+        `principal ${application.principalBlockchainKey}:${application.principalTokenId} ` +
+        `(collateral ${application.collateralBlockchainKey}:${application.collateralTokenId} is for reference only)`,
     );
 
     const offers = await this.repository.platformListsAvailableLoanOffers({
-      collateralBlockchainKey: application.collateralBlockchainKey,
-      collateralTokenId: application.collateralTokenId,
       principalBlockchainKey: application.principalBlockchainKey,
       principalTokenId: application.principalTokenId,
       limit: 50, // Get up to 50 potential matches
@@ -675,9 +671,9 @@ export class LoanMatcherService {
         userId: match.lenderUserId,
         loanApplicationId: match.loanApplicationId,
         loanOfferId: match.loanOfferId,
-        principalAmount: match.principalAmount,
+        amount: match.principalAmount,
         interestRate: match.interestRate.toString(),
-        termInMonths: match.termInMonths.toString(),
+        term: match.termInMonths.toString(),
         matchedDate: match.matchedDate.toISOString(),
       });
 

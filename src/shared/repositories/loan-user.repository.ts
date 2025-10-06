@@ -22,9 +22,6 @@ import {
 } from './loan.types';
 import { LoanBorrowerRepository } from './loan-borrower.repository';
 
-/**
- * LoanUserRepository <- LoanBorrowerRepository <- LoanLenderRepository <- LoanTestRepository <- FinanceRepository <- UserRepository <- DatabaseRepository
- */
 export abstract class LoanUserRepository extends LoanBorrowerRepository {
   async userViewsLoanDetails(
     params: UserViewsLoanDetailsParams,

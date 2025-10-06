@@ -24,8 +24,8 @@ export class EthereumSepoliaIndexerListener extends EthereumIndexerListener {
     invoicePaymentQueue: InvoicePaymentQueueService,
   ) {
     super(discovery, redis, invoicePaymentQueue, {
-      chainName: 'Ethereum Mainnet',
-      wsUrlEnvVar: 'wss://sepolia.infura.io/ws/v3/YOUR_INFURA_PROJECT_ID',
+      chainName: 'Ethereum Sepolia',
+      wsUrlEnvVar: 'ETHEREUM_SEPOLIA_WS_URL',
       defaultWsUrl: 'wss://sepolia.infura.io/ws/v3/YOUR_INFURA_PROJECT_ID',
       nativeTokenId: 'slip44:60',
       tokenPrefix: 'erc20',

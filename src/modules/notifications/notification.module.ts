@@ -2,6 +2,8 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
 
+import { SharedModule } from '../../shared/shared.module';
+import { RealtimeModule } from '../realtime/realtime.module';
 import { BeneficiaryVerificationNotificationComposer } from './composers/beneficiary-verification.composer';
 import { EmailVerificationNotificationComposer } from './composers/email-verification-notification.composer';
 import { InvoiceCreatedNotificationComposer } from './composers/invoice-created-notification.composer';
@@ -24,6 +26,7 @@ import { UserKycRejectedNotificationComposer } from './composers/user-kyc-reject
 import { UserKycVerifiedNotificationComposer } from './composers/user-kyc-verified-notification.composer';
 import { UserRegisteredNotificationComposer } from './composers/user-registered-notification.composer';
 import { WithdrawalRequestedNotificationComposer } from './composers/withdrawal-requested-notification.composer';
+import { NotificationProcessor } from './notification.processor';
 import { NotificationService } from './notification.service';
 import { NotificationComposerFactory } from './notification-composer.factory';
 import { NotificationProviderFactory } from './notification-provider.factory';
@@ -35,9 +38,13 @@ import { ExpoNotificationProvider } from './providers/expo-notification.provider
 import { FCMNotificationProvider } from './providers/fcm-notification.provider';
 import { RealtimeNotificationProvider } from './providers/realtime-notification.provider';
 import { SMSNotificationProvider } from './providers/sms-notification.provider';
+import { WebSocketNotificationProvider } from './providers/websocket-notification.provider';
 import { PushSenderService } from './services/push-sender.service';
+
 @Module({
   imports: [
+    SharedModule,
+    RealtimeModule,
     DiscoveryModule,
     BullModule.registerQueue({
       name: 'notificationQueue',
@@ -47,6 +54,7 @@ import { PushSenderService } from './services/push-sender.service';
     // Core services
     NotificationService,
     NotificationQueueService,
+    NotificationProcessor,
     PushSenderService,
 
     // Factories
@@ -60,7 +68,8 @@ import { PushSenderService } from './services/push-sender.service';
     APNSNotificationProvider,
     ExpoNotificationProvider,
     DatabaseNotificationProvider,
-    RealtimeNotificationProvider,
+    RealtimeNotificationProvider, // Redis pub/sub for distributed systems
+    WebSocketNotificationProvider, // Direct WebSocket for local delivery
 
     // Notification Composers
     BeneficiaryVerificationNotificationComposer,

@@ -14,7 +14,8 @@ export class IndexerProcessor implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     if (this.#startedListeners.size > 0) {
-      await this.onModuleDestroy();
+      this.logger.warn('IndexerProcessor already initialized, skipping duplicate initialization');
+      return;
     }
 
     const listeners = this.discovery.getProviders().filter(wrapper => {

@@ -87,9 +87,12 @@ export class BaseBitcoinRpcClient implements BitcoinRpcClient {
 
         invariant(response.ok, `HTTP ${response.status}: ${response.statusText}`);
 
-        const data = await response.json();
+        const data = (await response.json()) as Record<string, unknown>;
 
-        invariant(!data.error, `Bitcoin RPC Error: ${data.error?.message || 'Unknown RPC error'}`);
+        invariant(
+          !data.error,
+          `Bitcoin RPC Error: ${data.error && typeof data.error === 'object' && 'message' in data.error ? data.error.message : 'Unknown RPC error'}`,
+        );
 
         return data.result; // Success, return immediately
       } catch (error) {

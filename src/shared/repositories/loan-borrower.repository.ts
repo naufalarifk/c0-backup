@@ -40,17 +40,6 @@ import {
 } from './loan.types';
 import { LoanLenderRepository } from './loan-lender.repository';
 
-function assertPlatformConfig(config: unknown): asserts config is {
-  loan_provision_rate: string | number;
-  loan_min_ltv_ratio: string | number;
-  loan_max_ltv_ratio: string | number;
-} {
-  assertDefined(config, 'Platform config is undefined');
-  assertProp(check(isString, isNumber), config, 'loan_provision_rate');
-  assertProp(check(isString, isNumber), config, 'loan_min_ltv_ratio');
-  assertProp(check(isString, isNumber), config, 'loan_max_ltv_ratio');
-}
-
 /**
  * LoanBorrowerRepository <- LoanLenderRepository <- LoanTestRepository <- FinanceRepository <- UserRepository <- DatabaseRepository
  */
@@ -61,64 +50,42 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   async borrowerGetsCurrencyPair(
     params: BorrowerGetsCurrencyPairParams,
   ): Promise<BorrowerGetsCurrencyPairResult> {
-    const { collateralBlockchainKey, collateralTokenId, principalBlockchainKey, principalTokenId } =
-      params;
-
-    const currencyRows = await this.sql`
+    const rows = await this.sql`
       SELECT
-        c1.blockchain_key as principal_blockchain_key,
-        c1.token_id as principal_token_id,
-        c1.decimals as principal_decimals,
-        c1.symbol as principal_symbol,
-        c1.name as principal_name,
-        c2.blockchain_key as collateral_blockchain_key,
-        c2.token_id as collateral_token_id,
-        c2.decimals as collateral_decimals,
-        c2.symbol as collateral_symbol,
-        c2.name as collateral_name
+        jsonb_build_object(
+          'blockchainKey', c1.blockchain_key,
+          'tokenId', c1.token_id,
+          'decimals', c1.decimals,
+          'symbol', c1.symbol,
+          'name', c1.name
+        ) as "principalCurrency",
+        jsonb_build_object(
+          'blockchainKey', c2.blockchain_key,
+          'tokenId', c2.token_id,
+          'decimals', c2.decimals,
+          'symbol', c2.symbol,
+          'name', c2.name
+        ) as "collateralCurrency"
       FROM currencies c1
       CROSS JOIN currencies c2
-      WHERE c1.blockchain_key = ${principalBlockchainKey}
-        AND c1.token_id = ${principalTokenId}
-        AND c2.blockchain_key = ${collateralBlockchainKey}
-        AND c2.token_id = ${collateralTokenId}
+      WHERE c1.blockchain_key = ${params.principalBlockchainKey}
+        AND c1.token_id = ${params.principalTokenId}
+        AND c2.blockchain_key = ${params.collateralBlockchainKey}
+        AND c2.token_id = ${params.collateralTokenId}
     `;
 
-    if (currencyRows.length === 0) {
+    if (rows.length === 0) {
       throw new Error(
-        `Currency pair ${principalBlockchainKey}:${principalTokenId} or ${collateralBlockchainKey}:${collateralTokenId} does not exist`,
+        `Currency pair ${params.principalBlockchainKey}:${params.principalTokenId} or ${params.collateralBlockchainKey}:${params.collateralTokenId} does not exist`,
       );
     }
 
-    const currencies = currencyRows[0];
-    assertDefined(currencies, 'Currency validation failed');
-    assertPropString(currencies, 'principal_blockchain_key');
-    assertPropString(currencies, 'principal_token_id');
-    assertProp(check(isString, isNumber), currencies, 'principal_decimals');
-    assertPropString(currencies, 'principal_symbol');
-    assertPropString(currencies, 'principal_name');
-    assertPropString(currencies, 'collateral_blockchain_key');
-    assertPropString(currencies, 'collateral_token_id');
-    assertProp(check(isString, isNumber), currencies, 'collateral_decimals');
-    assertPropString(currencies, 'collateral_symbol');
-    assertPropString(currencies, 'collateral_name');
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row, 'Currency validation failed');
+      return row as BorrowerGetsCurrencyPairResult;
+    });
 
-    return {
-      principalCurrency: {
-        blockchainKey: currencies.principal_blockchain_key,
-        tokenId: currencies.principal_token_id,
-        decimals: Number(currencies.principal_decimals),
-        symbol: currencies.principal_symbol,
-        name: currencies.principal_name,
-      },
-      collateralCurrency: {
-        blockchainKey: currencies.collateral_blockchain_key,
-        tokenId: currencies.collateral_token_id,
-        decimals: Number(currencies.collateral_decimals),
-        symbol: currencies.collateral_symbol,
-        name: currencies.collateral_name,
-      },
-    };
+    return rows[0];
   }
 
   /**
@@ -127,31 +94,28 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   async borrowerGetsPlatformConfig(
     params: BorrowerGetsPlatformConfigParams,
   ): Promise<BorrowerGetsPlatformConfigResult> {
-    const { effectiveDate } = params;
-
-    const platformConfigRows = await this.sql`
+    const rows = await this.sql`
       SELECT
-        loan_provision_rate,
-        loan_min_ltv_ratio,
-        loan_max_ltv_ratio
+        loan_provision_rate as "loanProvisionRate",
+        loan_min_ltv_ratio as "loanMinLtvRatio",
+        loan_max_ltv_ratio as "loanMaxLtvRatio"
       FROM platform_configs
-      WHERE effective_date <= ${effectiveDate.toISOString()}
+      WHERE effective_date <= ${params.effectiveDate.toISOString()}
       ORDER BY effective_date DESC
       LIMIT 1
     `;
 
-    if (platformConfigRows.length === 0) {
+    if (rows.length === 0) {
       throw new Error('Platform configuration not found');
     }
 
-    const platformConfig = platformConfigRows[0];
-    assertPlatformConfig(platformConfig);
-
-    return {
-      loanProvisionRate: platformConfig.loan_provision_rate,
-      loanMinLtvRatio: platformConfig.loan_min_ltv_ratio,
-      loanMaxLtvRatio: platformConfig.loan_max_ltv_ratio,
-    };
+    return assertArrayMapOf(rows, function (row) {
+      assertDefined(row, 'Platform config is undefined');
+      assertProp(check(isString, isNumber), row, 'loanProvisionRate');
+      assertProp(check(isString, isNumber), row, 'loanMinLtvRatio');
+      assertProp(check(isString, isNumber), row, 'loanMaxLtvRatio');
+      return row;
+    })[0];
   }
 
   /**
@@ -160,21 +124,29 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   async borrowerGetsExchangeRate(
     params: BorrowerGetsExchangeRateParams,
   ): Promise<BorrowerGetsExchangeRateResult> {
-    const { collateralTokenId, asOfDate } = params;
+    const { collateralBlockchainKey, collateralTokenId, asOfDate } = params;
+
+    // For test currencies on cg:testnet, we need to look for rates on that specific blockchain
+    // For production currencies, we use crosschain rates
+    const blockchainKey = collateralBlockchainKey || 'crosschain';
+
+    // Determine quote currency based on blockchain
+    // For cg:testnet, use mock:usd, otherwise use iso4217:usd
+    const quoteCurrency = blockchainKey === 'cg:testnet' ? 'mock:usd' : 'iso4217:usd';
 
     let exchangeRateRows;
     if (asOfDate) {
       exchangeRateRows = await this.sql`
         SELECT
           er.id,
-          er.bid_price,
-          er.ask_price,
-          er.source_date
+          er.bid_price AS "bidPrice",
+          er.ask_price AS "askPrice",
+          er.source_date AS "sourceDate"
         FROM exchange_rates er
         JOIN price_feeds pf ON er.price_feed_id = pf.id
-        WHERE pf.blockchain_key = 'crosschain'
-          AND ((pf.base_currency_token_id = ${collateralTokenId} AND pf.quote_currency_token_id = 'iso4217:usd')
-               OR (pf.base_currency_token_id = 'iso4217:usd' AND pf.quote_currency_token_id = ${collateralTokenId}))
+        WHERE pf.blockchain_key = ${blockchainKey}
+          AND ((pf.base_currency_token_id = ${collateralTokenId} AND pf.quote_currency_token_id = ${quoteCurrency})
+               OR (pf.base_currency_token_id = ${quoteCurrency} AND pf.quote_currency_token_id = ${collateralTokenId}))
           AND er.source_date <= ${asOfDate.toISOString()}
         ORDER BY er.source_date DESC
         LIMIT 1
@@ -183,39 +155,33 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
       exchangeRateRows = await this.sql`
         SELECT
           er.id,
-          er.bid_price,
-          er.ask_price,
-          er.source_date
+          er.bid_price AS "bidPrice",
+          er.ask_price AS "askPrice",
+          er.source_date AS "sourceDate"
         FROM exchange_rates er
         JOIN price_feeds pf ON er.price_feed_id = pf.id
-        WHERE pf.blockchain_key = 'crosschain'
-          AND ((pf.base_currency_token_id = ${collateralTokenId} AND pf.quote_currency_token_id = 'iso4217:usd')
-               OR (pf.base_currency_token_id = 'iso4217:usd' AND pf.quote_currency_token_id = ${collateralTokenId}))
+        WHERE pf.blockchain_key = ${blockchainKey}
+          AND ((pf.base_currency_token_id = ${collateralTokenId} AND pf.quote_currency_token_id = ${quoteCurrency})
+               OR (pf.base_currency_token_id = ${quoteCurrency} AND pf.quote_currency_token_id = ${collateralTokenId}))
         ORDER BY er.source_date DESC
         LIMIT 1
       `;
     }
 
-    assertArrayMapOf(exchangeRateRows, function (rate) {
-      assertDefined(rate);
-      assertProp(check(isString, isNumber), rate, 'id');
-      assertPropString(rate, 'bid_price');
-      assertPropString(rate, 'ask_price');
-      assertProp(isInstanceOf(Date), rate, 'source_date');
-      return rate;
-    });
-
-    if (exchangeRateRows.length === 0) {
-      throw new Error(`Exchange rate not found for token ${collateralTokenId}`);
-    }
-
-    const exchangeRate = exchangeRateRows[0];
-    return {
-      id: exchangeRate.id,
-      bidPrice: exchangeRate.bid_price,
-      askPrice: exchangeRate.ask_price,
-      sourceDate: exchangeRate.source_date,
-    };
+    return assertArrayMapOf(exchangeRateRows, function (row) {
+      assertDefined(row);
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'bidPrice');
+      assertProp(check(isString, isNumber), row, 'askPrice');
+      assertProp(isInstanceOf(Date), row, 'sourceDate');
+      // Convert numeric fields to strings for consistency
+      return {
+        id: String(row.id),
+        bidPrice: String(row.bidPrice),
+        askPrice: String(row.askPrice),
+        sourceDate: row.sourceDate,
+      };
+    })[0];
   }
 
   /**
@@ -277,28 +243,25 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           ${appliedDate.toISOString()},
           ${appliedDate.toISOString()}
         )
-        RETURNING id, bid_price, ask_price, source_date
+        RETURNING id::text as id, bid_price::text as "bidPrice", ask_price::text as "askPrice", source_date as "sourceDate"
       `;
 
       if (exchangeRateInsertRows.length === 0) {
         throw new Error('Failed to create exchange rate record');
       }
 
-      const insertedRate = exchangeRateInsertRows[0];
-      assertDefined(insertedRate, 'Exchange rate insert failed');
-      assertProp(check(isString, isNumber), insertedRate, 'id');
-      assertProp(check(isString, isNumber), insertedRate, 'bid_price');
-      assertProp(check(isString, isNumber), insertedRate, 'ask_price');
-      assertProp(isInstanceOf(Date), insertedRate, 'source_date');
+      const result = assertArrayMapOf(exchangeRateInsertRows, function (row) {
+        assertDefined(row, 'Exchange rate insert failed');
+        assertPropString(row, 'id');
+        assertPropString(row, 'bidPrice');
+        assertPropString(row, 'askPrice');
+        assertProp(isInstanceOf(Date), row, 'sourceDate');
+        return row;
+      })[0];
 
       await tx.commitTransaction();
 
-      return {
-        id: insertedRate.id,
-        bidPrice: String(insertedRate.bid_price),
-        askPrice: String(insertedRate.ask_price),
-        sourceDate: insertedRate.source_date,
-      };
+      return result;
     } catch (error) {
       await tx.rollbackTransaction();
       throw error;
@@ -311,47 +274,12 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   async borrowerCreatesLoanApplication(
     params: BorrowerCreatesLoanApplicationParams,
   ): Promise<BorrowerCreatesLoanApplicationResult> {
-    const {
-      borrowerUserId,
-      loanOfferId,
-      collateralBlockchainKey,
-      collateralTokenId,
-      principalBlockchainKey,
-      principalTokenId,
-      principalAmount,
-      provisionAmount,
-      maxInterestRate,
-      minLtvRatio,
-      maxLtvRatio,
-      termInMonths,
-      liquidationMode,
-      collateralDepositAmount,
-      collateralDepositExchangeRateId,
-      appliedDate,
-      expirationDate,
-      collateralInvoiceId,
-      collateralInvoicePrepaidAmount,
-      collateralAccountBlockchainKey,
-      collateralAccountTokenId,
-      collateralInvoiceDate,
-      collateralInvoiceDueDate,
-      collateralInvoiceExpiredDate,
-      collateralWalletDerivationPath,
-      collateralWalletAddress,
-    } = params;
-
     const tx = await this.beginTransaction();
     try {
-      // Get currency details (data-only)
-      const currencies = await this.borrowerGetsCurrencyPair({
-        collateralBlockchainKey,
-        collateralTokenId,
-        principalBlockchainKey,
-        principalTokenId,
-      });
+      const currencies = await this.borrowerGetsCurrencyPair(params);
 
-      // Create loan application with pre-calculated values
-      const loanApplicationRows = await tx.sql`
+      const loanApplication = assertArrayMapOf(
+        await tx.sql`
         INSERT INTO loan_applications (
           borrower_user_id,
           loan_offer_id,
@@ -373,61 +301,63 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           expired_date
         )
         VALUES (
-          ${borrowerUserId},
-          ${loanOfferId || null},
-          ${principalBlockchainKey},
-          ${principalTokenId},
-          ${principalAmount},
-          ${provisionAmount},
-          ${maxInterestRate},
-          ${minLtvRatio},
-          ${maxLtvRatio},
-          ${termInMonths},
-          ${liquidationMode},
-          ${collateralBlockchainKey},
-          ${collateralTokenId},
-          ${collateralDepositAmount},
-          ${collateralDepositExchangeRateId},
+          ${params.borrowerUserId},
+          ${params.loanOfferId || null},
+          ${params.principalBlockchainKey},
+          ${params.principalTokenId},
+          ${params.principalAmount},
+          ${params.provisionAmount},
+          ${params.maxInterestRate},
+          ${params.minLtvRatio},
+          ${params.maxLtvRatio},
+          ${params.termInMonths},
+          ${params.liquidationMode},
+          ${params.collateralBlockchainKey},
+          ${params.collateralTokenId},
+          ${params.collateralDepositAmount},
+          ${params.collateralDepositExchangeRateId},
           'PendingCollateral',
-          ${appliedDate.toISOString()},
-          ${expirationDate.toISOString()}
+          ${params.appliedDate.toISOString()},
+          ${params.expirationDate.toISOString()}
         )
         RETURNING
-          id,
-          borrower_user_id,
-          loan_offer_id,
-          principal_amount,
-          provision_amount,
-          max_interest_rate,
-          min_ltv_ratio,
-          max_ltv_ratio,
-          term_in_months,
-          liquidation_mode,
-          collateral_deposit_amount,
+          id::text as id,
+          borrower_user_id::text as "borrowerUserId",
+          loan_offer_id::text as "loanOfferId",
+          principal_amount::text as "principalAmount",
+          provision_amount::text as "provisionAmount",
+          max_interest_rate::numeric as "maxInterestRate",
+          min_ltv_ratio::numeric as "minLtvRatio",
+          max_ltv_ratio::numeric as "maxLtvRatio",
+          term_in_months::int as "termInMonths",
+          liquidation_mode as "liquidationMode",
+          collateral_deposit_amount::text as "collateralDepositAmount",
           status,
-          applied_date,
-          expired_date
-      `;
+          applied_date as "appliedDate",
+          expired_date as "expirationDate"
+      `,
+        function (row) {
+          assertDefined(row, 'Loan application creation failed');
+          assertPropString(row, 'id');
+          assertPropString(row, 'borrowerUserId');
+          assertProp(check(isNullable, isString), row, 'loanOfferId');
+          assertPropString(row, 'principalAmount');
+          assertPropString(row, 'provisionAmount');
+          assertProp(check(isString, isNumber), row, 'maxInterestRate');
+          assertProp(check(isString, isNumber), row, 'minLtvRatio');
+          assertProp(check(isString, isNumber), row, 'maxLtvRatio');
+          assertProp(check(isString, isNumber), row, 'termInMonths');
+          assertPropString(row, 'liquidationMode');
+          assertPropString(row, 'collateralDepositAmount');
+          assertPropString(row, 'status');
+          assertProp(isInstanceOf(Date), row, 'appliedDate');
+          assertProp(isInstanceOf(Date), row, 'expirationDate');
+          return row;
+        },
+      )[0];
 
-      const loanApplication = loanApplicationRows[0];
-      assertDefined(loanApplication, 'Loan application creation failed');
-      assertProp(check(isString, isNumber), loanApplication, 'id');
-      assertProp(check(isString, isNumber), loanApplication, 'borrower_user_id');
-      assertProp(check(isNullable, isString, isNumber), loanApplication, 'loan_offer_id');
-      assertProp(check(isString, isNumber), loanApplication, 'principal_amount');
-      assertProp(check(isString, isNumber), loanApplication, 'provision_amount');
-      assertProp(check(isString, isNumber), loanApplication, 'max_interest_rate');
-      assertProp(check(isString, isNumber), loanApplication, 'min_ltv_ratio');
-      assertProp(check(isString, isNumber), loanApplication, 'max_ltv_ratio');
-      assertProp(check(isString, isNumber), loanApplication, 'term_in_months');
-      assertPropString(loanApplication, 'liquidation_mode');
-      assertProp(check(isString, isNumber), loanApplication, 'collateral_deposit_amount');
-      assertPropString(loanApplication, 'status');
-      assertProp(isInstanceOf(Date), loanApplication, 'applied_date');
-      assertProp(isInstanceOf(Date), loanApplication, 'expired_date');
-
-      // Create collateral deposit invoice
-      const invoiceRows = await tx.sql`
+      const invoice = assertArrayMapOf(
+        await tx.sql`
         INSERT INTO invoices (
           id,
           user_id,
@@ -448,67 +378,60 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           loan_application_id
         )
         VALUES (
-          ${collateralInvoiceId},
-          ${borrowerUserId},
-          ${collateralBlockchainKey},
-          ${collateralTokenId},
-          ${collateralAccountBlockchainKey ?? null},
-          ${collateralAccountTokenId ?? null},
-          ${collateralDepositAmount},
-          ${collateralInvoicePrepaidAmount},
-          ${collateralWalletDerivationPath},
-          ${collateralWalletAddress},
+          ${params.collateralInvoiceId},
+          ${params.borrowerUserId},
+          ${params.collateralBlockchainKey},
+          ${params.collateralTokenId},
+          ${params.collateralAccountBlockchainKey ?? null},
+          ${params.collateralAccountTokenId ?? null},
+          ${params.collateralDepositAmount},
+          ${params.collateralInvoicePrepaidAmount},
+          ${params.collateralWalletDerivationPath},
+          ${params.collateralWalletAddress},
           'LoanCollateral',
           'Pending',
-          ${collateralInvoiceDate.toISOString()},
-          ${collateralInvoiceDate.toISOString()},
-          ${collateralInvoiceDueDate.toISOString()},
-          ${collateralInvoiceExpiredDate.toISOString()},
+          ${params.collateralInvoiceDate.toISOString()},
+          ${params.collateralInvoiceDate.toISOString()},
+          ${params.collateralInvoiceDueDate.toISOString()},
+          ${params.collateralInvoiceExpiredDate.toISOString()},
           ${loanApplication.id}
         )
         RETURNING
-          id,
-          invoiced_amount,
-          prepaid_amount,
+          id::text as id,
+          invoiced_amount::text as amount,
           status,
-          invoice_date,
-          due_date,
-          expired_date,
-          paid_date
-      `;
-
-      assertArrayMapOf(invoiceRows, function (invoice) {
-        assertDefined(invoice, 'Invoice row is undefined');
-        assertProp(check(isString, isNumber), invoice, 'id');
-        assertProp(check(isString, isNumber), invoice, 'invoiced_amount');
-        assertProp(check(isString, isNumber), invoice, 'prepaid_amount');
-        assertPropString(invoice, 'status');
-        assertProp(isInstanceOf(Date), invoice, 'invoice_date');
-        assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'due_date');
-        assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'expired_date');
-        assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'paid_date');
-        return invoice;
-      });
-      const invoice = invoiceRows[0];
+          invoice_date as "createdDate",
+          COALESCE(due_date, expired_date) as "expiryDate",
+          paid_date as "paidDate"
+      `,
+        function (row) {
+          assertDefined(row, 'Invoice row is undefined');
+          assertPropString(row, 'id');
+          assertPropString(row, 'amount');
+          assertPropString(row, 'status');
+          assertProp(isInstanceOf(Date), row, 'createdDate');
+          assertProp(check(isNullable, isInstanceOf(Date)), row, 'expiryDate');
+          assertProp(check(isNullable, isInstanceOf(Date)), row, 'paidDate');
+          return row;
+        },
+      )[0];
 
       await tx.commitTransaction();
 
       return {
-        id: String(loanApplication.id),
-        borrowerUserId: String(loanApplication.borrower_user_id),
-        loanOfferId: loanApplication.loan_offer_id
-          ? String(loanApplication.loan_offer_id)
-          : undefined,
+        id: loanApplication.id,
+        borrowerUserId: loanApplication.borrowerUserId,
+        loanOfferId: loanApplication.loanOfferId || undefined,
         principalCurrency: currencies.principalCurrency,
-        principalAmount: String(loanApplication.principal_amount),
-        provisionAmount: String(loanApplication.provision_amount),
-        maxInterestRate: Number(loanApplication.max_interest_rate),
-        minLtvRatio: Number(loanApplication.min_ltv_ratio),
-        maxLtvRatio: Number(loanApplication.max_ltv_ratio),
-        termInMonths: Number(loanApplication.term_in_months),
-        liquidationMode: loanApplication.liquidation_mode as 'Partial' | 'Full',
+        principalAmount: loanApplication.principalAmount,
+        provisionAmount: loanApplication.provisionAmount,
+        maxInterestRate: Number(loanApplication.maxInterestRate),
+        minLtvRatio: Number(loanApplication.minLtvRatio),
+        maxLtvRatio: Number(loanApplication.maxLtvRatio),
+        termInMonths: Number(loanApplication.termInMonths),
+        liquidationMode: loanApplication.liquidationMode as 'Partial' | 'Full',
         collateralCurrency: currencies.collateralCurrency,
-        collateralDepositAmount: String(loanApplication.collateral_deposit_amount),
+        collateralDepositAmount: loanApplication.collateralDepositAmount,
         status: loanApplication.status as
           | 'PendingCollateral'
           | 'Published'
@@ -523,27 +446,23 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           | 'Cancelled'
           | 'Closed'
           | 'Expired',
-        appliedDate: loanApplication.applied_date,
-        expirationDate: loanApplication.expired_date,
+        appliedDate: loanApplication.appliedDate,
+        expirationDate: loanApplication.expirationDate,
         collateralDepositInvoice: {
-          id: String(invoice.id),
-          amount: String(invoice.invoiced_amount),
+          ...invoice,
           currency: currencies.collateralCurrency,
           status: invoice.status as 'Pending' | 'Paid' | 'Expired' | 'Cancelled',
-          createdDate: invoice.invoice_date,
-          expiryDate: invoice.due_date || invoice.expired_date || expirationDate,
-          paidDate: invoice.paid_date || undefined,
+          expiryDate: invoice.expiryDate || params.expirationDate,
+          paidDate: invoice.paidDate || undefined,
         },
         collateralInvoice: {
-          id: String(invoice.id),
-          amount: String(invoice.invoiced_amount),
+          ...invoice,
           currency: currencies.collateralCurrency,
           status: invoice.status as 'Pending' | 'Paid' | 'Expired' | 'Cancelled',
-          createdDate: invoice.invoice_date,
-          expiryDate: invoice.due_date || invoice.expired_date || expirationDate,
-          paidDate: invoice.paid_date || undefined,
+          expiryDate: invoice.expiryDate || params.expirationDate,
+          paidDate: invoice.paidDate || undefined,
         },
-        collateralDepositExchangeRateId: String(collateralDepositExchangeRateId),
+        collateralDepositExchangeRateId: String(params.collateralDepositExchangeRateId),
       };
     } catch (error) {
       await tx.rollbackTransaction();
@@ -554,38 +473,37 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   async borrowerUpdatesLoanApplication(
     params: BorrowerUpdatesLoanApplicationParams,
   ): Promise<BorrowerUpdatesLoanApplicationResult> {
-    const { loanApplicationId, borrowerUserId, action, updateDate, expirationDate, closureReason } =
-      params;
-
     const tx = await this.beginTransaction();
     try {
-      // Get current loan application status to validate transition
-      const currentApplicationRows = await tx.sql`
-        SELECT status, expired_date
+      const currentApplication = assertArrayMapOf(
+        await tx.sql`
+        SELECT status, expired_date as "expiredDate"
         FROM loan_applications
-        WHERE id = ${loanApplicationId} AND borrower_user_id = ${borrowerUserId}
-      `;
+        WHERE id = ${params.loanApplicationId} AND borrower_user_id = ${params.borrowerUserId}
+      `,
+        function (row) {
+          assertDefined(row, 'Current application validation failed');
+          assertPropString(row, 'status');
+          assertProp(check(isNullable, isInstanceOf(Date)), row, 'expiredDate');
+          return row;
+        },
+      )[0];
 
-      if (currentApplicationRows.length === 0) {
+      if (!currentApplication) {
         throw new Error('Loan application not found or access denied');
       }
-
-      const currentApplication = currentApplicationRows[0];
-      assertDefined(currentApplication, 'Current application validation failed');
-      assertPropString(currentApplication, 'status');
-      assertProp(check(isNullable, isInstanceOf(Date)), currentApplication, 'expired_date');
 
       let newStatus: string;
       let closedDate: Date | null = null;
       let newExpirationDate: Date | null = null;
 
-      switch (action) {
+      switch (params.action) {
         case 'cancel':
           if (!['PendingCollateral', 'Published'].includes(currentApplication.status)) {
             throw new Error(`Cannot cancel application from status: ${currentApplication.status}`);
           }
           newStatus = 'Cancelled';
-          closedDate = updateDate;
+          closedDate = params.updateDate;
           break;
 
         case 'modify':
@@ -593,48 +511,48 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
             throw new Error(`Cannot modify application from status: ${currentApplication.status}`);
           }
           newStatus = currentApplication.status;
-          if (expirationDate) {
-            newExpirationDate = expirationDate;
+          if (params.expirationDate) {
+            newExpirationDate = params.expirationDate;
           }
           break;
 
         default:
-          throw new Error(`Invalid action: ${action}`);
+          throw new Error(`Invalid action: ${params.action}`);
       }
 
-      // Update loan application
-      const updateRows = await tx.sql`
+      const updatedApplication = assertArrayMapOf(
+        await tx.sql`
         UPDATE loan_applications
-        SET 
+        SET
           status = ${newStatus},
           closed_date = ${closedDate?.toISOString() || null},
-          closure_reason = ${closureReason || null},
-          expired_date = ${newExpirationDate?.toISOString() || currentApplication.expired_date}
-        WHERE id = ${loanApplicationId} AND borrower_user_id = ${borrowerUserId}
-        RETURNING 
-          id,
+          closure_reason = ${params.closureReason || null},
+          expired_date = ${newExpirationDate?.toISOString() || currentApplication.expiredDate}
+        WHERE id = ${params.loanApplicationId} AND borrower_user_id = ${params.borrowerUserId}
+        RETURNING
+          id::text as id,
           status,
-          closed_date,
-          closure_reason,
-          expired_date
-      `;
+          expired_date as "expirationDate",
+          closure_reason as "closureReason"
+      `,
+        function (row) {
+          assertDefined(row, 'Updated application validation failed');
+          assertPropString(row, 'id');
+          assertPropString(row, 'status');
+          assertProp(isInstanceOf(Date), row, 'expirationDate');
+          assertProp(check(isNullable, isString), row, 'closureReason');
+          return row;
+        },
+      )[0];
 
-      if (updateRows.length === 0) {
+      if (!updatedApplication) {
         throw new Error('Loan application update failed');
       }
-
-      const updatedApplication = updateRows[0];
-      assertDefined(updatedApplication, 'Updated application validation failed');
-      assertProp(check(isString, isNumber), updatedApplication, 'id');
-      assertPropString(updatedApplication, 'status');
-      assertProp(check(isNullable, isInstanceOf(Date)), updatedApplication, 'closed_date');
-      assertPropNullableString(updatedApplication, 'closure_reason');
-      assertProp(isInstanceOf(Date), updatedApplication, 'expired_date');
 
       await tx.commitTransaction();
 
       return {
-        id: String(updatedApplication.id),
+        id: updatedApplication.id,
         status: updatedApplication.status as
           | 'PendingCollateral'
           | 'Published'
@@ -642,9 +560,9 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           | 'Cancelled'
           | 'Closed'
           | 'Expired',
-        updatedDate: updateDate,
-        expirationDate: updatedApplication.expired_date,
-        closureReason: updatedApplication.closure_reason || undefined,
+        updatedDate: params.updateDate,
+        expirationDate: updatedApplication.expirationDate,
+        closureReason: updatedApplication.closureReason || undefined,
       };
     } catch (error) {
       await tx.rollbackTransaction();
@@ -655,63 +573,68 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   async borrowerViewsMyLoanApplications(
     params: BorrowerViewsMyLoanApplicationsParams,
   ): Promise<BorrowerViewsMyLoanApplicationsResult> {
-    const { borrowerUserId, page = 1, limit = 20, status } = params;
-
-    const validatedPage = Math.max(1, page);
-    const validatedLimit = Math.min(Math.max(1, limit), 100);
+    const validatedPage = Math.max(1, params.page ?? 1);
+    const validatedLimit = Math.min(Math.max(1, params.limit ?? 20), 100);
     const offset = (validatedPage - 1) * validatedLimit;
 
     // Get total count
     const countRows = await this.sql`
       SELECT COUNT(*) as total
       FROM loan_applications
-      WHERE borrower_user_id = ${borrowerUserId}
-        AND (${status}::text IS NULL OR status = ${status})
+      WHERE borrower_user_id = ${params.borrowerUserId}
+        AND (${params.status}::text IS NULL OR status = ${params.status})
     `;
 
-    const countRow = countRows[0];
-    assertDefined(countRow, 'Count query failed');
-    assertProp(check(isString, isNumber), countRow, 'total');
-    const totalCount = Number(countRow.total);
+    const totalCount = Number(
+      assertArrayMapOf(countRows, function (row) {
+        assertDefined(row, 'Count query failed');
+        assertProp(check(isString, isNumber), row, 'total');
+        return row;
+      })[0].total,
+    );
 
     // Get loan applications with currency details
     const applicationRows = await this.sql`
-      SELECT 
-        la.id,
-        la.loan_offer_id,
-        la.principal_amount,
-        la.provision_amount,
-        la.max_interest_rate,
-        la.min_ltv_ratio,
-        la.max_ltv_ratio,
-        la.term_in_months,
-        la.liquidation_mode,
-        la.collateral_deposit_amount,
+      SELECT
+        la.id::text as id,
+        la.loan_offer_id::text as "loanOfferId",
+        jsonb_build_object(
+          'blockchainKey', c1.blockchain_key,
+          'tokenId', c1.token_id,
+          'decimals', c1.decimals,
+          'symbol', c1.symbol,
+          'name', c1.name
+        ) as "principalCurrency",
+        la.principal_amount::text as "principalAmount",
+        la.provision_amount::text as "provisionAmount",
+        la.max_interest_rate::numeric as "maxInterestRate",
+        la.min_ltv_ratio::numeric as "minLtvRatio",
+        la.max_ltv_ratio::numeric as "maxLtvRatio",
+        la.term_in_months::int as "termInMonths",
+        la.liquidation_mode as "liquidationMode",
+        jsonb_build_object(
+          'blockchainKey', c2.blockchain_key,
+          'tokenId', c2.token_id,
+          'decimals', c2.decimals,
+          'symbol', c2.symbol,
+          'name', c2.name
+        ) as "collateralCurrency",
+        la.collateral_deposit_amount::text as "collateralDepositAmount",
         la.status,
-        la.applied_date,
-        la.expired_date,
-        la.published_date,
-        la.matched_date,
-        la.matched_loan_offer_id,
-        la.closed_date,
-        la.closure_reason,
-        c1.blockchain_key as principal_blockchain_key,
-        c1.token_id as principal_token_id,
-        c1.decimals as principal_decimals,
-        c1.symbol as principal_symbol,
-        c1.name as principal_name,
-        c2.blockchain_key as collateral_blockchain_key,
-        c2.token_id as collateral_token_id,
-        c2.decimals as collateral_decimals,
-        c2.symbol as collateral_symbol,
-        c2.name as collateral_name
+        la.applied_date as "appliedDate",
+        la.expired_date as "expirationDate",
+        la.published_date as "publishedDate",
+        la.matched_date as "matchedDate",
+        la.matched_loan_offer_id::text as "matchedLoanOfferId",
+        la.closed_date as "closedDate",
+        la.closure_reason as "closureReason"
       FROM loan_applications la
-      JOIN currencies c1 ON la.principal_currency_blockchain_key = c1.blockchain_key 
+      JOIN currencies c1 ON la.principal_currency_blockchain_key = c1.blockchain_key
         AND la.principal_currency_token_id = c1.token_id
       JOIN currencies c2 ON la.collateral_currency_blockchain_key = c2.blockchain_key
         AND la.collateral_currency_token_id = c2.token_id
-      WHERE la.borrower_user_id = ${borrowerUserId}
-        AND (${status}::text IS NULL OR la.status = ${status})
+      WHERE la.borrower_user_id = ${params.borrowerUserId}
+        AND (${params.status}::text IS NULL OR la.status = ${params.status})
       ORDER BY la.applied_date DESC
       LIMIT ${validatedLimit}
       OFFSET ${offset}
@@ -719,60 +642,41 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
 
     const loanApplications = applicationRows.map(function (row: unknown) {
       assertDefined(row, 'Loan application row is undefined');
-      assertProp(check(isString, isNumber), row, 'id');
-      assertPropNullableString(row, 'loan_offer_id');
-      assertPropString(row, 'principal_blockchain_key');
-      assertPropString(row, 'principal_token_id');
-      assertProp(check(isString, isNumber), row, 'principal_decimals');
-      assertPropString(row, 'principal_symbol');
-      assertPropString(row, 'principal_name');
-      assertProp(check(isString, isNumber), row, 'principal_amount');
-      assertProp(check(isString, isNumber), row, 'provision_amount');
-      assertProp(check(isString, isNumber), row, 'max_interest_rate');
-      assertProp(check(isString, isNumber), row, 'min_ltv_ratio');
-      assertProp(check(isString, isNumber), row, 'max_ltv_ratio');
-      assertProp(check(isString, isNumber), row, 'term_in_months');
-      assertPropString(row, 'liquidation_mode');
-      assertPropString(row, 'collateral_blockchain_key');
-      assertPropString(row, 'collateral_token_id');
-      assertProp(check(isString, isNumber), row, 'collateral_decimals');
-      assertPropString(row, 'collateral_symbol');
-      assertPropString(row, 'collateral_name');
-      assertProp(check(isString, isNumber), row, 'collateral_deposit_amount');
+      assertPropString(row, 'id');
+      assertProp(check(isNullable, isString), row, 'loanOfferId');
+      // JSONB objects from PostgreSQL are returned as plain objects
+      assertPropString(row, 'principalAmount');
+      assertPropString(row, 'provisionAmount');
+      assertProp(check(isString, isNumber), row, 'maxInterestRate');
+      assertProp(check(isString, isNumber), row, 'minLtvRatio');
+      assertProp(check(isString, isNumber), row, 'maxLtvRatio');
+      assertProp(check(isString, isNumber), row, 'termInMonths');
+      assertPropString(row, 'liquidationMode');
+      assertPropString(row, 'collateralDepositAmount');
       assertPropString(row, 'status');
-      assertProp(isInstanceOf(Date), row, 'applied_date');
-      assertProp(isInstanceOf(Date), row, 'expired_date');
-      assertProp(check(isNullable, isInstanceOf(Date)), row, 'published_date');
-      assertProp(check(isNullable, isInstanceOf(Date)), row, 'matched_date');
-      assertPropNullableString(row, 'matched_loan_offer_id');
-      assertProp(check(isNullable, isInstanceOf(Date)), row, 'closed_date');
-      assertPropNullableString(row, 'closure_reason');
+      assertProp(isInstanceOf(Date), row, 'appliedDate');
+      assertProp(isInstanceOf(Date), row, 'expirationDate');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'publishedDate');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'matchedDate');
+      assertProp(check(isNullable, isString), row, 'matchedLoanOfferId');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'closedDate');
+      assertProp(check(isNullable, isString), row, 'closureReason');
+
+      const r = row as any; // Cast to access JSONB properties
 
       return {
-        id: String(row.id),
-        loanOfferId: row.loan_offer_id ? String(row.loan_offer_id) : undefined,
-        principalCurrency: {
-          blockchainKey: row.principal_blockchain_key as string,
-          tokenId: row.principal_token_id as string,
-          decimals: Number(row.principal_decimals),
-          symbol: row.principal_symbol as string,
-          name: row.principal_name as string,
-        },
-        principalAmount: String(row.principal_amount),
-        provisionAmount: String(row.provision_amount),
-        maxInterestRate: Number(row.max_interest_rate),
-        minLtvRatio: Number(row.min_ltv_ratio),
-        maxLtvRatio: Number(row.max_ltv_ratio),
-        termInMonths: Number(row.term_in_months),
-        liquidationMode: row.liquidation_mode as 'Partial' | 'Full',
-        collateralCurrency: {
-          blockchainKey: row.collateral_blockchain_key as string,
-          tokenId: row.collateral_token_id as string,
-          decimals: Number(row.collateral_decimals),
-          symbol: row.collateral_symbol as string,
-          name: row.collateral_name as string,
-        },
-        collateralDepositAmount: String(row.collateral_deposit_amount),
+        id: row.id,
+        loanOfferId: row.loanOfferId || undefined,
+        principalCurrency: r.principalCurrency,
+        principalAmount: row.principalAmount,
+        provisionAmount: row.provisionAmount,
+        maxInterestRate: Number(row.maxInterestRate),
+        minLtvRatio: Number(row.minLtvRatio),
+        maxLtvRatio: Number(row.maxLtvRatio),
+        termInMonths: Number(row.termInMonths),
+        liquidationMode: row.liquidationMode as 'Partial' | 'Full',
+        collateralCurrency: r.collateralCurrency,
+        collateralDepositAmount: row.collateralDepositAmount,
         status: row.status as
           | 'PendingCollateral'
           | 'Published'
@@ -780,15 +684,13 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           | 'Cancelled'
           | 'Closed'
           | 'Expired',
-        appliedDate: row.applied_date,
-        expirationDate: row.expired_date,
-        publishedDate: row.published_date || undefined,
-        matchedDate: row.matched_date || undefined,
-        matchedLoanOfferId: row.matched_loan_offer_id
-          ? String(row.matched_loan_offer_id)
-          : undefined,
-        closedDate: row.closed_date || undefined,
-        closureReason: row.closure_reason || undefined,
+        appliedDate: row.appliedDate,
+        expirationDate: row.expirationDate,
+        publishedDate: row.publishedDate || undefined,
+        matchedDate: row.matchedDate || undefined,
+        matchedLoanOfferId: row.matchedLoanOfferId || undefined,
+        closedDate: row.closedDate || undefined,
+        closureReason: row.closureReason || undefined,
       };
     });
 
@@ -808,19 +710,11 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   }
 
   async borrowerRepaysLoan(params: BorrowerRepaysLoanParams): Promise<BorrowerRepaysLoanResult> {
-    const {
-      loanId,
-      borrowerUserId,
-      repaymentDate,
-      repaymentWalletDerivationPath,
-      repaymentWalletAddress,
-    } = params;
-
     const tx = await this.beginTransaction();
     try {
-      // Get loan details and validate borrower access
-      const loanRows = await tx.sql`
-        SELECT 
+      const loan = assertArrayMapOf(
+        await tx.sql`
+        SELECT
           l.id,
           l.principal_currency_blockchain_key,
           l.principal_currency_token_id,
@@ -834,24 +728,26 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
         JOIN loan_applications la ON l.loan_application_id = la.id
         JOIN currencies c ON l.principal_currency_blockchain_key = c.blockchain_key
           AND l.principal_currency_token_id = c.token_id
-        WHERE l.id = ${loanId} AND la.borrower_user_id = ${borrowerUserId}
-      `;
+        WHERE l.id = ${params.loanId} AND la.borrower_user_id = ${params.borrowerUserId}
+      `,
+        function (row) {
+          assertDefined(row, 'Loan validation failed');
+          assertProp(check(isString, isNumber), row, 'id');
+          assertPropString(row, 'principal_currency_blockchain_key');
+          assertPropString(row, 'principal_currency_token_id');
+          assertProp(check(isString, isNumber), row, 'repayment_amount');
+          assertPropString(row, 'status');
+          assertProp(check(isString, isNumber), row, 'borrower_user_id');
+          assertProp(check(isString, isNumber), row, 'decimals');
+          assertPropString(row, 'symbol');
+          assertPropString(row, 'name');
+          return row;
+        },
+      )[0];
 
-      if (loanRows.length === 0) {
+      if (!loan) {
         throw new Error('Loan not found or access denied');
       }
-
-      const loan = loanRows[0];
-      assertDefined(loan, 'Loan validation failed');
-      assertProp(check(isString, isNumber), loan, 'id');
-      assertPropString(loan, 'principal_currency_blockchain_key');
-      assertPropString(loan, 'principal_currency_token_id');
-      assertProp(check(isString, isNumber), loan, 'repayment_amount');
-      assertPropString(loan, 'status');
-      assertProp(check(isString, isNumber), loan, 'borrower_user_id');
-      assertProp(check(isString, isNumber), loan, 'decimals');
-      assertPropString(loan, 'symbol');
-      assertPropString(loan, 'name');
 
       if (loan.status !== 'Active') {
         throw new Error(`Cannot repay loan with status: ${loan.status}`);
@@ -859,8 +755,8 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
 
       // Use provided wallet information for repayment invoice
 
-      // Create repayment invoice
-      const invoiceRows = await tx.sql`
+      const invoice = assertArrayMapOf(
+        await tx.sql`
         INSERT INTO invoices (
           user_id,
           currency_blockchain_key,
@@ -876,20 +772,20 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           loan_id
         )
         VALUES (
-          ${borrowerUserId},
+          ${params.borrowerUserId},
           ${loan.principal_currency_blockchain_key},
           ${loan.principal_currency_token_id},
           ${loan.repayment_amount},
-          ${repaymentWalletDerivationPath},
-          ${repaymentWalletAddress},
+          ${params.repaymentWalletDerivationPath},
+          ${params.repaymentWalletAddress},
           'LoanRepayment',
           'Pending',
-          ${repaymentDate.toISOString()},
-          ${repaymentDate.toISOString()},
-          ${new Date(repaymentDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()}, -- 7 days to pay
-          ${loanId}
+          ${params.repaymentDate.toISOString()},
+          ${params.repaymentDate.toISOString()},
+          ${new Date(params.repaymentDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()}, -- 7 days to pay
+          ${params.loanId}
         )
-        RETURNING 
+        RETURNING
           id,
           invoiced_amount,
           status,
@@ -897,17 +793,19 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           due_date,
           expired_date,
           paid_date
-      `;
-
-      const invoice = invoiceRows[0];
-      assertDefined(invoice, 'Repayment invoice creation failed');
-      assertProp(check(isString, isNumber), invoice, 'id');
-      assertProp(check(isString, isNumber), invoice, 'invoiced_amount');
-      assertPropString(invoice, 'status');
-      assertProp(isInstanceOf(Date), invoice, 'invoice_date');
-      assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'due_date');
-      assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'expired_date');
-      assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'paid_date');
+      `,
+        function (row) {
+          assertDefined(row, 'Repayment invoice creation failed');
+          assertProp(check(isString, isNumber), row, 'id');
+          assertProp(check(isString, isNumber), row, 'invoiced_amount');
+          assertPropString(row, 'status');
+          assertProp(isInstanceOf(Date), row, 'invoice_date');
+          assertProp(check(isNullable, isInstanceOf(Date)), row, 'due_date');
+          assertProp(check(isNullable, isInstanceOf(Date)), row, 'expired_date');
+          assertProp(check(isNullable, isInstanceOf(Date)), row, 'paid_date');
+          return row;
+        },
+      )[0];
 
       // Create loan repayment record
       await tx.sql`
@@ -918,21 +816,21 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           repayment_invoice_date
         )
         VALUES (
-          ${loanId},
+          ${params.loanId},
           'Borrower',
           ${invoice.id},
-          ${repaymentDate.toISOString()}
+          ${params.repaymentDate.toISOString()}
         )
         ON CONFLICT (loan_id) DO UPDATE SET
           repayment_initiator = 'Borrower',
           repayment_invoice_id = ${invoice.id},
-          repayment_invoice_date = ${repaymentDate.toISOString()}
+          repayment_invoice_date = ${params.repaymentDate.toISOString()}
       `;
 
       await tx.commitTransaction();
 
       return {
-        id: String(loanId),
+        id: String(params.loanId),
         status: 'Active', // Status will change to 'Repaid' when invoice is paid
         repaymentInvoice: {
           id: String(invoice.id),
@@ -949,10 +847,10 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           expiryDate:
             invoice.due_date ||
             invoice.expired_date ||
-            new Date(repaymentDate.getTime() + 7 * 24 * 60 * 60 * 1000),
+            new Date(params.repaymentDate.getTime() + 7 * 24 * 60 * 60 * 1000),
           paidDate: invoice.paid_date || undefined,
         },
-        concludedDate: repaymentDate,
+        concludedDate: params.repaymentDate,
       };
     } catch (error) {
       await tx.rollbackTransaction();
@@ -963,10 +861,8 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   async borrowerRequestsEarlyLiquidationEstimate(
     params: BorrowerRequestsEarlyLiquidationEstimateParams,
   ): Promise<BorrowerRequestsEarlyLiquidationEstimateResult> {
-    const { loanId, borrowerUserId, estimateDate } = params;
-
-    // Get loan details and current valuations for estimate calculation
-    const loanRows = await this.sql`
+    const loan = assertArrayMapOf(
+      await this.sql`
       SELECT
         l.id,
         l.principal_amount,
@@ -995,37 +891,39 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
         AND l.principal_currency_token_id = pc.token_id
       JOIN currencies cc ON la.collateral_currency_blockchain_key = cc.blockchain_key
         AND la.collateral_currency_token_id = cc.token_id
-      WHERE l.id = ${loanId} AND la.borrower_user_id = ${borrowerUserId}
-    `;
+      WHERE l.id = ${params.loanId} AND la.borrower_user_id = ${params.borrowerUserId}
+    `,
+      function (row) {
+        assertDefined(row, 'Loan validation failed');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isString, isNumber), row, 'principal_amount');
+        assertProp(check(isString, isNumber), row, 'interest_amount');
+        assertProp(check(isString, isNumber), row, 'premi_amount');
+        assertProp(check(isString, isNumber), row, 'liquidation_fee_amount');
+        assertProp(check(isString, isNumber), row, 'repayment_amount');
+        assertProp(check(isString, isNumber), row, 'collateral_amount');
+        assertPropString(row, 'status');
+        assertProp(check(isString, isNumber), row, 'mc_ltv_ratio');
+        assertPropString(row, 'liquidation_mode');
+        assertPropString(row, 'collateral_currency_blockchain_key');
+        assertPropString(row, 'collateral_currency_token_id');
+        assertProp(check(isString, isNumber), row, 'collateral_decimals');
+        assertPropString(row, 'collateral_symbol');
+        assertPropString(row, 'collateral_name');
+        return row;
+      },
+    )[0];
 
-    if (loanRows.length === 0) {
+    if (!loan) {
       throw new Error('Loan not found or access denied');
     }
-
-    const loan = loanRows[0];
-    assertDefined(loan, 'Loan validation failed');
-    assertProp(check(isString, isNumber), loan, 'id');
-    assertProp(check(isString, isNumber), loan, 'principal_amount');
-    assertProp(check(isString, isNumber), loan, 'interest_amount');
-    assertProp(check(isString, isNumber), loan, 'premi_amount');
-    assertProp(check(isString, isNumber), loan, 'liquidation_fee_amount');
-    assertProp(check(isString, isNumber), loan, 'repayment_amount');
-    assertProp(check(isString, isNumber), loan, 'collateral_amount');
-    assertPropString(loan, 'status');
-    assertProp(check(isString, isNumber), loan, 'mc_ltv_ratio');
-    assertPropString(loan, 'liquidation_mode');
-    assertPropString(loan, 'collateral_currency_blockchain_key');
-    assertPropString(loan, 'collateral_currency_token_id');
-    assertProp(check(isString, isNumber), loan, 'collateral_decimals');
-    assertPropString(loan, 'collateral_symbol');
-    assertPropString(loan, 'collateral_name');
 
     if (!['Active', 'Originated'].includes(loan.status)) {
       throw new Error(`Cannot estimate liquidation for loan with status: ${loan.status}`);
     }
 
-    // Get latest exchange rate for estimate
-    const exchangeRateRows = await this.sql`
+    const exchangeRate = assertArrayMapOf(
+      await this.sql`
       SELECT
         id,
         bid_price,
@@ -1033,21 +931,23 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
         source_date
       FROM exchange_rates
       WHERE collateral_token_id = ${loan.collateral_currency_token_id}
-        AND source_date <= ${estimateDate.toISOString()}
+        AND source_date <= ${params.estimateDate.toISOString()}
       ORDER BY source_date DESC
       LIMIT 1
-    `;
+    `,
+      function (row) {
+        assertDefined(row, 'Exchange rate validation failed');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isString, isNumber), row, 'bid_price');
+        assertProp(check(isString, isNumber), row, 'ask_price');
+        assertProp(isInstanceOf(Date), row, 'source_date');
+        return row;
+      },
+    )[0];
 
-    if (exchangeRateRows.length === 0) {
+    if (!exchangeRate) {
       throw new Error('Exchange rate not found for collateral currency');
     }
-
-    const exchangeRate = exchangeRateRows[0];
-    assertDefined(exchangeRate, 'Exchange rate validation failed');
-    assertProp(check(isString, isNumber), exchangeRate, 'id');
-    assertProp(check(isString, isNumber), exchangeRate, 'bid_price');
-    assertProp(check(isString, isNumber), exchangeRate, 'ask_price');
-    assertProp(isInstanceOf(Date), exchangeRate, 'source_date');
 
     // Calculate current collateral valuation (using bid price for liquidation estimate)
     const collateralAmountBigNum = BigInt(String(loan.collateral_amount));
@@ -1067,7 +967,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
     return {
       success: true,
       data: {
-        loanId: String(loanId),
+        loanId: String(params.loanId),
         liquidationBreakdown: {
           outstandingLoan: {
             principalAmount: String(loan.principal_amount),
@@ -1092,7 +992,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           },
           calculationDetails: {
             exchangeRateId: String(exchangeRate.id),
-            valuationDate: estimateDate,
+            valuationDate: params.estimateDate,
             liquidationMode: loan.liquidation_mode as 'Partial' | 'Full',
             marketProvider: 'DefaultProvider',
             estimatedSlippage: 0.02, // 2% estimated slippage
@@ -1105,29 +1005,28 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   async borrowerRequestsEarlyLiquidation(
     params: BorrowerRequestsEarlyLiquidationParams,
   ): Promise<BorrowerRequestsEarlyLiquidationResult> {
-    const { loanId, borrowerUserId, acknowledgment, requestDate } = params;
-    const acknowledgmentText = acknowledgment ? 'true' : 'false';
-
     const tx = await this.beginTransaction();
     try {
-      // Get loan details and validate borrower access
-      const loanRows = await tx.sql`
+      const loan = assertArrayMapOf(
+        await tx.sql`
         SELECT
           l.id,
           l.status
         FROM loans l
         JOIN loan_applications la ON l.loan_application_id = la.id
-        WHERE l.id = ${loanId} AND la.borrower_user_id = ${borrowerUserId}
-      `;
+        WHERE l.id = ${params.loanId} AND la.borrower_user_id = ${params.borrowerUserId}
+      `,
+        function (row) {
+          assertDefined(row, 'Loan validation failed');
+          assertProp(check(isString, isNumber), row, 'id');
+          assertPropString(row, 'status');
+          return row;
+        },
+      )[0];
 
-      if (loanRows.length === 0) {
+      if (!loan) {
         throw new Error('Loan not found or access denied');
       }
-
-      const loan = loanRows[0];
-      assertDefined(loan, 'Loan validation failed');
-      assertProp(check(isString, isNumber), loan, 'id');
-      assertPropString(loan, 'status');
 
       if (!['Active', 'Originated'].includes(loan.status)) {
         throw new Error(`Cannot request liquidation for loan with status: ${loan.status}`);
@@ -1135,14 +1034,13 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
 
       // Check if liquidation already exists
       const existingLiquidationRows = await tx.sql`
-        SELECT loan_id FROM loan_liquidations WHERE loan_id = ${loanId}
+        SELECT loan_id FROM loan_liquidations WHERE loan_id = ${params.loanId}
       `;
 
       if (existingLiquidationRows.length > 0) {
         throw new Error('Liquidation request already exists for this loan');
       }
 
-      // Create liquidation record with placeholder target amount (to be updated by service layer)
       await tx.sql`
         INSERT INTO loan_liquidations (
           loan_id,
@@ -1156,15 +1054,15 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           acknowledgment
         )
         VALUES (
-          ${loanId},
+          ${params.loanId},
           'Borrower',
           '0',
           'DefaultProvider',
           'DEFAULT',
-          ${`borrower_liquidation_${loanId}_${Date.now()}`},
+          ${`borrower_liquidation_${params.loanId}_${Date.now()}`},
           'Pending',
-          ${requestDate.toISOString()},
-          ${acknowledgmentText}
+          ${params.requestDate.toISOString()},
+          ${params.acknowledgment ? 'true' : 'false'}
         )
       `;
 
@@ -1174,8 +1072,8 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
         success: true,
         message: 'Early liquidation request submitted successfully',
         data: {
-          loanId: String(loanId),
-          liquidationRequestDate: requestDate,
+          loanId: String(params.loanId),
+          liquidationRequestDate: params.requestDate,
           liquidationStatus: 'Pending',
         },
       };
@@ -1191,45 +1089,38 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   async borrowerGetsLoanAmounts(
     params: BorrowerGetsLoanAmountsParams,
   ): Promise<BorrowerGetsLoanAmountsResult> {
-    const { loanId, borrowerUserId } = params;
-
-    const loanRows = await this.sql`
+    const result = assertArrayMapOf(
+      await this.sql`
       SELECT
-        l.id,
-        l.repayment_amount,
-        l.premi_amount,
-        l.liquidation_fee_amount,
-        l.principal_amount,
-        l.interest_amount,
+        l.id::text as "loanId",
+        l.repayment_amount::text as "repaymentAmount",
+        l.premi_amount::text as "premiAmount",
+        l.liquidation_fee_amount::text as "liquidationFeeAmount",
+        l.principal_amount::text as "principalAmount",
+        l.interest_amount::text as "interestAmount",
         l.status
       FROM loans l
       JOIN loan_applications la ON l.loan_application_id = la.id
-      WHERE l.id = ${loanId} AND la.borrower_user_id = ${borrowerUserId}
-    `;
+      WHERE l.id = ${params.loanId} AND la.borrower_user_id = ${params.borrowerUserId}
+    `,
+      function (row) {
+        assertDefined(row, 'Loan validation failed');
+        assertPropString(row, 'loanId');
+        assertPropString(row, 'repaymentAmount');
+        assertPropString(row, 'premiAmount');
+        assertPropString(row, 'liquidationFeeAmount');
+        assertPropString(row, 'principalAmount');
+        assertPropString(row, 'interestAmount');
+        assertPropString(row, 'status');
+        return row;
+      },
+    )[0];
 
-    if (loanRows.length === 0) {
+    if (!result) {
       throw new Error('Loan not found or access denied');
     }
 
-    const loan = loanRows[0];
-    assertDefined(loan, 'Loan validation failed');
-    assertProp(check(isString, isNumber), loan, 'id');
-    assertProp(check(isString, isNumber), loan, 'repayment_amount');
-    assertProp(check(isString, isNumber), loan, 'premi_amount');
-    assertProp(check(isString, isNumber), loan, 'liquidation_fee_amount');
-    assertProp(check(isString, isNumber), loan, 'principal_amount');
-    assertProp(check(isString, isNumber), loan, 'interest_amount');
-    assertPropString(loan, 'status');
-
-    return {
-      loanId: String(loan.id),
-      repaymentAmount: String(loan.repayment_amount),
-      premiAmount: String(loan.premi_amount),
-      liquidationFeeAmount: String(loan.liquidation_fee_amount),
-      principalAmount: String(loan.principal_amount),
-      interestAmount: String(loan.interest_amount),
-      status: loan.status,
-    };
+    return result;
   }
 
   /**
@@ -1238,32 +1129,30 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   async platformUpdatesLiquidationTargetAmount(
     params: PlatformUpdatesLiquidationTargetAmountParams,
   ): Promise<PlatformUpdatesLiquidationTargetAmountResult> {
-    const { loanId, liquidationTargetAmount } = params;
-
     const tx = await this.beginTransaction();
     try {
-      const updateRows = await tx.sql`
+      const result = assertArrayMapOf(
+        await tx.sql`
         UPDATE loan_liquidations
-        SET liquidation_target_amount = ${liquidationTargetAmount}
-        WHERE loan_id = ${loanId}
-        RETURNING loan_id, liquidation_target_amount
-      `;
+        SET liquidation_target_amount = ${params.liquidationTargetAmount}
+        WHERE loan_id = ${params.loanId}
+        RETURNING loan_id::text as "loanId", liquidation_target_amount::text as "liquidationTargetAmount"
+      `,
+        function (row) {
+          assertDefined(row, 'Liquidation update failed');
+          assertPropString(row, 'loanId');
+          assertPropString(row, 'liquidationTargetAmount');
+          return row;
+        },
+      )[0];
 
-      if (updateRows.length === 0) {
-        throw new Error(`Liquidation record not found for loan ${loanId}`);
+      if (!result) {
+        throw new Error(`Liquidation record not found for loan ${params.loanId}`);
       }
-
-      const updatedRecord = updateRows[0];
-      assertDefined(updatedRecord, 'Liquidation update failed');
-      assertProp(check(isString, isNumber), updatedRecord, 'loan_id');
-      assertProp(check(isString, isNumber), updatedRecord, 'liquidation_target_amount');
 
       await tx.commitTransaction();
 
-      return {
-        loanId: String(updatedRecord.loan_id),
-        liquidationTargetAmount: String(updatedRecord.liquidation_target_amount),
-      };
+      return result;
     } catch (error) {
       await tx.rollbackTransaction();
       throw error;
@@ -1273,21 +1162,11 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   async borrowerRequestsEarlyRepayment(
     params: BorrowerRequestsEarlyRepaymentParams,
   ): Promise<BorrowerRequestsEarlyRepaymentResult> {
-    const {
-      loanId,
-      borrowerUserId,
-      acknowledgment,
-      requestDate,
-      repaymentWalletDerivationPath,
-      repaymentWalletAddress,
-    } = params;
-    const acknowledgmentText = acknowledgment ? 'true' : 'false';
-
     const tx = await this.beginTransaction();
     try {
-      // Get loan details and validate borrower access
-      const loanRows = await tx.sql`
-        SELECT 
+      const loan = assertArrayMapOf(
+        await tx.sql`
+        SELECT
           l.id,
           l.principal_amount,
           l.interest_amount,
@@ -1307,29 +1186,31 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
         JOIN loan_applications la ON l.loan_application_id = la.id
         JOIN currencies c ON l.principal_currency_blockchain_key = c.blockchain_key
           AND l.principal_currency_token_id = c.token_id
-        WHERE l.id = ${loanId} AND la.borrower_user_id = ${borrowerUserId}
-      `;
+        WHERE l.id = ${params.loanId} AND la.borrower_user_id = ${params.borrowerUserId}
+      `,
+        function (row) {
+          assertDefined(row, 'Loan validation failed');
+          assertProp(check(isString, isNumber), row, 'id');
+          assertProp(check(isString, isNumber), row, 'principal_amount');
+          assertProp(check(isString, isNumber), row, 'interest_amount');
+          assertProp(check(isString, isNumber), row, 'premi_amount');
+          assertProp(check(isString, isNumber), row, 'repayment_amount');
+          assertPropString(row, 'principal_currency_blockchain_key');
+          assertPropString(row, 'principal_currency_token_id');
+          assertPropString(row, 'status');
+          assertProp(isInstanceOf(Date), row, 'origination_date');
+          assertProp(isInstanceOf(Date), row, 'maturity_date');
+          assertProp(check(isString, isNumber), row, 'term_in_months');
+          assertProp(check(isString, isNumber), row, 'decimals');
+          assertPropString(row, 'symbol');
+          assertPropString(row, 'name');
+          return row;
+        },
+      )[0];
 
-      if (loanRows.length === 0) {
+      if (!loan) {
         throw new Error('Loan not found or access denied');
       }
-
-      const loan = loanRows[0];
-      assertDefined(loan, 'Loan validation failed');
-      assertProp(check(isString, isNumber), loan, 'id');
-      assertProp(check(isString, isNumber), loan, 'principal_amount');
-      assertProp(check(isString, isNumber), loan, 'interest_amount');
-      assertProp(check(isString, isNumber), loan, 'premi_amount');
-      assertProp(check(isString, isNumber), loan, 'repayment_amount');
-      assertPropString(loan, 'principal_currency_blockchain_key');
-      assertPropString(loan, 'principal_currency_token_id');
-      assertPropString(loan, 'status');
-      assertProp(isInstanceOf(Date), loan, 'origination_date');
-      assertProp(isInstanceOf(Date), loan, 'maturity_date');
-      assertProp(check(isString, isNumber), loan, 'term_in_months');
-      assertProp(check(isString, isNumber), loan, 'decimals');
-      assertPropString(loan, 'symbol');
-      assertPropString(loan, 'name');
 
       if (loan.status !== 'Active') {
         throw new Error(`Cannot request early repayment for loan with status: ${loan.status}`);
@@ -1341,8 +1222,8 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
 
       // Use provided wallet information for early repayment invoice
 
-      // Create early repayment invoice
-      const invoiceRows = await tx.sql`
+      const invoice = assertArrayMapOf(
+        await tx.sql`
         INSERT INTO invoices (
           user_id,
           currency_blockchain_key,
@@ -1358,20 +1239,20 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           loan_id
         )
         VALUES (
-          ${borrowerUserId},
+          ${params.borrowerUserId},
           ${loan.principal_currency_blockchain_key},
           ${loan.principal_currency_token_id},
           ${totalRepaymentAmount},
-          ${repaymentWalletDerivationPath},
-          ${repaymentWalletAddress},
+          ${params.repaymentWalletDerivationPath},
+          ${params.repaymentWalletAddress},
           'LoanEarlyRepayment',
           'Pending',
-          ${requestDate.toISOString()},
-          ${requestDate.toISOString()},
-          ${new Date(requestDate.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString()}, -- 3 days to pay for early repayment
-          ${loanId}
+          ${params.requestDate.toISOString()},
+          ${params.requestDate.toISOString()},
+          ${new Date(params.requestDate.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString()}, -- 3 days to pay for early repayment
+          ${params.loanId}
         )
-        RETURNING 
+        RETURNING
           id,
           invoiced_amount,
           status,
@@ -1379,19 +1260,20 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           due_date,
           expired_date,
           paid_date
-      `;
+      `,
+        function (row) {
+          assertDefined(row, 'Early repayment invoice creation failed');
+          assertProp(check(isString, isNumber), row, 'id');
+          assertProp(check(isString, isNumber), row, 'invoiced_amount');
+          assertPropString(row, 'status');
+          assertProp(isInstanceOf(Date), row, 'invoice_date');
+          assertProp(check(isNullable, isInstanceOf(Date)), row, 'due_date');
+          assertProp(check(isNullable, isInstanceOf(Date)), row, 'expired_date');
+          assertProp(check(isNullable, isInstanceOf(Date)), row, 'paid_date');
+          return row;
+        },
+      )[0];
 
-      const invoice = invoiceRows[0];
-      assertDefined(invoice, 'Early repayment invoice creation failed');
-      assertProp(check(isString, isNumber), invoice, 'id');
-      assertProp(check(isString, isNumber), invoice, 'invoiced_amount');
-      assertPropString(invoice, 'status');
-      assertProp(isInstanceOf(Date), invoice, 'invoice_date');
-      assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'due_date');
-      assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'expired_date');
-      assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'paid_date');
-
-      // Create or update loan repayment record
       await tx.sql`
         INSERT INTO loan_repayments (
           loan_id,
@@ -1401,17 +1283,17 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           acknowledgment
         )
         VALUES (
-          ${loanId},
+          ${params.loanId},
           'Borrower',
           ${invoice.id},
-          ${requestDate.toISOString()},
-          ${acknowledgmentText}
+          ${params.requestDate.toISOString()},
+          ${params.acknowledgment ? 'true' : 'false'}
         )
         ON CONFLICT (loan_id) DO UPDATE SET
           repayment_initiator = 'Borrower',
           repayment_invoice_id = ${invoice.id},
-          repayment_invoice_date = ${requestDate.toISOString()},
-          acknowledgment = ${acknowledgmentText}
+          repayment_invoice_date = ${params.requestDate.toISOString()},
+          acknowledgment = ${params.acknowledgment ? 'true' : 'false'}
       `;
 
       await tx.commitTransaction();
@@ -1420,7 +1302,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
         success: true,
         message: 'Early repayment request processed successfully',
         data: {
-          loanId: String(loanId),
+          loanId: String(params.loanId),
           repaymentBreakdown: {
             loanDetails: {
               principalAmount: String(loan.principal_amount),
@@ -1431,7 +1313,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
             calculationDetails: {
               fullInterestCharged: true, // Static value, detailed calculations should be in service
               remainingTermDays: 0, // Placeholder, calculations should be in service
-              earlyRepaymentDate: requestDate,
+              earlyRepaymentDate: params.requestDate,
             },
           },
           repaymentInvoice: {
@@ -1449,7 +1331,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
             expiryDate:
               invoice.due_date ||
               invoice.expired_date ||
-              new Date(requestDate.getTime() + 3 * 24 * 60 * 60 * 1000),
+              new Date(params.requestDate.getTime() + 3 * 24 * 60 * 60 * 1000),
             paidDate: invoice.paid_date || undefined,
           },
         },
@@ -1464,9 +1346,8 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
    * Data-only method: Get a single loan application by id for borrower/platform views
    */
   async borrowerGetsLoanApplicationById(params: { loanApplicationId: string }) {
-    const { loanApplicationId } = params;
-
-    const rows = await this.sql`
+    const row = assertArrayMapOf(
+      await this.sql`
       SELECT
         la.id,
         la.borrower_user_id,
@@ -1505,15 +1386,17 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
       JOIN currencies c2 ON la.collateral_currency_blockchain_key = c2.blockchain_key
         AND la.collateral_currency_token_id = c2.token_id
       LEFT JOIN invoices i ON i.loan_application_id = la.id AND i.invoice_type = 'LoanCollateral'
-      WHERE la.id = ${loanApplicationId}
-    `;
+      WHERE la.id = ${params.loanApplicationId}
+    `,
+      function (r) {
+        assertDefined(r);
+        return r;
+      },
+    )[0];
 
-    if (rows.length === 0) {
+    if (!row) {
       throw new Error('Loan application not found');
     }
-
-    const row = rows[0];
-    assertDefined(row);
     // Narrow the row to a well-known shape so we can safely access its properties
     const r = row as {
       id: string | number;

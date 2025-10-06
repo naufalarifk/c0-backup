@@ -10,12 +10,14 @@ import { EthMainnetBlockchain } from './blockchains/eth-mainnet.blockchain';
 import { EthTestnetBlockchain } from './blockchains/eth-testnet.blockchain';
 import { SolMainnetBlockchain } from './blockchains/sol-mainnet.blockchain';
 import { SolTestnetBlockchain } from './blockchains/sol-testnet.blockchain';
+import { WalletConfig } from './wallet.config';
 import { WalletFactory } from './wallet.factory';
 import { WalletService } from './wallet.service';
 
 @Module({
   imports: [DiscoveryModule, CryptographyModule],
   providers: [
+    WalletConfig,
     WalletFactory,
     WalletService,
     BscMainnetBlockchain,
@@ -28,6 +30,7 @@ import { WalletService } from './wallet.service';
     CgTestnetBlockchain,
   ],
   exports: [
+    WalletConfig,
     WalletFactory,
     WalletService,
     BscMainnetBlockchain,

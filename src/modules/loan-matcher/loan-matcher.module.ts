@@ -1,5 +1,6 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
+import { DiscoveryModule } from '@nestjs/core';
 
 import { SharedModule } from '../../shared/shared.module';
 import { NotificationModule } from '../notifications/notification.module';
@@ -14,6 +15,7 @@ import { EnhancedLoanMatcherStrategy } from './strategies/enhanced-loan-matcher.
     BullModule.registerQueue({
       name: 'loanMatcherQueue',
     }),
+    DiscoveryModule,
     SharedModule,
     NotificationModule,
   ],

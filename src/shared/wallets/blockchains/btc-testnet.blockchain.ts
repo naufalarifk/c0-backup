@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import * as bitcoin from 'bitcoinjs-lib';
 
 import { Wallet } from '../wallet.abstract';
+import { WalletConfig } from '../wallet.config';
 import { WalletProvider } from '../wallet.factory';
 import { BitcoinRpcClient, BtcWallet } from '../wallets/btc.wallet';
 import { BaseBitcoinRpcClient, BtcMainnetBlockchain } from './btc-mainnet.blockchain';
@@ -46,6 +47,10 @@ class BtcTestnetWallet extends BtcWallet {
 @WalletProvider('bip122:000000000933ea01ad0ee984209779ba61f8d4362f5cb2f17e5e2c77d0d0dffc')
 export class BtcTestnetWalletService extends BtcMainnetBlockchain {
   protected network = bitcoin.networks.testnet;
+
+  constructor(walletConfig: WalletConfig) {
+    super(walletConfig);
+  }
 
   get bip44CoinType(): number {
     return 1; // Bitcoin testnet coin type

@@ -1,11 +1,118 @@
+import type { AppConfigService } from '../services/app-config.service';
+
 import { doesNotReject } from 'node:assert';
 import { deepEqual, equal, notEqual, ok, rejects } from 'node:assert/strict';
 import { describe, suite } from 'node:test';
 
 import { assertArrayMapOf, assertDefined, assertProp, check, isNumber, isString } from 'typeshaper';
 
+import { InvoiceIdGenerator } from '../invoice/invoice-id.generator';
 import { createEarlyExitNodeTestIt } from '../utils/node-test';
+import { BorrowerCreatesLoanApplicationParams, LenderCreatesLoanOfferParams } from './loan.types';
 import { LoanUserRepository } from './loan-user.repository';
+
+const testInvoiceIdGenerator = new InvoiceIdGenerator({
+  invoiceConfig: {
+    epochMs: Date.UTC(2024, 0, 1),
+    workerId: 0,
+  },
+} as unknown as AppConfigService);
+
+async function createFundingInvoiceParams(
+  repo: LoanUserRepository,
+  options: {
+    principalBlockchainKey: string;
+    principalTokenId: string;
+    invoiceDate: Date;
+    dueDate: Date;
+    expiredDate?: Date;
+  },
+) {
+  const invoiceId = testInvoiceIdGenerator.generate();
+  return {
+    fundingInvoiceId: invoiceId,
+    fundingInvoicePrepaidAmount: '0',
+    fundingAccountBlockchainKey: options.principalBlockchainKey,
+    fundingAccountTokenId: options.principalTokenId,
+    fundingInvoiceDate: options.invoiceDate,
+    fundingInvoiceDueDate: options.dueDate,
+    fundingInvoiceExpiredDate: options.expiredDate ?? options.dueDate,
+  };
+}
+
+async function createCollateralInvoiceParams(
+  repo: LoanUserRepository,
+  options: {
+    collateralBlockchainKey: string;
+    collateralTokenId: string;
+    invoiceDate: Date;
+    dueDate: Date;
+    expiredDate?: Date;
+  },
+) {
+  const invoiceId = testInvoiceIdGenerator.generate();
+  return {
+    collateralInvoiceId: invoiceId,
+    collateralInvoicePrepaidAmount: '0',
+    collateralAccountBlockchainKey: options.collateralBlockchainKey,
+    collateralAccountTokenId: options.collateralTokenId,
+    collateralInvoiceDate: options.invoiceDate,
+    collateralInvoiceDueDate: options.dueDate,
+    collateralInvoiceExpiredDate: options.expiredDate ?? options.dueDate,
+  };
+}
+
+async function lenderCreatesLoanOfferWithInvoice(
+  repo: LoanUserRepository,
+  params: Omit<
+    LenderCreatesLoanOfferParams,
+    | 'fundingInvoiceId'
+    | 'fundingInvoicePrepaidAmount'
+    | 'fundingAccountBlockchainKey'
+    | 'fundingAccountTokenId'
+    | 'fundingInvoiceDate'
+    | 'fundingInvoiceDueDate'
+    | 'fundingInvoiceExpiredDate'
+  >,
+) {
+  const fundingInvoice = await createFundingInvoiceParams(repo, {
+    principalBlockchainKey: params.principalBlockchainKey,
+    principalTokenId: params.principalTokenId,
+    invoiceDate: params.createdDate,
+    dueDate: params.expirationDate,
+  });
+
+  return repo.lenderCreatesLoanOffer({
+    ...params,
+    ...fundingInvoice,
+  });
+}
+
+async function borrowerCreatesLoanApplicationWithInvoice(
+  repo: LoanUserRepository,
+  params: Omit<
+    BorrowerCreatesLoanApplicationParams,
+    | 'collateralInvoiceId'
+    | 'collateralInvoicePrepaidAmount'
+    | 'collateralAccountBlockchainKey'
+    | 'collateralAccountTokenId'
+    | 'collateralInvoiceDate'
+    | 'collateralInvoiceDueDate'
+    | 'collateralInvoiceExpiredDate'
+  >,
+) {
+  const collateralInvoice = await createCollateralInvoiceParams(repo, {
+    collateralBlockchainKey: params.collateralBlockchainKey,
+    collateralTokenId: params.collateralTokenId,
+    invoiceDate: params.appliedDate,
+    dueDate: params.expirationDate,
+  });
+
+  return repo.borrowerCreatesLoanApplication({
+    ...params,
+    ...collateralInvoice,
+  });
+}
 
 export async function runLoanUserRepositoryTestSuite(
   createRepo: () => Promise<LoanUserRepository>,
@@ -33,25 +140,7 @@ export async function runLoanUserRepositoryTestSuite(
             ON CONFLICT (id) DO NOTHING
           `;
 
-          // Create test data - first setup price feed and exchange rate
-          await repo.sql`
-            INSERT INTO price_feeds (blockchain_key, base_currency_token_id, quote_currency_token_id, source)
-            VALUES ('eip155:56', 'slip44:714', 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d', 'test')
-            ON CONFLICT (blockchain_key, base_currency_token_id, quote_currency_token_id, source) DO NOTHING
-          `;
-
-          const priceFeedResult = await repo.sql`
-            SELECT id FROM price_feeds 
-            WHERE blockchain_key = 'eip155:56' 
-            AND base_currency_token_id = 'slip44:714' 
-            AND quote_currency_token_id = 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d'
-          `;
-          assertArrayMapOf(priceFeedResult, function (item) {
-            assertDefined(item);
-            assertProp(check(isString, isNumber), item, 'id');
-            return item;
-          });
-
+          // Create test data - setup price feed and exchange rate
           const { exchangeRateId } = await repo.testSetupPriceFeeds({
             blockchainKey: 'eip155:56',
             baseCurrencyTokenId: 'slip44:714',
@@ -62,7 +151,7 @@ export async function runLoanUserRepositoryTestSuite(
             sourceDate: new Date('2025-10-30'),
           });
 
-          const loanOfferResult = await repo.lenderCreatesLoanOffer({
+          const loanOfferResult = await lenderCreatesLoanOfferWithInvoice(repo, {
             lenderUserId: '1',
             principalBlockchainKey: 'eip155:56',
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -73,12 +162,17 @@ export async function runLoanUserRepositoryTestSuite(
             termInMonthsOptions: [3, 6, 12],
             createdDate: new Date('2025-10-30'),
             expirationDate: new Date('2025-12-31'),
+            fundingInvoiceId: 100,
+            fundingInvoicePrepaidAmount: '0',
+            fundingInvoiceDate: new Date('2025-10-30'),
+            fundingInvoiceDueDate: new Date('2025-12-31'),
+            fundingInvoiceExpiredDate: new Date('2025-12-31'),
             fundingWalletDerivationPath: "m/44'/0'/0'/0/100",
             fundingWalletAddress: 'test-funding-wallet-address-100',
           });
 
           await doesNotReject(
-            repo.borrowerCreatesLoanApplication({
+            borrowerCreatesLoanApplicationWithInvoice(repo, {
               borrowerUserId: '2',
               loanOfferId: loanOfferResult.id,
               collateralBlockchainKey: 'eip155:56',
@@ -96,6 +190,11 @@ export async function runLoanUserRepositoryTestSuite(
               collateralDepositExchangeRateId: exchangeRateId,
               appliedDate: new Date('2025-11-01'),
               expirationDate: new Date('2025-11-30'),
+              collateralInvoiceId: 77777,
+              collateralInvoicePrepaidAmount: '0',
+              collateralInvoiceDate: new Date('2025-11-01'),
+              collateralInvoiceDueDate: new Date('2025-11-30'),
+              collateralInvoiceExpiredDate: new Date('2025-11-30'),
               collateralWalletDerivationPath: "m/44'/0'/0'/0/77777",
               collateralWalletAddress: 'user_test_address_77777',
             }),

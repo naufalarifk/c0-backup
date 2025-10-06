@@ -1,3 +1,5 @@
+import type { AppConfigService } from '../services/app-config.service';
+
 import { deepEqual, equal, notEqual, ok, rejects } from 'node:assert/strict';
 import { describe, suite } from 'node:test';
 
@@ -11,13 +13,119 @@ import {
   isString,
 } from 'typeshaper';
 
+import { InvoiceIdGenerator } from '../invoice/invoice-id.generator';
 import { createEarlyExitNodeTestIt } from '../utils/node-test';
 import {
+  BorrowerCreatesLoanApplicationParams,
   BorrowerCreatesLoanApplicationResult,
+  LenderCreatesLoanOfferParams,
   LenderCreatesLoanOfferResult,
   PlatformOriginatesLoanResult,
 } from './loan.types';
 import { LoanPlatformRepository } from './loan-platform.repository';
+
+const testInvoiceIdGenerator = new InvoiceIdGenerator({
+  invoiceConfig: {
+    epochMs: Date.UTC(2024, 0, 1),
+    workerId: 0,
+  },
+} as unknown as AppConfigService);
+
+async function createFundingInvoiceParams(
+  repo: LoanPlatformRepository,
+  options: {
+    principalBlockchainKey: string;
+    principalTokenId: string;
+    invoiceDate: Date;
+    dueDate: Date;
+    expiredDate?: Date;
+  },
+) {
+  const invoiceId = testInvoiceIdGenerator.generate();
+  return {
+    fundingInvoiceId: invoiceId,
+    fundingInvoicePrepaidAmount: '0',
+    fundingAccountBlockchainKey: options.principalBlockchainKey,
+    fundingAccountTokenId: options.principalTokenId,
+    fundingInvoiceDate: options.invoiceDate,
+    fundingInvoiceDueDate: options.dueDate,
+    fundingInvoiceExpiredDate: options.expiredDate ?? options.dueDate,
+  };
+}
+
+async function createCollateralInvoiceParams(
+  repo: LoanPlatformRepository,
+  options: {
+    collateralBlockchainKey: string;
+    collateralTokenId: string;
+    invoiceDate: Date;
+    dueDate: Date;
+    expiredDate?: Date;
+  },
+) {
+  const invoiceId = testInvoiceIdGenerator.generate();
+  return {
+    collateralInvoiceId: invoiceId,
+    collateralInvoicePrepaidAmount: '0',
+    collateralAccountBlockchainKey: options.collateralBlockchainKey,
+    collateralAccountTokenId: options.collateralTokenId,
+    collateralInvoiceDate: options.invoiceDate,
+    collateralInvoiceDueDate: options.dueDate,
+    collateralInvoiceExpiredDate: options.expiredDate ?? options.dueDate,
+  };
+}
+
+async function lenderCreatesLoanOfferWithInvoice(
+  repo: LoanPlatformRepository,
+  params: Omit<
+    LenderCreatesLoanOfferParams,
+    | 'fundingInvoiceId'
+    | 'fundingInvoicePrepaidAmount'
+    | 'fundingAccountBlockchainKey'
+    | 'fundingAccountTokenId'
+    | 'fundingInvoiceDate'
+    | 'fundingInvoiceDueDate'
+    | 'fundingInvoiceExpiredDate'
+  >,
+) {
+  const fundingInvoice = await createFundingInvoiceParams(repo, {
+    principalBlockchainKey: params.principalBlockchainKey,
+    principalTokenId: params.principalTokenId,
+    invoiceDate: params.createdDate,
+    dueDate: params.expirationDate,
+  });
+
+  return repo.lenderCreatesLoanOffer({
+    ...params,
+    ...fundingInvoice,
+  });
+}
+
+async function borrowerCreatesLoanApplicationWithInvoice(
+  repo: LoanPlatformRepository,
+  params: Omit<
+    BorrowerCreatesLoanApplicationParams,
+    | 'collateralInvoiceId'
+    | 'collateralInvoicePrepaidAmount'
+    | 'collateralAccountBlockchainKey'
+    | 'collateralAccountTokenId'
+    | 'collateralInvoiceDate'
+    | 'collateralInvoiceDueDate'
+    | 'collateralInvoiceExpiredDate'
+  >,
+) {
+  const collateralInvoice = await createCollateralInvoiceParams(repo, {
+    collateralBlockchainKey: params.collateralBlockchainKey,
+    collateralTokenId: params.collateralTokenId,
+    invoiceDate: params.appliedDate,
+    dueDate: params.expirationDate,
+  });
+
+  return repo.borrowerCreatesLoanApplication({
+    ...params,
+    ...collateralInvoice,
+  });
+}
 
 let configDateCounter = 0;
 function generateUniqueConfigDate(): Date {
@@ -183,6 +291,7 @@ export async function runLoanPlatformRepositoryTestSuite(
               email: 'lender@example.com',
               emailVerified: true,
             });
+            assertPropString(lender, 'id');
 
             await repo.testCreatesBlockchains({
               blockchains: [
@@ -194,7 +303,7 @@ export async function runLoanPlatformRepositoryTestSuite(
             const expirationDate = new Date('2024-01-31T23:59:59.999Z');
 
             // Create loan offer (should be in 'Funding' status)
-            const loanOffer = await repo.lenderCreatesLoanOffer({
+            const loanOffer = await lenderCreatesLoanOfferWithInvoice(repo, {
               lenderUserId: lender.id,
               principalBlockchainKey: 'eip155:56',
               principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -205,6 +314,11 @@ export async function runLoanPlatformRepositoryTestSuite(
               termInMonthsOptions: [3, 6, 12],
               expirationDate,
               createdDate,
+              fundingInvoiceId: 500,
+              fundingInvoicePrepaidAmount: '0',
+              fundingInvoiceDate: createdDate,
+              fundingInvoiceDueDate: expirationDate,
+              fundingInvoiceExpiredDate: expirationDate,
               fundingWalletDerivationPath: "m/44'/0'/0'/0/500",
               fundingWalletAddress: 'test-funding-wallet-address-500',
             });
@@ -244,6 +358,7 @@ export async function runLoanPlatformRepositoryTestSuite(
               email: 'borrower@example.com',
               emailVerified: true,
             });
+            assertPropString(borrower, 'id');
 
             await repo.testCreatesBlockchains({
               blockchains: [
@@ -278,7 +393,7 @@ export async function runLoanPlatformRepositoryTestSuite(
             const expirationDate = new Date('2024-01-31T23:59:59.999Z');
 
             // Create loan application (should be in 'PendingCollateral' status)
-            const loanApplication = await repo.borrowerCreatesLoanApplication({
+            const loanApplication = await borrowerCreatesLoanApplicationWithInvoice(repo, {
               borrowerUserId: borrower.id,
               collateralBlockchainKey: 'eip155:56',
               collateralTokenId: 'slip44:714',
@@ -295,6 +410,11 @@ export async function runLoanPlatformRepositoryTestSuite(
               collateralDepositExchangeRateId: '1',
               appliedDate,
               expirationDate,
+              collateralInvoiceId: 88800,
+              collateralInvoicePrepaidAmount: '0',
+              collateralInvoiceDate: appliedDate,
+              collateralInvoiceDueDate: expirationDate,
+              collateralInvoiceExpiredDate: expirationDate,
               collateralWalletDerivationPath: "m/44'/0'/0'/0/88800",
               collateralWalletAddress: 'platform_test_address_88800',
             });
@@ -342,12 +462,14 @@ export async function runLoanPlatformRepositoryTestSuite(
             email: 'lender1@example.com',
             emailVerified: true,
           });
+          assertPropString(lender1, 'id');
 
           const lender2 = await repo.betterAuthCreateUser({
             name: 'Lender 2',
             email: 'lender2@example.com',
             emailVerified: true,
           });
+          assertPropString(lender2, 'id');
 
           await repo.testCreatesBlockchains({
             blockchains: [
@@ -362,7 +484,7 @@ export async function runLoanPlatformRepositoryTestSuite(
           const publishedDate = new Date('2024-01-02T10:00:00.000Z');
 
           // Create and publish loan offers
-          const loanOffer1 = await repo.lenderCreatesLoanOffer({
+          const loanOffer1 = await lenderCreatesLoanOfferWithInvoice(repo, {
             lenderUserId: lender1.id,
             principalBlockchainKey: 'eip155:56',
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -373,11 +495,16 @@ export async function runLoanPlatformRepositoryTestSuite(
             termInMonthsOptions: [3, 6, 12],
             expirationDate,
             createdDate,
+            fundingInvoiceId: 52,
+            fundingInvoicePrepaidAmount: '0',
+            fundingInvoiceDate: createdDate,
+            fundingInvoiceDueDate: expirationDate,
+            fundingInvoiceExpiredDate: expirationDate,
             fundingWalletDerivationPath: "m/44'/0'/0'/0/52",
             fundingWalletAddress: 'test-funding-wallet-address-52',
           });
 
-          const loanOffer2 = await repo.lenderCreatesLoanOffer({
+          const loanOffer2 = await lenderCreatesLoanOfferWithInvoice(repo, {
             lenderUserId: lender2.id,
             principalBlockchainKey: 'eip155:56',
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -388,6 +515,11 @@ export async function runLoanPlatformRepositoryTestSuite(
             termInMonthsOptions: [6, 12],
             expirationDate,
             createdDate,
+            fundingInvoiceId: 53,
+            fundingInvoicePrepaidAmount: '0',
+            fundingInvoiceDate: createdDate,
+            fundingInvoiceDueDate: expirationDate,
+            fundingInvoiceExpiredDate: expirationDate,
             fundingWalletDerivationPath: "m/44'/0'/0'/0/53",
             fundingWalletAddress: 'test-funding-wallet-address-53',
           });
@@ -427,6 +559,7 @@ export async function runLoanPlatformRepositoryTestSuite(
             email: 'lender@example.com',
             emailVerified: true,
           });
+          assertPropString(lender, 'id');
 
           await repo.testCreatesBlockchains({
             blockchains: [
@@ -441,7 +574,7 @@ export async function runLoanPlatformRepositoryTestSuite(
           const publishedDate = new Date('2024-01-02T10:00:00.000Z');
 
           // Create USDC offer (only one offer since we only have one valid currency)
-          const usdcOffer = await repo.lenderCreatesLoanOffer({
+          const usdcOffer = await lenderCreatesLoanOfferWithInvoice(repo, {
             lenderUserId: lender.id,
             principalBlockchainKey: 'eip155:56',
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -452,6 +585,11 @@ export async function runLoanPlatformRepositoryTestSuite(
             termInMonthsOptions: [3, 6, 12],
             expirationDate,
             createdDate,
+            fundingInvoiceId: 54,
+            fundingInvoicePrepaidAmount: '0',
+            fundingInvoiceDate: createdDate,
+            fundingInvoiceDueDate: expirationDate,
+            fundingInvoiceExpiredDate: expirationDate,
             fundingWalletDerivationPath: "m/44'/0'/0'/0/54",
             fundingWalletAddress: 'test-funding-wallet-address-54',
           });
@@ -481,24 +619,28 @@ export async function runLoanPlatformRepositoryTestSuite(
     });
 
     describe('Loan Matching and Origination', function () {
-      let lender: { id: string };
-      let borrower: { id: string };
+      let lender: { id: string } & Record<string, unknown>;
+      let borrower: { id: string } & Record<string, unknown>;
       let loanOffer: LenderCreatesLoanOfferResult;
       let loanApplication: BorrowerCreatesLoanApplicationResult;
 
       beforeEach(async function () {
         // Setup test users and currencies
-        lender = await repo.betterAuthCreateUser({
+        const lenderUser = await repo.betterAuthCreateUser({
           name: 'Lender User',
           email: 'lender@example.com',
           emailVerified: true,
         });
+        assertPropString(lenderUser, 'id');
+        lender = lenderUser;
 
-        borrower = await repo.betterAuthCreateUser({
+        const borrowerUser = await repo.betterAuthCreateUser({
           name: 'Borrower User',
           email: 'borrower@example.com',
           emailVerified: true,
         });
+        assertPropString(borrowerUser, 'id');
+        borrower = borrowerUser;
 
         await repo.testCreatesBlockchains({
           blockchains: [{ key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' }],
@@ -531,7 +673,7 @@ export async function runLoanPlatformRepositoryTestSuite(
         const expirationDate = new Date('2024-01-31T23:59:59.999Z');
 
         // Create and publish loan offer
-        loanOffer = await repo.lenderCreatesLoanOffer({
+        loanOffer = await lenderCreatesLoanOfferWithInvoice(repo, {
           lenderUserId: lender.id,
           principalBlockchainKey: 'eip155:56',
           principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -542,6 +684,11 @@ export async function runLoanPlatformRepositoryTestSuite(
           termInMonthsOptions: [3, 6, 12],
           expirationDate,
           createdDate,
+          fundingInvoiceId: 55,
+          fundingInvoicePrepaidAmount: '0',
+          fundingInvoiceDate: createdDate,
+          fundingInvoiceDueDate: expirationDate,
+          fundingInvoiceExpiredDate: expirationDate,
           fundingWalletDerivationPath: "m/44'/0'/0'/0/55",
           fundingWalletAddress: 'test-funding-wallet-address-55',
         });
@@ -553,7 +700,7 @@ export async function runLoanPlatformRepositoryTestSuite(
         );
 
         // Create and publish loan application
-        loanApplication = await repo.borrowerCreatesLoanApplication({
+        loanApplication = await borrowerCreatesLoanApplicationWithInvoice(repo, {
           borrowerUserId: borrower.id,
           collateralBlockchainKey: 'eip155:56',
           collateralTokenId: 'slip44:714',
@@ -570,6 +717,11 @@ export async function runLoanPlatformRepositoryTestSuite(
           collateralDepositExchangeRateId: '1',
           appliedDate: createdDate,
           expirationDate,
+          collateralInvoiceId: 88890,
+          collateralInvoicePrepaidAmount: '0',
+          collateralInvoiceDate: createdDate,
+          collateralInvoiceDueDate: expirationDate,
+          collateralInvoiceExpiredDate: expirationDate,
           collateralWalletDerivationPath: "m/44'/0'/0'/0/88890",
           collateralWalletAddress: 'platform_test_address3_88890',
         });
@@ -619,7 +771,7 @@ export async function runLoanPlatformRepositoryTestSuite(
 
         it('should reject matching when same user is lender and borrower', async function () {
           // Create loan application from the same user who created the offer
-          const sameLenderApplication = await repo.borrowerCreatesLoanApplication({
+          const sameLenderApplication = await borrowerCreatesLoanApplicationWithInvoice(repo, {
             borrowerUserId: lender.id, // Same as lender
             collateralBlockchainKey: 'eip155:56',
             collateralTokenId: 'slip44:714',
@@ -636,6 +788,11 @@ export async function runLoanPlatformRepositoryTestSuite(
             collateralDepositExchangeRateId: '1',
             appliedDate: new Date('2024-01-01T10:00:00.000Z'),
             expirationDate: new Date('2024-01-31T23:59:59.999Z'),
+            collateralInvoiceId: 88891,
+            collateralInvoicePrepaidAmount: '0',
+            collateralInvoiceDate: new Date('2024-01-01T10:00:00.000Z'),
+            collateralInvoiceDueDate: new Date('2024-01-31T23:59:59.999Z'),
+            collateralInvoiceExpiredDate: new Date('2024-01-31T23:59:59.999Z'),
             collateralWalletDerivationPath: "m/44'/0'/0'/0/88891",
             collateralWalletAddress: 'platform_test_address4_88891',
           });
@@ -734,7 +891,7 @@ export async function runLoanPlatformRepositoryTestSuite(
 
         it('should reject originating loan with invalid application status', async function () {
           // Create unmatched loan application
-          const unmatchedApplication = await repo.borrowerCreatesLoanApplication({
+          const unmatchedApplication = await borrowerCreatesLoanApplicationWithInvoice(repo, {
             borrowerUserId: borrower.id,
             collateralBlockchainKey: 'eip155:56',
             collateralTokenId: 'slip44:714',
@@ -751,6 +908,11 @@ export async function runLoanPlatformRepositoryTestSuite(
             collateralDepositExchangeRateId: '1',
             appliedDate: new Date('2024-01-01T10:00:00.000Z'),
             expirationDate: new Date('2024-01-31T23:59:59.999Z'),
+            collateralInvoiceId: 88892,
+            collateralInvoicePrepaidAmount: '0',
+            collateralInvoiceDate: new Date('2024-01-01T10:00:00.000Z'),
+            collateralInvoiceDueDate: new Date('2024-01-31T23:59:59.999Z'),
+            collateralInvoiceExpiredDate: new Date('2024-01-31T23:59:59.999Z'),
             collateralWalletDerivationPath: "m/44'/0'/0'/0/88892",
             collateralWalletAddress: 'platform_test_address5_88892',
           });
@@ -799,12 +961,14 @@ export async function runLoanPlatformRepositoryTestSuite(
           email: 'lender@example.com',
           emailVerified: true,
         });
+        assertPropString(lender, 'id');
 
         const borrower = await repo.betterAuthCreateUser({
           name: 'Borrower User',
           email: 'borrower@example.com',
           emailVerified: true,
         });
+        assertPropString(borrower, 'id');
 
         await repo.testCreatesBlockchains({
           blockchains: [{ key: 'ethereum', name: 'Ethereum', shortName: 'ETH', image: 'eth.png' }],
@@ -834,7 +998,7 @@ export async function runLoanPlatformRepositoryTestSuite(
         });
 
         // Create and publish loan offer
-        const loanOffer = await repo.lenderCreatesLoanOffer({
+        const loanOffer = await lenderCreatesLoanOfferWithInvoice(repo, {
           lenderUserId: lender.id,
           principalBlockchainKey: 'eip155:56',
           principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -845,6 +1009,11 @@ export async function runLoanPlatformRepositoryTestSuite(
           termInMonthsOptions: [3, 6, 12],
           expirationDate: new Date('2024-01-31T23:59:59.999Z'),
           createdDate: new Date('2024-01-01T10:00:00.000Z'),
+          fundingInvoiceId: 56,
+          fundingInvoicePrepaidAmount: '0',
+          fundingInvoiceDate: new Date('2024-01-01T10:00:00.000Z'),
+          fundingInvoiceDueDate: new Date('2024-01-31T23:59:59.999Z'),
+          fundingInvoiceExpiredDate: new Date('2024-01-31T23:59:59.999Z'),
           fundingWalletDerivationPath: "m/44'/0'/0'/0/56",
           fundingWalletAddress: 'test-funding-wallet-address-56',
         });
@@ -856,7 +1025,7 @@ export async function runLoanPlatformRepositoryTestSuite(
         );
 
         // Create and publish loan application
-        const loanApplication = await repo.borrowerCreatesLoanApplication({
+        const loanApplication = await borrowerCreatesLoanApplicationWithInvoice(repo, {
           borrowerUserId: borrower.id,
           collateralBlockchainKey: 'eip155:56',
           collateralTokenId: 'slip44:714',
@@ -873,6 +1042,11 @@ export async function runLoanPlatformRepositoryTestSuite(
           collateralDepositExchangeRateId: '1',
           appliedDate: new Date('2024-01-01T10:00:00.000Z'),
           expirationDate: new Date('2024-01-31T23:59:59.999Z'),
+          collateralInvoiceId: 88893,
+          collateralInvoicePrepaidAmount: '0',
+          collateralInvoiceDate: new Date('2024-01-01T10:00:00.000Z'),
+          collateralInvoiceDueDate: new Date('2024-01-31T23:59:59.999Z'),
+          collateralInvoiceExpiredDate: new Date('2024-01-31T23:59:59.999Z'),
           collateralWalletDerivationPath: "m/44'/0'/0'/0/88893",
           collateralWalletAddress: 'platform_test_address6_88893',
         });

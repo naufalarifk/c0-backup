@@ -1,4 +1,5 @@
 import {
+  assertArrayMapOf,
   assertDefined,
   assertProp,
   assertPropNullableString,
@@ -8,6 +9,7 @@ import {
   isNullable,
   isNumber,
   isString,
+  setPropValue,
 } from 'typeshaper';
 
 import {
@@ -44,24 +46,21 @@ export abstract class FinanceUserRepsitory extends UserRepository {
   async userRetrievesAccountBalances(
     params: UserRetrievesAccountBalancesParams,
   ): Promise<UserRetrievesAccountBalancesResult> {
-    const { userId } = params;
-
     const rows = await this.sql`
       SELECT
         a.id,
-        a.user_id,
-        a.currency_blockchain_key,
-        a.currency_token_id,
+        a.user_id AS "userId",
+        a.currency_blockchain_key AS "currencyBlockchainKey",
+        a.currency_token_id AS "currencyTokenId",
         a.balance,
-        a.account_type,
-        c.decimals as currency_decimals,
-        c.name as currency_name,
-        c.symbol as currency_symbol,
-        -- Get latest exchange rate for valuation (crosschain to iso4217:usd)
-        er.bid_price as exchange_rate,
-        er.retrieval_date as rate_date,
-        pf.source as rate_source,
-        qc.decimals as quote_currency_decimals
+        a.account_type AS "accountType",
+        c.decimals AS "currencyDecimals",
+        c.name AS "currencyName",
+        c.symbol AS "currencySymbol",
+        er.bid_price AS "exchangeRate",
+        er.retrieval_date AS "rateDate",
+        pf.source AS "rateSource",
+        qc.decimals AS "quoteCurrencyDecimals"
       FROM accounts a
       JOIN currencies c ON a.currency_blockchain_key = c.blockchain_key
         AND a.currency_token_id = c.token_id
@@ -82,71 +81,57 @@ export abstract class FinanceUserRepsitory extends UserRepository {
       ) er ON true
       LEFT JOIN currencies qc ON pf.quote_currency_token_id = qc.token_id
         AND qc.blockchain_key = 'crosschain'
-      WHERE a.user_id = ${userId}
+      WHERE a.user_id = ${params.userId}
         AND a.account_type = 'User'
       ORDER BY a.currency_blockchain_key, a.currency_token_id
     `;
 
-    const accounts = rows;
-
-    // Calculate total portfolio value in USD
     let totalPortfolioValueUsd = BigInt(0);
 
-    const mappedAccounts = accounts.map(function (account: unknown) {
-      assertDefined(account, 'Account is undefined');
-      assertProp(check(isString, isNumber), account, 'id');
-      assertProp(check(isString, isNumber), account, 'user_id');
-      assertPropString(account, 'currency_blockchain_key');
-      assertPropString(account, 'currency_token_id');
-      assertProp(check(isString, isNumber), account, 'balance');
-      assertPropString(account, 'account_type');
-      assertProp(check(isString, isNumber), account, 'currency_decimals');
-      assertPropString(account, 'currency_name');
-      assertPropString(account, 'currency_symbol');
-      assertProp(check(isNullable, isString, isNumber), account, 'exchange_rate');
-      assertProp(check(isNullable, isInstanceOf(Date)), account, 'rate_date');
-      assertProp(check(isNullable, isString), account, 'rate_source');
-      assertProp(check(isNullable, isString, isNumber), account, 'quote_currency_decimals');
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row);
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'userId');
+      assertPropString(row, 'currencyBlockchainKey');
+      assertPropString(row, 'currencyTokenId');
+      assertProp(check(isString, isNumber), row, 'balance');
+      assertPropString(row, 'accountType');
+      assertProp(check(isString, isNumber), row, 'currencyDecimals');
+      assertPropString(row, 'currencyName');
+      assertPropString(row, 'currencySymbol');
+      assertProp(check(isNullable, isString, isNumber), row, 'exchangeRate');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'rateDate');
+      assertProp(check(isNullable, isString), row, 'rateSource');
+      assertProp(check(isNullable, isString, isNumber), row, 'quoteCurrencyDecimals');
 
-      const balance = BigInt(account.balance);
-      const currencyDecimals = Number(account.currency_decimals);
-      const exchangeRate = account.exchange_rate ? BigInt(account.exchange_rate) : null;
-      const quoteCurrencyDecimals = account.quote_currency_decimals
-        ? Number(account.quote_currency_decimals)
-        : 6; // USD default decimals
+      const balance = BigInt(row.balance);
+      const currencyDecimals = Number(row.currencyDecimals);
+      const exchangeRate = row.exchangeRate ? BigInt(row.exchangeRate) : null;
+      const quoteCurrencyDecimals = row.quoteCurrencyDecimals
+        ? Number(row.quoteCurrencyDecimals)
+        : 6;
 
-      // Calculate valuation in USD if exchange rate exists
       let valuationAmount: string | null = null;
       if (exchangeRate !== null && balance > BigInt(0)) {
-        // Formula: (balance * exchangeRate) / (10^currencyDecimals)
-        // This gives us the value in quote currency's smallest unit
         const valuationInSmallestUnit = (balance * exchangeRate) / BigInt(10 ** currencyDecimals);
         valuationAmount = valuationInSmallestUnit.toString();
-
-        // Add to total portfolio value
         totalPortfolioValueUsd += valuationInSmallestUnit;
       }
 
-      return {
-        id: String(account.id),
-        userId: String(account.user_id),
-        currencyBlockchainKey: account.currency_blockchain_key,
-        currencyTokenId: account.currency_token_id,
-        currencyName: account.currency_name,
-        currencySymbol: account.currency_symbol,
-        currencyDecimals: currencyDecimals,
-        balance: String(account.balance),
-        accountType: account.account_type,
-        valuationAmount,
-        exchangeRate: exchangeRate ? String(exchangeRate) : undefined,
-        rateSource: account.rate_source || undefined,
-        rateDate: account.rate_date || undefined,
-        quoteCurrencyDecimals,
-      };
+      setPropValue(row, 'id', String(row.id));
+      setPropValue(row, 'userId', String(row.userId));
+      setPropValue(row, 'balance', String(row.balance));
+      setPropValue(row, 'currencyDecimals', currencyDecimals);
+      setPropValue(row, 'valuationAmount', valuationAmount);
+      setPropValue(row, 'exchangeRate', exchangeRate ? String(exchangeRate) : undefined);
+      setPropValue(row, 'rateSource', row.rateSource || undefined);
+      setPropValue(row, 'rateDate', row.rateDate || undefined);
+      setPropValue(row, 'quoteCurrencyDecimals', quoteCurrencyDecimals);
+      return row;
     });
 
     return {
-      accounts: mappedAccounts,
+      accounts: rows,
       totalPortfolioValueUsd: totalPortfolioValueUsd.toString(),
     };
   }
@@ -154,144 +139,132 @@ export abstract class FinanceUserRepsitory extends UserRepository {
   async userViewsAccountTransactionHistory(
     params: UserViewsAccountTransactionHistoryParams,
   ): Promise<UserViewsAccountTransactionHistoryResult> {
-    const { accountId, mutationType, fromDate, toDate, limit = 50, offset = 0 } = params;
+    const limit = params.limit ?? 50;
+    const offset = params.offset ?? 0;
 
-    // Get total count first
     const countResult = await this.sql`
       SELECT COUNT(*) as total
       FROM account_mutations
-      WHERE account_id = ${accountId}
-        AND (${mutationType}::text IS NULL OR mutation_type = ${mutationType})
-        AND (${fromDate}::timestamp IS NULL OR mutation_date >= ${fromDate})
-        AND (${toDate}::timestamp IS NULL OR mutation_date <= ${toDate})
+      WHERE account_id = ${params.accountId}
+        AND (${params.mutationType}::text IS NULL OR mutation_type = ${params.mutationType})
+        AND (${params.fromDate}::timestamp IS NULL OR mutation_date >= ${params.fromDate})
+        AND (${params.toDate}::timestamp IS NULL OR mutation_date <= ${params.toDate})
     `;
 
     const countRow = Array.isArray(countResult) ? countResult[0] : countResult;
-    assertDefined(countRow, 'Count query failed');
+    assertDefined(countRow);
     assertProp(check(isString, isNumber), countRow, 'total');
     const totalCount = Number(countRow.total);
 
     const rows = await this.sql`
       SELECT
         id,
-        account_id,
-        mutation_type,
-        mutation_date,
+        account_id AS "accountId",
+        mutation_type AS "mutationType",
+        mutation_date AS "mutationDate",
         amount,
-        invoice_id,
-        withdrawal_id,
-        invoice_payment_id
+        invoice_id AS "invoiceId",
+        withdrawal_id AS "withdrawalId",
+        invoice_payment_id AS "invoicePaymentId"
       FROM account_mutations
-      WHERE account_id = ${accountId}
-        AND (${mutationType}::text IS NULL OR mutation_type = ${mutationType})
-        AND (${fromDate}::timestamp IS NULL OR mutation_date >= ${fromDate})
-        AND (${toDate}::timestamp IS NULL OR mutation_date <= ${toDate})
+      WHERE account_id = ${params.accountId}
+        AND (${params.mutationType}::text IS NULL OR mutation_type = ${params.mutationType})
+        AND (${params.fromDate}::timestamp IS NULL OR mutation_date >= ${params.fromDate})
+        AND (${params.toDate}::timestamp IS NULL OR mutation_date <= ${params.toDate})
       ORDER BY mutation_date DESC
       LIMIT ${limit}
       OFFSET ${offset}
     `;
 
-    const mutations = rows;
-    const hasMore = offset + mutations.length < totalCount;
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row);
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'accountId');
+      assertPropString(row, 'mutationType');
+      assertProp(isInstanceOf(Date), row, 'mutationDate');
+      assertProp(check(isString, isNumber), row, 'amount');
+      assertProp(check(isNullable, isString, isNumber), row, 'invoiceId');
+      assertProp(check(isNullable, isString, isNumber), row, 'withdrawalId');
+      assertProp(check(isNullable, isString, isNumber), row, 'invoicePaymentId');
+
+      setPropValue(row, 'id', String(row.id));
+      setPropValue(row, 'accountId', String(row.accountId));
+      setPropValue(row, 'amount', String(row.amount));
+      setPropValue(row, 'invoiceId', row.invoiceId ? String(row.invoiceId) : undefined);
+      setPropValue(row, 'withdrawalId', row.withdrawalId ? String(row.withdrawalId) : undefined);
+      setPropValue(
+        row,
+        'invoicePaymentId',
+        row.invoicePaymentId ? String(row.invoicePaymentId) : undefined,
+      );
+      return row;
+    });
 
     return {
-      mutations: mutations.map(function (mutation: unknown) {
-        assertDefined(mutation, 'Mutation is undefined');
-        assertProp(check(isString, isNumber), mutation, 'id');
-        assertProp(check(isString, isNumber), mutation, 'account_id');
-        assertPropString(mutation, 'mutation_type');
-        assertProp(isInstanceOf(Date), mutation, 'mutation_date');
-        assertProp(check(isString, isNumber), mutation, 'amount');
-        assertPropNullableString(mutation, 'invoice_id');
-        assertPropNullableString(mutation, 'withdrawal_id');
-        assertPropNullableString(mutation, 'invoice_payment_id');
-        return {
-          id: String(mutation.id),
-          accountId: String(mutation.account_id),
-          mutationType: mutation.mutation_type,
-          mutationDate: mutation.mutation_date,
-          amount: String(mutation.amount),
-          invoiceId: mutation.invoice_id ? String(mutation.invoice_id) : undefined,
-          withdrawalId: mutation.withdrawal_id ? String(mutation.withdrawal_id) : undefined,
-          invoicePaymentId: mutation.invoice_payment_id
-            ? String(mutation.invoice_payment_id)
-            : undefined,
-        };
-      }),
+      mutations: rows,
       totalCount,
-      hasMore,
+      hasMore: offset + rows.length < totalCount,
     };
   }
 
   async userViewsInvoiceDetails(
     params: UserViewsInvoiceDetailsParams,
   ): Promise<UserViewsInvoiceDetailsResult> {
-    const { invoiceId } = params;
-
     const rows = await this.sql`
       SELECT
         id,
-        user_id,
-        currency_blockchain_key,
-        currency_token_id,
-        invoiced_amount,
-        paid_amount,
-        wallet_address,
-        invoice_type,
+        user_id AS "userId",
+        currency_blockchain_key AS "currencyBlockchainKey",
+        currency_token_id AS "currencyTokenId",
+        invoiced_amount AS "invoicedAmount",
+        paid_amount AS "paidAmount",
+        wallet_address AS "walletAddress",
+        invoice_type AS "invoiceType",
         status,
-        invoice_date,
-        due_date,
-        expired_date,
-        paid_date
+        invoice_date AS "invoiceDate",
+        due_date AS "dueDate",
+        expired_date AS "expiredDate",
+        paid_date AS "paidDate"
       FROM invoices
-      WHERE id = ${invoiceId}
+      WHERE id = ${params.invoiceId}
     `;
 
     if (rows.length === 0) {
       throw new Error('Invoice not found');
     }
 
-    const invoice = rows[0];
-    assertDefined(invoice, 'Invoice not found');
-    assertProp(check(isString, isNumber), invoice, 'id');
-    assertProp(check(isString, isNumber), invoice, 'user_id');
-    assertPropString(invoice, 'currency_blockchain_key');
-    assertPropString(invoice, 'currency_token_id');
-    assertPropString(invoice, 'wallet_address');
-    assertPropString(invoice, 'invoice_type');
-    assertPropString(invoice, 'status');
-    assertProp(check(isString, isNumber), invoice, 'invoiced_amount');
-    assertProp(check(isString, isNumber), invoice, 'paid_amount');
-    assertProp(isInstanceOf(Date), invoice, 'invoice_date');
-    assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'due_date');
-    assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'expired_date');
-    assertProp(check(isNullable, isInstanceOf(Date)), invoice, 'paid_date');
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row);
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'userId');
+      assertPropString(row, 'currencyBlockchainKey');
+      assertPropString(row, 'currencyTokenId');
+      assertPropString(row, 'walletAddress');
+      assertPropString(row, 'invoiceType');
+      assertPropString(row, 'status');
+      assertProp(check(isString, isNumber), row, 'invoicedAmount');
+      assertProp(check(isString, isNumber), row, 'paidAmount');
+      assertProp(isInstanceOf(Date), row, 'invoiceDate');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'dueDate');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'expiredDate');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'paidDate');
 
-    return {
-      id: String(invoice.id),
-      userId: String(invoice.user_id),
-      currencyBlockchainKey: invoice.currency_blockchain_key,
-      currencyTokenId: invoice.currency_token_id,
-      invoicedAmount: String(invoice.invoiced_amount),
-      paidAmount: String(invoice.paid_amount),
-      walletAddress: invoice.wallet_address,
-      invoiceType: invoice.invoice_type,
-      status: invoice.status,
-      invoiceDate: invoice.invoice_date,
-      dueDate: invoice.due_date,
-      expiredDate: invoice.expired_date,
-      paidDate: invoice.paid_date,
-    };
+      setPropValue(row, 'id', String(row.id));
+      setPropValue(row, 'userId', String(row.userId));
+      setPropValue(row, 'invoicedAmount', String(row.invoicedAmount));
+      setPropValue(row, 'paidAmount', String(row.paidAmount));
+      return row;
+    });
+
+    return rows[0];
   }
 
   async userRequestsWithdrawal(
     params: UserRequestsWithdrawalParams,
   ): Promise<UserRequestsWithdrawalResult> {
-    const { beneficiaryId, currencyBlockchainKey, currencyTokenId, amount, requestDate } = params;
-
     const tx = await this.beginTransaction();
     try {
-      const rows = await this.sql`
+      const rows = await tx.sql`
         INSERT INTO withdrawals (
           beneficiary_id,
           currency_blockchain_key,
@@ -302,36 +275,42 @@ export abstract class FinanceUserRepsitory extends UserRepository {
           status
         )
         VALUES (
-          ${beneficiaryId},
-          ${currencyBlockchainKey},
-          ${currencyTokenId},
-          ${amount},
-          ${amount},
-          ${requestDate.toISOString()},
+          ${params.beneficiaryId},
+          ${params.currencyBlockchainKey},
+          ${params.currencyTokenId},
+          ${params.amount},
+          ${params.amount},
+          ${params.requestDate.toISOString()},
           'Requested'
         )
-        RETURNING id, beneficiary_id, amount, request_amount, status, request_date
+        RETURNING
+          id,
+          beneficiary_id AS "beneficiaryId",
+          amount,
+          request_amount AS "requestAmount",
+          status,
+          request_date AS "requestDate"
       `;
 
-      const withdrawal = rows[0];
-      assertDefined(withdrawal, 'Withdrawal request failed');
-      assertProp(check(isString, isNumber), withdrawal, 'id');
-      assertProp(check(isString, isNumber), withdrawal, 'beneficiary_id');
-      assertProp(check(isString, isNumber), withdrawal, 'amount');
-      assertProp(check(isString, isNumber), withdrawal, 'request_amount');
-      assertPropString(withdrawal, 'status');
-      assertProp(isInstanceOf(Date), withdrawal, 'request_date');
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row);
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isString, isNumber), row, 'beneficiaryId');
+        assertProp(check(isString, isNumber), row, 'amount');
+        assertProp(check(isString, isNumber), row, 'requestAmount');
+        assertPropString(row, 'status');
+        assertProp(isInstanceOf(Date), row, 'requestDate');
+
+        setPropValue(row, 'id', String(row.id));
+        setPropValue(row, 'beneficiaryId', String(row.beneficiaryId));
+        setPropValue(row, 'amount', String(row.amount));
+        setPropValue(row, 'requestAmount', String(row.requestAmount));
+        return row;
+      });
 
       await tx.commitTransaction();
 
-      return {
-        id: String(withdrawal.id),
-        beneficiaryId: String(withdrawal.beneficiary_id),
-        amount: String(withdrawal.amount),
-        requestAmount: String(withdrawal.request_amount),
-        status: withdrawal.status,
-        requestDate: withdrawal.request_date,
-      };
+      return rows[0];
     } catch (error) {
       await tx.rollbackTransaction();
       throw error;
@@ -341,39 +320,41 @@ export abstract class FinanceUserRepsitory extends UserRepository {
   async userRegistersWithdrawalBeneficiary(
     params: UserRegistersWithdrawalBeneficiaryParams,
   ): Promise<UserRegistersWithdrawalBeneficiaryResult> {
-    const { userId, blockchainKey, address } = params;
-
     const tx = await this.beginTransaction();
     try {
-      const rows = await this.sql`
+      const rows = await tx.sql`
         INSERT INTO beneficiaries (
           user_id,
           blockchain_key,
           address
         )
         VALUES (
-          ${userId},
-          ${blockchainKey},
-          ${address}
+          ${params.userId},
+          ${params.blockchainKey},
+          ${params.address}
         )
-        RETURNING id, user_id, blockchain_key, address
+        RETURNING
+          id,
+          user_id AS "userId",
+          blockchain_key AS "blockchainKey",
+          address
       `;
 
-      const beneficiary = rows[0];
-      assertDefined(beneficiary, 'Beneficiary registration failed');
-      assertProp(check(isString, isNumber), beneficiary, 'id');
-      assertProp(check(isString, isNumber), beneficiary, 'user_id');
-      assertPropString(beneficiary, 'blockchain_key');
-      assertPropString(beneficiary, 'address');
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row);
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isString, isNumber), row, 'userId');
+        assertPropString(row, 'blockchainKey');
+        assertPropString(row, 'address');
+
+        setPropValue(row, 'id', String(row.id));
+        setPropValue(row, 'userId', String(row.userId));
+        return row;
+      });
 
       await tx.commitTransaction();
 
-      return {
-        id: String(beneficiary.id),
-        userId: String(beneficiary.user_id),
-        blockchainKey: beneficiary.blockchain_key,
-        address: beneficiary.address,
-      };
+      return rows[0];
     } catch (error) {
       await tx.rollbackTransaction();
       throw error;
@@ -383,69 +364,65 @@ export abstract class FinanceUserRepsitory extends UserRepository {
   async userViewsWithdrawalBeneficiaries(
     params: UserViewsWithdrawalBeneficiariesParams,
   ): Promise<UserViewsWithdrawalBeneficiariesResult> {
-    const { userId } = params;
-
     const rows = await this.sql`
       SELECT
         id,
-        user_id,
-        blockchain_key,
+        user_id AS "userId",
+        blockchain_key AS "blockchainKey",
         address
       FROM beneficiaries
-      WHERE user_id = ${userId}
+      WHERE user_id = ${params.userId}
       ORDER BY blockchain_key, address
     `;
 
-    const beneficiaries = rows;
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row);
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'userId');
+      assertPropString(row, 'blockchainKey');
+      assertPropString(row, 'address');
+
+      setPropValue(row, 'id', String(row.id));
+      setPropValue(row, 'userId', String(row.userId));
+      return row;
+    });
 
     return {
-      beneficiaries: beneficiaries.map(function (beneficiary: unknown) {
-        assertDefined(beneficiary, 'Beneficiary record is undefined');
-        assertProp(check(isString, isNumber), beneficiary, 'id');
-        assertProp(check(isString, isNumber), beneficiary, 'user_id');
-        assertPropString(beneficiary, 'blockchain_key');
-        assertPropString(beneficiary, 'address');
-        return {
-          id: String(beneficiary.id),
-          userId: String(beneficiary.user_id),
-          blockchainKey: beneficiary.blockchain_key,
-          address: beneficiary.address,
-        };
-      }),
+      beneficiaries: rows,
     };
   }
 
   // Currency Management Methods
   async userViewsCurrencies(params: UserViewsCurrenciesParams): Promise<UserViewsCurrenciesResult> {
-    const { type = 'all', blockchainKey, minLtv, maxLtv } = params;
+    const type = params.type ?? 'all';
 
     const rows = await this.sql`
       SELECT
-        c.blockchain_key,
-        c.token_id,
+        c.blockchain_key AS "blockchainKey",
+        c.token_id AS "tokenId",
         c.name,
         c.symbol,
         c.decimals,
-        c.image as logo_url,
-        c.withdrawal_fee_rate,
-        c.min_withdrawal_amount,
-        c.max_withdrawal_amount,
-        c.max_daily_withdrawal_amount,
-        c.min_loan_principal_amount,
-        c.max_loan_principal_amount,
-        c.max_ltv,
-        c.ltv_warning_threshold,
-        c.ltv_critical_threshold,
-        c.ltv_liquidation_threshold,
-        b.key as blockchain_key_ref,
-        b.name as blockchain_name,
-        b.short_name as blockchain_short_name,
-        b.image as blockchain_image
+        c.image AS "logoUrl",
+        c.withdrawal_fee_rate AS "withdrawalFeeRate",
+        c.min_withdrawal_amount AS "minWithdrawalAmount",
+        c.max_withdrawal_amount AS "maxWithdrawalAmount",
+        c.max_daily_withdrawal_amount AS "maxDailyWithdrawalAmount",
+        c.min_loan_principal_amount AS "minLoanPrincipalAmount",
+        c.max_loan_principal_amount AS "maxLoanPrincipalAmount",
+        c.max_ltv AS "maxLtv",
+        c.ltv_warning_threshold AS "ltvWarningThreshold",
+        c.ltv_critical_threshold AS "ltvCriticalThreshold",
+        c.ltv_liquidation_threshold AS "ltvLiquidationThreshold",
+        b.key AS "blockchainKey_ref",
+        b.name AS "blockchainName",
+        b.short_name AS "blockchainShortName",
+        b.image AS "blockchainImage"
       FROM currencies c
       JOIN blockchains b ON c.blockchain_key = b.key
-      WHERE (${blockchainKey}::text IS NULL OR c.blockchain_key = ${blockchainKey})
-        AND (${minLtv}::numeric IS NULL OR c.max_ltv >= ${minLtv})
-        AND (${maxLtv}::numeric IS NULL OR c.max_ltv <= ${maxLtv})
+      WHERE (${params.blockchainKey}::text IS NULL OR c.blockchain_key = ${params.blockchainKey})
+        AND (${params.minLtv}::numeric IS NULL OR c.max_ltv >= ${params.minLtv})
+        AND (${params.maxLtv}::numeric IS NULL OR c.max_ltv <= ${params.maxLtv})
         AND (
           ${type}::text = 'all' OR
           (${type}::text = 'collateral' AND c.max_ltv > 0) OR
@@ -453,84 +430,74 @@ export abstract class FinanceUserRepsitory extends UserRepository {
         )
       ORDER BY
         CASE
-          WHEN c.max_ltv > 0 THEN 0  -- Collateral currencies first
-          ELSE 1                     -- Loan currencies second
+          WHEN c.max_ltv > 0 THEN 0
+          ELSE 1
         END,
         c.blockchain_key,
         c.token_id
     `;
 
-    const currencies = rows;
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row);
+      assertPropString(row, 'blockchainKey');
+      assertPropString(row, 'tokenId');
+      assertPropString(row, 'name');
+      assertPropString(row, 'symbol');
+      assertProp(check(isString, isNumber), row, 'decimals');
+      assertPropString(row, 'logoUrl');
+      assertProp(check(isString, isNumber), row, 'withdrawalFeeRate');
+      assertProp(check(isString, isNumber), row, 'minWithdrawalAmount');
+      assertProp(check(isString, isNumber), row, 'maxWithdrawalAmount');
+      assertProp(check(isString, isNumber), row, 'maxDailyWithdrawalAmount');
+      assertProp(check(isString, isNumber), row, 'minLoanPrincipalAmount');
+      assertProp(check(isString, isNumber), row, 'maxLoanPrincipalAmount');
+      assertProp(check(isString, isNumber), row, 'maxLtv');
+      assertProp(check(isString, isNumber), row, 'ltvWarningThreshold');
+      assertProp(check(isString, isNumber), row, 'ltvCriticalThreshold');
+      assertProp(check(isString, isNumber), row, 'ltvLiquidationThreshold');
+      assertPropString(row, 'blockchainKey_ref');
+      assertPropString(row, 'blockchainName');
+      assertPropString(row, 'blockchainShortName');
+      assertPropString(row, 'blockchainImage');
+
+      const maxLtv = Number(row.maxLtv);
+
+      setPropValue(row, 'decimals', Number(row.decimals));
+      setPropValue(row, 'maxLtv', maxLtv);
+      setPropValue(row, 'isCollateralCurrency', maxLtv > 0);
+      setPropValue(
+        row,
+        'isLoanCurrency',
+        (row.symbol === 'USDC' || row.symbol === 'USDT' || row.symbol === 'USD') && maxLtv === 0,
+      );
+      setPropValue(row, 'ltvWarningThreshold', Number(row.ltvWarningThreshold));
+      setPropValue(row, 'ltvCriticalThreshold', Number(row.ltvCriticalThreshold));
+      setPropValue(row, 'ltvLiquidationThreshold', Number(row.ltvLiquidationThreshold));
+      setPropValue(row, 'minLoanPrincipalAmount', String(row.minLoanPrincipalAmount));
+      setPropValue(row, 'maxLoanPrincipalAmount', String(row.maxLoanPrincipalAmount));
+      setPropValue(row, 'minWithdrawalAmount', String(row.minWithdrawalAmount));
+      setPropValue(row, 'maxWithdrawalAmount', String(row.maxWithdrawalAmount));
+      setPropValue(row, 'maxDailyWithdrawalAmount', String(row.maxDailyWithdrawalAmount));
+      setPropValue(row, 'withdrawalFeeRate', Number(row.withdrawalFeeRate));
+      setPropValue(row, 'blockchain', {
+        key: row.blockchainKey_ref,
+        name: row.blockchainName,
+        shortName: row.blockchainShortName,
+        image: row.blockchainImage,
+      });
+      return row;
+    });
 
     return {
-      currencies: currencies.map(function (currency: unknown) {
-        assertDefined(currency);
-        assertPropString(currency, 'blockchain_key');
-        assertPropString(currency, 'token_id');
-        assertPropString(currency, 'name');
-        assertPropString(currency, 'symbol');
-        assertProp(check(isString, isNumber), currency, 'decimals');
-        assertPropString(currency, 'logo_url');
-        assertProp(check(isString, isNumber), currency, 'withdrawal_fee_rate');
-        assertProp(check(isString, isNumber), currency, 'min_withdrawal_amount');
-        assertProp(check(isString, isNumber), currency, 'max_withdrawal_amount');
-        assertProp(check(isString, isNumber), currency, 'max_daily_withdrawal_amount');
-        assertProp(check(isString, isNumber), currency, 'min_loan_principal_amount');
-        assertProp(check(isString, isNumber), currency, 'max_loan_principal_amount');
-        assertProp(check(isString, isNumber), currency, 'max_ltv');
-        assertProp(check(isString, isNumber), currency, 'ltv_warning_threshold');
-        assertProp(check(isString, isNumber), currency, 'ltv_critical_threshold');
-        assertProp(check(isString, isNumber), currency, 'ltv_liquidation_threshold');
-        assertPropString(currency, 'blockchain_key_ref');
-        assertPropString(currency, 'blockchain_name');
-        assertPropString(currency, 'blockchain_short_name');
-        assertPropString(currency, 'blockchain_image');
-
-        // Determine currency type based on configuration
-        const maxLtv = Number(currency.max_ltv);
-        const isCollateralCurrency = maxLtv > 0;
-        // USDT/USDC currencies are loan currencies (based on SRS - loans only in USDT form)
-        const isLoanCurrency =
-          (currency.symbol === 'USDC' || currency.symbol === 'USDT' || currency.symbol === 'USD') &&
-          maxLtv === 0;
-
-        return {
-          blockchainKey: currency.blockchain_key,
-          tokenId: currency.token_id,
-          name: currency.name,
-          symbol: currency.symbol,
-          decimals: Number(currency.decimals),
-          logoUrl: currency.logo_url,
-          isCollateralCurrency,
-          isLoanCurrency,
-          maxLtv: Number(currency.max_ltv),
-          ltvWarningThreshold: Number(currency.ltv_warning_threshold),
-          ltvCriticalThreshold: Number(currency.ltv_critical_threshold),
-          ltvLiquidationThreshold: Number(currency.ltv_liquidation_threshold),
-          minLoanPrincipalAmount: String(currency.min_loan_principal_amount),
-          maxLoanPrincipalAmount: String(currency.max_loan_principal_amount),
-          minWithdrawalAmount: String(currency.min_withdrawal_amount),
-          maxWithdrawalAmount: String(currency.max_withdrawal_amount),
-          maxDailyWithdrawalAmount: String(currency.max_daily_withdrawal_amount),
-          withdrawalFeeRate: Number(currency.withdrawal_fee_rate),
-          blockchain: {
-            key: currency.blockchain_key_ref,
-            name: currency.blockchain_name,
-            shortName: currency.blockchain_short_name,
-            image: currency.blockchain_image,
-          },
-        };
-      }),
+      currencies: rows,
     };
   }
 
   async userViewsWithdrawals(
     params: UserViewsWithdrawalsParams,
   ): Promise<UserViewsWithdrawalsResult> {
-    const { userId, page = 1, limit = 20, state } = params;
-
-    const validatedPage = Math.max(1, page);
-    const validatedLimit = Math.min(Math.max(1, limit), 100);
+    const validatedPage = Math.max(1, params.page ?? 1);
+    const validatedLimit = Math.min(Math.max(1, params.limit ?? 20), 100);
     const offset = (validatedPage - 1) * validatedLimit;
 
     // Get total count with state filter
@@ -538,108 +505,109 @@ export abstract class FinanceUserRepsitory extends UserRepository {
       SELECT COUNT(*) as total
       FROM withdrawals w
       JOIN beneficiaries b ON w.beneficiary_id = b.id
-      WHERE b.user_id = ${userId}
-        AND (${state}::text IS NULL OR
-          (${state} = 'requested' AND w.request_date IS NOT NULL AND w.sent_date IS NULL) OR
-          (${state} = 'sent' AND w.sent_date IS NOT NULL AND w.confirmed_date IS NULL AND w.failed_date IS NULL) OR
-          (${state} = 'confirmed' AND w.confirmed_date IS NOT NULL) OR
-          (${state} = 'failed' AND w.failed_date IS NOT NULL)
+      WHERE b.user_id = ${params.userId}
+        AND (${params.state}::text IS NULL OR
+          (${params.state} = 'requested' AND w.request_date IS NOT NULL AND w.sent_date IS NULL) OR
+          (${params.state} = 'sent' AND w.sent_date IS NOT NULL AND w.confirmed_date IS NULL AND w.failed_date IS NULL) OR
+          (${params.state} = 'confirmed' AND w.confirmed_date IS NOT NULL) OR
+          (${params.state} = 'failed' AND w.failed_date IS NOT NULL)
         )
     `;
 
-    const countRow = countRows[0] as { total: number };
-    const totalCount = Number(countRow.total);
+    assertArrayMapOf(countRows, function (row) {
+      assertDefined(row);
+      assertProp(check(isString, isNumber), row, 'total');
+      setPropValue(row, 'total', Number(row.total));
+      return row;
+    });
+    const totalCount = countRows[0].total;
     const totalPages = Math.ceil(totalCount / validatedLimit);
 
     // Get withdrawals with comprehensive details and state filter
     const rows = await this.sql`
       SELECT
         w.id,
-        w.beneficiary_id,
-        b.address as beneficiary_address,
-        b.blockchain_key as beneficiary_blockchain_key,
-        b.user_id as beneficiary_user_id,
-        w.currency_blockchain_key,
-        w.currency_token_id,
-        c.name as currency_name,
-        c.symbol as currency_symbol,
-        c.decimals as currency_decimals,
-        c.image as currency_image,
-        bc.name as blockchain_name,
-        bc.short_name as blockchain_short_name,
-        bc.image as blockchain_image,
-        w.request_amount,
+        w.beneficiary_id AS "beneficiaryId",
+        b.address AS "beneficiaryAddress",
+        b.blockchain_key AS "beneficiaryBlockchainKey",
+        b.user_id AS "beneficiaryUserId",
+        w.currency_blockchain_key AS "currencyBlockchainKey",
+        w.currency_token_id AS "currencyTokenId",
+        c.name AS "currencyName",
+        c.symbol AS "currencySymbol",
+        c.decimals AS "currencyDecimals",
+        c.image AS "currencyImage",
+        bc.name AS "blockchainName",
+        bc.short_name AS "blockchainShortName",
+        bc.image AS "blockchainImage",
+        w.request_amount AS "requestAmount",
         w.status,
-        w.request_date,
-        w.sent_date,
-        w.sent_amount,
-        w.sent_hash,
-        w.confirmed_date,
-        w.failed_date,
-        w.failure_reason
+        w.request_date AS "requestDate",
+        w.sent_date AS "sentDate",
+        w.sent_amount AS "sentAmount",
+        w.sent_hash AS "sentHash",
+        w.confirmed_date AS "confirmedDate",
+        w.failed_date AS "failedDate",
+        w.failure_reason AS "failureReason"
       FROM withdrawals w
       JOIN beneficiaries b ON w.beneficiary_id = b.id
       JOIN currencies c ON w.currency_blockchain_key = c.blockchain_key
         AND w.currency_token_id = c.token_id
       LEFT JOIN blockchains bc ON b.blockchain_key = bc.key
-      WHERE b.user_id = ${userId}
-        AND (${state}::text IS NULL OR
-          (${state} = 'requested' AND w.request_date IS NOT NULL AND w.sent_date IS NULL) OR
-          (${state} = 'sent' AND w.sent_date IS NOT NULL AND w.confirmed_date IS NULL AND w.failed_date IS NULL) OR
-          (${state} = 'confirmed' AND w.confirmed_date IS NOT NULL) OR
-          (${state} = 'failed' AND w.failed_date IS NOT NULL)
+      WHERE b.user_id = ${params.userId}
+        AND (${params.state}::text IS NULL OR
+          (${params.state} = 'requested' AND w.request_date IS NOT NULL AND w.sent_date IS NULL) OR
+          (${params.state} = 'sent' AND w.sent_date IS NOT NULL AND w.confirmed_date IS NULL AND w.failed_date IS NULL) OR
+          (${params.state} = 'confirmed' AND w.confirmed_date IS NOT NULL) OR
+          (${params.state} = 'failed' AND w.failed_date IS NOT NULL)
         )
       ORDER BY w.request_date DESC
       LIMIT ${validatedLimit}
       OFFSET ${offset}
     `;
 
-    const withdrawals = rows.map(function (row: unknown) {
-      assertDefined(row, 'Withdrawal record is undefined');
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row);
       assertProp(check(isString, isNumber), row, 'id');
-      assertProp(check(isString, isNumber), row, 'beneficiary_id');
-      assertPropString(row, 'beneficiary_address');
-      assertPropString(row, 'beneficiary_blockchain_key');
-      assertProp(check(isString, isNumber), row, 'beneficiary_user_id');
-      assertPropString(row, 'currency_blockchain_key');
-      assertPropString(row, 'currency_token_id');
-      assertPropString(row, 'currency_symbol');
-      assertPropString(row, 'currency_name');
-      assertProp(check(isString, isNumber), row, 'currency_decimals');
-      assertPropNullableString(row, 'currency_image');
-      assertPropNullableString(row, 'blockchain_name');
-      assertPropNullableString(row, 'blockchain_short_name');
-      assertPropNullableString(row, 'blockchain_image');
-      assertProp(check(isString, isNumber), row, 'request_amount');
+      assertProp(check(isString, isNumber), row, 'beneficiaryId');
+      assertPropString(row, 'beneficiaryAddress');
+      assertPropString(row, 'beneficiaryBlockchainKey');
+      assertProp(check(isString, isNumber), row, 'beneficiaryUserId');
+      assertPropString(row, 'currencyBlockchainKey');
+      assertPropString(row, 'currencyTokenId');
+      assertPropString(row, 'currencySymbol');
+      assertPropString(row, 'currencyName');
+      assertProp(check(isString, isNumber), row, 'currencyDecimals');
+      assertPropNullableString(row, 'currencyImage');
+      assertPropNullableString(row, 'blockchainName');
+      assertPropNullableString(row, 'blockchainShortName');
+      assertPropNullableString(row, 'blockchainImage');
+      assertProp(check(isString, isNumber), row, 'requestAmount');
       assertPropString(row, 'status');
-      assertProp(isInstanceOf(Date), row, 'request_date');
-      assertProp(check(isNullable, isInstanceOf(Date)), row, 'sent_date');
-      assertPropNullableString(row, 'sent_amount');
-      assertPropNullableString(row, 'sent_hash');
-      assertProp(check(isNullable, isInstanceOf(Date)), row, 'confirmed_date');
-      assertProp(check(isNullable, isInstanceOf(Date)), row, 'failed_date');
-      assertPropNullableString(row, 'failure_reason');
+      assertProp(isInstanceOf(Date), row, 'requestDate');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'sentDate');
+      assertPropNullableString(row, 'sentAmount');
+      assertPropNullableString(row, 'sentHash');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'confirmedDate');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'failedDate');
+      assertPropNullableString(row, 'failureReason');
 
-      // Calculate network and platform fees (simplified logic)
-      const requestAmount = parseFloat(String(row.request_amount));
-      const sentAmount = row.sent_amount ? parseFloat(String(row.sent_amount)) : null;
-      const platformFee = '0.000000000000000000'; // Assume no platform fee for now
+      const requestAmount = parseFloat(String(row.requestAmount));
+      const sentAmount = row.sentAmount ? parseFloat(String(row.sentAmount)) : null;
       const networkFee = sentAmount
         ? (requestAmount - sentAmount).toString() + '.000000000000000000'
         : null;
 
-      // Calculate state based on time-based rules (not database status)
       let calculatedState: string;
-      if (row.failed_date) {
+      if (row.failedDate) {
         calculatedState = 'failed';
-      } else if (row.confirmed_date) {
+      } else if (row.confirmedDate) {
         calculatedState = 'confirmed';
-      } else if (row.sent_date && !row.confirmed_date && !row.failed_date) {
+      } else if (row.sentDate && !row.confirmedDate && !row.failedDate) {
         calculatedState = 'sent';
-      } else if (row.request_date && !row.sent_date) {
+      } else if (row.requestDate && !row.sentDate) {
         calculatedState = 'requested';
       } else {
-        // Fallback to database status mapping if time-based logic doesn't match
         const statusToStateMap: Record<string, string> = {
           Requested: 'requested',
           Sent: 'sent',
@@ -651,52 +619,50 @@ export abstract class FinanceUserRepsitory extends UserRepository {
         calculatedState = statusToStateMap[row.status] || row.status.toLowerCase();
       }
 
-      // Generate blockchain explorer URL
-      const blockchainExplorerUrl = row.sent_hash
-        ? this.generateBlockchainExplorerUrl(row.currency_blockchain_key, row.sent_hash)
+      const blockchainExplorerUrl = row.sentHash
+        ? this.generateBlockchainExplorerUrl(row.currencyBlockchainKey, row.sentHash)
         : null;
 
-      // Estimate confirmation time
       const estimatedConfirmationTime =
         calculatedState === 'requested'
-          ? this.getEstimatedConfirmationTime(row.currency_blockchain_key)
+          ? this.getEstimatedConfirmationTime(row.currencyBlockchainKey)
           : null;
 
       return {
         id: String(row.id),
         currency: {
-          blockchainKey: row.currency_blockchain_key,
-          tokenId: row.currency_token_id,
-          name: row.currency_name,
-          symbol: row.currency_symbol,
-          decimals: Number(row.currency_decimals),
-          logoUrl: row.currency_image || undefined,
+          blockchainKey: row.currencyBlockchainKey,
+          tokenId: row.currencyTokenId,
+          name: row.currencyName,
+          symbol: row.currencySymbol,
+          decimals: Number(row.currencyDecimals),
+          logoUrl: row.currencyImage || undefined,
         },
         beneficiary: {
-          id: String(row.beneficiary_id),
-          blockchainKey: row.beneficiary_blockchain_key,
-          address: row.beneficiary_address,
-          label: undefined, // Add label logic if needed
-          createdDate: row.request_date, // Use withdrawal request date as fallback
-          verifiedDate: row.request_date, // Assume verified immediately
-          isActive: true, // Assume active
+          id: String(row.beneficiaryId),
+          blockchainKey: row.beneficiaryBlockchainKey,
+          address: row.beneficiaryAddress,
+          label: undefined,
+          createdDate: row.requestDate,
+          verifiedDate: row.requestDate,
+          isActive: true,
           blockchain: {
-            key: row.beneficiary_blockchain_key,
-            name: row.blockchain_name || row.beneficiary_blockchain_key,
-            shortName: row.blockchain_short_name || row.beneficiary_blockchain_key,
-            image: row.blockchain_image || undefined,
+            key: row.beneficiaryBlockchainKey,
+            name: row.blockchainName || row.beneficiaryBlockchainKey,
+            shortName: row.blockchainShortName || row.beneficiaryBlockchainKey,
+            image: row.blockchainImage || undefined,
           },
         },
-        requestAmount: String(row.request_amount),
-        sentAmount: row.sent_amount || undefined,
+        requestAmount: String(row.requestAmount),
+        sentAmount: row.sentAmount || undefined,
         networkFee: networkFee || undefined,
-        platformFee,
-        requestDate: row.request_date,
-        sentDate: row.sent_date || undefined,
-        sentHash: row.sent_hash || undefined,
-        confirmedDate: row.confirmed_date || undefined,
-        failedDate: row.failed_date || undefined,
-        failureReason: row.failure_reason || undefined,
+        platformFee: '0.000000000000000000',
+        requestDate: row.requestDate,
+        sentDate: row.sentDate || undefined,
+        sentHash: row.sentHash || undefined,
+        confirmedDate: row.confirmedDate || undefined,
+        failedDate: row.failedDate || undefined,
+        failureReason: row.failureReason || undefined,
         state: calculatedState,
         blockchainExplorerUrl: blockchainExplorerUrl || undefined,
         estimatedConfirmationTime: estimatedConfirmationTime || undefined,
@@ -704,7 +670,7 @@ export abstract class FinanceUserRepsitory extends UserRepository {
     });
 
     return {
-      withdrawals,
+      withdrawals: rows,
       pagination: {
         page: validatedPage,
         limit: validatedLimit,
@@ -719,156 +685,149 @@ export abstract class FinanceUserRepsitory extends UserRepository {
   async userViewsWithdrawalDetails(
     params: UserViewsWithdrawalDetailsParams,
   ): Promise<UserViewsWithdrawalDetailsResult> {
-    const { userId, withdrawalId } = params;
-
     const rows = await this.sql`
       SELECT
         w.id,
-        w.beneficiary_id,
-        b.address as beneficiary_address,
-        b.blockchain_key as beneficiary_blockchain_key,
-        b.user_id as beneficiary_user_id,
-        w.currency_blockchain_key,
-        w.currency_token_id,
-        c.symbol as currency_symbol,
-        c.name as currency_name,
-        c.decimals as currency_decimals,
-        c.image as currency_image,
-        bc.name as blockchain_name,
-        bc.short_name as blockchain_short_name,
-        bc.image as blockchain_image,
+        w.beneficiary_id AS "beneficiaryId",
+        b.address AS "beneficiaryAddress",
+        b.blockchain_key AS "beneficiaryBlockchainKey",
+        b.user_id AS "beneficiaryUserId",
+        w.currency_blockchain_key AS "currencyBlockchainKey",
+        w.currency_token_id AS "currencyTokenId",
+        c.symbol AS "currencySymbol",
+        c.name AS "currencyName",
+        c.decimals AS "currencyDecimals",
+        c.image AS "currencyImage",
+        bc.name AS "blockchainName",
+        bc.short_name AS "blockchainShortName",
+        bc.image AS "blockchainImage",
         w.amount,
-        w.request_amount,
+        w.request_amount AS "requestAmount",
         w.status,
-        w.request_date,
-        w.sent_date,
-        w.sent_amount,
-        w.sent_hash,
-        w.confirmed_date,
-        w.failed_date,
-        w.failure_reason
+        w.request_date AS "requestDate",
+        w.sent_date AS "sentDate",
+        w.sent_amount AS "sentAmount",
+        w.sent_hash AS "sentHash",
+        w.confirmed_date AS "confirmedDate",
+        w.failed_date AS "failedDate",
+        w.failure_reason AS "failureReason"
       FROM withdrawals w
       JOIN beneficiaries b ON w.beneficiary_id = b.id
       JOIN currencies c ON w.currency_blockchain_key = c.blockchain_key
         AND w.currency_token_id = c.token_id
       LEFT JOIN blockchains bc ON b.blockchain_key = bc.key
-      WHERE w.id = ${withdrawalId} AND b.user_id = ${userId}
+      WHERE w.id = ${params.withdrawalId} AND b.user_id = ${params.userId}
     `;
 
     if (rows.length === 0) {
       return { withdrawal: null };
     }
 
-    const row = rows[0];
-    assertDefined(row, 'Withdrawal record is undefined');
-    assertProp(check(isString, isNumber), row, 'id');
-    assertProp(check(isString, isNumber), row, 'beneficiary_id');
-    assertPropString(row, 'beneficiary_address');
-    assertPropString(row, 'beneficiary_blockchain_key');
-    assertProp(check(isString, isNumber), row, 'beneficiary_user_id');
-    assertPropString(row, 'currency_blockchain_key');
-    assertPropString(row, 'currency_token_id');
-    assertPropString(row, 'currency_symbol');
-    assertPropString(row, 'currency_name');
-    assertProp(check(isString, isNumber), row, 'currency_decimals');
-    assertPropNullableString(row, 'currency_image');
-    assertPropNullableString(row, 'blockchain_name');
-    assertPropNullableString(row, 'blockchain_short_name');
-    assertPropNullableString(row, 'blockchain_image');
-    assertProp(check(isString, isNumber), row, 'amount');
-    assertProp(check(isString, isNumber), row, 'request_amount');
-    assertPropString(row, 'status');
-    assertProp(isInstanceOf(Date), row, 'request_date');
-    assertProp(check(isNullable, isInstanceOf(Date)), row, 'sent_date');
-    assertPropNullableString(row, 'sent_amount');
-    assertPropNullableString(row, 'sent_hash');
-    assertProp(check(isNullable, isInstanceOf(Date)), row, 'confirmed_date');
-    assertProp(check(isNullable, isInstanceOf(Date)), row, 'failed_date');
-    assertPropNullableString(row, 'failure_reason');
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row);
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'beneficiaryId');
+      assertPropString(row, 'beneficiaryAddress');
+      assertPropString(row, 'beneficiaryBlockchainKey');
+      assertProp(check(isString, isNumber), row, 'beneficiaryUserId');
+      assertPropString(row, 'currencyBlockchainKey');
+      assertPropString(row, 'currencyTokenId');
+      assertPropString(row, 'currencySymbol');
+      assertPropString(row, 'currencyName');
+      assertProp(check(isString, isNumber), row, 'currencyDecimals');
+      assertPropNullableString(row, 'currencyImage');
+      assertPropNullableString(row, 'blockchainName');
+      assertPropNullableString(row, 'blockchainShortName');
+      assertPropNullableString(row, 'blockchainImage');
+      assertProp(check(isString, isNumber), row, 'amount');
+      assertProp(check(isString, isNumber), row, 'requestAmount');
+      assertPropString(row, 'status');
+      assertProp(isInstanceOf(Date), row, 'requestDate');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'sentDate');
+      assertPropNullableString(row, 'sentAmount');
+      assertPropNullableString(row, 'sentHash');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'confirmedDate');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'failedDate');
+      assertPropNullableString(row, 'failureReason');
 
-    // Calculate network and platform fees (simplified logic)
-    const requestAmount = parseFloat(String(row.request_amount));
-    const sentAmount = row.sent_amount ? parseFloat(String(row.sent_amount)) : null;
-    const platformFee = '0.000000000000000000'; // Assume no platform fee for now
-    const networkFee = sentAmount
-      ? (requestAmount - sentAmount).toString() + '.000000000000000000'
-      : null;
-
-    // Calculate state based on time-based rules (not database status)
-    let calculatedState: string;
-    if (row.failed_date) {
-      calculatedState = 'failed';
-    } else if (row.confirmed_date) {
-      calculatedState = 'confirmed';
-    } else if (row.sent_date && !row.confirmed_date && !row.failed_date) {
-      calculatedState = 'sent';
-    } else if (row.request_date && !row.sent_date) {
-      calculatedState = 'requested';
-    } else {
-      // Fallback to database status mapping if time-based logic doesn't match
-      const statusToStateMap: Record<string, string> = {
-        Requested: 'requested',
-        Sent: 'sent',
-        Confirmed: 'confirmed',
-        Failed: 'failed',
-        RefundApproved: 'refund_approved',
-        RefundRejected: 'refund_rejected',
-      };
-      calculatedState = statusToStateMap[row.status] || row.status.toLowerCase();
-    }
-
-    // Generate blockchain explorer URL
-    const blockchainExplorerUrl = row.sent_hash
-      ? this.generateBlockchainExplorerUrl(row.currency_blockchain_key, row.sent_hash)
-      : null;
-
-    // Estimate confirmation time
-    const estimatedConfirmationTime =
-      calculatedState === 'requested'
-        ? this.getEstimatedConfirmationTime(row.currency_blockchain_key)
+      const requestAmount = parseFloat(String(row.requestAmount));
+      const sentAmount = row.sentAmount ? parseFloat(String(row.sentAmount)) : null;
+      const networkFee = sentAmount
+        ? (requestAmount - sentAmount).toString() + '.000000000000000000'
         : null;
 
-    const withdrawal = {
-      id: String(row.id),
-      currency: {
-        blockchainKey: row.currency_blockchain_key,
-        tokenId: row.currency_token_id,
-        name: row.currency_name,
-        symbol: row.currency_symbol,
-        decimals: Number(row.currency_decimals),
-        logoUrl: row.currency_image || undefined,
-      },
-      beneficiary: {
-        id: String(row.beneficiary_id),
-        blockchainKey: row.beneficiary_blockchain_key,
-        address: row.beneficiary_address,
-        label: undefined, // Add label logic if needed
-        createdDate: row.request_date, // Use withdrawal request date as fallback
-        verifiedDate: row.request_date, // Assume verified immediately
-        isActive: true, // Assume active
-        blockchain: {
-          key: row.beneficiary_blockchain_key,
-          name: row.blockchain_name || row.beneficiary_blockchain_key,
-          shortName: row.blockchain_short_name || row.beneficiary_blockchain_key,
-          image: row.blockchain_image || undefined,
-        },
-      },
-      requestAmount: String(row.request_amount),
-      sentAmount: row.sent_amount || undefined,
-      networkFee: networkFee || undefined,
-      platformFee,
-      requestDate: row.request_date,
-      sentDate: row.sent_date || undefined,
-      sentHash: row.sent_hash || undefined,
-      confirmedDate: row.confirmed_date || undefined,
-      failedDate: row.failed_date || undefined,
-      failureReason: row.failure_reason || undefined,
-      state: calculatedState,
-      blockchainExplorerUrl: blockchainExplorerUrl || undefined,
-      estimatedConfirmationTime: estimatedConfirmationTime || undefined,
-    };
+      let calculatedState: string;
+      if (row.failedDate) {
+        calculatedState = 'failed';
+      } else if (row.confirmedDate) {
+        calculatedState = 'confirmed';
+      } else if (row.sentDate && !row.confirmedDate && !row.failedDate) {
+        calculatedState = 'sent';
+      } else if (row.requestDate && !row.sentDate) {
+        calculatedState = 'requested';
+      } else {
+        const statusToStateMap: Record<string, string> = {
+          Requested: 'requested',
+          Sent: 'sent',
+          Confirmed: 'confirmed',
+          Failed: 'failed',
+          RefundApproved: 'refund_approved',
+          RefundRejected: 'refund_rejected',
+        };
+        calculatedState = statusToStateMap[row.status] || row.status.toLowerCase();
+      }
 
-    return { withdrawal };
+      const blockchainExplorerUrl = row.sentHash
+        ? this.generateBlockchainExplorerUrl(row.currencyBlockchainKey, row.sentHash)
+        : null;
+
+      const estimatedConfirmationTime =
+        calculatedState === 'requested'
+          ? this.getEstimatedConfirmationTime(row.currencyBlockchainKey)
+          : null;
+
+      return {
+        id: String(row.id),
+        currency: {
+          blockchainKey: row.currencyBlockchainKey,
+          tokenId: row.currencyTokenId,
+          name: row.currencyName,
+          symbol: row.currencySymbol,
+          decimals: Number(row.currencyDecimals),
+          logoUrl: row.currencyImage || undefined,
+        },
+        beneficiary: {
+          id: String(row.beneficiaryId),
+          blockchainKey: row.beneficiaryBlockchainKey,
+          address: row.beneficiaryAddress,
+          label: undefined,
+          createdDate: row.requestDate,
+          verifiedDate: row.requestDate,
+          isActive: true,
+          blockchain: {
+            key: row.beneficiaryBlockchainKey,
+            name: row.blockchainName || row.beneficiaryBlockchainKey,
+            shortName: row.blockchainShortName || row.beneficiaryBlockchainKey,
+            image: row.blockchainImage || undefined,
+          },
+        },
+        requestAmount: String(row.requestAmount),
+        sentAmount: row.sentAmount || undefined,
+        networkFee: networkFee || undefined,
+        platformFee: '0.000000000000000000',
+        requestDate: row.requestDate,
+        sentDate: row.sentDate || undefined,
+        sentHash: row.sentHash || undefined,
+        confirmedDate: row.confirmedDate || undefined,
+        failedDate: row.failedDate || undefined,
+        failureReason: row.failureReason || undefined,
+        state: calculatedState,
+        blockchainExplorerUrl: blockchainExplorerUrl || undefined,
+        estimatedConfirmationTime: estimatedConfirmationTime || undefined,
+      };
+    });
+
+    return { withdrawal: rows[0] };
   }
 
   // Blockchain Management Methods
@@ -879,38 +838,32 @@ export abstract class FinanceUserRepsitory extends UserRepository {
       SELECT
         key,
         name,
-        short_name,
+        short_name AS "shortName",
         image
       FROM blockchains
-      WHERE key != 'crosschain'  -- Filter out internal crosschain blockchain
+      WHERE key != 'crosschain'
       ORDER BY
         CASE key
-          WHEN 'bip122:000000000019d6689c085ae165831e93' THEN 1  -- Bitcoin first
-          WHEN 'eip155:1' THEN 2                                  -- Ethereum second
-          WHEN 'eip155:56' THEN 3                                 -- BSC third
-          WHEN 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' THEN 4  -- Solana fourth
-          ELSE 5                                                  -- Others last
+          WHEN 'bip122:000000000019d6689c085ae165831e93' THEN 1
+          WHEN 'eip155:1' THEN 2
+          WHEN 'eip155:56' THEN 3
+          WHEN 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' THEN 4
+          ELSE 5
         END,
         name
     `;
 
-    const blockchains = rows;
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row);
+      assertPropString(row, 'key');
+      assertPropString(row, 'name');
+      assertPropString(row, 'shortName');
+      assertPropString(row, 'image');
+      return row;
+    });
 
     return {
-      blockchains: blockchains.map(function (blockchain: unknown) {
-        assertDefined(blockchain, 'Blockchain record is undefined');
-        assertPropString(blockchain, 'key');
-        assertPropString(blockchain, 'name');
-        assertPropString(blockchain, 'short_name');
-        assertPropString(blockchain, 'image');
-
-        return {
-          key: blockchain.key,
-          name: blockchain.name,
-          shortName: blockchain.short_name,
-          image: blockchain.image,
-        };
-      }),
+      blockchains: rows,
     };
   }
 
@@ -918,17 +871,13 @@ export abstract class FinanceUserRepsitory extends UserRepository {
   async userRetrievesPortfolioAnalytics(
     params: UserRetrievesPortfolioAnalyticsParams,
   ): Promise<PortfolioAnalyticsResult> {
-    const { userId } = params;
-
-    // Get current date for period calculations
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
     const periodStart = new Date(currentYear, currentMonth, 1);
     const periodEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59);
 
-    // Get user's total portfolio value
-    const balanceResult = await this.userRetrievesAccountBalances({ userId });
+    const balanceResult = await this.userRetrievesAccountBalances({ userId: params.userId });
     const totalPortfolioValue = balanceResult.totalPortfolioValueUsd || '0';
 
     // Calculate interest growth (simplified - would need historical data)
@@ -998,10 +947,7 @@ export abstract class FinanceUserRepsitory extends UserRepository {
   async userRetrievesPortfolioOverview(
     params: UserRetrievesPortfolioOverviewParams,
   ): Promise<PortfolioOverviewResult> {
-    const { userId } = params;
-
-    // Get user account balances for asset allocation
-    const balanceResult = await this.userRetrievesAccountBalances({ userId });
+    const balanceResult = await this.userRetrievesAccountBalances({ userId: params.userId });
     const totalValue = parseFloat(balanceResult.totalPortfolioValueUsd || '0');
 
     // Map accounts to asset allocation

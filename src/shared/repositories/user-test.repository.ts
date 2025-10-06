@@ -15,10 +15,13 @@ export abstract class UserTestRepository extends UserPlatformRepository {
       const {
         applicantUserId,
         businessName,
+        businessDescription,
+        businessType,
         npwpNumber,
         npwpDocumentPath,
         registrationNumber,
         registrationDocumentPath,
+        establishmentNumber,
         deedOfEstablishmentPath,
         // domicileCertificatePath, # TBD
         businessAddress,
@@ -28,21 +31,27 @@ export abstract class UserTestRepository extends UserPlatformRepository {
         businessSubdistrict,
         businessPostalCode,
         directorName,
+        directorPosition,
         directorIdCardPath,
+        ministryApprovalDocumentPath,
         submittedDate,
       } = params;
 
       const rows = await tx.sql`
         INSERT INTO institution_applications (
-          applicant_user_id, business_name, npwp_number, npwp_document_path,
-          registration_number, registration_document_path, deed_of_establishment_path,
-          business_address, business_city, business_province, business_district,
-          business_subdistrict, business_postal_code, director_name, director_id_card_path, submitted_date
+          applicant_user_id, business_name, business_description, business_type,
+          npwp_number, npwp_document_path, registration_number, registration_document_path,
+          deed_establishment_number, deed_of_establishment_path, business_address,
+          business_city, business_province, business_district, business_subdistrict,
+          business_postal_code, director_name, director_position, director_id_card_path,
+          ministry_approval_document_path, submitted_date
         ) VALUES (
-          ${applicantUserId}, ${businessName}, ${npwpNumber}, ${npwpDocumentPath},
-          ${registrationNumber}, ${registrationDocumentPath}, ${deedOfEstablishmentPath},
-          ${businessAddress}, ${businessCity}, ${businessProvince}, ${businessDistrict},
-          ${businessSubdistrict}, ${businessPostalCode}, ${directorName}, ${directorIdCardPath}, ${submittedDate}
+          ${applicantUserId}, ${businessName}, ${businessDescription}, ${businessType},
+          ${npwpNumber}, ${npwpDocumentPath}, ${registrationNumber}, ${registrationDocumentPath},
+          ${establishmentNumber}, ${deedOfEstablishmentPath}, ${businessAddress},
+          ${businessCity}, ${businessProvince}, ${businessDistrict}, ${businessSubdistrict},
+          ${businessPostalCode}, ${directorName}, ${directorPosition || 'Director'}, ${directorIdCardPath},
+          ${ministryApprovalDocumentPath}, ${submittedDate}
         ) RETURNING id, applicant_user_id, business_name
       `;
 

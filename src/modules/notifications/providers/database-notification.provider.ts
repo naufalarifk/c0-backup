@@ -2,9 +2,14 @@ import type { AnyNotificationPayload, DatabaseNotificationPayload } from '../not
 
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
+import { assertDefined, assertProp, check, isNumber, isString } from 'typeshaper';
+
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { NotificationChannelEnum } from '../notification.types';
-import { NotificationProvider } from '../notification-provider.abstract';
+import {
+  NotificationProvider,
+  type NotificationSendResult,
+} from '../notification-provider.abstract';
 import { NotificationProviderFlag } from '../notification-provider.factory';
 
 @Injectable()
@@ -23,16 +28,26 @@ export class DatabaseNotificationProvider extends NotificationProvider {
     return payload.channel === NotificationChannelEnum.Database;
   }
 
-  async send(payload: DatabaseNotificationPayload): Promise<void> {
+  async send(payload: DatabaseNotificationPayload): Promise<NotificationSendResult> {
     try {
       const creationDate = new Date();
 
-      await this.repository.sql`
+      const rows = await this.repository.sql`
         INSERT INTO notifications (user_id, type, title, content, creation_date)
         VALUES (${payload.userId}, ${payload.type}, ${payload.title}, ${payload.content}, ${creationDate})
+        RETURNING id
       `;
 
-      this.logger.log(`Saved notification to database for user ${payload.userId}: ${payload.type}`);
+      assertDefined(rows[0], 'Failed to get notification ID after insert');
+      const row = rows[0] as Record<string, unknown>;
+      assertProp(check(isString, isNumber), row, 'id');
+      const notificationId = String(row.id);
+
+      this.logger.log(
+        `Saved notification ${notificationId} to database for user ${payload.userId}: ${payload.type}`,
+      );
+
+      return { notificationId };
     } catch (error) {
       this.logger.error(
         `Failed to save notification to database for user ${payload.userId}:`,

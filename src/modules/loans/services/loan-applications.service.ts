@@ -67,9 +67,13 @@ export class LoanApplicationsService {
       const calculationDate = new Date();
 
       // Get data from repository (no calculations)
-      // Default to USDC on BSC for principal currency
-      const DEFAULT_PRINCIPAL_BLOCKCHAIN_KEY = 'eip155:56';
-      const DEFAULT_PRINCIPAL_TOKEN_ID = 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d';
+      // Default to USDC on BSC for principal currency in production
+      // Use mock:usd on cg:testnet for development/test environments
+      const isTestEnv = process.env.NODE_ENV !== 'production';
+      const DEFAULT_PRINCIPAL_BLOCKCHAIN_KEY = isTestEnv ? 'cg:testnet' : 'eip155:56';
+      const DEFAULT_PRINCIPAL_TOKEN_ID = isTestEnv
+        ? 'mock:usd'
+        : 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d';
 
       const currencies = await this.cryptogadaiRepository.borrowerGetsCurrencyPair({
         collateralBlockchainKey: calculationRequest.collateralBlockchainKey,
@@ -85,6 +89,7 @@ export class LoanApplicationsService {
       let exchangeRate;
       try {
         exchangeRate = await this.cryptogadaiRepository.borrowerGetsExchangeRate({
+          collateralBlockchainKey: calculationRequest.collateralBlockchainKey,
           collateralTokenId: calculationRequest.collateralTokenId,
         });
       } catch (error) {
@@ -236,9 +241,13 @@ export class LoanApplicationsService {
       const expirationDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
 
       // Get data from repository (no calculations)
-      // Default to USDC on BSC for principal currency
-      const DEFAULT_PRINCIPAL_BLOCKCHAIN_KEY = 'eip155:56';
-      const DEFAULT_PRINCIPAL_TOKEN_ID = 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d';
+      // Default to USDC on BSC for principal currency in production
+      // Use mock:usd on cg:testnet for development/test environments
+      const isTestEnv = process.env.NODE_ENV !== 'production';
+      const DEFAULT_PRINCIPAL_BLOCKCHAIN_KEY = isTestEnv ? 'cg:testnet' : 'eip155:56';
+      const DEFAULT_PRINCIPAL_TOKEN_ID = isTestEnv
+        ? 'mock:usd'
+        : 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d';
 
       const currencies = await this.cryptogadaiRepository.borrowerGetsCurrencyPair({
         collateralBlockchainKey: createLoanApplicationDto.collateralBlockchainKey,
@@ -254,6 +263,7 @@ export class LoanApplicationsService {
       let exchangeRate;
       try {
         exchangeRate = await this.cryptogadaiRepository.borrowerGetsExchangeRate({
+          collateralBlockchainKey: createLoanApplicationDto.collateralBlockchainKey,
           collateralTokenId: createLoanApplicationDto.collateralTokenId,
         });
       } catch (error) {

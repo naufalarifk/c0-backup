@@ -10,6 +10,7 @@ import {
   assertPropNumber,
   assertPropString,
   check,
+  hasPropString,
   isNullable,
   isNumber,
   isString,
@@ -157,7 +158,7 @@ suite('Institution Management API', function () {
   describe('Institution Members', function () {
     let institutionOwner: Awaited<ReturnType<typeof createInstitutionTestUser>>;
     let nonMember: Awaited<ReturnType<typeof createTestUser>>;
-    let institutionId: number;
+    let institutionId: string;
 
     before(async function () {
       // Create institution owner
@@ -180,6 +181,9 @@ suite('Institution Management API', function () {
       // Get institution ID from user profile
       const profileResponse = await institutionOwner.fetch('/api/users/profile');
       const profileData = await profileResponse.json();
+      assertDefined(profileData);
+      assertPropDefined(profileData, 'user');
+      assertPropString(profileData.user, 'institutionId');
       institutionId = profileData.user.institutionId;
     });
 
@@ -264,7 +268,7 @@ suite('Institution Management API', function () {
     let institutionOwner: Awaited<ReturnType<typeof createInstitutionTestUser>>;
     let _financeMember: Awaited<ReturnType<typeof createTestUser>>;
     let nonMember: Awaited<ReturnType<typeof createTestUser>>;
-    let institutionId: number;
+    let institutionId: string;
 
     before(async function () {
       // Create institution owner
@@ -296,6 +300,9 @@ suite('Institution Management API', function () {
       // Get institution ID from user profile
       const profileResponse = await institutionOwner.fetch('/api/users/profile');
       const profileData = await profileResponse.json();
+      assertDefined(profileData);
+      assertPropDefined(profileData, 'user');
+      assertPropString(profileData.user, 'institutionId');
       institutionId = profileData.user.institutionId;
     });
 
@@ -377,7 +384,7 @@ suite('Institution Management API', function () {
   describe('Institution Invitations - List Pending', function () {
     let institutionOwner: Awaited<ReturnType<typeof createInstitutionTestUser>>;
     let nonMember: Awaited<ReturnType<typeof createTestUser>>;
-    let institutionId: number;
+    let institutionId: string;
 
     before(async function () {
       // Create institution owner
@@ -400,6 +407,9 @@ suite('Institution Management API', function () {
       // Get institution ID from user profile
       const profileResponse = await institutionOwner.fetch('/api/users/profile');
       const profileData = await profileResponse.json();
+      assertDefined(profileData);
+      assertPropDefined(profileData, 'user');
+      assertPropString(profileData.user, 'institutionId');
       institutionId = profileData.user.institutionId;
     });
 
@@ -526,10 +536,16 @@ suite('Institution Management API', function () {
 
       console.log('Response Status:', response.status);
       const data = await response.json();
+      assertDefined(data);
       console.log('Response Data:', JSON.stringify(data, null, 2));
 
       if (response.status === 400) {
         // User might not exist - this is expected for this test case
+        assertProp(
+          check(isNullable, (v): v is { code: string } => hasPropString(v, 'code')),
+          data,
+          'error',
+        );
         if (data.error?.code === 'USER_NOT_FOUND') {
           console.log('Expected: User not found for non-existent email');
           return;
@@ -764,6 +780,9 @@ suite('Institution Management API', function () {
 
       if (createResponse.status === 201) {
         const createData = await createResponse.json();
+        assertDefined(createData);
+        assertPropDefined(createData, 'invitation');
+        assertPropNumber(createData.invitation, 'id');
         invitationId = createData.invitation.id;
       }
     });
@@ -834,6 +853,9 @@ suite('Institution Management API', function () {
       let createdInvitationId: number;
       if (createResponse.status === 201) {
         const createData = await createResponse.json();
+        assertDefined(createData);
+        assertPropDefined(createData, 'invitation');
+        assertPropNumber(createData.invitation, 'id');
         createdInvitationId = createData.invitation.id;
 
         // Accept the invitation first to make it "responded"
@@ -939,6 +961,9 @@ suite('Institution Management API', function () {
 
       if (createResponse.status === 201) {
         const createData = await createResponse.json();
+        assertDefined(createData);
+        assertPropDefined(createData, 'invitation');
+        assertPropNumber(createData.invitation, 'id');
         invitationId = createData.invitation.id;
       }
     });
@@ -1045,6 +1070,9 @@ suite('Institution Management API', function () {
 
       if (createResponse.status === 201) {
         const createData = await createResponse.json();
+        assertDefined(createData);
+        assertPropDefined(createData, 'invitation');
+        assertPropNumber(createData.invitation, 'id');
         invitationId = createData.invitation.id;
       }
     });
@@ -1121,6 +1149,9 @@ suite('Institution Management API', function () {
 
       if (createResponse.status === 201) {
         const createData = await createResponse.json();
+        assertDefined(createData);
+        assertPropDefined(createData, 'invitation');
+        assertPropNumber(createData.invitation, 'id');
         const expiredInvitationId = createData.invitation.id;
 
         // TODO: This test needs backend support to simulate expired invitations
@@ -1215,11 +1246,17 @@ suite('Institution Management API', function () {
 
       if (createResponse1.status === 201) {
         const createData1 = await createResponse1.json();
+        assertDefined(createData1);
+        assertPropDefined(createData1, 'invitation');
+        assertPropNumber(createData1.invitation, 'id');
         invitationIdWithReason = createData1.invitation.id;
       }
 
       if (createResponse2.status === 201) {
         const createData2 = await createResponse2.json();
+        assertDefined(createData2);
+        assertPropDefined(createData2, 'invitation');
+        assertPropNumber(createData2.invitation, 'id');
         invitationIdWithoutReason = createData2.invitation.id;
       }
     });
@@ -1338,6 +1375,9 @@ suite('Institution Management API', function () {
 
       if (createResponse.status === 201) {
         const createData = await createResponse.json();
+        assertDefined(createData);
+        assertPropDefined(createData, 'invitation');
+        assertPropNumber(createData.invitation, 'id');
         invitationId = createData.invitation.id;
       }
     });
@@ -1400,6 +1440,9 @@ suite('Institution Management API', function () {
       let createdInvitationId: number;
       if (createResponse.status === 201) {
         const createData = await createResponse.json();
+        assertDefined(createData);
+        assertPropDefined(createData, 'invitation');
+        assertPropNumber(createData.invitation, 'id');
         createdInvitationId = createData.invitation.id;
 
         // Reject the invitation first to make it "responded"

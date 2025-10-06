@@ -49,14 +49,39 @@ export class NotificationProcessor extends WorkerHost {
 
       this.logger.log(`Generated ${payloads.length} notification payloads for job ${job.id}`);
 
-      for (const [index, payload] of payloads.entries()) {
+      // Process Database notifications first to get notification IDs
+      let notificationId: string | undefined;
+      const databasePayloads = payloads.filter(p => p.channel === 'Database');
+      const otherPayloads = payloads.filter(p => p.channel !== 'Database');
+
+      for (const payload of databasePayloads) {
         const providers = this.notificationService.getProvidersByPayload(payload);
 
         for (const provider of providers) {
-          await provider.send(payload);
+          const result = await provider.send(payload);
+          if (result?.notificationId) {
+            notificationId = result.notificationId;
+          }
+        }
+      }
+
+      // Process other notifications with the notification ID from database
+      for (const [index, payload] of otherPayloads.entries()) {
+        // Inject notification ID into Realtime payloads
+        let finalPayload = payload;
+        if (payload.channel === 'Realtime' && notificationId) {
+          finalPayload = { ...payload, notificationId };
         }
 
-        await job.updateProgress(Math.floor((100 * (index + 1)) / payloads.length));
+        const providers = this.notificationService.getProvidersByPayload(finalPayload);
+
+        for (const provider of providers) {
+          await provider.send(finalPayload);
+        }
+
+        await job.updateProgress(
+          Math.floor((100 * (index + 1 + databasePayloads.length)) / payloads.length),
+        );
       }
 
       this.logger.log(`Successfully processed notification job ${job.id}`);

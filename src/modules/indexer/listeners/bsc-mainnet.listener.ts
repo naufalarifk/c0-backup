@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
+import { DiscoveryService } from '@nestjs/core';
 
+import { AppConfigService } from '../../../shared/services/app-config.service';
+import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
+import { InvoicePaymentQueueService } from '../../invoice-payments/invoice-payment.queue.service';
 import { Listener } from '../indexer-listener.abstract';
 import { EthereumIndexerListener } from './ethereum.listener';
 
@@ -12,19 +16,19 @@ import { EthereumIndexerListener } from './ethereum.listener';
 @Listener('eip155:56')
 export class BscMainnetIndexerListener extends EthereumIndexerListener {
   readonly logger = new TelemetryLogger(BscMainnetIndexerListener.name);
-  nativeTokenId() {
-    return 'slip:714';
-  }
-  tokenPrefix() {
-    return 'bep20';
-  }
-  wsUrlEnvVar() {
-    return 'BSC_WS_URL';
-  }
-  chainName() {
-    return 'BSC';
-  }
-  defaultWsUrl() {
-    return 'wss://bsc-mainnet.infura.io/ws/v3/YOUR_PROJECT_ID';
+
+  constructor(
+    appConfig: AppConfigService,
+    discovery: DiscoveryService,
+    redis: RedisService,
+    invoicePaymentQueue: InvoicePaymentQueueService,
+  ) {
+    super(discovery, redis, invoicePaymentQueue, {
+      chainName: 'BSC Mainnet',
+      wsUrlEnvVar: 'BSC_WS_URL',
+      defaultWsUrl: 'wss://bsc-mainnet.infura.io/ws/v3/YOUR_PROJECT_ID',
+      nativeTokenId: 'slip44:714',
+      tokenPrefix: 'bep20',
+    });
   }
 }

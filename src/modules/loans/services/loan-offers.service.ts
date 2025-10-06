@@ -229,7 +229,7 @@ export class LoanOffersService {
             decimals: result.fundingInvoice.currency.decimals,
             logoUrl: `https://assets.cryptogadai.com/currencies/${result.fundingInvoice.currency.symbol.toLowerCase()}.png`,
           },
-          walletAddress: '0x742d35Cc6634C0532925a3b8D...',
+          walletAddress: invoiceDraft.walletAddress,
           expiryDate: result.fundingInvoice.expiryDate.toISOString(),
         },
       };

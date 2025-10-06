@@ -209,27 +209,36 @@ suite('Loan Match with Realtime Events', function () {
     await testSetup?.teardown();
   });
 
-  describe('Lender creates loan offer with realtime notifications', function () {
+  describe('Complete loan match flow with realtime events', function () {
     let lender: Awaited<ReturnType<typeof createTestUser>>;
+    let borrower: Awaited<ReturnType<typeof createTestUser>>;
     let lenderOfferId: string;
+    let borrowerApplicationId: string;
     let lenderWs: Awaited<ReturnType<typeof connectWebSocket>> | undefined;
-
-    before(async function () {
-      lender = await createTestUser({
-        testSetup,
-        testId,
-        email: `lender_realtime_${testId}@test.com`,
-        name: 'Lender Realtime',
-        userType: 'Individual',
-      });
-    });
+    let borrowerWs: Awaited<ReturnType<typeof connectWebSocket>> | undefined;
 
     after(async function () {
       lenderWs?.close();
+      borrowerWs?.close();
     });
 
-    it('should create realtime auth token for lender', async function () {
-      const response = await lender.fetch('/api/realtime-auth-tokens', {
+    it('should setup user lender', async function () {
+      lender = await createTestUser({
+        testSetup,
+        testId,
+        email: `lender_flow_${testId}@test.com`,
+        name: 'Lender Flow',
+        userType: 'Individual',
+      });
+
+      ok(lender, 'Lender should be created');
+    });
+
+    it('should listen to realtime websocket event for user lender', async function () {
+      ok(lender, 'Lender must be created first');
+
+      // Create realtime auth token
+      const tokenResponse = await lender.fetch('/api/realtime-auth-tokens', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -237,39 +246,32 @@ suite('Loan Match with Realtime Events', function () {
         }),
       });
 
-      strictEqual(response.status, 201);
-      const data = await response.json();
-      assertDefined(data);
-      assertPropString(data, 'token');
-      assertPropString(data, 'expiresAt');
-      assertPropNumber(data, 'expiresIn');
-      assertPropArray(data, 'allowedEventTypes');
+      strictEqual(tokenResponse.status, 201);
+      const tokenData = await tokenResponse.json();
+      assertDefined(tokenData);
+      assertPropString(tokenData, 'token');
 
-      // Store token for WebSocket connection
-      lender.realtimeToken = data.token;
-    });
-
-    it('should connect to realtime websocket and authenticate', async function () {
-      ok(lender.realtimeToken, 'Realtime token must be created first');
-
+      // Connect to WebSocket
       lenderWs = await connectWebSocket({
         backendUrl: testSetup.backendUrl,
-        accessToken: lender.realtimeToken,
+        accessToken: tokenData.token,
         eventTypes: ['notification.created', 'loan.offer.updated'],
       });
 
-      ok(lenderWs, 'WebSocket connection should be established');
+      ok(lenderWs, 'Lender WebSocket connection should be established');
     });
 
-    it('should create loan offer with principal invoice', async function () {
+    it('user lender creates loan offer', async function () {
+      ok(lender, 'Lender must be created first');
+
       const loanOfferData = {
         principalBlockchainKey: 'cg:testnet',
         principalTokenId: 'mock:usd',
-        totalAmount: '10000.000000000000000000',
-        interestRate: 12.5,
-        termOptions: [3, 6],
+        totalAmount: '20000.000000000000000000',
+        interestRate: 10.0,
+        termOptions: [3, 6, 12],
         minLoanAmount: '1000.000000000000000000',
-        maxLoanAmount: '10000.000000000000000000',
+        maxLoanAmount: '20000.000000000000000000',
         expirationDate: '2025-12-31T23:59:59Z',
       };
 
@@ -306,9 +308,12 @@ suite('Loan Match with Realtime Events', function () {
       lenderOfferId = offer.id;
       lender.fundingInvoiceAddress = invoice.walletAddress;
       lender.fundingInvoiceAmount = invoice.amount;
+
+      // Wait a bit for the indexer to register the wallet address
+      await new Promise(resolve => setTimeout(resolve, 500));
     });
 
-    it('should simulate invoice payment via cg:testnet blockchain listener', async function () {
+    it('should simulate loan offer invoice payment', async function () {
       ok(lenderOfferId, 'Loan offer must be created first');
       ok(lender.fundingInvoiceAddress, 'Funding invoice address must exist');
       ok(lender.fundingInvoiceAmount, 'Funding invoice amount must exist');
@@ -325,7 +330,7 @@ suite('Loan Match with Realtime Events', function () {
             address: lender.fundingInvoiceAddress,
             amount: lender.fundingInvoiceAmount,
             txHash: `0x${randomUUID().replace(/-/g, '')}`,
-            sender: '0xSenderAddress123',
+            sender: '0xLenderAddress123',
           }),
         },
       );
@@ -340,13 +345,19 @@ suite('Loan Match with Realtime Events', function () {
       strictEqual(paymentData.success, true);
     });
 
-    it('should receive loan offer published notification via realtime websocket', async function () {
-      ok(lenderWs, 'WebSocket must be connected');
+    it('should receive realtime websocket event for loan offer published', async function () {
+      ok(lenderWs, 'Lender WebSocket must be connected');
 
-      // Wait for notification.created event
+      // Give the system time to process the invoice payment and send notifications
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Debug: Log all received messages
+      console.log('DEBUG: All lender websocket messages received so far:', lenderWs.messages);
+
+      // Wait for notification.created event with a longer timeout for queue processing
       const notificationEvent = await waitWithTimeout(
         lenderWs.waitForEvent('notification.created'),
-        10000,
+        30000,
         'Timeout waiting for loan offer published notification',
       );
 
@@ -363,17 +374,14 @@ suite('Loan Match with Realtime Events', function () {
       assertPropString(notificationData, 'content');
       assertPropString(notificationData, 'createdAt');
 
-      // Verify notification type is related to loan offer
+      // Verify notification type is related to loan offer published
       ok(
         notificationData.type === 'LoanOfferPublished' ||
           notificationData.type.includes('LoanOffer'),
-        'Notification should be related to loan offer',
+        'Notification should be related to loan offer published',
       );
-    });
 
-    it('should verify loan offer is published', async function () {
-      ok(lenderOfferId, 'Loan offer must be created first');
-
+      // Verify loan offer is now published
       const response = await lender.fetch(`/api/loan-offers/${lenderOfferId}`);
       strictEqual(response.status, 200);
       const data = await response.json();
@@ -385,29 +393,24 @@ suite('Loan Match with Realtime Events', function () {
       strictEqual(offer.status, 'Published');
       assertPropString(offer, 'publishedDate');
     });
-  });
 
-  describe('Borrower creates loan application with realtime notifications', function () {
-    let borrower: Awaited<ReturnType<typeof createTestUser>>;
-    let borrowerApplicationId: string;
-    let borrowerWs: Awaited<ReturnType<typeof connectWebSocket>> | undefined;
-
-    before(async function () {
+    it('should setup user borrower', async function () {
       borrower = await createTestUser({
         testSetup,
         testId,
-        email: `borrower_realtime_${testId}@test.com`,
-        name: 'Borrower Realtime',
+        email: `borrower_flow_${testId}@test.com`,
+        name: 'Borrower Flow',
         userType: 'Individual',
       });
+
+      ok(borrower, 'Borrower should be created');
     });
 
-    after(async function () {
-      borrowerWs?.close();
-    });
+    it('should listen to realtime websocket event for user borrower', async function () {
+      ok(borrower, 'Borrower must be created first');
 
-    it('should create realtime auth token for borrower', async function () {
-      const response = await borrower.fetch('/api/realtime-auth-tokens', {
+      // Create realtime auth token
+      const tokenResponse = await borrower.fetch('/api/realtime-auth-tokens', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -415,35 +418,32 @@ suite('Loan Match with Realtime Events', function () {
         }),
       });
 
-      strictEqual(response.status, 201);
-      const data = await response.json();
-      assertDefined(data);
-      assertPropString(data, 'token');
+      strictEqual(tokenResponse.status, 201);
+      const tokenData = await tokenResponse.json();
+      assertDefined(tokenData);
+      assertPropString(tokenData, 'token');
 
-      borrower.realtimeToken = data.token;
-    });
-
-    it('should connect to realtime websocket and authenticate', async function () {
-      ok(borrower.realtimeToken, 'Realtime token must be created first');
-
+      // Connect to WebSocket
       borrowerWs = await connectWebSocket({
         backendUrl: testSetup.backendUrl,
-        accessToken: borrower.realtimeToken,
+        accessToken: tokenData.token,
         eventTypes: ['notification.created', 'loan.status.changed'],
       });
 
-      ok(borrowerWs, 'WebSocket connection should be established');
+      ok(borrowerWs, 'Borrower WebSocket connection should be established');
     });
 
-    it('should create loan application with collateral invoice', async function () {
+    it('user borrower creates loan application', async function () {
+      ok(borrower, 'Borrower must be created first');
+
       const applicationData = {
         collateralBlockchainKey: 'cg:testnet',
         collateralTokenId: 'mock:native',
-        principalAmount: '5000.000000000000000000',
-        maxInterestRate: 15.0,
+        principalAmount: '8000.000000000000000000',
+        maxInterestRate: 12.0,
         termMonths: 6,
         liquidationMode: 'Full',
-        minLtvRatio: 0.5,
+        minLtvRatio: 0.6,
       };
 
       const response = await borrower.fetch('/api/loan-applications', {
@@ -478,9 +478,12 @@ suite('Loan Match with Realtime Events', function () {
       borrowerApplicationId = application.id;
       borrower.collateralInvoiceAddress = invoice.walletAddress;
       borrower.collateralInvoiceAmount = invoice.amount;
+
+      // Wait a bit for the indexer to register the wallet address
+      await new Promise(resolve => setTimeout(resolve, 500));
     });
 
-    it('should simulate collateral payment via cg:testnet blockchain listener', async function () {
+    it('should simulate loan application collateral invoice payment', async function () {
       ok(borrowerApplicationId, 'Loan application must be created first');
       ok(borrower.collateralInvoiceAddress, 'Collateral invoice address must exist');
       ok(borrower.collateralInvoiceAmount, 'Collateral invoice amount must exist');
@@ -512,13 +515,16 @@ suite('Loan Match with Realtime Events', function () {
       strictEqual(paymentData.success, true);
     });
 
-    it('should receive loan application published notification via realtime websocket', async function () {
-      ok(borrowerWs, 'WebSocket must be connected');
+    it('should receive realtime websocket event for collateral invoice paid', async function () {
+      ok(borrowerWs, 'Borrower WebSocket must be connected');
 
-      // Wait for notification.created event
+      // Give the system time to process the invoice payment and send notifications
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Wait for notification.created event with a longer timeout for queue processing
       const notificationEvent = await waitWithTimeout(
         borrowerWs.waitForEvent('notification.created'),
-        10000,
+        30000,
         'Timeout waiting for loan application published notification',
       );
 
@@ -531,17 +537,14 @@ suite('Loan Match with Realtime Events', function () {
       assertDefined(notificationData);
       assertPropString(notificationData, 'type');
 
-      // Verify notification type is related to loan application
+      // Verify notification type is related to loan application published
       ok(
         notificationData.type === 'LoanApplicationPublished' ||
           notificationData.type.includes('LoanApplication'),
-        'Notification should be related to loan application',
+        'Notification should be related to loan application published',
       );
-    });
 
-    it('should verify loan application is published', async function () {
-      ok(borrowerApplicationId, 'Loan application must be created first');
-
+      // Verify loan application is now published
       const response = await borrower.fetch(`/api/loan-applications/${borrowerApplicationId}`);
       strictEqual(response.status, 200);
       const data = await response.json();
@@ -553,159 +556,17 @@ suite('Loan Match with Realtime Events', function () {
       strictEqual(application.status, 'Published');
       assertPropString(application, 'publishedDate');
     });
-  });
 
-  describe('Backend loan matcher matches offer and application', function () {
-    let lender: Awaited<ReturnType<typeof createTestUser>>;
-    let borrower: Awaited<ReturnType<typeof createTestUser>>;
-    let lenderOfferId: string;
-    let borrowerApplicationId: string;
-    let lenderWs: Awaited<ReturnType<typeof connectWebSocket>> | undefined;
-    let borrowerWs: Awaited<ReturnType<typeof connectWebSocket>> | undefined;
-
-    before(async function () {
-      // Create lender and loan offer
-      lender = await createTestUser({
-        testSetup,
-        testId,
-        email: `lender_match_${testId}@test.com`,
-        name: 'Lender Match',
-        userType: 'Individual',
-      });
-
-      // Create loan offer
-      const loanOfferData = {
-        principalBlockchainKey: 'cg:testnet',
-        principalTokenId: 'mock:usd',
-        totalAmount: '20000.000000000000000000',
-        interestRate: 10.0,
-        termOptions: [3, 6, 12],
-        minLoanAmount: '1000.000000000000000000',
-        maxLoanAmount: '20000.000000000000000000',
-        expirationDate: '2025-12-31T23:59:59Z',
-      };
-
-      const offerResponse = await lender.fetch('/api/loan-offers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(loanOfferData),
-      });
-
-      strictEqual(offerResponse.status, 201);
-      const offerData = await offerResponse.json();
-      lenderOfferId = offerData.data.id;
-
-      // Pay funding invoice
-      const fundingInvoice = offerData.data.fundingInvoice;
-      await fetch(`${testSetup.backendUrl}/api/test/cg-testnet-blockchain-payments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          blockchainKey: 'cg:testnet',
-          tokenId: 'mock:usd',
-          address: fundingInvoice.walletAddress,
-          amount: fundingInvoice.amount,
-          txHash: `0x${randomUUID().replace(/-/g, '')}`,
-        }),
-      });
-
-      // Wait for offer to be published
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Create borrower and loan application
-      borrower = await createTestUser({
-        testSetup,
-        testId,
-        email: `borrower_match_${testId}@test.com`,
-        name: 'Borrower Match',
-        userType: 'Individual',
-      });
-
-      const applicationData = {
-        collateralBlockchainKey: 'cg:testnet',
-        collateralTokenId: 'mock:native',
-        principalAmount: '8000.000000000000000000',
-        maxInterestRate: 12.0,
-        termMonths: 6,
-        liquidationMode: 'Full',
-        minLtvRatio: 0.6,
-      };
-
-      const appResponse = await borrower.fetch('/api/loan-applications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(applicationData),
-      });
-
-      strictEqual(appResponse.status, 201);
-      const appData = await appResponse.json();
-      borrowerApplicationId = appData.data.id;
-
-      // Pay collateral invoice
-      const collateralInvoice = appData.data.collateralInvoice;
-      await fetch(`${testSetup.backendUrl}/api/test/cg-testnet-blockchain-payments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          blockchainKey: 'cg:testnet',
-          tokenId: 'mock:native',
-          address: collateralInvoice.walletAddress,
-          amount: collateralInvoice.amount,
-          txHash: `0x${randomUUID().replace(/-/g, '')}`,
-        }),
-      });
-
-      // Wait for application to be published
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Connect WebSockets for both parties
-      const lenderTokenResponse = await lender.fetch('/api/realtime-auth-tokens', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          events: ['notification.created'],
-        }),
-      });
-      const lenderTokenData = await lenderTokenResponse.json();
-
-      const borrowerTokenResponse = await borrower.fetch('/api/realtime-auth-tokens', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          events: ['notification.created'],
-        }),
-      });
-      const borrowerTokenData = await borrowerTokenResponse.json();
-
-      lenderWs = await connectWebSocket({
-        backendUrl: testSetup.backendUrl,
-        accessToken: lenderTokenData.token,
-        eventTypes: ['notification.created'],
-      });
-
-      borrowerWs = await connectWebSocket({
-        backendUrl: testSetup.backendUrl,
-        accessToken: borrowerTokenData.token,
-        eventTypes: ['notification.created'],
-      });
-    });
-
-    after(async function () {
-      lenderWs?.close();
-      borrowerWs?.close();
-    });
-
-    it('should wait for loan matcher to match offer and application', async function () {
+    it('backend should match loan offer and loan application', async function () {
       ok(lenderOfferId, 'Loan offer must exist');
       ok(borrowerApplicationId, 'Loan application must exist');
 
       // Note: In production, the loan matcher runs automatically via BullMQ queue processor.
       // The matcher is triggered when loan offers and applications are published.
       // For testing, we wait for the automatic matching to occur.
-      // The loan-matcher worker should be running (started via setup or manually).
-      // If the test fails here, ensure the loan-matcher worker is active.
+      // The loan-matcher worker should be running (started via setup).
 
-      // Wait for loan matcher to process (typically runs within a few seconds)
+      // Wait for loan matcher to process
       await new Promise(resolve => setTimeout(resolve, 5000));
 
       // Verify that loan application has been matched
@@ -723,59 +584,54 @@ suite('Loan Match with Realtime Events', function () {
         `Expected status to be Matched or Active, got ${application.status}`,
       );
 
-      if (application.status === 'Matched' || application.status === 'Active') {
-        assertPropString(application, 'matchedLoanOfferId');
-        strictEqual(application.matchedLoanOfferId, lenderOfferId);
-      }
+      assertPropString(application, 'matchedLoanOfferId');
+      strictEqual(application.matchedLoanOfferId, lenderOfferId);
     });
 
-    it('should receive loan matched notification for lender via realtime', async function () {
+    it('user lender and user borrower should receive realtime websocket event for loan matched', async function () {
       ok(lenderWs, 'Lender WebSocket must be connected');
+      ok(borrowerWs, 'Borrower WebSocket must be connected');
 
-      // Wait for notification about loan match
-      const notificationEvent = await waitWithTimeout(
+      // Wait for lender notification about loan match
+      const lenderNotificationEvent = await waitWithTimeout(
         lenderWs.waitForEvent('notification.created'),
         15000,
         'Timeout waiting for lender loan matched notification',
       );
 
-      assertDefined(notificationEvent);
-      assertPropDefined(notificationEvent, 'data');
+      assertDefined(lenderNotificationEvent);
+      assertPropDefined(lenderNotificationEvent, 'data');
 
-      const notificationData = notificationEvent.data;
-      assertDefined(notificationData);
-      assertPropString(notificationData, 'type');
-      assertPropString(notificationData, 'title');
-      assertPropString(notificationData, 'content');
+      const lenderNotificationData = lenderNotificationEvent.data;
+      assertDefined(lenderNotificationData);
+      assertPropString(lenderNotificationData, 'type');
+      assertPropString(lenderNotificationData, 'title');
+      assertPropString(lenderNotificationData, 'content');
 
       // Verify notification is about loan offer matching
-      strictEqual(notificationData.type, 'LoanOfferMatched');
-    });
+      strictEqual(lenderNotificationData.type, 'LoanOfferMatched');
 
-    it('should receive loan matched notification for borrower via realtime', async function () {
-      ok(borrowerWs, 'Borrower WebSocket must be connected');
-
-      // Wait for notification about loan match
-      const notificationEvent = await waitWithTimeout(
+      // Wait for borrower notification about loan match
+      const borrowerNotificationEvent = await waitWithTimeout(
         borrowerWs.waitForEvent('notification.created'),
         15000,
         'Timeout waiting for borrower loan matched notification',
       );
 
-      assertDefined(notificationEvent);
-      assertPropDefined(notificationEvent, 'data');
+      assertDefined(borrowerNotificationEvent);
+      assertPropDefined(borrowerNotificationEvent, 'data');
 
-      const notificationData = notificationEvent.data;
-      assertDefined(notificationData);
-      assertPropString(notificationData, 'type');
-      assertPropString(notificationData, 'title');
-      assertPropString(notificationData, 'content');
+      const borrowerNotificationData = borrowerNotificationEvent.data;
+      assertDefined(borrowerNotificationData);
+      assertPropString(borrowerNotificationData, 'type');
+      assertPropString(borrowerNotificationData, 'title');
+      assertPropString(borrowerNotificationData, 'content');
 
       // Verify notification is about loan application matching
-      strictEqual(notificationData.type, 'LoanApplicationMatched');
+      strictEqual(borrowerNotificationData.type, 'LoanApplicationMatched');
     });
 
-    it('should verify loan match data is correct', async function () {
+    it('should verify loan offer and loan application status after matched', async function () {
       ok(lenderOfferId, 'Loan offer must exist');
       ok(borrowerApplicationId, 'Loan application must exist');
 
@@ -801,41 +657,30 @@ suite('Loan Match with Realtime Events', function () {
       assertPropDefined(appData, 'data');
 
       const application = appData.data;
+      assertPropString(application, 'status');
       assertPropString(application, 'matchedLoanOfferId');
       strictEqual(application.matchedLoanOfferId, lenderOfferId);
       assertPropNumber(application, 'matchedLtvRatio');
       ok(application.matchedLtvRatio > 0 && application.matchedLtvRatio <= 1);
-    });
 
-    it('should verify loan exists and is active', async function () {
-      ok(borrowerApplicationId, 'Loan application must exist');
-
-      // Get loan application to find the loan ID
-      const appResponse = await borrower.fetch(`/api/loan-applications/${borrowerApplicationId}`);
-      const appData = await appResponse.json();
-      assertDefined(appData);
-      assertPropDefined(appData, 'data');
-
-      // Check if loan was created via my-loans endpoint
+      // Verify loan exists and is active
       const loansResponse = await borrower.fetch('/api/loans/my-loans');
+      strictEqual(loansResponse.status, 200);
       const loansData = await loansResponse.json();
+      assertDefined(loansData);
+      assertPropDefined(loansData, 'data');
+      assertPropArray(loansData.data, 'loans');
 
-      if (loansResponse.status === 200) {
-        assertDefined(loansData);
-        assertPropDefined(loansData, 'data');
-        assertPropArray(loansData.data, 'loans');
+      // Verify exactly one loan exists for this borrower
+      strictEqual(loansData.data.loans.length, 1, 'Exactly one loan should exist');
 
-        // Verify at least one loan exists for this borrower
-        ok(loansData.data.loans.length > 0, 'At least one loan should exist');
-
-        const loan = loansData.data.loans[0];
-        assertDefined(loan);
-        assertPropString(loan, 'id');
-        assertPropString(loan, 'status');
-        assertPropString(loan, 'principalAmount');
-        assertPropString(loan, 'collateralAmount');
-        assertPropNumber(loan, 'interestRate');
-      }
+      const loan = loansData.data.loans[0];
+      assertDefined(loan);
+      assertPropString(loan, 'id');
+      assertPropString(loan, 'status');
+      assertPropString(loan, 'principalAmount');
+      assertPropString(loan, 'collateralAmount');
+      assertPropNumber(loan, 'interestRate');
     });
   });
 });

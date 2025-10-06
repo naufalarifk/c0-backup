@@ -9,6 +9,7 @@ import { AuthModule } from '../modules/auth/auth.module';
 import { BeneficiariesModule } from '../modules/beneficiaries/beneficiaries.module';
 import { FinanceConfigModule } from '../modules/finance-config/finance-config.module';
 import { InstitutionsModule } from '../modules/institutions/institutions.module';
+import { LoanMatcherModule } from '../modules/loan-matcher/loan-matcher.module';
 import { LoansModule } from './../modules/loans/loans.module';
 import { NotificationModule } from '../modules/notifications/notification.module';
 import { NotificationsModule } from '../modules/notifications/notifications.module';
@@ -35,6 +36,7 @@ import { TestController } from '../shared/test.controller';
     }),
 
     AuthModule.forRootAsync({ imports: [NotificationModule], useClass: AuthConfig }),
+    NotificationModule,
     NotificationsModule,
     UsersModule,
     InstitutionsModule,
@@ -46,6 +48,7 @@ import { TestController } from '../shared/test.controller';
     RealtimeModule,
     SmsModule,
     LoansModule,
+    LoanMatcherModule,
     AdminModule,
   ],
   providers: [

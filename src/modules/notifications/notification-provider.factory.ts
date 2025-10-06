@@ -20,4 +20,19 @@ export class NotificationProviderFactory {
     })?.instance;
     return composer instanceof NotificationProvider ? composer : undefined;
   }
+
+  getComposers(type: NotificationChannel): NotificationProvider[] {
+    const providers = this.discoveryService.getProviders();
+    const composers = providers
+      .filter(provider => {
+        return (
+          this.discoveryService.getMetadataByDecorator(NotificationProviderFlag, provider) === type
+        );
+      })
+      .map(provider => provider.instance)
+      .filter(
+        (instance): instance is NotificationProvider => instance instanceof NotificationProvider,
+      );
+    return composers;
+  }
 }

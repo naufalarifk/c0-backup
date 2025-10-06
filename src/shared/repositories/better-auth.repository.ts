@@ -22,6 +22,10 @@ import { BaseRepository } from './base.repository';
 
 export type BetterAuthRecord = Record<string, unknown>;
 
+export interface BetterAuthUserRecord extends BetterAuthRecord {
+  id: string;
+}
+
 interface BetterAuthUserInput extends BetterAuthRecord {
   name?: string;
   email?: string;
@@ -242,7 +246,7 @@ function alignBetterAuthUserData(user: unknown) {
  * should be handled by services that use this repository.
  */
 export abstract class BetterAuthRepository extends BaseRepository {
-  async betterAuthCreateUser(data: unknown): Promise<BetterAuthRecord> {
+  async betterAuthCreateUser(data: unknown): Promise<BetterAuthUserRecord> {
     const payload = ensureRecord(
       data,
       'BetterAuthRepository.betterAuthCreateUser payload',
@@ -279,8 +283,11 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       assertArrayMapOf(rows, function (row) {
         assertDefined(row);
+        assertProp(check(isString, isNumber), row, 'id');
+        setPropValue(row, 'id', String(row.id));
         assertPropString(row, 'email');
         assertProp(check(isNullable, isString, isNumber), row, 'image');
+        setPropValue(row, 'id', String(row.id));
         if (emailAddress) {
           setPropValue(row, 'email_address', row.email);
         }
@@ -296,7 +303,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
 
       await tx.commitTransaction();
 
-      return user as BetterAuthRecord;
+      return user as BetterAuthUserRecord;
     } catch (error) {
       console.error('BetterAuthRepository', error);
       await tx.rollbackTransaction();
@@ -329,7 +336,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
       if (idCondition?.value !== undefined) {
         assertStringOrNumber(idCondition.value, 'betterAuthFindOneUser id value');
         rows = await this.sql`
-          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+          SELECT id::text as id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
             role, user_type, created_date, updated_date
           FROM users
           WHERE id = ${idCondition.value}
@@ -338,7 +345,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
         const emailValue = emailCondition.value;
         assertString(emailValue, 'betterAuthFindOneUser email value');
         rows = await this.sql`
-          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+          SELECT id::text as id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
             role, user_type, created_date, updated_date
           FROM users
           WHERE email = ${emailValue}
@@ -347,7 +354,7 @@ export abstract class BetterAuthRepository extends BaseRepository {
         const phoneValue = phoneCondition.value;
         assertString(phoneValue, 'betterAuthFindOneUser phone value');
         rows = await this.sql`
-          SELECT id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
+          SELECT id::text as id, name, profile_picture as "image", email, phone_number, phone_number_verified, email_verified_date, two_factor_enabled,
             role, user_type, created_date, updated_date
           FROM users
           WHERE phone_number = ${phoneValue} AND phone_number IS NOT NULL

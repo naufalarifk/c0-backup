@@ -4,7 +4,10 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentModule } from '../modules/documents/document.module';
 import { IndexerModule } from '../modules/indexer/indexer.module';
 import { InvoiceExpirationModule } from '../modules/invoice-expiration/invoice-expiration.module';
+import { InvoicePaymentModule } from '../modules/invoice-payments/invoice-payment.module';
+import { InvoicePaymentProcessor } from '../modules/invoice-payments/invoice-payment.processor';
 import { LoanMatcherModule } from '../modules/loan-matcher/loan-matcher.module';
+import { LoanMatcherProcessor } from '../modules/loan-matcher/loan-matcher.processor';
 import { NotificationModule } from '../modules/notifications/notification.module';
 import { NotificationProcessor } from '../modules/notifications/notification.processor';
 import { PricefeedModule } from '../modules/pricefeed/pricefeed.module';
@@ -20,6 +23,7 @@ export type CommandKey =
   | 'document'
   | 'indexer'
   | 'invoice-expiration'
+  | 'invoice-payment'
   | 'loan-matcher'
   | 'migration'
   | 'notification'
@@ -93,8 +97,23 @@ export const COMMAND_DEFINITIONS: Record<CommandKey, CommandDefinition> = {
       };
     },
   },
+  'invoice-payment': {
+    imports: [InvoicePaymentModule],
+    providers: [InvoicePaymentProcessor],
+    usesBull: true,
+    async bootstrap() {
+      const logger = new TelemetryLogger('InvoicePaymentWorker');
+      logger.log('Invoice payment worker started successfully');
+      return {
+        cleanup: () => {
+          logger.log('Invoice payment worker shutting down');
+        },
+      };
+    },
+  },
   'loan-matcher': {
     imports: [LoanMatcherModule],
+    providers: [LoanMatcherProcessor],
     usesBull: true,
     async bootstrap() {
       const logger = new TelemetryLogger('LoanMatcherWorker');

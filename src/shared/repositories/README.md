@@ -15,7 +15,7 @@ This module focus on managing data access and storage through a structured repos
 - The main PostgreSQL schemas are defined in `src/shared/repositories/postgres/*.sql`.
 - The database implementations are `InMemoryCryptogadaiRepository` and `PgRedisCryptogadaiRepository`. Both implement the `CryptogadaiRepository` abstract class.
 
-## SQL Writings
+## Repository SQL Writings
 
 - All status MUST use CamelCase, example: `InProgress`, `Completed`, `Failed`.
 - All time-based MUST use `TIMESTAMPT` type with `_date` suffix.
@@ -72,3 +72,69 @@ This module focus on managing data access and storage through a structured repos
     throw error;
   }
   ```
+
+## Repository Method Guidelines
+- Begin with transaction when performing write operations.
+- Implement single argument repository method with defined type.
+- Use params directly instead of destructuring.
+- Write SQL query that resulting structure is closest to the return type with proper aliasing. For example:
+  ```typescript
+  import { assertDefined, assertArrayMapOf, assertPropString, assertPropNullableString, setPropValue } from 'typeshaper';
+  type UserViewsProfileParams = {
+    userId: string;
+  };
+  type UserViewsProfileResult = {
+    userId: string;
+    userEmail: string;
+    userBio: string | null;
+    verifiedDate: string | null;
+    isVerified: boolean;
+  };
+  async function userViewsProfile(params: UserViewsProfileParams): Promise<UserViewsProfileResult | null> {
+    const userRows = await this.sql`
+      SELECT
+        users.id AS "userId",
+        users.email AS "userEmail",
+        user_profiles.bio AS "userBio",
+        user_profiles.verified_date AS "verifiedDate"
+      FROM users
+      LEFT JOIN user_profiles ON user_profiles.user_id = users.id
+      WHERE users.id = ${params.userId}
+    `;
+    assertArrayMapOf(userRows, function (row) {
+      assertDefined(row);
+      assertPropString(row, 'userId');
+      assertPropString(row, 'userEmail');
+      assertPropNullableString(row, 'userBio');
+      assertPropNullableString(row, 'verifiedDate');
+      setPropValue(row, 'isVerified', row.verifiedDate !== null);
+      return row;
+    });
+    if (userRows.length === 0) {
+      return null;
+    }
+    const userRow = userRows[0];
+    return userRow;
+  }
+  ```
+
+
+Your task is to continue the refactor of @src/shared/repositories/user-platform.repository.ts
+
+Current structure:
+- method with single argument with defined type
+- params mostly destructured
+- SQL query resulting in snake_case structure
+- type assertion for resulting query
+- mapping to return type structure
+
+Desired structure:
+- method with single argument with defined type
+- params used directly instead of destructuring
+- SQL query resulting in return type structure with proper aliasing
+- type assertion for resulting query using type using typeshaper
+- return resulting query directly without mapping if possible. This part will be challenging removing mapping entirely is hard due to SQL result structure is hard to align with return type structure. So just try to minimize mapping as much as possible.
+
+The target of the refactor is to make the code more compact and efficient while maintaining clarity and type safety.
+
+Verify the refactor by running test `node --import tsx --test ./src/shared/repositories/user.repository.test.ts` and type check `npx --package typescript tsc --noEmit`

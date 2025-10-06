@@ -8,8 +8,10 @@ import {
   assertPropString,
   check,
   isInstanceOf,
+  isNullable,
   isNumber,
   isString,
+  setPropValue,
 } from 'typeshaper';
 
 import { ensureUnique } from '../utils';
@@ -59,36 +61,28 @@ export abstract class UserUserRepository extends BetterAuthRepository {
   async userUpdatesProfile(params: UserUpdatesProfileParams): Promise<UserUpdatesProfileResult> {
     const tx = await this.beginTransaction();
     try {
-      const { id, name, profilePictureUrl, updateDate } = params;
-
       const rows = await tx.sql`
           UPDATE users
-          SET name = COALESCE(${name}, name),
-              profile_picture = COALESCE(${profilePictureUrl}, profile_picture),
-              updated_date = ${updateDate}
-          WHERE id = ${id}
-          RETURNING id, name, profile_picture, updated_date;
+          SET name = COALESCE(${params.name}, name),
+              profile_picture = COALESCE(${params.profilePictureUrl}, profile_picture),
+              updated_date = ${params.updateDate}
+          WHERE id = ${params.id}
+          RETURNING id, name, profile_picture AS "profilePictureUrl", updated_date AS "updatedDate";
         `;
 
       assertArrayMapOf(rows, function (row) {
         assertDefined(row, 'User not found or update failed');
         assertProp(check(isString, isNumber), row, 'id');
         assertPropString(row, 'name');
-        assertPropNullableString(row, 'profile_picture');
+        assertPropNullableString(row, 'profilePictureUrl');
+        setPropValue(row, 'id', String(row.id));
+        setPropValue(row, 'updatedDate', params.updateDate);
         return row;
       });
 
-      const user = rows[0];
-
-      const returnValue: UserUpdatesProfileResult = {
-        id: String(user.id),
-        name: user.name,
-        profilePictureUrl: user.profile_picture,
-        updatedDate: updateDate,
-      };
-
+      const result = rows[0];
       await tx.commitTransaction();
-      return returnValue;
+      return result;
     } catch (error) {
       console.error('UserRepository', error);
       await tx.rollbackTransaction();
@@ -101,8 +95,6 @@ export abstract class UserUserRepository extends BetterAuthRepository {
    * Returns user profile data based on the user schema
    */
   async userViewsProfile(params: UserViewsProfileParams): Promise<UserViewsProfileResult> {
-    const { userId } = params;
-
     const rows = await this.sql`
         SELECT id, name, email, email_verified_date, last_login_date, profile_picture, role,
                two_factor_enabled, phone_number, phone_number_verified,
@@ -111,7 +103,7 @@ export abstract class UserUserRepository extends BetterAuthRepository {
                institution_user_id, institution_role,
                kyc_id, business_name, business_type
         FROM users
-        WHERE id = ${userId}
+        WHERE id = ${params.userId}
         LIMIT 1
       `;
 
@@ -128,7 +120,9 @@ export abstract class UserUserRepository extends BetterAuthRepository {
 
       if (userType === 'Institution') {
         // Check institution application status
-        const application = await this.userViewsInstitutionApplicationStatus({ userId });
+        const application = await this.userViewsInstitutionApplicationStatus({
+          userId: params.userId,
+        });
         if (application && application.status) {
           // Map institution application status to kycStatus
           if (application.status === 'Verified') {
@@ -141,7 +135,7 @@ export abstract class UserUserRepository extends BetterAuthRepository {
         }
       } else {
         // For Individual users, check user_kycs
-        const kyc = await this.userViewsKYCStatus({ userId });
+        const kyc = await this.userViewsKYCStatus({ userId: params.userId });
         if (kyc && kyc.status) kycStatus = kyc.status;
       }
     } catch (_error) {
@@ -213,36 +207,38 @@ export abstract class UserUserRepository extends BetterAuthRepository {
   async userDecidesUserType(params: UserDecidesUserTypeParams): Promise<void> {
     const tx = await this.beginTransaction();
     try {
-      const { userId, userType, decisionDate } = params;
-
       const rows = await tx.sql`
           UPDATE users
-          SET user_type = ${userType}, user_type_selected_date = ${decisionDate}
-          WHERE id = ${userId} AND user_type = 'Undecided'
+          SET user_type = ${params.userType}, user_type_selected_date = ${params.decisionDate}
+          WHERE id = ${params.userId} AND user_type = 'Undecided'
           RETURNING id;
         `;
 
-      const row = rows[0];
-
-      if (!row) {
+      if (rows.length === 0) {
         await tx.rollbackTransaction();
         throw new Error('User type decision failed or already made');
       }
 
       // If user selects Institution type, automatically create institution for them
-      if (userType === 'Institution') {
+      if (params.userType === 'Institution') {
         // For simplicity, we'll use a sequential institution ID starting from 1
         // In a real implementation, this would be a proper institution table
         const existingInstitutionCount = await tx.sql`
             SELECT COUNT(*) as count FROM users WHERE institution_user_id IS NOT NULL;
           `;
-        const count = existingInstitutionCount[0] as { count: string | number };
-        const nextInstitutionId = Number(count.count) + 1;
+
+        assertArrayMapOf(existingInstitutionCount, function (row) {
+          assertDefined(row);
+          assertProp(check(isString, isNumber), row, 'count');
+          return row;
+        });
+
+        const nextInstitutionId = Number(existingInstitutionCount[0].count) + 1;
 
         await tx.sql`
             UPDATE users
             SET institution_user_id = ${nextInstitutionId}, institution_role = 'Owner'
-            WHERE id = ${userId};
+            WHERE id = ${params.userId};
           `;
       }
 
@@ -258,38 +254,25 @@ export abstract class UserUserRepository extends BetterAuthRepository {
   async userSubmitsKyc(params: UserSubmitsKycParams): Promise<UserSubmitsKYCResult> {
     const tx = await this.beginTransaction();
     try {
-      const {
-        userId,
-        idCardPhoto,
-        selfieWithIdCardPhoto,
-        nik,
-        name,
-        birthCity,
-        birthDate,
-        province,
-        city,
-        district,
-        subdistrict,
-        address,
-        postalCode,
-        submissionDate,
-      } = params;
-
       // Check for duplicate NIK in verified KYCs
       const existingVerifiedNikRows = await tx.sql`
           SELECT id, user_id FROM user_kycs
-          WHERE nik = ${nik} AND status = 'Verified'
+          WHERE nik = ${params.nik} AND status = 'Verified'
         `;
 
       if (existingVerifiedNikRows.length > 0) {
+        assertArrayMapOf(existingVerifiedNikRows, function (row) {
+          assertDefined(row);
+          assertProp(check(isString, isNumber), row, 'user_id');
+          return row;
+        });
+
         const existingNik = existingVerifiedNikRows[0];
-        assertDefined(existingNik);
-        assertProp(check(isString, isNumber), existingNik, 'user_id');
 
         // If verified NIK belongs to a different user, throw duplicate error
         ensureUnique(
-          String(existingNik.user_id) === userId,
-          `NIK ${nik} is already associated with another verified account`,
+          String(existingNik.user_id) === params.userId,
+          `NIK ${params.nik} is already associated with another verified account`,
         );
       }
 
@@ -300,24 +283,25 @@ export abstract class UserUserRepository extends BetterAuthRepository {
             district, subdistrict, address, postal_code
           )
           VALUES (
-            ${userId}, ${submissionDate}, ${idCardPhoto}, ${selfieWithIdCardPhoto},
-            ${nik}, ${name}, ${birthCity}, ${birthDate}, ${province}, ${city},
-            ${district}, ${subdistrict}, ${address}, ${postalCode}
+            ${params.userId}, ${params.submissionDate}, ${params.idCardPhoto}, ${params.selfieWithIdCardPhoto},
+            ${params.nik}, ${params.name}, ${params.birthCity}, ${params.birthDate}, ${params.province}, ${params.city},
+            ${params.district}, ${params.subdistrict}, ${params.address}, ${params.postalCode}
           )
-          RETURNING id, user_id;
+          RETURNING id, user_id AS "userId";
         `;
 
-      const kyc = rows[0];
-      assertDefined(kyc);
-      assertProp(check(isString, isNumber), kyc, 'id');
-      assertProp(check(isString, isNumber), kyc, 'user_id');
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row, 'KYC submission failed');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isString, isNumber), row, 'userId');
+        setPropValue(row, 'id', String(row.id));
+        setPropValue(row, 'userId', String(row.userId));
+        return row;
+      });
 
+      const result = rows[0];
       await tx.commitTransaction();
-
-      return {
-        id: String(kyc.id),
-        userId: String(kyc.user_id),
-      };
+      return result;
     } catch (error) {
       console.error('UserRepository', error);
       await tx.rollbackTransaction();
@@ -326,56 +310,61 @@ export abstract class UserUserRepository extends BetterAuthRepository {
   }
 
   async userViewsKYCStatus(params: UserViewKYCStatusParams): Promise<UserViewKYCSStatusResult> {
-    const { userId } = params;
-
     const rows = await this.sql`
-        SELECT id, user_id, submitted_date, verified_date, rejected_date, rejection_reason
+        SELECT
+          id,
+          user_id AS "userId",
+          submitted_date AS "submittedDate",
+          verified_date AS "verifiedDate",
+          rejected_date AS "rejectedDate",
+          rejection_reason AS "rejectionReason"
         FROM user_kycs
-        WHERE user_id = ${userId}
+        WHERE user_id = ${params.userId}
         ORDER BY submitted_date DESC
         LIMIT 1
       `;
-    const kycs = rows;
 
-    if (kycs.length === 0 || !kycs[0]) {
+    if (rows.length === 0) {
       return {
-        userId: String(userId),
+        userId: String(params.userId),
         status: 'none' as const,
         canResubmit: true,
       };
     }
 
-    const kyc = kycs[0];
-    assertProp(check(isString, isNumber), kyc, 'id');
-    assertProp(check(isString, isNumber), kyc, 'user_id');
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row);
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'userId');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'submittedDate');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'verifiedDate');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'rejectedDate');
+      assertProp(check(isNullable, isString), row, 'rejectionReason');
 
-    let status: 'none' | 'pending' | 'verified' | 'rejected';
-    if ('verified_date' in kyc && kyc.verified_date) {
-      status = 'verified';
-    } else if ('rejected_date' in kyc && kyc.rejected_date) {
-      status = 'rejected';
-    } else {
-      status = 'pending';
-    }
+      setPropValue(row, 'id', String(row.id));
+      setPropValue(row, 'userId', String(row.userId));
 
-    return {
-      id: String(kyc.id),
-      userId: String(kyc.user_id),
-      status,
-      submittedDate:
-        'submitted_date' in kyc && kyc.submitted_date instanceof Date
-          ? kyc.submitted_date
-          : undefined,
-      verifiedDate:
-        'verified_date' in kyc && kyc.verified_date instanceof Date ? kyc.verified_date : undefined,
-      rejectedDate:
-        'rejected_date' in kyc && kyc.rejected_date instanceof Date ? kyc.rejected_date : undefined,
-      rejectionReason:
-        'rejection_reason' in kyc && typeof kyc.rejection_reason === 'string'
-          ? kyc.rejection_reason
-          : undefined,
-      canResubmit: status === 'rejected',
-    };
+      // Convert null to undefined for optional Date fields
+      setPropValue(row, 'submittedDate', row.submittedDate ?? undefined);
+      setPropValue(row, 'verifiedDate', row.verifiedDate ?? undefined);
+      setPropValue(row, 'rejectedDate', row.rejectedDate ?? undefined);
+      setPropValue(row, 'rejectionReason', row.rejectionReason ?? undefined);
+
+      let status: 'none' | 'pending' | 'verified' | 'rejected';
+      if (row.verifiedDate) {
+        status = 'verified';
+      } else if (row.rejectedDate) {
+        status = 'rejected';
+      } else {
+        status = 'pending';
+      }
+      setPropValue(row, 'status', status);
+      setPropValue(row, 'canResubmit', status === 'rejected');
+
+      return row;
+    });
+
+    return rows[0] as UserViewKYCSStatusResult;
   }
 
   // Institution methods
@@ -384,30 +373,6 @@ export abstract class UserUserRepository extends BetterAuthRepository {
   ): Promise<UserAppliesForInstitutionResult> {
     const tx = await this.beginTransaction();
     try {
-      const {
-        applicantUserId,
-        businessName,
-        businessDescription,
-        businessType,
-        npwpNumber,
-        npwpDocumentPath,
-        registrationNumber,
-        registrationDocumentPath,
-        establishmentNumber,
-        deedOfEstablishmentPath,
-        businessAddress,
-        businessCity,
-        businessProvince,
-        businessDistrict,
-        businessSubdistrict,
-        businessPostalCode,
-        directorName,
-        directorPosition,
-        directorIdCardPath,
-        ministryApprovalDocumentPath,
-        applicationDate,
-      } = params;
-
       const rows = await tx.sql`
           INSERT INTO institution_applications (
             applicant_user_id, business_name, business_description, business_type,
@@ -418,29 +383,29 @@ export abstract class UserUserRepository extends BetterAuthRepository {
             ministry_approval_document_path, submitted_date
           )
           VALUES (
-            ${applicantUserId}, ${businessName}, ${businessDescription}, ${businessType},
-            ${npwpNumber}, ${npwpDocumentPath}, ${registrationNumber}, ${registrationDocumentPath},
-            ${establishmentNumber}, ${deedOfEstablishmentPath}, ${businessAddress},
-            ${businessCity}, ${businessProvince}, ${businessDistrict}, ${businessSubdistrict},
-            ${businessPostalCode}, ${directorName}, ${directorPosition || 'Director'}, ${directorIdCardPath},
-            ${ministryApprovalDocumentPath}, ${applicationDate}
+            ${params.applicantUserId}, ${params.businessName}, ${params.businessDescription}, ${params.businessType},
+            ${params.npwpNumber}, ${params.npwpDocumentPath}, ${params.registrationNumber}, ${params.registrationDocumentPath},
+            ${params.establishmentNumber}, ${params.deedOfEstablishmentPath}, ${params.businessAddress},
+            ${params.businessCity}, ${params.businessProvince}, ${params.businessDistrict}, ${params.businessSubdistrict},
+            ${params.businessPostalCode}, ${params.directorName}, ${params.directorPosition || 'Director'}, ${params.directorIdCardPath},
+            ${params.ministryApprovalDocumentPath}, ${params.applicationDate}
           )
-          RETURNING id, applicant_user_id, business_name;
+          RETURNING id, applicant_user_id AS "applicantUserId", business_name AS "businessName";
         `;
 
-      const application = rows[0];
-      assertDefined(application, 'Institution application failed');
-      assertProp(check(isString, isNumber), application, 'id');
-      assertProp(check(isString, isNumber), application, 'applicant_user_id');
-      assertPropString(application, 'business_name');
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row, 'Institution application failed');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isString, isNumber), row, 'applicantUserId');
+        assertPropString(row, 'businessName');
+        setPropValue(row, 'id', String(row.id));
+        setPropValue(row, 'applicantUserId', String(row.applicantUserId));
+        return row;
+      });
 
+      const result = rows[0];
       await tx.commitTransaction();
-
-      return {
-        id: String(application.id),
-        applicantUserId: String(application.applicant_user_id),
-        businessName: application.business_name,
-      };
+      return result;
     } catch (error) {
       console.error('UserRepository', error);
       await tx.rollbackTransaction();
@@ -449,54 +414,52 @@ export abstract class UserUserRepository extends BetterAuthRepository {
   }
 
   async userViewsInstitutionApplicationStatus(params: { userId: string }) {
-    const { userId } = params;
-
     const rows = await this.sql`
-        SELECT id, applicant_user_id, business_name, submitted_date, verified_date, rejected_date, rejection_reason
+        SELECT
+          id,
+          applicant_user_id AS "applicantUserId",
+          business_name AS "businessName",
+          submitted_date AS "submittedDate",
+          verified_date AS "verifiedDate",
+          rejected_date AS "rejectedDate",
+          rejection_reason AS "rejectionReason"
         FROM institution_applications
-        WHERE applicant_user_id = ${userId}
+        WHERE applicant_user_id = ${params.userId}
         ORDER BY submitted_date DESC
         LIMIT 1
       `;
 
-    if (rows.length === 0 || !rows[0]) {
+    if (rows.length === 0) {
       return null;
     }
 
-    const application = rows[0];
-    assertProp(check(isString, isNumber), application, 'id');
-    assertProp(check(isString, isNumber), application, 'applicant_user_id');
-    assertPropString(application, 'business_name');
-    assertProp(isInstanceOf(Date), application, 'submitted_date');
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row);
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'applicantUserId');
+      assertPropString(row, 'businessName');
+      assertProp(isInstanceOf(Date), row, 'submittedDate');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'verifiedDate');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'rejectedDate');
+      assertProp(check(isNullable, isString), row, 'rejectionReason');
 
-    let status: string;
-    if ('verified_date' in application && application.verified_date) {
-      status = 'Verified';
-    } else if ('rejected_date' in application && application.rejected_date) {
-      status = 'Rejected';
-    } else {
-      status = 'Submitted';
-    }
+      setPropValue(row, 'id', String(row.id));
+      setPropValue(row, 'applicantUserId', String(row.applicantUserId));
 
-    return {
-      id: String(application.id),
-      applicantUserId: String(application.applicant_user_id),
-      businessName: application.business_name,
-      submittedDate: application.submitted_date,
-      status,
-      verifiedDate:
-        'verified_date' in application && application.verified_date instanceof Date
-          ? application.verified_date
-          : undefined,
-      rejectedDate:
-        'rejected_date' in application && application.rejected_date instanceof Date
-          ? application.rejected_date
-          : undefined,
-      rejectionReason:
-        'rejection_reason' in application && typeof application.rejection_reason === 'string'
-          ? application.rejection_reason
-          : undefined,
-    };
+      let status: string;
+      if (row.verifiedDate) {
+        status = 'Verified';
+      } else if (row.rejectedDate) {
+        status = 'Rejected';
+      } else {
+        status = 'Submitted';
+      }
+      setPropValue(row, 'status', status);
+
+      return row;
+    });
+
+    return rows[0];
   }
 
   async ownerUserInvitesUserToInstitution(
@@ -504,39 +467,32 @@ export abstract class UserUserRepository extends BetterAuthRepository {
   ): Promise<OwnerUserInvitesUserToInstitutionResult> {
     const tx = await this.beginTransaction();
     try {
-      const { institutionId, userId, role, invitationDate } = params;
-
       // Calculate expiration date (7 days from invitation date)
-      const expirationDate = new Date(invitationDate);
+      const expirationDate = new Date(params.invitationDate);
       expirationDate.setDate(expirationDate.getDate() + 7);
 
       // Create pending invitation (not auto-accepted)
       const rows = await tx.sql`
         INSERT INTO institution_invitations (institution_user_id, target_user_id, role, invited_date, expires_date)
-        VALUES (${institutionId}, ${userId}, ${role}, ${invitationDate}, ${expirationDate})
-        RETURNING id, institution_user_id, target_user_id, role;
+        VALUES (${params.institutionId}, ${params.userId}, ${params.role}, ${params.invitationDate}, ${expirationDate})
+        RETURNING id, institution_user_id AS "institutionId", target_user_id AS "userId", role;
       `;
 
-      if (rows.length === 0) {
-        await tx.rollbackTransaction();
-        throw new Error('Institution invitation failed');
-      }
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row, 'Institution invitation failed');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isString, isNumber), row, 'institutionId');
+        assertProp(check(isString, isNumber), row, 'userId');
+        assertPropString(row, 'role');
+        setPropValue(row, 'id', String(row.id));
+        setPropValue(row, 'institutionId', String(row.institutionId));
+        setPropValue(row, 'userId', String(row.userId));
+        return row;
+      });
 
-      const invitation = rows[0];
-      assertDefined(invitation, 'Institution invitation failed');
-      assertProp(check(isString, isNumber), invitation, 'id');
-      assertProp(check(isString, isNumber), invitation, 'institution_user_id');
-      assertProp(check(isString, isNumber), invitation, 'target_user_id');
-      assertPropString(invitation, 'role');
-
+      const result = rows[0];
       await tx.commitTransaction();
-
-      return {
-        id: String(invitation.id),
-        institutionId: String(invitation.institution_user_id),
-        userId: String(invitation.target_user_id),
-        role: invitation.role,
-      };
+      return result;
     } catch (error) {
       console.error('UserRepository', error);
       await tx.rollbackTransaction();
@@ -549,13 +505,11 @@ export abstract class UserUserRepository extends BetterAuthRepository {
   ): Promise<UserAcceptsInstitutionInvitationResult> {
     const tx = await this.beginTransaction();
     try {
-      const { invitationId, userId: _userId, acceptanceDate } = params;
-
       // Get invitation details
       const invitationRows = await tx.sql`
           SELECT institution_user_id, role
           FROM institution_invitations
-          WHERE id = ${invitationId} AND accepted_date IS NULL AND rejected_date IS NULL
+          WHERE id = ${params.invitationId} AND accepted_date IS NULL AND rejected_date IS NULL
         `;
 
       if (invitationRows.length === 0) {
@@ -564,29 +518,30 @@ export abstract class UserUserRepository extends BetterAuthRepository {
       }
 
       // Convert Date to UTC timestamp for database storage
-      const acceptanceTimestamp = acceptanceDate.toISOString();
+      const acceptanceTimestamp = params.acceptanceDate.toISOString();
 
       // Update invitation status (trigger will handle user update)
-      const updatedInvitationRows = await tx.sql`
+      const rows = await tx.sql`
           UPDATE institution_invitations
           SET accepted_date = ${acceptanceTimestamp}
-          WHERE id = ${invitationId}
-          RETURNING id, institution_user_id, accepted_date;
+          WHERE id = ${params.invitationId}
+          RETURNING id, institution_user_id AS "institutionId", accepted_date AS "acceptedDate";
         `;
 
-      const updatedInvitation = updatedInvitationRows[0];
-      assertDefined(updatedInvitation, 'Failed to update invitation status');
-      assertProp(check(isString, isNumber), updatedInvitation, 'id');
-      assertProp(check(isString, isNumber), updatedInvitation, 'institution_user_id');
-      assertProp(isInstanceOf(Date), updatedInvitation, 'accepted_date');
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row, 'Failed to update invitation status');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isString, isNumber), row, 'institutionId');
+        assertProp(isInstanceOf(Date), row, 'acceptedDate');
+        setPropValue(row, 'id', String(row.id));
+        setPropValue(row, 'institutionId', String(row.institutionId));
+        setPropValue(row, 'acceptedDate', new Date(row.acceptedDate));
+        return row;
+      });
 
+      const result = rows[0];
       await tx.commitTransaction();
-
-      return {
-        id: String(updatedInvitation.id),
-        institutionId: String(updatedInvitation.institution_user_id),
-        acceptedDate: new Date(updatedInvitation.accepted_date),
-      };
+      return result;
     } catch (error) {
       console.error('UserRepository', error);
       await tx.rollbackTransaction();
@@ -599,35 +554,33 @@ export abstract class UserUserRepository extends BetterAuthRepository {
   ): Promise<UserRejectsInstitutionInvitationResult> {
     const tx = await this.beginTransaction();
     try {
-      const { invitationId, userId: _userId, rejectionReason, rejectionDate } = params;
-
       // Convert Date to UTC timestamp for database storage
-      const rejectionTimestamp = rejectionDate.toISOString();
+      const rejectionTimestamp = params.rejectionDate.toISOString();
 
       const rows = await tx.sql`
           UPDATE institution_invitations
           SET rejected_date = ${rejectionTimestamp},
-              rejection_reason = ${rejectionReason}
-          WHERE id = ${invitationId} AND accepted_date IS NULL AND rejected_date IS NULL
-          RETURNING id, rejected_date;
+              rejection_reason = ${params.rejectionReason}
+          WHERE id = ${params.invitationId} AND accepted_date IS NULL AND rejected_date IS NULL
+          RETURNING id, rejected_date AS "rejectedDate";
         `;
 
-      if (!rows || (Array.isArray(rows) && rows.length === 0)) {
+      if (rows.length === 0) {
         await tx.rollbackTransaction();
-        throw new Error('Invitation rejection failed');
+        throw new Error('Invitation not found or already processed');
       }
 
-      const invitation = rows[0];
-      assertDefined(invitation, 'Invitation not found or already processed');
-      assertProp(check(isString, isNumber), invitation, 'id');
-      assertProp(isInstanceOf(Date), invitation, 'rejected_date');
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row);
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(isInstanceOf(Date), row, 'rejectedDate');
+        setPropValue(row, 'id', String(row.id));
+        return row;
+      });
 
+      const result = rows[0];
       await tx.commitTransaction();
-
-      return {
-        id: String(invitation.id),
-        rejectedDate: invitation.rejected_date,
-      };
+      return result;
     } catch (error) {
       console.error('UserRepository', error);
       await tx.rollbackTransaction();
@@ -640,11 +593,9 @@ export abstract class UserUserRepository extends BetterAuthRepository {
     params: UserListsNotificationsParams,
   ): Promise<UserListsNotificationsResult> {
     try {
-      const { userId, page = 1, limit = 20, type, unreadOnly = false } = params;
-
       // Validate pagination parameters
-      const validatedPage = Math.max(1, page);
-      const validatedLimit = Math.min(Math.max(1, limit), 100);
+      const validatedPage = Math.max(1, params.page ?? 1);
+      const validatedLimit = Math.min(Math.max(1, params.limit ?? 20), 100);
       const offset = (validatedPage - 1) * validatedLimit;
 
       // Base query with conditional WHERE clauses
@@ -652,64 +603,64 @@ export abstract class UserUserRepository extends BetterAuthRepository {
       let countQuery: unknown[] = [];
       let unreadCountQuery: unknown[] = [];
 
-      if (type && unreadOnly) {
+      if (params.type && params.unreadOnly) {
         // Both type and unread filters
         notificationsQuery = await this.sql`
             SELECT id, type, title, content, read_date, creation_date
             FROM notifications
-            WHERE user_id = ${userId} AND type = ${type} AND read_date IS NULL
+            WHERE user_id = ${params.userId} AND type = ${params.type} AND read_date IS NULL
             ORDER BY creation_date DESC
             LIMIT ${validatedLimit} OFFSET ${offset}
           `;
         countQuery = await this.sql`
             SELECT COUNT(*) as count FROM notifications
-            WHERE user_id = ${userId} AND type = ${type} AND read_date IS NULL
+            WHERE user_id = ${params.userId} AND type = ${params.type} AND read_date IS NULL
           `;
-      } else if (type) {
+      } else if (params.type) {
         // Only type filter
         notificationsQuery = await this.sql`
             SELECT id, type, title, content, read_date, creation_date
             FROM notifications
-            WHERE user_id = ${userId} AND type = ${type}
+            WHERE user_id = ${params.userId} AND type = ${params.type}
             ORDER BY creation_date DESC
             LIMIT ${validatedLimit} OFFSET ${offset}
           `;
         countQuery = await this.sql`
             SELECT COUNT(*) as count FROM notifications
-            WHERE user_id = ${userId} AND type = ${type}
+            WHERE user_id = ${params.userId} AND type = ${params.type}
           `;
-      } else if (unreadOnly) {
+      } else if (params.unreadOnly) {
         // Only unread filter
         notificationsQuery = await this.sql`
             SELECT id, type, title, content, read_date, creation_date
             FROM notifications
-            WHERE user_id = ${userId} AND read_date IS NULL
+            WHERE user_id = ${params.userId} AND read_date IS NULL
             ORDER BY creation_date DESC
             LIMIT ${validatedLimit} OFFSET ${offset}
           `;
         countQuery = await this.sql`
             SELECT COUNT(*) as count FROM notifications
-            WHERE user_id = ${userId} AND read_date IS NULL
+            WHERE user_id = ${params.userId} AND read_date IS NULL
           `;
       } else {
         // No filters
         notificationsQuery = await this.sql`
             SELECT id, type, title, content, read_date, creation_date
             FROM notifications
-            WHERE user_id = ${userId}
+            WHERE user_id = ${params.userId}
             ORDER BY creation_date DESC
             LIMIT ${validatedLimit} OFFSET ${offset}
           `;
         countQuery = await this.sql`
             SELECT COUNT(*) as count FROM notifications
-            WHERE user_id = ${userId}
+            WHERE user_id = ${params.userId}
           `;
       }
 
       // Get unread count (always the same)
       unreadCountQuery = await this.sql`
           SELECT COUNT(*) as count FROM notifications
-          WHERE user_id = ${userId} AND read_date IS NULL
+          WHERE user_id = ${params.userId} AND read_date IS NULL
         `;
       assertDefined(countQuery[0]);
       assertPropDefined(countQuery[0], 'count');
@@ -765,14 +716,13 @@ export abstract class UserUserRepository extends BetterAuthRepository {
   ): Promise<UserMarksNotificationReadResult> {
     const tx = await this.beginTransaction();
     try {
-      const { userId, notificationId } = params;
       const readDate = new Date();
 
       const rows = await tx.sql`
           UPDATE notifications
           SET read_date = ${readDate}
-          WHERE id = ${notificationId} AND user_id = ${userId} AND read_date IS NULL
-          RETURNING id, read_date
+          WHERE id = ${params.notificationId} AND user_id = ${params.userId} AND read_date IS NULL
+          RETURNING id, read_date AS "readDate"
         `;
 
       if (rows.length === 0) {
@@ -780,17 +730,17 @@ export abstract class UserUserRepository extends BetterAuthRepository {
         throw new Error('Notification not found or already read');
       }
 
-      const notification = rows[0];
-      assertDefined(notification);
-      assertProp(check(isString, isNumber), notification, 'id');
-      assertProp(isInstanceOf(Date), notification, 'read_date');
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row);
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(isInstanceOf(Date), row, 'readDate');
+        setPropValue(row, 'id', String(row.id));
+        return row;
+      });
 
+      const result = rows[0];
       await tx.commitTransaction();
-
-      return {
-        id: String(notification.id),
-        readDate: notification.read_date,
-      };
+      return result;
     } catch (error) {
       console.error('UserRepository', error);
       // Only rollback if error was not a manual rollback
@@ -806,13 +756,12 @@ export abstract class UserUserRepository extends BetterAuthRepository {
   ): Promise<UserMarksAllNotificationsReadResult> {
     const tx = await this.beginTransaction();
     try {
-      const { userId } = params;
       const readDate = new Date();
 
       const rows = await tx.sql`
           UPDATE notifications
           SET read_date = ${readDate}
-          WHERE user_id = ${userId} AND read_date IS NULL
+          WHERE user_id = ${params.userId} AND read_date IS NULL
           RETURNING id
         `;
 
@@ -833,11 +782,9 @@ export abstract class UserUserRepository extends BetterAuthRepository {
   ): Promise<UserDeletesNotificationResult> {
     const tx = await this.beginTransaction();
     try {
-      const { userId, notificationId } = params;
-
       const rows = await tx.sql`
           DELETE FROM notifications
-          WHERE id = ${notificationId} AND user_id = ${userId}
+          WHERE id = ${params.notificationId} AND user_id = ${params.userId}
           RETURNING id
         `;
 
@@ -846,16 +793,17 @@ export abstract class UserUserRepository extends BetterAuthRepository {
         throw new Error('Notification not found or access denied');
       }
 
-      const notification = rows[0];
-      assertDefined(notification);
-      assertProp(check(isString, isNumber), notification, 'id');
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row);
+        assertProp(check(isString, isNumber), row, 'id');
+        setPropValue(row, 'id', String(row.id));
+        setPropValue(row, 'deleted', true);
+        return row;
+      });
 
+      const result = rows[0];
       await tx.commitTransaction();
-
-      return {
-        id: String(notification.id),
-        deleted: true,
-      };
+      return result;
     } catch (error) {
       console.error('UserRepository', error);
       // Only rollback if error was not a manual rollback
@@ -868,8 +816,6 @@ export abstract class UserUserRepository extends BetterAuthRepository {
 
   // User preferences methods
   async userGetsPreferences(params: UserGetPreferencesParams): Promise<UserGetPreferencesResult> {
-    const { userId } = params;
-
     const rows = await this.sql`
         SELECT id, user_id,
                email_notifications_enabled, email_payment_alerts, email_system_notifications,
@@ -879,14 +825,14 @@ export abstract class UserUserRepository extends BetterAuthRepository {
                profile_visibility, analytics_enabled, third_party_integrations_enabled, market_research_enabled, activity_tracking_enabled,
                created_date, updated_date
         FROM user_preferences
-        WHERE user_id = ${userId}
+        WHERE user_id = ${params.userId}
         LIMIT 1
       `;
 
     if (rows.length === 0) {
       // Return default preferences if none exist
       return {
-        userId: String(userId),
+        userId: String(params.userId),
         notifications: {
           email: {
             enabled: true,
@@ -1044,60 +990,58 @@ export abstract class UserUserRepository extends BetterAuthRepository {
   ): Promise<UserUpdatePreferencesResult> {
     const tx = await this.beginTransaction();
     try {
-      const { userId, preferences, updateDate } = params;
-
       // Get current preferences to merge with updates
-      const current = await this.userGetsPreferences({ userId });
+      const current = await this.userGetsPreferences({ userId: params.userId });
 
       // Merge preferences
       const updated = {
         email_notifications_enabled:
-          preferences.notifications?.email?.enabled ?? current.notifications.email.enabled,
+          params.preferences.notifications?.email?.enabled ?? current.notifications.email.enabled,
         email_payment_alerts:
-          preferences.notifications?.email?.types?.paymentAlerts ??
+          params.preferences.notifications?.email?.types?.paymentAlerts ??
           current.notifications.email.types.paymentAlerts,
         email_system_notifications:
-          preferences.notifications?.email?.types?.systemNotifications ??
+          params.preferences.notifications?.email?.types?.systemNotifications ??
           current.notifications.email.types.systemNotifications,
         push_notifications_enabled:
-          preferences.notifications?.push?.enabled ?? current.notifications.push.enabled,
+          params.preferences.notifications?.push?.enabled ?? current.notifications.push.enabled,
         push_payment_alerts:
-          preferences.notifications?.push?.types?.paymentAlerts ??
+          params.preferences.notifications?.push?.types?.paymentAlerts ??
           current.notifications.push.types.paymentAlerts,
         push_system_notifications:
-          preferences.notifications?.push?.types?.systemNotifications ??
+          params.preferences.notifications?.push?.types?.systemNotifications ??
           current.notifications.push.types.systemNotifications,
         sms_notifications_enabled:
-          preferences.notifications?.sms?.enabled ?? current.notifications.sms.enabled,
+          params.preferences.notifications?.sms?.enabled ?? current.notifications.sms.enabled,
         sms_payment_alerts:
-          preferences.notifications?.sms?.types?.paymentAlerts ??
+          params.preferences.notifications?.sms?.types?.paymentAlerts ??
           current.notifications.sms.types.paymentAlerts,
         sms_system_notifications:
-          preferences.notifications?.sms?.types?.systemNotifications ??
+          params.preferences.notifications?.sms?.types?.systemNotifications ??
           current.notifications.sms.types.systemNotifications,
-        theme: preferences.display?.theme ?? current.display.theme,
-        language: preferences.display?.language ?? current.display.language,
-        currency: preferences.display?.currency ?? current.display.currency,
-        timezone: preferences.display?.timezone ?? current.display.timezone,
-        date_format: preferences.display?.dateFormat ?? current.display.dateFormat,
-        number_format: preferences.display?.numberFormat ?? current.display.numberFormat,
+        theme: params.preferences.display?.theme ?? current.display.theme,
+        language: params.preferences.display?.language ?? current.display.language,
+        currency: params.preferences.display?.currency ?? current.display.currency,
+        timezone: params.preferences.display?.timezone ?? current.display.timezone,
+        date_format: params.preferences.display?.dateFormat ?? current.display.dateFormat,
+        number_format: params.preferences.display?.numberFormat ?? current.display.numberFormat,
         profile_visibility:
-          preferences.privacy?.profileVisibility ?? current.privacy.profileVisibility,
+          params.preferences.privacy?.profileVisibility ?? current.privacy.profileVisibility,
         analytics_enabled:
-          preferences.privacy?.dataSharing?.analytics !== undefined
-            ? preferences.privacy.dataSharing.analytics
+          params.preferences.privacy?.dataSharing?.analytics !== undefined
+            ? params.preferences.privacy.dataSharing.analytics
             : current.privacy.dataSharing.analytics,
         third_party_integrations_enabled:
-          preferences.privacy?.dataSharing?.thirdPartyIntegrations !== undefined
-            ? preferences.privacy.dataSharing.thirdPartyIntegrations
+          params.preferences.privacy?.dataSharing?.thirdPartyIntegrations !== undefined
+            ? params.preferences.privacy.dataSharing.thirdPartyIntegrations
             : current.privacy.dataSharing.thirdPartyIntegrations,
         market_research_enabled:
-          preferences.privacy?.dataSharing?.marketResearch !== undefined
-            ? preferences.privacy.dataSharing.marketResearch
+          params.preferences.privacy?.dataSharing?.marketResearch !== undefined
+            ? params.preferences.privacy.dataSharing.marketResearch
             : current.privacy.dataSharing.marketResearch,
         activity_tracking_enabled:
-          preferences.privacy?.activityTracking !== undefined
-            ? preferences.privacy.activityTracking
+          params.preferences.privacy?.activityTracking !== undefined
+            ? params.preferences.privacy.activityTracking
             : current.privacy.activityTracking,
       };
 
@@ -1126,9 +1070,9 @@ export abstract class UserUserRepository extends BetterAuthRepository {
                 third_party_integrations_enabled = ${updated.third_party_integrations_enabled},
                 market_research_enabled = ${updated.market_research_enabled},
                 activity_tracking_enabled = ${updated.activity_tracking_enabled},
-                updated_date = ${updateDate}
-            WHERE user_id = ${userId}
-            RETURNING id, user_id, updated_date
+                updated_date = ${params.updateDate}
+            WHERE user_id = ${params.userId}
+            RETURNING id, user_id AS "userId", updated_date AS "updatedAt"
           `;
       } else {
         // Insert new preferences
@@ -1137,42 +1081,37 @@ export abstract class UserUserRepository extends BetterAuthRepository {
               user_id,
               email_notifications_enabled, email_payment_alerts, email_system_notifications,
               push_notifications_enabled, push_payment_alerts, push_system_notifications,
-              sms_notifications_enafbled, sms_payment_alerts, sms_system_notifications,
+              sms_notifications_enabled, sms_payment_alerts, sms_system_notifications,
               theme, language, currency, timezone, date_format, number_format,
               profile_visibility, analytics_enabled, third_party_integrations_enabled, market_research_enabled, activity_tracking_enabled,
               created_date, updated_date
             )
             VALUES (
-              ${userId},
+              ${params.userId},
               ${updated.email_notifications_enabled}, ${updated.email_payment_alerts}, ${updated.email_system_notifications},
               ${updated.push_notifications_enabled}, ${updated.push_payment_alerts}, ${updated.push_system_notifications},
               ${updated.sms_notifications_enabled}, ${updated.sms_payment_alerts}, ${updated.sms_system_notifications},
               ${updated.theme}, ${updated.language}, ${updated.currency}, ${updated.timezone}, ${updated.date_format}, ${updated.number_format},
               ${updated.profile_visibility}, ${updated.analytics_enabled}, ${updated.third_party_integrations_enabled}, ${updated.market_research_enabled}, ${updated.activity_tracking_enabled},
-              ${updateDate}, ${updateDate}
+              ${params.updateDate}, ${params.updateDate}
             )
-            RETURNING id, user_id, updated_date
+            RETURNING id, user_id AS "userId", updated_date AS "updatedAt"
           `;
       }
 
-      if (rows.length === 0) {
-        await tx.rollbackTransaction();
-        throw new Error('Failed to update user preferences');
-      }
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row, 'Failed to update user preferences');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isString, isNumber), row, 'userId');
+        assertProp(isInstanceOf(Date), row, 'updatedAt');
+        setPropValue(row, 'id', String(row.id));
+        setPropValue(row, 'userId', String(row.userId));
+        return row;
+      });
 
       const result = rows[0];
-      assertDefined(result);
-      assertProp(check(isString, isNumber), result, 'id');
-      assertProp(check(isString, isNumber), result, 'user_id');
-      assertProp(isInstanceOf(Date), result, 'updated_date');
-
       await tx.commitTransaction();
-
-      return {
-        id: String(result.id),
-        userId: String(result.user_id),
-        updatedAt: result.updated_date,
-      };
+      return result;
     } catch (error) {
       console.error('UserRepository', error);
       await tx.rollbackTransaction();
@@ -1190,17 +1129,6 @@ export abstract class UserUserRepository extends BetterAuthRepository {
     const tx = await this.beginTransaction();
 
     try {
-      const {
-        userId,
-        pushToken,
-        deviceId,
-        deviceType,
-        deviceName,
-        deviceModel,
-        currentSessionId,
-        registeredDate,
-      } = params;
-
       // UPSERT by push_token (unique)
       const rows = await tx.sql`
         INSERT INTO push_tokens (
@@ -1216,46 +1144,41 @@ export abstract class UserUserRepository extends BetterAuthRepository {
           last_used_date
         )
         VALUES (
-          ${userId},
-          ${pushToken},
-          ${deviceId},
-          ${deviceType},
-          ${deviceName},
-          ${deviceModel},
-          ${currentSessionId},
+          ${params.userId},
+          ${params.pushToken},
+          ${params.deviceId},
+          ${params.deviceType},
+          ${params.deviceName},
+          ${params.deviceModel},
+          ${params.currentSessionId},
           true,
-          ${registeredDate},
+          ${params.registeredDate},
           NOW()
         )
         ON CONFLICT (push_token) DO UPDATE SET
-          current_session_id = ${currentSessionId},
-          device_name = ${deviceName},
+          current_session_id = ${params.currentSessionId},
+          device_name = ${params.deviceName},
           is_active = true,
           last_used_date = NOW(),
           updated_date = NOW()
-        RETURNING id, user_id, push_token, device_id, (xmax = 0) AS is_new;
+        RETURNING id, user_id AS "userId", push_token AS "pushToken", device_id AS "deviceId", (xmax = 0) AS "isNew";
       `;
 
       assertArrayMapOf(rows, function (row) {
         assertDefined(row, 'Push token registration failed');
         assertProp(check(isString, isNumber), row, 'id');
-        assertProp(check(isString, isNumber), row, 'user_id');
-        assertPropString(row, 'push_token');
-        assertPropNullableString(row, 'device_id');
-        assertPropBoolean(row, 'is_new');
+        assertProp(check(isString, isNumber), row, 'userId');
+        assertPropString(row, 'pushToken');
+        assertProp(check(isNullable, isString), row, 'deviceId');
+        assertPropBoolean(row, 'isNew');
+        setPropValue(row, 'id', String(row.id));
+        setPropValue(row, 'userId', String(row.userId));
+        setPropValue(row, 'deviceId', row.deviceId ?? null);
+        setPropValue(row, 'isNew', Boolean(row.isNew));
         return row;
       });
 
-      const token = rows[0];
-
-      const result: UserRegisterPushTokenResult = {
-        id: String(token.id),
-        userId: String(token.user_id),
-        pushToken: token.push_token,
-        deviceId: token.device_id ?? null,
-        isNew: Boolean(token.is_new),
-      };
-
+      const result = rows[0];
       await tx.commitTransaction();
       return result;
     } catch (error) {
@@ -1275,12 +1198,10 @@ export abstract class UserUserRepository extends BetterAuthRepository {
     const tx = await this.beginTransaction();
 
     try {
-      const { userId, currentSessionId } = params;
-
       const rows = await tx.sql`
         UPDATE push_tokens
         SET current_session_id = NULL, last_used_date = NOW(), updated_date = NOW()
-        WHERE current_session_id = ${currentSessionId} AND user_id = ${userId}
+        WHERE current_session_id = ${params.currentSessionId} AND user_id = ${params.userId}
         RETURNING id
       `;
 
@@ -1304,12 +1225,10 @@ export abstract class UserUserRepository extends BetterAuthRepository {
     const tx = await this.beginTransaction();
 
     try {
-      const { userId, pushToken, deviceId, currentSessionId, lastUsedDate } = params;
-
       const rows = await tx.sql`
         UPDATE push_tokens
-        SET current_session_id = ${currentSessionId}, is_active = true, last_used_date = ${lastUsedDate}, updated_date = NOW()
-        WHERE user_id = ${userId} AND (push_token = ${pushToken} OR device_id = ${deviceId})
+        SET current_session_id = ${params.currentSessionId}, is_active = true, last_used_date = ${params.lastUsedDate}, updated_date = NOW()
+        WHERE user_id = ${params.userId} AND (push_token = ${params.pushToken} OR device_id = ${params.deviceId})
         RETURNING id
       `;
 

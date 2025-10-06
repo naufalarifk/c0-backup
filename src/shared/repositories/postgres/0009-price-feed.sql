@@ -22,26 +22,6 @@ CREATE TABLE IF NOT EXISTS exchange_rates (
   source_date TIMESTAMP NOT NULL
 );
 
--- @PriceFeed(PriceFeedSource.Binance)
--- class BinancePriceFeedProvider extends PriceFeedProvider {
---   async fetchExchangeRate(baseCurrency: Currency, quoteCurrency: Currency): Promise<ExchangeRate> {
---     // Implementasi pengambilan data dari API Binance
---     const symbol = `${baseCurrency.tokenId}${quoteCurrency.tokenId}`;
---     const response = await fetch(`https://api.binance.com/api/v3/ticker/bookTicker?symbol=${symbol}`);
---     const data = await response.json();
-
---     if (!data.bidPrice || !data.askPrice) {
---       throw new Error('Invalid response from Binance API');
---     }
-
---     return {
---       bidPrice: parseFloat(data.bidPrice),
---       askPrice: parseFloat(data.askPrice),
---       retrievalDate: new Date(),
---       sourceDate: new Date() // Binance tidak menyediakan timestamp khusus, jadi gunakan waktu saat ini
---     };
---   }
--- }
 
 --- PLATFORM FIXED DATA ---
 
@@ -76,5 +56,9 @@ INSERT INTO price_feeds (blockchain_key, base_currency_token_id, quote_currency_
   ('crosschain', 'iso4217:usd', 'iso4217:usd', 'binance'),
   ('crosschain', 'iso4217:usd', 'iso4217:usd', 'coingecko'),
   ('crosschain', 'iso4217:usd', 'iso4217:usd', 'coinmarketcap'),
-  ('crosschain', 'iso4217:usd', 'iso4217:usd', 'random')
+  ('crosschain', 'iso4217:usd', 'iso4217:usd', 'random'),
+
+  -- Testnet / Devnet price feeds for cg:testnet (mock blockchain)
+  -- Mockchain Coin (MCK) against Mockchain Dollar (MUSD)
+  ('cg:testnet', 'mock:native', 'mock:usd', 'random')
 ON CONFLICT (blockchain_key, base_currency_token_id, quote_currency_token_id, source) DO NOTHING;

@@ -66,8 +66,6 @@ export class EnhancedLoanMatcherStrategy extends LoanMatcherStrategy {
     invariant(this.repository, 'Repository not available');
 
     const offers = await this.repository.platformListsAvailableLoanOffers({
-      collateralBlockchainKey: application.collateralBlockchainKey,
-      collateralTokenId: application.collateralTokenId,
       principalBlockchainKey: application.principalBlockchainKey,
       principalTokenId: application.principalTokenId,
       limit: 50,

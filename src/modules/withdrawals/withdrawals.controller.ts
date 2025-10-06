@@ -73,7 +73,7 @@ export class WithdrawalsController {
     description: 'Forbidden - 2FA verification failed, KYC not verified, or 2FA not enabled',
   })
   async create(
-    @Headers() headers: HeadersInit,
+    @Headers() headers: Record<string, string>,
     @Session() session: UserSession,
     @Body() createWithdrawalDto: CreateWithdrawalDto,
   ): Promise<WithdrawalCreatedResponseDto> {

@@ -20,7 +20,9 @@ import {
   isString,
 } from 'typeshaper';
 
+import { LoanMatcherQueueService } from '../modules/loan-matcher/loan-matcher-queue.service';
 import { LoansService } from '../modules/loans/services/loans.service';
+import { NotificationQueueService } from '../modules/notifications/notification-queue.service';
 import { CryptogadaiRepository } from './repositories/cryptogadai.repository';
 import { CgTestnetBlockchainEventService } from './services/cg-testnet-blockchain-event.service';
 import { TelemetryLogger } from './telemetry.logger';
@@ -33,6 +35,8 @@ export class TestController {
     private readonly repo: CryptogadaiRepository,
     private readonly loansService: LoansService,
     private readonly testBlockchainEvents: CgTestnetBlockchainEventService,
+    private readonly loanMatcherQueue: LoanMatcherQueueService,
+    private readonly notificationQueueService: NotificationQueueService,
   ) {}
 
   @Get('test')
@@ -373,6 +377,15 @@ export class TestController {
       publishedDate: paymentDate,
     });
 
+    // Queue loan matching for the newly published offer
+    try {
+      await this.loanMatcherQueue.queueMatchingForNewOffer(loanOfferId);
+      this.#logger.debug(`Queued loan matching for newly published loan offer ${loanOfferId}`);
+    } catch (error) {
+      this.#logger.warn(`Failed to queue loan matching for offer ${loanOfferId}:`, error);
+      // Don't fail the entire test endpoint just because matcher queuing failed
+    }
+
     return {
       success: true,
       message: `Marked invoice ${invoiceId} as paid for loan offer ${loanOfferId}`,
@@ -512,6 +525,25 @@ export class TestController {
       throw new ConflictException(
         `Provided invoiceId ${body.invoiceId} does not match collateral invoice ${invoiceId}`,
       );
+    }
+
+    await this.repo.testPublishesLoanApplication({
+      loanApplicationId,
+      publishedDate: paymentDate,
+    });
+
+    // Queue loan matching for the newly published application
+    try {
+      await this.loanMatcherQueue.queueMatchingForNewApplication(loanApplicationId);
+      this.#logger.debug(
+        `Queued loan matching for newly published loan application ${loanApplicationId}`,
+      );
+    } catch (error) {
+      this.#logger.warn(
+        `Failed to queue loan matching for application ${loanApplicationId}:`,
+        error,
+      );
+      // Don't fail the entire test endpoint just because matcher queuing failed
     }
 
     return {
@@ -686,12 +718,62 @@ export class TestController {
     const ensuredMinCollateralValuation = minCollateralValuation as string;
     const ensuredCollateralAmount = collateralAmount as string;
 
+    // Get loan application and offer details to retrieve user IDs and other info for notifications
+    const detailRows = await this.repo.sql`
+      SELECT
+        la.id as app_id,
+        la.borrower_user_id,
+        la.principal_amount,
+        la.term_in_months,
+        lo.id as offer_id,
+        lo.lender_user_id,
+        lo.interest_rate
+      FROM loan_applications la
+      JOIN loan_offers lo ON lo.id = ${loanOfferId}
+      WHERE la.id = ${loanApplicationId}
+    `;
+
+    if (detailRows.length === 0) {
+      throw new BadRequestException('Loan application or offer not found');
+    }
+
+    const details = detailRows[0];
+    assertDefined(details);
+    assertProp(check(isString, isNumber), details, 'borrower_user_id');
+    assertProp(check(isString, isNumber), details, 'lender_user_id');
+    assertProp(check(isString, isNumber), details, 'principal_amount');
+    assertProp(check(isString, isNumber), details, 'interest_rate');
+    assertProp(check(isString, isNumber), details, 'term_in_months');
+
     const matchResult = await this.repo.platformMatchesLoanOffers({
       loanOfferId,
       loanApplicationId,
       matchedLtvRatio,
       matchedCollateralValuationAmount,
       matchedDate: matchedDateValue,
+    });
+
+    // Send match notifications to borrower and lender
+    // Note: LoanApplicationMatched uses different field names than LoanOfferMatched
+    await this.notificationQueueService.queueNotification({
+      type: 'LoanApplicationMatched',
+      userId: String(details.borrower_user_id),
+      loanApplicationId,
+      loanOfferId,
+      principalAmount: String(details.principal_amount),
+      interestRate: String(details.interest_rate),
+      termInMonths: String(details.term_in_months),
+      matchedDate: matchedDateValue.toISOString(),
+    });
+
+    await this.notificationQueueService.queueNotification({
+      type: 'LoanOfferMatched',
+      userId: String(details.lender_user_id),
+      loanApplicationId,
+      loanOfferId,
+      amount: String(details.principal_amount),
+      interestRate: String(details.interest_rate),
+      term: `${details.term_in_months} months`,
     });
 
     const originationResult = await this.loansService.originateLoan({
@@ -1097,6 +1179,150 @@ export class TestController {
       userId: Number(userId),
       mutationsCount: mutations.length,
     };
+  }
+
+  @Post('trigger-loan-matching')
+  async triggerLoanMatching(
+    @Body()
+    body: { targetApplicationId?: string; targetOfferId?: string; batchSize?: number },
+  ) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Test endpoints are not available in production');
+    }
+
+    const { targetApplicationId, targetOfferId, batchSize = 50 } = body;
+
+    if (targetApplicationId) {
+      await this.loanMatcherQueue.queueMatchingForNewApplication(targetApplicationId);
+      this.#logger.debug(`Queued loan matching for application ${targetApplicationId}`);
+      return {
+        success: true,
+        message: `Queued loan matching for application ${targetApplicationId}`,
+        targetApplicationId,
+      };
+    }
+
+    if (targetOfferId) {
+      await this.loanMatcherQueue.queueMatchingForNewOffer(targetOfferId);
+      this.#logger.debug(`Queued loan matching for offer ${targetOfferId}`);
+      return {
+        success: true,
+        message: `Queued loan matching for offer ${targetOfferId}`,
+        targetOfferId,
+      };
+    }
+
+    await this.loanMatcherQueue.queuePeriodicMatching(batchSize);
+    this.#logger.debug(`Queued periodic loan matching with batch size ${batchSize}`);
+    return {
+      success: true,
+      message: `Queued periodic loan matching with batch size ${batchSize}`,
+      batchSize,
+    };
+  }
+
+  @Post('setup-price-feed')
+  async setupPriceFeed(
+    @Body()
+    body: {
+      blockchainKey: string;
+      baseCurrencyTokenId: string;
+      quoteCurrencyTokenId: string;
+      source?: string;
+      bidPrice?: number;
+      askPrice?: number;
+      sourceDate?: string;
+    },
+  ) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Test endpoints are not available in production');
+    }
+
+    const {
+      blockchainKey,
+      baseCurrencyTokenId,
+      quoteCurrencyTokenId,
+      source = 'test',
+      bidPrice = 1.0,
+      askPrice = 1.0,
+      sourceDate,
+    } = body;
+
+    if (!blockchainKey || typeof blockchainKey !== 'string') {
+      throw new BadRequestException('blockchainKey is required');
+    }
+    if (!baseCurrencyTokenId || typeof baseCurrencyTokenId !== 'string') {
+      throw new BadRequestException('baseCurrencyTokenId is required');
+    }
+    if (!quoteCurrencyTokenId || typeof quoteCurrencyTokenId !== 'string') {
+      throw new BadRequestException('quoteCurrencyTokenId is required');
+    }
+
+    const effectiveSourceDate = sourceDate ? new Date(sourceDate) : new Date();
+
+    const result = await this.repo.testSetupPriceFeeds({
+      blockchainKey,
+      baseCurrencyTokenId,
+      quoteCurrencyTokenId,
+      source,
+      bidPrice,
+      askPrice,
+      sourceDate: effectiveSourceDate,
+    });
+
+    this.#logger.debug(
+      `Set up price feed for ${baseCurrencyTokenId}/${quoteCurrencyTokenId} on ${blockchainKey}`,
+    );
+
+    return {
+      success: true,
+      message: `Price feed set up for ${baseCurrencyTokenId}/${quoteCurrencyTokenId}`,
+      priceFeedId: result.priceFeedId,
+      exchangeRateId: result.exchangeRateId,
+      bidPrice,
+      askPrice,
+    };
+  }
+
+  @Post('verify-price-feed')
+  async verifyPriceFeed(
+    @Body()
+    body: { blockchainKey: string; collateralTokenId: string },
+  ) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Test endpoints are not available in production');
+    }
+
+    const { blockchainKey, collateralTokenId } = body;
+
+    if (!blockchainKey || typeof blockchainKey !== 'string') {
+      throw new BadRequestException('blockchainKey is required');
+    }
+    if (!collateralTokenId || typeof collateralTokenId !== 'string') {
+      throw new BadRequestException('collateralTokenId is required');
+    }
+
+    try {
+      const exchangeRate = await this.repo.borrowerGetsExchangeRate({
+        collateralBlockchainKey: blockchainKey,
+        collateralTokenId,
+      });
+
+      return {
+        success: true,
+        exchangeRate: {
+          id: exchangeRate.id,
+          bidPrice: exchangeRate.bidPrice,
+          askPrice: exchangeRate.askPrice,
+          sourceDate: exchangeRate.sourceDate,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message || String(error),
+      };
+    }
   }
 
   @Post('cg-testnet-blockchain-payments')

@@ -881,6 +881,9 @@ suite('Loan Market API', function () {
       ok(createResponse.ok, `Failed to create application: ${createResponse.status}`);
 
       const createData = await createResponse.json();
+      assertDefined(createData);
+      assertPropDefined(createData, 'data');
+      assertPropString(createData.data, 'id');
       const applicationId = createData.data.id;
 
       // Now update the application
@@ -984,6 +987,9 @@ suite('Loan Market API', function () {
       }
 
       const createData = await createResponse.json();
+      assertDefined(createData);
+      assertPropDefined(createData, 'data');
+      assertPropString(createData.data, 'id');
       const applicationId = createData.data.id;
 
       const response = await borrower.fetch(`/api/loan-applications/${applicationId}`);

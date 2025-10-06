@@ -8,8 +8,8 @@ import { afterEach, beforeEach, describe, it, mock } from 'node:test';
 
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 
-import { WalletFactory } from '../../../shared/wallets/Iwallet.service';
-import { PlatformWalletService } from '../../../shared/wallets/platform-wallet.service';
+import { WalletFactory } from '../../../shared/wallets/wallet.factory';
+import { WalletService } from '../../../shared/wallets/wallet.service';
 import { BlockchainNetworkEnum } from '../balance-collection.types';
 import { BitcoinBalanceCollector } from './bitcoin-balance.collector';
 import { BSCBalanceCollector } from './bsc-balance.collector';
@@ -17,13 +17,8 @@ import { EVMBalanceCollector } from './evm-balance.collector';
 import { SepoliaBalanceCollector } from './sepolia-balance.collector';
 import { SolanaBalanceCollector } from './solana-balance.collector';
 
-interface MockPlatformWalletService {
-  getMasterKey: ReturnType<typeof mock.fn>;
-  getHotWallet: ReturnType<typeof mock.fn>;
-}
-
 interface MockWalletFactory {
-  getWalletService: ReturnType<typeof mock.fn>;
+  getBlockchain: ReturnType<typeof mock.fn>;
 }
 
 interface MockWallet {
@@ -31,15 +26,15 @@ interface MockWallet {
   transfer: ReturnType<typeof mock.fn>;
 }
 
-interface MockWalletService {
+interface MockBlockchain {
   derivedPathToWallet: ReturnType<typeof mock.fn>;
+  getHotWallet: ReturnType<typeof mock.fn>;
 }
 
 describe('Balance Collectors Tests', () => {
-  let mockPlatformWalletService: MockPlatformWalletService;
   let mockWalletFactory: MockWalletFactory;
   let mockWallet: MockWallet;
-  let mockWalletService: MockWalletService;
+  let mockBlockchain: MockBlockchain;
 
   beforeEach(() => {
     // Mock wallet
@@ -52,26 +47,15 @@ describe('Balance Collectors Tests', () => {
       ),
     };
 
-    // Mock wallet service
-    mockWalletService = {
+    // Mock blockchain
+    mockBlockchain = {
       derivedPathToWallet: mock.fn(() => Promise.resolve(mockWallet)),
-    };
-
-    // Mock platform wallet service
-    mockPlatformWalletService = {
-      getMasterKey: mock.fn(() =>
-        Promise.resolve({ derive: () => ({ privateKey: new Uint8Array(32) }) }),
-      ),
-      getHotWallet: mock.fn(() =>
-        Promise.resolve({
-          address: '0xHotWalletAddress',
-        }),
-      ),
+      getHotWallet: mock.fn(() => Promise.resolve(mockWallet)),
     };
 
     // Mock wallet factory
     mockWalletFactory = {
-      getWalletService: mock.fn(() => mockWalletService),
+      getBlockchain: mock.fn(() => mockBlockchain),
     };
   });
 
@@ -83,15 +67,11 @@ describe('Balance Collectors Tests', () => {
     let collector: EVMBalanceCollector;
 
     beforeEach(() => {
-      collector = new EVMBalanceCollector(
-        mockPlatformWalletService as unknown as PlatformWalletService,
-        mockWalletFactory as unknown as WalletFactory,
-      );
+      collector = new EVMBalanceCollector(mockWalletFactory as unknown as WalletFactory);
     });
 
     it('should handle EVM blockchains', () => {
       const request: BalanceCollectionRequest = {
-        invoiceId: '123',
         blockchainKey: 'eip155:1',
         walletAddress: '0xTest',
         walletDerivationPath: "m/44'/60'/5'/0/123",
@@ -109,7 +89,6 @@ describe('Balance Collectors Tests', () => {
       );
 
       const request: BalanceCollectionRequest = {
-        invoiceId: '123',
         blockchainKey: 'eip155:1',
         walletAddress: '0xTest',
         walletDerivationPath: "m/44'/60'/5'/0/123",
@@ -131,7 +110,6 @@ describe('Balance Collectors Tests', () => {
       );
 
       const request: BalanceCollectionRequest = {
-        invoiceId: '123',
         blockchainKey: 'eip155:1',
         walletAddress: '0xTest',
         walletDerivationPath: "m/44'/60'/5'/0/123",
@@ -171,7 +149,6 @@ describe('Balance Collectors Tests', () => {
       );
 
       const request: BalanceCollectionRequest = {
-        invoiceId: '123',
         blockchainKey: 'eip155:1',
         walletAddress: '0xTest',
         walletDerivationPath: "m/44'/60'/5'/0/123",
@@ -190,15 +167,11 @@ describe('Balance Collectors Tests', () => {
     let collector: BSCBalanceCollector;
 
     beforeEach(() => {
-      collector = new BSCBalanceCollector(
-        mockPlatformWalletService as unknown as PlatformWalletService,
-        mockWalletFactory as unknown as WalletFactory,
-      );
+      collector = new BSCBalanceCollector(mockWalletFactory as unknown as WalletFactory);
     });
 
     it('should handle BSC mainnet', () => {
       const request: BalanceCollectionRequest = {
-        invoiceId: '123',
         blockchainKey: 'eip155:56',
         walletAddress: '0xTest',
         walletDerivationPath: "m/44'/60'/5'/0/123",
@@ -217,15 +190,11 @@ describe('Balance Collectors Tests', () => {
     let collector: SepoliaBalanceCollector;
 
     beforeEach(() => {
-      collector = new SepoliaBalanceCollector(
-        mockPlatformWalletService as unknown as PlatformWalletService,
-        mockWalletFactory as unknown as WalletFactory,
-      );
+      collector = new SepoliaBalanceCollector(mockWalletFactory as unknown as WalletFactory);
     });
 
     it('should handle Sepolia testnet', () => {
       const request: BalanceCollectionRequest = {
-        invoiceId: '123',
         blockchainKey: 'eip155:11155111',
         walletAddress: '0xTest',
         walletDerivationPath: "m/44'/60'/5'/0/123",
@@ -244,15 +213,11 @@ describe('Balance Collectors Tests', () => {
     let collector: SolanaBalanceCollector;
 
     beforeEach(() => {
-      collector = new SolanaBalanceCollector(
-        mockPlatformWalletService as unknown as PlatformWalletService,
-        mockWalletFactory as unknown as WalletFactory,
-      );
+      collector = new SolanaBalanceCollector(mockWalletFactory as unknown as WalletFactory);
     });
 
     it('should handle Solana mainnet', () => {
       const request: BalanceCollectionRequest = {
-        invoiceId: '123',
         blockchainKey: BlockchainNetworkEnum.SolanaMainnet,
         walletAddress: 'SolanaPublicKey123',
         walletDerivationPath: "m/44'/501'/5'/0/123",
@@ -270,7 +235,6 @@ describe('Balance Collectors Tests', () => {
       );
 
       const request: BalanceCollectionRequest = {
-        invoiceId: '123',
         blockchainKey: BlockchainNetworkEnum.SolanaMainnet,
         walletAddress: 'SolanaPublicKey123',
         walletDerivationPath: "m/44'/501'/5'/0/123",
@@ -293,7 +257,6 @@ describe('Balance Collectors Tests', () => {
       );
 
       const request: BalanceCollectionRequest = {
-        invoiceId: '123',
         blockchainKey: BlockchainNetworkEnum.SolanaMainnet,
         walletAddress: 'SolanaPublicKey123',
         walletDerivationPath: "m/44'/501'/5'/0/123",
@@ -334,7 +297,6 @@ describe('Balance Collectors Tests', () => {
       );
 
       const request: BalanceCollectionRequest = {
-        invoiceId: '123',
         blockchainKey: BlockchainNetworkEnum.SolanaMainnet,
         walletAddress: 'SolanaPublicKey123',
         walletDerivationPath: "m/44'/501'/5'/0/123",
@@ -353,15 +315,11 @@ describe('Balance Collectors Tests', () => {
     let collector: BitcoinBalanceCollector;
 
     beforeEach(() => {
-      collector = new BitcoinBalanceCollector(
-        mockPlatformWalletService as unknown as PlatformWalletService,
-        mockWalletFactory as unknown as WalletFactory,
-      );
+      collector = new BitcoinBalanceCollector(mockWalletFactory as unknown as WalletFactory);
     });
 
     it('should handle Bitcoin mainnet', () => {
       const request: BalanceCollectionRequest = {
-        invoiceId: '123',
         blockchainKey: BlockchainNetworkEnum.BitcoinMainnet,
         walletAddress: 'bc1qTest123',
         walletDerivationPath: "m/44'/0'/5'/0/123",
@@ -379,7 +337,6 @@ describe('Balance Collectors Tests', () => {
       );
 
       const request: BalanceCollectionRequest = {
-        invoiceId: '123',
         blockchainKey: BlockchainNetworkEnum.BitcoinMainnet,
         walletAddress: 'bc1qTest123',
         walletDerivationPath: "m/44'/0'/5'/0/123",
@@ -402,7 +359,6 @@ describe('Balance Collectors Tests', () => {
       );
 
       const request: BalanceCollectionRequest = {
-        invoiceId: '123',
         blockchainKey: BlockchainNetworkEnum.BitcoinMainnet,
         walletAddress: 'bc1qTest123',
         walletDerivationPath: "m/44'/0'/5'/0/123",
@@ -443,7 +399,6 @@ describe('Balance Collectors Tests', () => {
       );
 
       const request: BalanceCollectionRequest = {
-        invoiceId: '123',
         blockchainKey: BlockchainNetworkEnum.BitcoinMainnet,
         walletAddress: 'bc1qTest123',
         walletDerivationPath: "m/44'/0'/5'/0/123",
@@ -466,7 +421,6 @@ describe('Balance Collectors Tests', () => {
       );
 
       const request: BalanceCollectionRequest = {
-        invoiceId: '123',
         blockchainKey: BlockchainNetworkEnum.BitcoinMainnet,
         walletAddress: 'bc1qTest123',
         walletDerivationPath: "m/44'/0'/5'/0/123",
@@ -482,58 +436,44 @@ describe('Balance Collectors Tests', () => {
 
   describe('Collector Factory Pattern', () => {
     it('should use correct blockchain identifiers', () => {
-      const evmCollector = new EVMBalanceCollector(
-        mockPlatformWalletService as unknown as PlatformWalletService,
-        mockWalletFactory as unknown as WalletFactory,
-      );
-      const _bscCollector = new BSCBalanceCollector(
-        mockPlatformWalletService as unknown as PlatformWalletService,
-        mockWalletFactory as unknown as WalletFactory,
-      );
+      const evmCollector = new EVMBalanceCollector(mockWalletFactory as unknown as WalletFactory);
+      const _bscCollector = new BSCBalanceCollector(mockWalletFactory as unknown as WalletFactory);
       const _sepoliaCollector = new SepoliaBalanceCollector(
-        mockPlatformWalletService as unknown as PlatformWalletService,
         mockWalletFactory as unknown as WalletFactory,
       );
       const solanaCollector = new SolanaBalanceCollector(
-        mockPlatformWalletService as unknown as PlatformWalletService,
         mockWalletFactory as unknown as WalletFactory,
       );
       const bitcoinCollector = new BitcoinBalanceCollector(
-        mockPlatformWalletService as unknown as PlatformWalletService,
         mockWalletFactory as unknown as WalletFactory,
       );
 
       // Test that each collector handles only its blockchain
       const ethereumRequest: BalanceCollectionRequest = {
-        invoiceId: '1',
         blockchainKey: 'eip155:1',
         walletAddress: '0x123',
         walletDerivationPath: "m/44'/60'/5'/0/1",
       };
 
       const bscRequest: BalanceCollectionRequest = {
-        invoiceId: '2',
         blockchainKey: 'eip155:56',
         walletAddress: '0x456',
         walletDerivationPath: "m/44'/60'/5'/0/2",
       };
 
       const sepoliaRequest: BalanceCollectionRequest = {
-        invoiceId: '3',
         blockchainKey: 'eip155:11155111',
         walletAddress: '0x789',
         walletDerivationPath: "m/44'/60'/5'/0/3",
       };
 
       const solanaRequest: BalanceCollectionRequest = {
-        invoiceId: '4',
         blockchainKey: BlockchainNetworkEnum.SolanaMainnet,
         walletAddress: 'Sol123',
         walletDerivationPath: "m/44'/501'/5'/0/4",
       };
 
       const bitcoinRequest: BalanceCollectionRequest = {
-        invoiceId: '5',
         blockchainKey: BlockchainNetworkEnum.BitcoinMainnet,
         walletAddress: 'bc1q123',
         walletDerivationPath: "m/44'/0'/5'/0/5",

@@ -132,9 +132,22 @@ export abstract class LoanTestRepository extends PricefeedRepository {
     const { loanOfferId, publishedDate } = params;
 
     await this.sql`
-      UPDATE loan_offers 
+      UPDATE loan_offers
       SET status = 'Published', published_date = ${publishedDate.toISOString()}
       WHERE id = ${loanOfferId}
+    `;
+  }
+
+  async testPublishesLoanApplication(params: {
+    loanApplicationId: string;
+    publishedDate: Date;
+  }): Promise<void> {
+    const { loanApplicationId, publishedDate } = params;
+
+    await this.sql`
+      UPDATE loan_applications
+      SET status = 'Published', published_date = ${publishedDate.toISOString()}
+      WHERE id = ${loanApplicationId}
     `;
   }
 

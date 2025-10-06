@@ -34,7 +34,7 @@ export class WithdrawalsService {
   ) {}
 
   async create(
-    headers: HeadersInit,
+    headers: Record<string, string>,
     user: UserSession['user'],
     createWithdrawalDto: CreateWithdrawalDto,
   ): Promise<WithdrawalCreatedResponseDto> {

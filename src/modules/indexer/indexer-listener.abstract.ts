@@ -88,7 +88,8 @@ export abstract class IndexerListener {
     const blockchainKey = this.getBlockchainKey();
     const exists = await this.redis.get(`indexer:${blockchainKey}:running`);
     if (exists) {
-      throw new Error(`Indexer for ${blockchainKey} was running.`);
+      this.logger.warn(`Indexer for ${blockchainKey} is already running, skipping duplicate start`);
+      return;
     }
     const aMinute = 1 * 60;
     await this.redis.set(`indexer:${blockchainKey}:running`, 1, aMinute);

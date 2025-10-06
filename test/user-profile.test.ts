@@ -192,7 +192,10 @@ suite('User Profile Management', function () {
     it('should include verification status fields', async function () {
       const response = await profileUser.fetch('/api/users/profile');
       const data = await response.json();
+      assertDefined(data);
+      assertPropDefined(data, 'user');
       const user = data.user;
+      assertDefined(user);
 
       // Check KYC related fields
       if ('kycStatus' in user) {
@@ -216,6 +219,12 @@ suite('User Profile Management', function () {
       if ('featureUnlockStatus' in user) {
         assertDefined(user.featureUnlockStatus);
         const features = user.featureUnlockStatus;
+        assertDefined(features);
+        assertProp(v => typeof v === 'boolean', features, 'tradingEnabled');
+        assertProp(v => typeof v === 'boolean', features, 'withdrawalEnabled');
+        assertProp(v => typeof v === 'boolean', features, 'loanBorrowingEnabled');
+        assertProp(v => typeof v === 'boolean', features, 'loanLendingEnabled');
+        assertProp(v => typeof v === 'boolean', features, 'institutionalFeaturesEnabled');
         ok(typeof features.tradingEnabled === 'boolean');
         ok(typeof features.withdrawalEnabled === 'boolean');
         ok(typeof features.loanBorrowingEnabled === 'boolean');
@@ -251,6 +260,8 @@ suite('User Profile Management', function () {
     it('should include all profile fields from OpenAPI schema', async function () {
       const response = await profileUser.fetch('/api/users/profile');
       const data = await response.json();
+      assertDefined(data);
+      assertPropDefined(data, 'user');
       const user = data.user;
 
       // Core required fields
@@ -461,7 +472,15 @@ suite('User Profile Management', function () {
 
       strictEqual(response.status, 200);
       const data = await response.json();
+      assertDefined(data);
+      assertPropDefined(data, 'success');
+      assertPropDefined(data, 'data');
       ok(data.success === true);
+      assertPropDefined(data.data, 'notifications');
+      assertPropDefined(data.data.notifications, 'email');
+      assertPropDefined(data.data.notifications.email, 'enabled');
+      assertPropDefined(data.data.notifications, 'push');
+      assertPropDefined(data.data.notifications.push, 'enabled');
       strictEqual(data.data.notifications.email.enabled, false);
       strictEqual(data.data.notifications.push.enabled, true);
     });
@@ -483,7 +502,14 @@ suite('User Profile Management', function () {
 
       strictEqual(response.status, 200);
       const data = await response.json();
+      assertDefined(data);
+      assertPropDefined(data, 'success');
+      assertPropDefined(data, 'data');
       ok(data.success === true);
+      assertPropDefined(data.data, 'display');
+      assertPropDefined(data.data.display, 'theme');
+      assertPropDefined(data.data.display, 'language');
+      assertPropDefined(data.data.display, 'currency');
       strictEqual(data.data.display.theme, 'dark');
       strictEqual(data.data.display.language, 'id');
       strictEqual(data.data.display.currency, 'IDR');
@@ -508,7 +534,14 @@ suite('User Profile Management', function () {
 
       strictEqual(response.status, 200);
       const data = await response.json();
+      assertDefined(data);
+      assertPropDefined(data, 'success');
+      assertPropDefined(data, 'data');
       ok(data.success === true);
+      assertPropDefined(data.data, 'privacy');
+      assertPropDefined(data.data.privacy, 'profileVisibility');
+      assertPropDefined(data.data.privacy, 'dataSharing');
+      assertPropDefined(data.data.privacy.dataSharing, 'analytics');
       strictEqual(data.data.privacy.profileVisibility, 'private');
       strictEqual(data.data.privacy.dataSharing.analytics, false);
     });
@@ -533,19 +566,29 @@ suite('User Profile Management', function () {
 
       strictEqual(response.status, 200);
       const data = await response.json();
+      assertDefined(data);
+      assertPropDefined(data, 'success');
+      assertPropDefined(data, 'data');
       ok(data.success === true);
+      assertPropDefined(data.data, 'display');
+      assertPropDefined(data.data.display, 'theme');
+      assertPropDefined(data.data.display, 'language');
+      assertPropDefined(data.data.display, 'currency');
       strictEqual(data.data.display.theme, 'dark');
       strictEqual(data.data.display.language, 'id');
       strictEqual(data.data.display.currency, 'EUR');
 
       // Check additional fields if supported
       if ('timezone' in data.data.display) {
+        assertPropDefined(data.data.display, 'timezone');
         strictEqual(data.data.display.timezone, 'Asia/Jakarta');
       }
       if ('dateFormat' in data.data.display) {
+        assertPropDefined(data.data.display, 'dateFormat');
         strictEqual(data.data.display.dateFormat, 'YYYY-MM-DD');
       }
       if ('numberFormat' in data.data.display) {
+        assertPropDefined(data.data.display, 'numberFormat');
         strictEqual(data.data.display.numberFormat, 'id-ID');
       }
     });
@@ -571,16 +614,26 @@ suite('User Profile Management', function () {
 
       strictEqual(response.status, 200);
       const data = await response.json();
+      assertDefined(data);
+      assertPropDefined(data, 'success');
+      assertPropDefined(data, 'data');
       ok(data.success === true);
+      assertPropDefined(data.data, 'privacy');
+      assertPropDefined(data.data.privacy, 'profileVisibility');
+      assertPropDefined(data.data.privacy, 'dataSharing');
+      assertPropDefined(data.data.privacy.dataSharing, 'analytics');
+      assertPropDefined(data.data.privacy.dataSharing, 'thirdPartyIntegrations');
       strictEqual(data.data.privacy.profileVisibility, 'public');
       strictEqual(data.data.privacy.dataSharing.analytics, true);
       strictEqual(data.data.privacy.dataSharing.thirdPartyIntegrations, true);
 
       // Check additional fields if supported
       if ('marketResearch' in data.data.privacy.dataSharing) {
+        assertPropDefined(data.data.privacy.dataSharing, 'marketResearch');
         strictEqual(data.data.privacy.dataSharing.marketResearch, true);
       }
       if ('activityTracking' in data.data.privacy) {
+        assertPropDefined(data.data.privacy, 'activityTracking');
         strictEqual(data.data.privacy.activityTracking, false);
       }
     });
@@ -841,6 +894,12 @@ suite('User Profile Management', function () {
       const getResponse = await edgeUser.fetch('/api/users/preferences');
       strictEqual(getResponse.status, 200);
       const currentPrefs = await getResponse.json();
+      assertDefined(currentPrefs);
+      assertPropDefined(currentPrefs, 'data');
+      assertPropDefined(currentPrefs.data, 'display');
+      assertPropDefined(currentPrefs.data.display, 'theme');
+      assertPropDefined(currentPrefs.data.display, 'language');
+      assertPropDefined(currentPrefs.data.display, 'currency');
 
       // Update only one field
       const updateData = {
@@ -857,6 +916,12 @@ suite('User Profile Management', function () {
 
       strictEqual(response.status, 200);
       const updatedPrefs = await response.json();
+      assertDefined(updatedPrefs);
+      assertPropDefined(updatedPrefs, 'data');
+      assertPropDefined(updatedPrefs.data, 'display');
+      assertPropDefined(updatedPrefs.data.display, 'theme');
+      assertPropDefined(updatedPrefs.data.display, 'language');
+      assertPropDefined(updatedPrefs.data.display, 'currency');
 
       // Verify the updated field changed
       ok(updatedPrefs.data.display.theme !== currentPrefs.data.display.theme);

@@ -25,8 +25,8 @@ export class EthereumSepoliaIndexerListener extends EthereumIndexerListener {
   ) {
     super(discovery, redis, invoicePaymentQueue, {
       chainName: 'Ethereum Localnet',
+      wsUrlEnvVar: 'ETHEREUM_LOCALNET_WS_URL',
       defaultWsUrl: 'ws://localhost:8545',
-      wsUrlEnvVar: 'ws://localhost:8545',
       nativeTokenId: 'slip44:60',
       tokenPrefix: 'erc20',
     });

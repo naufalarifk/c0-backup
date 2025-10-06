@@ -30,9 +30,11 @@ export class NotificationService {
 
       // Handle single channel payload (not array)
       assertIsNotificationChannel(payload.channel);
-      const provider = this.providerFactory.getComposer(payload.channel);
-      if (provider && provider.isSendablePayload(payload)) {
-        providers.push(provider);
+      const allProviders = this.providerFactory.getComposers(payload.channel);
+      for (const provider of allProviders) {
+        if (provider.isSendablePayload(payload)) {
+          providers.push(provider);
+        }
       }
 
       if (providers.length === 0) {

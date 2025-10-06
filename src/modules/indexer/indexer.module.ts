@@ -4,6 +4,7 @@ import { DiscoveryModule } from '@nestjs/core';
 import { SharedModule } from '../../shared/shared.module';
 import { InvoicePaymentModule } from '../invoice-payments/invoice-payment.module';
 import { BitcoinService } from './btc.service';
+import { IndexerProcessor } from './indexer.processor';
 import { IndexerEventService } from './indexer-event.service';
 import { BitcoinMainnetIndexerListener } from './listeners/bitcoin-mainnet.listener';
 import { BscMainnetIndexerListener } from './listeners/bsc-mainnet.listener';
@@ -16,6 +17,7 @@ import { SolanaMainnetIndexerListener } from './listeners/solana-mainnet.listene
   imports: [SharedModule, InvoicePaymentModule, DiscoveryModule],
   providers: [
     IndexerEventService,
+    IndexerProcessor,
     BitcoinService,
 
     // Indexer Listeners

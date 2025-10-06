@@ -435,10 +435,13 @@ export type PlatformNotifyUserResult = {
 export type TestCreatesInstitutionApplicationWithValidationParams = {
   applicantUserId: string;
   businessName: string;
+  businessDescription?: string;
+  businessType: string;
   npwpNumber: string;
   npwpDocumentPath: string;
   registrationNumber: string;
   registrationDocumentPath: string;
+  establishmentNumber: string;
   deedOfEstablishmentPath: string;
   // domicileCertificatePath: string; // TBD
   businessAddress: string;
@@ -448,7 +451,9 @@ export type TestCreatesInstitutionApplicationWithValidationParams = {
   businessSubdistrict: string;
   businessPostalCode: string;
   directorName: string;
+  directorPosition?: string;
   directorIdCardPath: string;
+  ministryApprovalDocumentPath?: string;
   submittedDate: Date;
 };
 

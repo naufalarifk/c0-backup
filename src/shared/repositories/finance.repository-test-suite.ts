@@ -1292,13 +1292,20 @@ export async function runFinanceRepositoryTestSuite(
         ok(btcCurrency.blockchain, 'Should include blockchain info');
         equal(btcCurrency.blockchain.name, 'Bitcoin');
 
-        // Check if USDC loan currency is present
-        const usdcCurrency = result.currencies.find(c => c.symbol === 'USDC' && c.isLoanCurrency);
-        ok(usdcCurrency, 'USDC loan currency should exist');
-        equal(usdcCurrency.blockchainKey, 'eip155:56');
-        equal(usdcCurrency.isCollateralCurrency, false);
-        equal(usdcCurrency.isLoanCurrency, true);
-        equal(usdcCurrency.maxLtv, 0);
+        // Check if USDC loan currencies are present (can be on multiple blockchains)
+        const usdcCurrencies = result.currencies.filter(
+          c => c.symbol === 'USDC' && c.isLoanCurrency,
+        );
+        ok(usdcCurrencies.length > 0, 'USDC loan currency should exist');
+
+        // Verify all USDC currencies are loan currencies
+        for (const usdcCurrency of usdcCurrencies) {
+          equal(usdcCurrency.isCollateralCurrency, false);
+          equal(usdcCurrency.isLoanCurrency, true);
+          equal(usdcCurrency.maxLtv, 0);
+          // USDC can be on various blockchains (BSC, Ethereum Sepolia, Solana Devnet, etc.)
+          ok(usdcCurrency.blockchainKey, 'USDC should have a blockchain key');
+        }
       });
 
       it('should filter currencies by collateral type', async function () {

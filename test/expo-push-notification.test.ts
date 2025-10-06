@@ -70,6 +70,8 @@ suite('Expo Push Notification Integration', function () {
 
       strictEqual(response1.status, 200);
       const data1 = await response1.json();
+      assertDefined(data1);
+      assertPropString(data1, 'pushToken');
       strictEqual(data1.pushToken, tokenWithPrefix);
 
       // Test without prefix
@@ -87,6 +89,8 @@ suite('Expo Push Notification Integration', function () {
 
       strictEqual(response2.status, 200);
       const data2 = await response2.json();
+      assertDefined(data2);
+      assertPropString(data2, 'pushToken');
       strictEqual(data2.pushToken, `ExponentPushToken[${tokenWithoutPrefix}]`);
 
       console.log('✅ Push token accepted with and without prefix');

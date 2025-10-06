@@ -10,6 +10,7 @@ import {
   assertPropNumber,
   assertPropString,
   check,
+  hasPropString,
   isNullable,
   isNumber,
   isString,
@@ -360,6 +361,12 @@ suite('Loan Market API', function () {
 
       if (response.status === 404) {
         const data = await response.json();
+        assertDefined(data);
+        assertProp(
+          check(isNullable, (v): v is { code: string } => hasPropString(v, 'code')),
+          data,
+          'error',
+        );
         if (!data.error?.code) {
           console.log('Endpoint not implemented yet');
           return;

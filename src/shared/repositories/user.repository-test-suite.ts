@@ -23,6 +23,7 @@ function createInstitutionApplicationData(
     npwpDocumentPath: '/path/to/npwp.pdf',
     registrationNumber: 'NIB1234567890',
     registrationDocumentPath: '/path/to/registration.pdf',
+    establishmentNumber: 'AHU-123456.AH.01.01.TAHUN2024',
     deedOfEstablishmentPath: '/path/to/deed.pdf',
     businessAddress: 'Jl. Sudirman No. 123, RT 001 RW 002',
     businessCity: 'Jakarta Selatan',
@@ -93,6 +94,7 @@ export async function runUserRepositoryTestSuite(
           { field: 'id', value: createdUser.id },
         ]);
 
+        assertDefined(foundUser);
         equal(foundUser.id, createdUser.id);
         equal(foundUser.name, 'Test User');
         equal(foundUser.image, 'https://example.com/test.jpg');
@@ -110,6 +112,7 @@ export async function runUserRepositoryTestSuite(
           image: 'https://example.com/updated.jpg',
         });
 
+        assertDefined(updatedUser);
         equal(updatedUser.name, 'Updated Name');
         equal(updatedUser.image, 'https://example.com/updated.jpg');
       });
@@ -177,6 +180,7 @@ export async function runUserRepositoryTestSuite(
           { field: 'phoneNumber', value: '+9876543210' },
         ]);
 
+        assertDefined(foundUser);
         equal(foundUser.id, createdUser.id);
         equal(foundUser.name, 'Phone Finder Test');
         equal(foundUser.phoneNumber, '+9876543210');
@@ -195,6 +199,7 @@ export async function runUserRepositoryTestSuite(
           phoneNumberVerified: true,
         });
 
+        assertDefined(updatedUser);
         equal(updatedUser.phoneNumber, '+1111111111');
         equal(updatedUser.phoneNumberVerified, true);
       });
@@ -208,8 +213,9 @@ export async function runUserRepositoryTestSuite(
         });
 
         const updateDate = new Date('2024-01-01T00:00:00Z');
+        assertPropDefined(user, 'id');
         const result = await repo.userUpdatesProfile({
-          id: user.id,
+          id: String(user.id),
           name: 'John Updated Doe',
           profilePictureUrl: 'https://example.com/profile.jpg',
           updateDate: updateDate,
@@ -230,7 +236,7 @@ export async function runUserRepositoryTestSuite(
 
         const updateDate = new Date('2024-01-01T00:00:00Z');
         const result = await repo.userUpdatesProfile({
-          id: user.id,
+          id: String(user.id),
           name: 'Jane Updated Doe',
           updateDate: updateDate,
         });
@@ -248,7 +254,7 @@ export async function runUserRepositoryTestSuite(
           emailVerified: true,
         });
 
-        const result = await repo.userViewsProfile({ userId: user.id });
+        const result = await repo.userViewsProfile({ userId: String(user.id) });
 
         equal(result.id, String(user.id));
         equal(result.name, 'Profile Test User');
@@ -276,13 +282,13 @@ export async function runUserRepositoryTestSuite(
 
         // Update profile with picture
         await repo.userUpdatesProfile({
-          id: user.id,
+          id: String(user.id),
           name: 'Picture Test User Updated',
           profilePictureUrl: 'https://example.com/picture.jpg',
           updateDate: new Date('2024-01-01T00:00:00Z'),
         });
 
-        const result = await repo.userViewsProfile({ userId: user.id });
+        const result = await repo.userViewsProfile({ userId: String(user.id) });
 
         equal(result.id, String(user.id));
         equal(result.name, 'Picture Test User Updated');
@@ -298,13 +304,13 @@ export async function runUserRepositoryTestSuite(
 
         // User decides type and submits KYC
         await repo.userDecidesUserType({
-          userId: user.id,
+          userId: String(user.id),
           userType: 'Individual',
           decisionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
         await repo.userSubmitsKyc({
-          userId: user.id,
+          userId: String(user.id),
           idCardPhoto: '/path/to/id-card.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
           nik: '1234567890123456',
@@ -320,7 +326,7 @@ export async function runUserRepositoryTestSuite(
           submissionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
-        const result = await repo.userViewsProfile({ userId: user.id });
+        const result = await repo.userViewsProfile({ userId: String(user.id) });
 
         equal(result.id, String(user.id));
         equal(result.userType, 'Individual');
@@ -343,13 +349,13 @@ export async function runUserRepositoryTestSuite(
 
         // Add user to institution
         await repo.adminAddUserToInstitution({
-          userId: user.id,
-          institutionId: institutionOwner.id,
+          userId: String(user.id),
+          institutionId: String(institutionOwner.id),
           role: 'Finance',
           assignedDate: new Date('2024-01-01T00:00:00Z'),
         });
 
-        const result = await repo.userViewsProfile({ userId: user.id });
+        const result = await repo.userViewsProfile({ userId: String(user.id) });
 
         equal(result.id, String(user.id));
         equal(result.institutionUserId, String(institutionOwner.id));
@@ -371,13 +377,13 @@ export async function runUserRepositoryTestSuite(
 
         // User decides type and submits KYC
         await repo.userDecidesUserType({
-          userId: user.id,
+          userId: String(user.id),
           userType: 'Individual',
           decisionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
         const kyc = await repo.userSubmitsKyc({
-          userId: user.id,
+          userId: String(user.id),
           idCardPhoto: '/path/to/id-card.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
           nik: '1234567890123456',
@@ -396,11 +402,11 @@ export async function runUserRepositoryTestSuite(
         // Admin approves KYC
         await repo.adminApprovesKyc({
           kycId: kyc.id,
-          verifierUserId: admin.id,
+          verifierUserId: String(admin.id),
           approvalDate: new Date('2024-01-02T00:00:00Z'),
         });
 
-        const result = await repo.userViewsProfile({ userId: user.id });
+        const result = await repo.userViewsProfile({ userId: String(user.id) });
 
         equal(result.id, String(user.id));
         equal(result.kycStatus, 'verified');
@@ -419,13 +425,13 @@ export async function runUserRepositoryTestSuite(
 
         // User must decide user type before submitting KYC
         await repo.userDecidesUserType({
-          userId: user.id,
+          userId: String(user.id),
           userType: 'Individual',
           decisionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
         const kycData = {
-          userId: user.id,
+          userId: String(user.id),
           idCardPhoto: '/path/to/id-card.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
           nik: '1234567890123456',
@@ -454,7 +460,7 @@ export async function runUserRepositoryTestSuite(
           emailVerified: true,
         });
 
-        const result = await repo.userViewsKYCStatus({ userId: user.id });
+        const result = await repo.userViewsKYCStatus({ userId: String(user.id) });
 
         equal(result.userId, String(user.id));
         equal(result.status, 'none');
@@ -471,13 +477,13 @@ export async function runUserRepositoryTestSuite(
 
         // User must decide user type before submitting KYC
         await repo.userDecidesUserType({
-          userId: user.id,
+          userId: String(user.id),
           userType: 'Individual',
           decisionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
         await repo.userSubmitsKyc({
-          userId: user.id,
+          userId: String(user.id),
           idCardPhoto: '/path/to/id-card.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
           nik: '1234567890123456',
@@ -493,7 +499,7 @@ export async function runUserRepositoryTestSuite(
           submissionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
-        const result = await repo.userViewsKYCStatus({ userId: user.id });
+        const result = await repo.userViewsKYCStatus({ userId: String(user.id) });
 
         equal(result.userId, String(user.id));
         equal(result.status, 'pending');
@@ -518,14 +524,14 @@ export async function runUserRepositoryTestSuite(
 
         // User must decide user type before applying for institution
         await repo.userDecidesUserType({
-          userId: user.id,
+          userId: String(user.id),
           userType: 'Institution',
           decisionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
         const result = await repo.userAppliesForInstitution(
           createInstitutionApplicationData(
-            user.id,
+            String(user.id),
             'Test Business Corp',
             new Date('2024-01-01T00:00:00Z'),
           ),
@@ -551,14 +557,14 @@ export async function runUserRepositoryTestSuite(
 
         // Invited user must also decide their user type and complete KYC
         await repo.userDecidesUserType({
-          userId: invitedUser.id,
+          userId: String(invitedUser.id),
           userType: 'Individual',
           decisionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
         // Submit and approve KYC for invited user
         const invitedUserKyc = await repo.userSubmitsKyc({
-          userId: invitedUser.id,
+          userId: String(invitedUser.id),
           idCardPhoto: '/path/to/invited-id-card.jpg',
           selfieWithIdCardPhoto: '/path/to/invited-selfie-with-id.jpg',
           nik: '9876543210987654',
@@ -583,7 +589,7 @@ export async function runUserRepositoryTestSuite(
 
         // Institution owner must decide user type and apply for institution first
         await repo.userDecidesUserType({
-          userId: institutionUser.id,
+          userId: String(institutionUser.id),
           userType: 'Institution',
           decisionDate: new Date('2024-01-01T00:00:00Z'),
         });
@@ -591,7 +597,7 @@ export async function runUserRepositoryTestSuite(
         // Apply for institution and get it approved to become an owner
         const application = await repo.userAppliesForInstitution(
           createInstitutionApplicationData(
-            institutionUser.id,
+            String(institutionUser.id),
             'Test Institution',
             new Date('2024-01-01T00:00:00Z'),
           ),
@@ -606,20 +612,20 @@ export async function runUserRepositoryTestSuite(
 
         await repo.adminApprovesInstitutionApplication({
           applicationId: application.id,
-          reviewerUserId: admin.id,
+          reviewerUserId: String(admin.id),
           approvalDate: new Date('2024-01-01T00:00:00Z'),
         });
 
         const invitation = await repo.ownerUserInvitesUserToInstitution({
-          institutionId: institutionUser.id,
-          userId: invitedUser.id,
+          institutionId: String(institutionUser.id),
+          userId: String(invitedUser.id),
           role: 'Finance',
           invitationDate: new Date('2024-01-01T00:00:00Z'),
         });
 
         const result = await repo.userAcceptsInstitutionInvitation({
           invitationId: invitation.id,
-          userId: invitedUser.id,
+          userId: String(invitedUser.id),
           acceptanceDate: new Date('2024-01-02T00:00:00Z'),
         });
 
@@ -648,14 +654,14 @@ export async function runUserRepositoryTestSuite(
 
         // Invited user must also decide their user type and complete KYC
         await repo.userDecidesUserType({
-          userId: invitedUser.id,
+          userId: String(invitedUser.id),
           userType: 'Individual',
           decisionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
         // Submit and approve KYC for invited user
         const invitedUserKyc = await repo.userSubmitsKyc({
-          userId: invitedUser.id,
+          userId: String(invitedUser.id),
           idCardPhoto: '/path/to/invited2-id-card.jpg',
           selfieWithIdCardPhoto: '/path/to/invited2-selfie-with-id.jpg',
           nik: '8765432109876543',
@@ -680,7 +686,7 @@ export async function runUserRepositoryTestSuite(
 
         // Institution owner must decide user type and apply for institution first
         await repo.userDecidesUserType({
-          userId: institutionUser.id,
+          userId: String(institutionUser.id),
           userType: 'Institution',
           decisionDate: new Date('2024-01-01T00:00:00Z'),
         });
@@ -688,7 +694,7 @@ export async function runUserRepositoryTestSuite(
         // Apply for institution and get it approved to become an owner
         const application = await repo.userAppliesForInstitution(
           createInstitutionApplicationData(
-            institutionUser.id,
+            String(institutionUser.id),
             'Test Institution 2',
             new Date('2024-01-01T00:00:00Z'),
           ),
@@ -703,20 +709,20 @@ export async function runUserRepositoryTestSuite(
 
         await repo.adminApprovesInstitutionApplication({
           applicationId: application.id,
-          reviewerUserId: admin.id,
+          reviewerUserId: String(admin.id),
           approvalDate: new Date('2024-01-01T00:00:00Z'),
         });
 
         const invitation = await repo.ownerUserInvitesUserToInstitution({
-          institutionId: institutionUser.id,
-          userId: invitedUser.id,
+          institutionId: String(institutionUser.id),
+          userId: String(invitedUser.id),
           role: 'Finance',
           invitationDate: new Date('2024-01-01T00:00:00Z'),
         });
 
         const result = await repo.userRejectsInstitutionInvitation({
           invitationId: invitation.id,
-          userId: invitedUser.id,
+          userId: String(invitedUser.id),
           rejectionReason: 'Not interested',
           rejectionDate: new Date('2024-01-02T00:00:00Z'),
         });
@@ -747,13 +753,13 @@ export async function runUserRepositoryTestSuite(
 
         // User must decide user type before submitting KYC
         await repo.userDecidesUserType({
-          userId: user.id,
+          userId: String(user.id),
           userType: 'Individual',
           decisionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
         const kyc = await repo.userSubmitsKyc({
-          userId: user.id,
+          userId: String(user.id),
           idCardPhoto: '/path/to/id-card.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
           nik: '1234567890123456',
@@ -771,7 +777,7 @@ export async function runUserRepositoryTestSuite(
 
         const result = await repo.adminApprovesKyc({
           kycId: kyc.id,
-          verifierUserId: admin.id,
+          verifierUserId: String(admin.id),
           approvalDate: new Date('2024-01-02T00:00:00Z'),
         });
 
@@ -785,7 +791,7 @@ export async function runUserRepositoryTestSuite(
         );
 
         // Verify KYC status is now verified
-        const status = await repo.userViewsKYCStatus({ userId: user.id });
+        const status = await repo.userViewsKYCStatus({ userId: String(user.id) });
         equal(status.status, 'verified');
         ok(status.verifiedDate instanceof Date, 'Expected verifiedDate to be a Date instance');
         const statusVerifiedDateStr = status.verifiedDate.toISOString();
@@ -810,13 +816,13 @@ export async function runUserRepositoryTestSuite(
 
         // User must decide user type before submitting KYC
         await repo.userDecidesUserType({
-          userId: user.id,
+          userId: String(user.id),
           userType: 'Individual',
           decisionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
         const kyc = await repo.userSubmitsKyc({
-          userId: user.id,
+          userId: String(user.id),
           idCardPhoto: '/path/to/id-card.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
           nik: '1234567890123456',
@@ -834,7 +840,7 @@ export async function runUserRepositoryTestSuite(
 
         const result = await repo.adminRejectsKyc({
           kycId: kyc.id,
-          verifierUserId: admin.id,
+          verifierUserId: String(admin.id),
           rejectionReason: 'Document quality is poor',
           rejectionDate: new Date('2024-01-02T00:00:00Z'),
         });
@@ -849,7 +855,7 @@ export async function runUserRepositoryTestSuite(
         );
 
         // Verify KYC status is now rejected
-        const status = await repo.userViewsKYCStatus({ userId: user.id });
+        const status = await repo.userViewsKYCStatus({ userId: String(user.id) });
         equal(status.status, 'rejected');
         const statusRejectedDateStr = status.rejectedDate?.toISOString() ?? '';
         ok(
@@ -875,19 +881,19 @@ export async function runUserRepositoryTestSuite(
 
         // Users must decide user type before submitting KYC
         await repo.userDecidesUserType({
-          userId: user1.id,
+          userId: String(user1.id),
           userType: 'Individual',
           decisionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
         await repo.userDecidesUserType({
-          userId: user2.id,
+          userId: String(user2.id),
           userType: 'Individual',
           decisionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
         await repo.userSubmitsKyc({
-          userId: user1.id,
+          userId: String(user1.id),
           idCardPhoto: '/path/to/id-card1.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id1.jpg',
           nik: '1111111111111111',
@@ -904,7 +910,7 @@ export async function runUserRepositoryTestSuite(
         });
 
         await repo.userSubmitsKyc({
-          userId: user2.id,
+          userId: String(user2.id),
           idCardPhoto: '/path/to/id-card2.jpg',
           selfieWithIdCardPhoto: '/path/to/selfie-with-id2.jpg',
           nik: '2222222222222222',
@@ -946,14 +952,14 @@ export async function runUserRepositoryTestSuite(
 
         // User must decide user type before applying for institution
         await repo.userDecidesUserType({
-          userId: applicant.id,
+          userId: String(applicant.id),
           userType: 'Institution',
           decisionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
         const application = await repo.userAppliesForInstitution(
           createInstitutionApplicationData(
-            applicant.id,
+            String(applicant.id),
             'Approved Business Corp',
             new Date('2024-01-01T00:00:00Z'),
           ),
@@ -961,7 +967,7 @@ export async function runUserRepositoryTestSuite(
 
         const result = await repo.adminApprovesInstitutionApplication({
           applicationId: application.id,
-          reviewerUserId: admin.id,
+          reviewerUserId: String(admin.id),
           approvalDate: new Date('2024-01-02T00:00:00Z'),
         });
 
@@ -984,14 +990,14 @@ export async function runUserRepositoryTestSuite(
 
         // User must decide user type before applying for institution
         await repo.userDecidesUserType({
-          userId: applicant.id,
+          userId: String(applicant.id),
           userType: 'Institution',
           decisionDate: new Date('2024-01-01T00:00:00Z'),
         });
 
         const application = await repo.userAppliesForInstitution(
           createInstitutionApplicationData(
-            applicant.id,
+            String(applicant.id),
             'Rejected Business Corp',
             new Date('2024-01-01T00:00:00Z'),
           ),
@@ -999,7 +1005,7 @@ export async function runUserRepositoryTestSuite(
 
         const result = await repo.adminRejectInstitutionApplication({
           applicationId: application.id,
-          reviewerUserId: admin.id,
+          reviewerUserId: String(admin.id),
           rejectionReason: 'Incomplete documentation',
           rejectionDate: new Date('2024-01-02T00:00:00Z'),
         });
@@ -1027,8 +1033,8 @@ export async function runUserRepositoryTestSuite(
         });
 
         const result = await repo.adminAddUserToInstitution({
-          userId: user.id,
-          institutionId: institution.id,
+          userId: String(user.id),
+          institutionId: String(institution.id),
           role: 'Finance',
           assignedDate: new Date('2024-01-01T00:00:00Z'),
         });
@@ -1053,15 +1059,15 @@ export async function runUserRepositoryTestSuite(
 
         // First add user to institution
         await repo.adminAddUserToInstitution({
-          userId: user.id,
-          institutionId: institution.id,
+          userId: String(user.id),
+          institutionId: String(institution.id),
           role: 'Finance',
           assignedDate: new Date('2024-01-01T00:00:00Z'),
         });
 
         // Then remove user from institution
         const result = await repo.adminRemoveUserFromInstitution({
-          userId: user.id,
+          userId: String(user.id),
           removedDate: new Date('2024-01-02T00:00:00Z'),
         });
 
@@ -1087,13 +1093,13 @@ export async function runUserRepositoryTestSuite(
 
           // User must decide user type before submitting KYC
           await repo.userDecidesUserType({
-            userId: user.id,
+            userId: String(user.id),
             userType: 'Individual',
             decisionDate: new Date('2024-01-01T00:00:00Z'),
           });
 
           const kyc = await repo.userSubmitsKyc({
-            userId: user.id,
+            userId: String(user.id),
             idCardPhoto: '/path/to/id-card.jpg',
             selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
             nik: '1234567890123456',
@@ -1111,17 +1117,17 @@ export async function runUserRepositoryTestSuite(
 
           await repo.adminApprovesKyc({
             kycId: kyc.id,
-            verifierUserId: admin.id,
+            verifierUserId: String(admin.id),
             approvalDate: new Date('2024-01-02T00:00:00Z'),
           });
 
           // Check that user's kyc_id is updated
-          const updatedUser = await repo.adminChecksUserKycId({ userId: user.id });
+          const updatedUser = await repo.adminChecksUserKycId({ userId: String(user.id) });
           equal(String(updatedUser.kycId), kyc.id);
 
           // Create notification explicitly (no longer using database trigger)
           await repo.platformNotifyUser({
-            userId: user.id,
+            userId: String(user.id),
             type: 'UserKycVerified',
             title: 'KYC Verification Approved',
             content: 'Your identity verification has been approved',
@@ -1130,7 +1136,7 @@ export async function runUserRepositoryTestSuite(
 
           // Check that notification was created
           const notificationResult = await repo.adminViewsNotificationsByType({
-            userId: user.id,
+            userId: String(user.id),
             type: 'UserKycVerified',
           });
           equal(notificationResult.notifications.length, 1);
@@ -1160,13 +1166,13 @@ export async function runUserRepositoryTestSuite(
 
           // User must decide user type before submitting KYC
           await repo.userDecidesUserType({
-            userId: user.id,
+            userId: String(user.id),
             userType: 'Individual',
             decisionDate: new Date('2024-01-01T00:00:00Z'),
           });
 
           const kyc = await repo.userSubmitsKyc({
-            userId: user.id,
+            userId: String(user.id),
             idCardPhoto: '/path/to/id-card.jpg',
             selfieWithIdCardPhoto: '/path/to/selfie-with-id.jpg',
             nik: '1234567890123456',
@@ -1184,14 +1190,14 @@ export async function runUserRepositoryTestSuite(
 
           await repo.adminRejectsKyc({
             kycId: kyc.id,
-            verifierUserId: admin.id,
+            verifierUserId: String(admin.id),
             rejectionReason: 'Document quality is poor',
             rejectionDate: new Date('2024-01-02T00:00:00Z'),
           });
 
           // Create rejection notification explicitly (no longer using database trigger)
           await repo.platformNotifyUser({
-            userId: user.id,
+            userId: String(user.id),
             type: 'UserKycRejected',
             title: 'KYC Verification Rejected',
             content:
@@ -1201,7 +1207,7 @@ export async function runUserRepositoryTestSuite(
 
           // Check that rejection notification was created
           const notificationResult = await repo.adminViewsNotificationsByType({
-            userId: user.id,
+            userId: String(user.id),
             type: 'UserKycRejected',
           });
           equal(notificationResult.notifications.length, 1);
@@ -1234,14 +1240,14 @@ export async function runUserRepositoryTestSuite(
 
           // User must decide user type before applying for institution
           await repo.userDecidesUserType({
-            userId: applicant.id,
+            userId: String(applicant.id),
             userType: 'Institution',
             decisionDate: new Date('2024-01-01T00:00:00Z'),
           });
 
           const application = await repo.userAppliesForInstitution(
             createInstitutionApplicationData(
-              applicant.id,
+              String(applicant.id),
               'Trigger Test Corp',
               new Date('2024-01-01T00:00:00Z'),
             ),
@@ -1249,18 +1255,20 @@ export async function runUserRepositoryTestSuite(
 
           await repo.adminApprovesInstitutionApplication({
             applicationId: application.id,
-            reviewerUserId: admin.id,
+            reviewerUserId: String(admin.id),
             approvalDate: new Date('2024-01-02T00:00:00Z'),
           });
 
           // Check that user's institution data is updated
-          const updatedUser = await repo.adminChecksUserInstitutionData({ userId: applicant.id });
+          const updatedUser = await repo.adminChecksUserInstitutionData({
+            userId: String(applicant.id),
+          });
           equal(String(updatedUser.institutionUserId), String(applicant.id));
           equal(updatedUser.institutionRole, 'Owner');
 
           // Create approval notification explicitly (no longer using database trigger)
           await repo.platformNotifyUser({
-            userId: applicant.id,
+            userId: String(applicant.id),
             type: 'InstitutionApplicationVerified',
             title: 'Institution Application Approved',
             content: 'Your institution application for Trigger Test Corp has been approved',
@@ -1269,7 +1277,7 @@ export async function runUserRepositoryTestSuite(
 
           // Check that approval notification was created
           const notificationResult = await repo.adminViewsNotificationsByType({
-            userId: applicant.id,
+            userId: String(applicant.id),
             type: 'InstitutionApplicationVerified',
           });
           equal(notificationResult.notifications.length, 1);
@@ -1300,14 +1308,14 @@ export async function runUserRepositoryTestSuite(
 
           // User must decide user type before applying for institution
           await repo.userDecidesUserType({
-            userId: applicant.id,
+            userId: String(applicant.id),
             userType: 'Institution',
             decisionDate: new Date('2024-01-01T00:00:00Z'),
           });
 
           const application = await repo.userAppliesForInstitution(
             createInstitutionApplicationData(
-              applicant.id,
+              String(applicant.id),
               'Rejected Test Corp',
               new Date('2024-01-01T00:00:00Z'),
             ),
@@ -1315,14 +1323,14 @@ export async function runUserRepositoryTestSuite(
 
           await repo.adminRejectInstitutionApplication({
             applicationId: application.id,
-            reviewerUserId: admin.id,
+            reviewerUserId: String(admin.id),
             rejectionReason: 'Missing required documents',
             rejectionDate: new Date('2024-01-02T00:00:00Z'),
           });
 
           // Create rejection notification explicitly (no longer using database trigger)
           await repo.platformNotifyUser({
-            userId: applicant.id,
+            userId: String(applicant.id),
             type: 'InstitutionApplicationRejected',
             title: 'Institution Application Rejected',
             content:
@@ -1332,7 +1340,7 @@ export async function runUserRepositoryTestSuite(
 
           // Check that rejection notification was created
           const notificationResult = await repo.adminViewsNotificationsByType({
-            userId: applicant.id,
+            userId: String(applicant.id),
             type: 'InstitutionApplicationRejected',
           });
           equal(notificationResult.notifications.length, 1);
@@ -1355,8 +1363,9 @@ export async function runUserRepositoryTestSuite(
           });
 
           // User must decide user type before applying for institution
+          assertPropDefined(applicant, 'id');
           await repo.userDecidesUserType({
-            userId: applicant.id,
+            userId: String(applicant.id),
             userType: 'Institution',
             decisionDate: new Date('2024-01-01T00:00:00Z'),
           });
@@ -1365,12 +1374,14 @@ export async function runUserRepositoryTestSuite(
           let errorThrown = false;
           try {
             await repo.testCreatesInstitutionApplicationWithValidation({
-              applicantUserId: applicant.id,
+              applicantUserId: String(applicant.id),
               businessName: 'Test Business',
+              businessType: 'PT',
               npwpNumber: '12345678901234567',
               npwpDocumentPath: '/path/npwp.pdf',
               registrationNumber: 'NIB1234567890',
               registrationDocumentPath: '/path/registration.pdf',
+              establishmentNumber: 'AHU-1234567890',
               deedOfEstablishmentPath: '/path/deed.pdf',
               // domicileCertificatePath: '/path/domicile.pdf', # TBD
               businessAddress: 'Test Address',
@@ -1391,12 +1402,14 @@ export async function runUserRepositoryTestSuite(
 
           // Test valid NPWP format - should succeed
           const validResult = await repo.testCreatesInstitutionApplicationWithValidation({
-            applicantUserId: applicant.id,
+            applicantUserId: String(applicant.id),
             businessName: 'Test Business',
+            businessType: 'PT',
             npwpNumber: '12.345.678.9-123.456',
             npwpDocumentPath: '/path/npwp.pdf',
             registrationNumber: 'NIB1234567890',
             registrationDocumentPath: '/path/registration.pdf',
+            establishmentNumber: 'AHU-1234567890',
             deedOfEstablishmentPath: '/path/deed.pdf',
             // domicileCertificatePath: '/path/domicile.pdf', # TBD
             businessAddress: 'Test Address',
@@ -1427,26 +1440,30 @@ export async function runUserRepositoryTestSuite(
           });
 
           // Users must decide user type before applying for institution
+          assertPropDefined(applicant1, 'id');
+          assertPropDefined(applicant2, 'id');
           await repo.userDecidesUserType({
-            userId: applicant1.id,
+            userId: String(applicant1.id),
             userType: 'Institution',
             decisionDate: new Date('2024-01-01T00:00:00Z'),
           });
 
           await repo.userDecidesUserType({
-            userId: applicant2.id,
+            userId: String(applicant2.id),
             userType: 'Institution',
             decisionDate: new Date('2024-01-01T00:00:00Z'),
           });
 
           // Create first application with NPWP
           await repo.testCreatesInstitutionApplicationWithValidation({
-            applicantUserId: applicant1.id,
+            applicantUserId: String(applicant1.id),
             businessName: 'First Business',
+            businessType: 'PT',
             npwpNumber: '12.345.678.9-123.456',
             npwpDocumentPath: '/path/npwp1.pdf',
             registrationNumber: 'NIB1111111111',
             registrationDocumentPath: '/path/registration1.pdf',
+            establishmentNumber: 'AHU-1111111111',
             deedOfEstablishmentPath: '/path/deed1.pdf',
             // domicileCertificatePath: '/path/domicile1.pdf', # TBD
             businessAddress: 'Test Address 1',
@@ -1464,12 +1481,14 @@ export async function runUserRepositoryTestSuite(
           let errorThrown = false;
           try {
             await repo.testCreatesInstitutionApplicationWithValidation({
-              applicantUserId: applicant2.id,
+              applicantUserId: String(applicant2.id),
               businessName: 'Second Business',
+              businessType: 'PT',
               npwpNumber: '12.345.678.9-123.456',
               npwpDocumentPath: '/path/npwp2.pdf',
               registrationNumber: 'NIB2222222222',
               registrationDocumentPath: '/path/registration2.pdf',
+              establishmentNumber: 'AHU-2222222222',
               deedOfEstablishmentPath: '/path/deed2.pdf',
               // domicileCertificatePath: '/path/domicile2.pdf', # TBD
               businessAddress: 'Test Address 2',
@@ -1510,7 +1529,7 @@ export async function runUserRepositoryTestSuite(
         `;
 
         const result = await repo.userListsNotifications({
-          userId: user.id,
+          userId: String(user.id),
           page: 1,
           limit: 10,
         });
@@ -1557,7 +1576,7 @@ export async function runUserRepositoryTestSuite(
         `;
 
         const result = await repo.userListsNotifications({
-          userId: user.id,
+          userId: String(user.id),
           type: 'UserKycVerified',
         });
 
@@ -1584,7 +1603,7 @@ export async function runUserRepositoryTestSuite(
         `;
 
         const result = await repo.userListsNotifications({
-          userId: user.id,
+          userId: String(user.id),
           unreadOnly: true,
         });
 
@@ -1612,7 +1631,7 @@ export async function runUserRepositoryTestSuite(
 
         // Test first page (limit 2)
         const page1 = await repo.userListsNotifications({
-          userId: user.id,
+          userId: String(user.id),
           page: 1,
           limit: 2,
         });
@@ -1627,7 +1646,7 @@ export async function runUserRepositoryTestSuite(
 
         // Test second page
         const page2 = await repo.userListsNotifications({
-          userId: user.id,
+          userId: String(user.id),
           page: 2,
           limit: 2,
         });
@@ -1639,7 +1658,7 @@ export async function runUserRepositoryTestSuite(
 
         // Test last page
         const page3 = await repo.userListsNotifications({
-          userId: user.id,
+          userId: String(user.id),
           page: 3,
           limit: 2,
         });
@@ -1672,7 +1691,7 @@ export async function runUserRepositoryTestSuite(
 
         // Mark as read
         const result = await repo.userMarksNotificationRead({
-          userId: user.id,
+          userId: String(user.id),
           notificationId,
         });
 
@@ -1681,7 +1700,7 @@ export async function runUserRepositoryTestSuite(
 
         // Verify notification is marked as read
         const updatedNotifications = await repo.userListsNotifications({
-          userId: user.id,
+          userId: String(user.id),
         });
 
         equal(updatedNotifications.notifications[0].isRead, true);
@@ -1711,7 +1730,7 @@ export async function runUserRepositoryTestSuite(
 
         await rejects(
           repo.userMarksNotificationRead({
-            userId: user.id,
+            userId: String(user.id),
             notificationId,
           }),
           function (error) {
@@ -1778,14 +1797,14 @@ export async function runUserRepositoryTestSuite(
 
         // Mark all as read
         const result = await repo.userMarksAllNotificationsRead({
-          userId: user.id,
+          userId: String(user.id),
         });
 
         equal(result.updatedCount, 3);
 
         // Verify all notifications are marked as read
         const updatedNotifications = await repo.userListsNotifications({
-          userId: user.id,
+          userId: String(user.id),
         });
 
         equal(updatedNotifications.unreadCount, 0);
@@ -1817,7 +1836,7 @@ export async function runUserRepositoryTestSuite(
 
         // Delete notification
         const result = await repo.userDeletesNotification({
-          userId: user.id,
+          userId: String(user.id),
           notificationId,
         });
 
@@ -1826,7 +1845,7 @@ export async function runUserRepositoryTestSuite(
 
         // Verify notification is deleted
         const remainingNotifications = await repo.userListsNotifications({
-          userId: user.id,
+          userId: String(user.id),
         });
 
         equal(remainingNotifications.notifications.length, 0);
@@ -1855,7 +1874,7 @@ export async function runUserRepositoryTestSuite(
         let errorMessage = '';
         try {
           await repo.userDeletesNotification({
-            userId: user2.id,
+            userId: String(user2.id),
             notificationId,
           });
         } catch (error) {
@@ -1877,7 +1896,7 @@ export async function runUserRepositoryTestSuite(
         });
 
         const result = await repo.userListsNotifications({
-          userId: user.id,
+          userId: String(user.id),
         });
 
         equal(result.notifications.length, 0);
@@ -1895,7 +1914,7 @@ export async function runUserRepositoryTestSuite(
 
         // Test with invalid page (should default to 1)
         const result1 = await repo.userListsNotifications({
-          userId: user.id,
+          userId: String(user.id),
           page: -1,
           limit: 5,
         });
@@ -1903,7 +1922,7 @@ export async function runUserRepositoryTestSuite(
 
         // Test with invalid limit (should cap at 100)
         const result2 = await repo.userListsNotifications({
-          userId: user.id,
+          userId: String(user.id),
           page: 1,
           limit: 150,
         });
@@ -1911,7 +1930,7 @@ export async function runUserRepositoryTestSuite(
 
         // Test with zero limit (should default to 1)
         const result3 = await repo.userListsNotifications({
-          userId: user.id,
+          userId: String(user.id),
           page: 1,
           limit: 0,
         });
@@ -1928,7 +1947,7 @@ export async function runUserRepositoryTestSuite(
         });
 
         const result = await repo.platformNotifyUser({
-          userId: user.id,
+          userId: String(user.id),
           type: 'UserKycVerified',
           title: 'Test Notification',
           content: 'This is a test notification',
@@ -1939,7 +1958,7 @@ export async function runUserRepositoryTestSuite(
 
         // Verify notification was created
         const notifications = await repo.userListsNotifications({
-          userId: user.id,
+          userId: String(user.id),
         });
 
         equal(notifications.notifications.length, 1);
@@ -1959,7 +1978,7 @@ export async function runUserRepositoryTestSuite(
 
         const customDate = new Date('2024-01-01T00:00:00Z');
         const result = await repo.platformNotifyUser({
-          userId: user.id,
+          userId: String(user.id),
           type: 'InstitutionApplicationVerified',
           title: 'Institution Approved',
           content: 'Your institution application has been approved',
@@ -1971,7 +1990,7 @@ export async function runUserRepositoryTestSuite(
 
         // Verify notification was created
         const notifications = await repo.userListsNotifications({
-          userId: user.id,
+          userId: String(user.id),
         });
 
         equal(notifications.notifications.length, 1);
@@ -1988,7 +2007,7 @@ export async function runUserRepositoryTestSuite(
         });
 
         const result = await repo.platformNotifyUser({
-          userId: user.id,
+          userId: String(user.id),
           type: 'UserKycRejected',
           title: 'KYC Rejected',
           content: 'Your KYC was rejected',
@@ -2000,7 +2019,7 @@ export async function runUserRepositoryTestSuite(
 
         // Verify notification was created
         const notifications = await repo.userListsNotifications({
-          userId: user.id,
+          userId: String(user.id),
         });
 
         equal(notifications.notifications.length, 1);
@@ -2036,7 +2055,7 @@ export async function runUserRepositoryTestSuite(
 
         // Create first notification
         await repo.platformNotifyUser({
-          userId: user.id,
+          userId: String(user.id),
           type: 'EmailVerified',
           title: 'Email Verified',
           content: 'Your email has been verified',
@@ -2044,7 +2063,7 @@ export async function runUserRepositoryTestSuite(
 
         // Create second notification
         await repo.platformNotifyUser({
-          userId: user.id,
+          userId: String(user.id),
           type: 'TwoFactorEnabled',
           title: '2FA Enabled',
           content: 'Two-factor authentication has been enabled',
@@ -2052,7 +2071,7 @@ export async function runUserRepositoryTestSuite(
 
         // Verify both notifications exist
         const notifications = await repo.userListsNotifications({
-          userId: user.id,
+          userId: String(user.id),
         });
 
         equal(notifications.notifications.length, 2);
@@ -2068,7 +2087,7 @@ export async function runUserRepositoryTestSuite(
           emailVerified: true,
         });
 
-        const preferences = await repo.userGetsPreferences({ userId: user.id });
+        const preferences = await repo.userGetsPreferences({ userId: String(user.id) });
 
         equal(preferences.userId, String(user.id));
         equal(preferences.notifications.email.enabled, true);
@@ -2091,7 +2110,7 @@ export async function runUserRepositoryTestSuite(
 
         // Update preferences
         const updateResult = await repo.userUpdatesPreferences({
-          userId: user.id,
+          userId: String(user.id),
           preferences: {
             display: {
               theme: 'dark',
@@ -2116,7 +2135,7 @@ export async function runUserRepositoryTestSuite(
         ok(updateResult.id, 'Should return preference ID');
 
         // Get updated preferences
-        const updatedPrefs = await repo.userGetsPreferences({ userId: user.id });
+        const updatedPrefs = await repo.userGetsPreferences({ userId: String(user.id) });
 
         equal(updatedPrefs.display.theme, 'dark');
         equal(updatedPrefs.display.language, 'id');
@@ -2137,7 +2156,7 @@ export async function runUserRepositoryTestSuite(
 
         // First update some preferences
         await repo.userUpdatesPreferences({
-          userId: user.id,
+          userId: String(user.id),
           preferences: {
             display: {
               theme: 'dark',
@@ -2148,7 +2167,7 @@ export async function runUserRepositoryTestSuite(
 
         // Then update different preferences
         await repo.userUpdatesPreferences({
-          userId: user.id,
+          userId: String(user.id),
           preferences: {
             notifications: {
               sms: {
@@ -2163,7 +2182,7 @@ export async function runUserRepositoryTestSuite(
         });
 
         // Check that both updates are preserved
-        const prefs = await repo.userGetsPreferences({ userId: user.id });
+        const prefs = await repo.userGetsPreferences({ userId: String(user.id) });
 
         equal(prefs.display.theme, 'dark');
         equal(prefs.notifications.sms.enabled, true);
@@ -2180,7 +2199,7 @@ export async function runUserRepositoryTestSuite(
 
         // Update only specific notification types
         await repo.userUpdatesPreferences({
-          userId: user.id,
+          userId: String(user.id),
           preferences: {
             notifications: {
               email: {
@@ -2197,7 +2216,7 @@ export async function runUserRepositoryTestSuite(
           updateDate: new Date(),
         });
 
-        const prefs = await repo.userGetsPreferences({ userId: user.id });
+        const prefs = await repo.userGetsPreferences({ userId: String(user.id) });
 
         // Email should still be enabled but with updated types
         equal(prefs.notifications.email.enabled, true);
@@ -2222,7 +2241,7 @@ export async function runUserRepositoryTestSuite(
 
         // First update - change theme
         await repo.userUpdatesPreferences({
-          userId: user.id,
+          userId: String(user.id),
           preferences: {
             display: { theme: 'dark' },
           },
@@ -2231,7 +2250,7 @@ export async function runUserRepositoryTestSuite(
 
         // Second update - change language
         await repo.userUpdatesPreferences({
-          userId: user.id,
+          userId: String(user.id),
           preferences: {
             display: { language: 'id' },
           },
@@ -2240,14 +2259,14 @@ export async function runUserRepositoryTestSuite(
 
         // Third update - change currency
         await repo.userUpdatesPreferences({
-          userId: user.id,
+          userId: String(user.id),
           preferences: {
             display: { currency: 'IDR' },
           },
           updateDate: new Date(),
         });
 
-        const prefs = await repo.userGetsPreferences({ userId: user.id });
+        const prefs = await repo.userGetsPreferences({ userId: String(user.id) });
 
         // All display preferences should be preserved
         equal(prefs.display.theme, 'dark');

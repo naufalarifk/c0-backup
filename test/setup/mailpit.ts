@@ -300,6 +300,9 @@ export async function waitForPasswordResetEmail(mailpitApiUrl: string, receiver:
       }
 
       const fullEmail = await fullEmailResponse.json();
+      assertDefined(fullEmail);
+      assertPropString(fullEmail, 'Text');
+      assertPropString(fullEmail, 'HTML');
       const emailText = fullEmail.Text ?? 'INVALID';
       const emailHtml = fullEmail.HTML ?? 'INVALID';
 

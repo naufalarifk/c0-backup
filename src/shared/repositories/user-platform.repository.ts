@@ -26,54 +26,30 @@ export abstract class UserPlatformRepository extends UserAdminRepository {
   async platformNotifyUser(params: PlatformNotifyUserParams): Promise<PlatformNotifyUserResult> {
     const tx = await this.beginTransaction();
     try {
-      const {
-        userId,
-        type,
-        title,
-        content,
-        creationDate = new Date(),
-        userKycId: _userKycId,
-        institutionApplicationId: _institutionApplicationId,
-      } = params;
-
       // For now, create notification without optional fields due to in-memory database limitations
       // The optional fields will be handled in production with proper PostgreSQL migrations
-      let rows;
-      try {
-        rows = await tx.sql`
-          INSERT INTO notifications (user_id, type, title, content, creation_date)
-          VALUES (${userId}, ${type}, ${title}, ${content}, ${creationDate})
-          RETURNING id, user_id
-        `;
-      } catch (insertError) {
-        console.error('UserRepository Error during notification INSERT:', insertError);
-        try {
-          await tx.rollbackTransaction();
-        } catch (rollbackError) {
-          console.error('UserRepository Error during rollback:', rollbackError);
-        }
-        throw new Error('Failed to create notification');
-      }
+      const rows = await tx.sql`
+        INSERT INTO notifications (user_id, type, title, content, creation_date)
+        VALUES (${params.userId}, ${params.type}, ${params.title}, ${params.content}, ${params.creationDate ?? new Date()})
+        RETURNING id, user_id AS "userId"
+      `;
+
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row, 'Failed to create notification');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isString, isNumber), row, 'userId');
+        return row;
+      });
 
       if (rows.length === 0) {
-        try {
-          await tx.rollbackTransaction();
-        } catch (rollbackError) {
-          console.error('UserRepository Error during rollback:', rollbackError);
-        }
         throw new Error('Failed to create notification');
       }
-
-      const notification = rows[0];
-      assertDefined(notification);
-      assertProp(check(isString, isNumber), notification, 'id');
-      assertProp(check(isString, isNumber), notification, 'user_id');
 
       await tx.commitTransaction();
 
       return {
-        id: String(notification.id),
-        userId: String(notification.user_id),
+        id: String(rows[0].id),
+        userId: String(rows[0].userId),
       };
     } catch (error) {
       console.error('UserRepository', error);
@@ -89,50 +65,62 @@ export abstract class UserPlatformRepository extends UserAdminRepository {
   async platformViewsPushTokens(
     params: PushTokenListByUserParams,
   ): Promise<PushTokenListByUserResult> {
-    const { userId, activeOnly = false } = params;
-
-    let rows;
-
-    if (activeOnly) {
-      rows = await this.sql`
-        SELECT id, push_token, device_id, device_type, device_name, device_model, current_session_id, is_active, last_used_date
-        FROM push_tokens
-        WHERE user_id = ${userId} AND is_active = true
-        ORDER BY last_used_date DESC
-      `;
-    } else {
-      rows = await this.sql`
-        SELECT id, push_token, device_id, device_type, device_name, device_model, current_session_id, is_active, last_used_date
-        FROM push_tokens
-        WHERE user_id = ${userId}
-        ORDER BY last_used_date DESC
-      `;
-    }
+    const rows = params.activeOnly
+      ? await this.sql`
+          SELECT
+            id,
+            push_token AS "pushToken",
+            device_id AS "deviceId",
+            device_type AS "deviceType",
+            device_name AS "deviceName",
+            device_model AS "deviceModel",
+            current_session_id AS "currentSessionId",
+            is_active AS "isActive",
+            last_used_date AS "lastUsedDate"
+          FROM push_tokens
+          WHERE user_id = ${params.userId} AND is_active = true
+          ORDER BY last_used_date DESC
+        `
+      : await this.sql`
+          SELECT
+            id,
+            push_token AS "pushToken",
+            device_id AS "deviceId",
+            device_type AS "deviceType",
+            device_name AS "deviceName",
+            device_model AS "deviceModel",
+            current_session_id AS "currentSessionId",
+            is_active AS "isActive",
+            last_used_date AS "lastUsedDate"
+          FROM push_tokens
+          WHERE user_id = ${params.userId}
+          ORDER BY last_used_date DESC
+        `;
 
     assertArrayMapOf(rows, function (row) {
       assertDefined(row, 'Failed to list push tokens');
       assertProp(check(isString, isNumber), row, 'id');
-      assertPropString(row, 'push_token');
-      assertPropNullableString(row, 'device_id');
-      assertPropString(row, 'device_type');
-      assertPropNullableString(row, 'device_name');
-      assertPropNullableString(row, 'device_model');
-      assertPropNullableString(row, 'current_session_id');
-      assertPropBoolean(row, 'is_active');
-      assertProp(isInstanceOf(Date), row, 'last_used_date');
+      assertPropString(row, 'pushToken');
+      assertPropNullableString(row, 'deviceId');
+      assertPropString(row, 'deviceType');
+      assertPropNullableString(row, 'deviceName');
+      assertPropNullableString(row, 'deviceModel');
+      assertPropNullableString(row, 'currentSessionId');
+      assertPropBoolean(row, 'isActive');
+      assertProp(isInstanceOf(Date), row, 'lastUsedDate');
       return row;
     });
 
     const tokens = rows.map(row => ({
       id: String(row.id),
-      pushToken: row.push_token,
-      deviceId: row.device_id ?? null,
-      deviceType: row.device_type as 'ios' | 'android',
-      deviceName: row.device_name ?? null,
-      deviceModel: row.device_model ?? null,
-      currentSessionId: row.current_session_id ?? null,
-      isActive: Boolean(row.is_active),
-      lastUsedDate: new Date(row.last_used_date),
+      pushToken: row.pushToken,
+      deviceId: row.deviceId ?? null,
+      deviceType: row.deviceType as 'ios' | 'android',
+      deviceName: row.deviceName ?? null,
+      deviceModel: row.deviceModel ?? null,
+      currentSessionId: row.currentSessionId ?? null,
+      isActive: Boolean(row.isActive),
+      lastUsedDate: new Date(row.lastUsedDate),
     }));
 
     return { tokens };
@@ -145,46 +133,52 @@ export abstract class UserPlatformRepository extends UserAdminRepository {
   async platformViewsActivePushTokens(
     params: PushTokenGetActiveParams,
   ): Promise<PushTokenGetActiveResult> {
-    const { userId, targetDevices = 'all', deviceIds } = params;
-
     // Build query based on target devices
-    let rows;
-
-    if (targetDevices === 'active_sessions') {
-      rows = await this.sql`
-        SELECT id, push_token, device_id, current_session_id
-        FROM push_tokens
-        WHERE user_id = ${userId} AND is_active = true AND current_session_id IS NOT NULL
-      `;
-    } else if (targetDevices === 'specific' && deviceIds?.length) {
-      rows = await this.sql`
-        SELECT id, push_token, device_id, current_session_id
-        FROM push_tokens
-        WHERE user_id = ${userId} AND is_active = true AND device_id = ANY(${deviceIds})
-      `;
-    } else {
-      // targetDevices === 'all' or default
-      rows = await this.sql`
-        SELECT id, push_token, device_id, current_session_id
-        FROM push_tokens
-        WHERE user_id = ${userId} AND is_active = true
-      `;
-    }
+    const rows =
+      params.targetDevices === 'active_sessions'
+        ? await this.sql`
+            SELECT
+              id,
+              push_token AS "pushToken",
+              device_id AS "deviceId",
+              current_session_id AS "currentSessionId"
+            FROM push_tokens
+            WHERE user_id = ${params.userId} AND is_active = true AND current_session_id IS NOT NULL
+          `
+        : params.targetDevices === 'specific' && params.deviceIds?.length
+          ? await this.sql`
+              SELECT
+                id,
+                push_token AS "pushToken",
+                device_id AS "deviceId",
+                current_session_id AS "currentSessionId"
+              FROM push_tokens
+              WHERE user_id = ${params.userId} AND is_active = true AND device_id = ANY(${params.deviceIds})
+            `
+          : await this.sql`
+              SELECT
+                id,
+                push_token AS "pushToken",
+                device_id AS "deviceId",
+                current_session_id AS "currentSessionId"
+              FROM push_tokens
+              WHERE user_id = ${params.userId} AND is_active = true
+            `;
 
     assertArrayMapOf(rows, function (row) {
       assertDefined(row, 'Failed to get active tokens');
       assertProp(check(isString, isNumber), row, 'id');
-      assertPropString(row, 'push_token');
-      assertPropNullableString(row, 'device_id');
-      assertPropNullableString(row, 'current_session_id');
+      assertPropString(row, 'pushToken');
+      assertPropNullableString(row, 'deviceId');
+      assertPropNullableString(row, 'currentSessionId');
       return row;
     });
 
     const tokens = rows.map(row => ({
       id: String(row.id),
-      pushToken: row.push_token,
-      deviceId: row.device_id ?? null,
-      currentSessionId: row.current_session_id ?? null,
+      pushToken: row.pushToken,
+      deviceId: row.deviceId ?? null,
+      currentSessionId: row.currentSessionId ?? null,
     }));
 
     return { tokens };
@@ -232,7 +226,9 @@ export abstract class UserPlatformRepository extends UserAdminRepository {
     try {
       // Get all tokens with session references
       const tokens = await tx.sql`
-        SELECT id, current_session_id
+        SELECT
+          id,
+          current_session_id AS "currentSessionId"
         FROM push_tokens
         WHERE current_session_id IS NOT NULL
       `;
@@ -240,7 +236,7 @@ export abstract class UserPlatformRepository extends UserAdminRepository {
       assertArrayMapOf(tokens, function (row) {
         assertDefined(row, 'Failed to get tokens with session references');
         assertProp(check(isString, isNumber), row, 'id');
-        assertPropString(row, 'current_session_id');
+        assertPropString(row, 'currentSessionId');
         return row;
       });
 
@@ -248,7 +244,7 @@ export abstract class UserPlatformRepository extends UserAdminRepository {
 
       // Check each session in Redis using repository's exists() method
       for (const token of tokens) {
-        const sessionKey = `session:${token.current_session_id}`;
+        const sessionKey = `session:${token.currentSessionId}`;
         const exists = await this.exists(sessionKey);
 
         if (!exists) {

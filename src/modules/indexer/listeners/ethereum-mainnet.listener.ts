@@ -25,7 +25,7 @@ export class EthereumMainnetIndexerListener extends EthereumIndexerListener {
   ) {
     super(discovery, redis, invoicePaymentQueue, {
       chainName: 'Ethereum Mainnet',
-      wsUrlEnvVar: 'wss://ethereum-rpc.publicnode.com',
+      wsUrlEnvVar: 'ETHEREUM_MAINNET_WS_URL',
       defaultWsUrl: 'wss://ethereum-rpc.publicnode.com',
       nativeTokenId: 'slip44:60',
       tokenPrefix: 'erc20',

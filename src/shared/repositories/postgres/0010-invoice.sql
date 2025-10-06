@@ -234,7 +234,9 @@ BEGIN
       WHEN paid_date IS NULL
         AND new_paid_amount >= invoiced_amount
         AND NEW.payment_date <= COALESCE(due_date, NEW.payment_date)
-        AND NEW.payment_date >= invoice_date
+        -- Allow payment if invoice_date is NULL or if payment is within 1 day before invoice_date
+        -- This handles cases where payment timestamp is recorded before invoice creation completes
+        AND (invoice_date IS NULL OR NEW.payment_date >= (invoice_date - INTERVAL '1 day'))
       THEN NEW.payment_date
       ELSE paid_date
     END
