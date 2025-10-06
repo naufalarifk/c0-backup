@@ -63,7 +63,7 @@ export abstract class BtcWallet extends Wallet {
           index: utxo.vout,
           witnessUtxo: {
             script: Buffer.from(utxo.scriptPubKey, 'hex'),
-            value: utxo.value,
+            value: BigInt(utxo.value),
           },
         });
         totalInput += utxo.value;
@@ -76,7 +76,7 @@ export abstract class BtcWallet extends Wallet {
       // Add output to recipient
       psbt.addOutput({
         address: params.to,
-        value: amountSatoshis,
+        value: BigInt(amountSatoshis),
       });
 
       // Add change output if needed
@@ -87,7 +87,7 @@ export abstract class BtcWallet extends Wallet {
         // Dust limit
         psbt.addOutput({
           address: senderAddress,
-          value: change,
+          value: BigInt(change),
         });
       }
 
