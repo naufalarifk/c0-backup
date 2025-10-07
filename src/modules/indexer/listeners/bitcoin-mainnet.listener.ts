@@ -15,17 +15,15 @@ export class BitcoinMainnetIndexerListener extends IndexerListener {
   #isRunning = false;
   #pollInterval?: NodeJS.Timeout;
   #lastProcessedBlock = 0;
-  #pollIntervalMs: number;
+  #pollIntervalMs = 60_000;
 
   constructor(
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
     private readonly btcService: BitcoinService,
-    pollIntervalMs = 60_000,
   ) {
     super(discovery, redis, invoicePaymentQueue);
-    this.#pollIntervalMs = pollIntervalMs;
   }
 
   async stop() {

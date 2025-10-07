@@ -42,13 +42,14 @@ export class SolanaMainnetIndexerListener extends IndexerListener {
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
-    config: SolanaIndexerConfig = {
+  ) {
+    super(discovery, redis, invoicePaymentQueue);
+
+    const config: SolanaIndexerConfig = {
       rpcUrlEnvVar: 'SOLANA_RPC_URL',
       wsUrlEnvVar: 'SOLANA_WS_URL',
       defaultRpcUrl: 'https://api.mainnet-beta.solana.com',
-    },
-  ) {
-    super(discovery, redis, invoicePaymentQueue);
+    };
 
     const rpcUrl = process.env[config.rpcUrlEnvVar] || config.defaultRpcUrl;
     const wsUrl = config.wsUrlEnvVar ? process.env[config.wsUrlEnvVar] : undefined;
