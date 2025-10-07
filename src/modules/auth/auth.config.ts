@@ -1,5 +1,5 @@
 import type { BetterAuthOptions } from 'better-auth';
-import type { ExtendedAuth, UserSession } from './types';
+import type { AuthConfigProvider, ExtendedAuth, UserSession } from './types';
 
 import { Injectable } from '@nestjs/common';
 
@@ -26,7 +26,7 @@ import { NotificationQueueService } from '../notifications/notification-queue.se
 import { authAdapter } from './auth.adapter';
 
 @Injectable()
-export class AuthConfig {
+export class AuthConfig implements AuthConfigProvider {
   private readonly logger = new TelemetryLogger(AuthConfig.name);
 
   constructor(

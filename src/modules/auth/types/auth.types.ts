@@ -52,3 +52,29 @@ export interface AuthModuleConfig<T extends ExtendedAuth = ExtendedAuth>
   extends AuthModuleFeatures {
   auth: T;
 }
+
+/**
+ * **Config provider** - Class-based async configuration
+ *
+ * Implement this interface for class-based async configuration.
+ *
+ * @example
+ * ```typescript
+ * @Injectable()
+ * class AuthConfigService implements AuthConfigProvider {
+ *   createAuthConfig() {
+ *     return {
+ *       auth: betterAuth({ ... }),
+ *       disableExceptionFilter: false
+ *     };
+ *   }
+ * }
+ *
+ * AuthModule.forRootAsync({
+ *   useClass: AuthConfigService
+ * })
+ * ```
+ */
+export interface AuthConfigProvider {
+  createAuthConfig(): AuthModuleConfig | Promise<AuthModuleConfig>;
+}
