@@ -247,7 +247,7 @@ INSERT INTO currencies (
    '0', '0', 0, 0, 0, 0, '0'),
   ('cg:testnet', 'mock:native', 'Mockchain Coin', 'MCK', 18, 'https://assets.cryptogadai.com/currencies/mockchain.png',
    '0', '0', 0, 0, 0, 0, '0'),
-  ('cg:testnet', 'mock:usd', 'Mockchain Dollar', 'MUSD', 18, 'https://assets.cryptogadai.com/currencies/mockchain-usd.png',
+  ('cg:testnet', 'mock:usd', 'Mockchain Dollar', 'USDT', 18, 'https://assets.cryptogadai.com/currencies/mockchain-usd.png',
    '100000000000000000000', '100000000000000000000000', 0, 0, 0, 0, '0')
 ON CONFLICT (blockchain_key, token_id) DO UPDATE SET
   min_loan_principal_amount = EXCLUDED.min_loan_principal_amount,
