@@ -233,6 +233,8 @@ INSERT INTO currencies (
    '0', '0', 0, 0, 0, 0, '0'),
   ('eip155:11155111', 'slip44:60', 'Sepolia ETH', 'ETH', 18, 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
    '0', '0', 0, 0, 0, 0, '0'),
+  ('eip155:560048', 'slip44:60', 'Hoodi ETH', 'ETH', 18, 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
+   '0', '0', 0, 0, 0, 0, '0'),
   ('eip155:97', 'slip44:714', 'BNB Testnet', 'BNB', 18, 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
    '0', '0', 0, 0, 0, 0, '0'),
   ('solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1', 'slip44:501', 'Solana Devnet', 'SOL', 9, 'https://cryptologos.cc/logos/solana-sol-logo.png',
@@ -260,6 +262,7 @@ ON CONFLICT (blockchain_key, token_id) DO UPDATE SET
 INSERT INTO accounts (user_id, currency_blockchain_key, currency_token_id, balance, account_type) VALUES
   (1, 'bip122:000000000933ea01ad0ee984209779ba', 'slip44:0', 0, 'PlatformEscrow'),
   (1, 'eip155:11155111', 'slip44:60', 0, 'PlatformEscrow'),
+  (1, 'eip155:560048', 'slip44:60', 0, 'PlatformEscrow'),
   (1, 'eip155:97', 'slip44:714', 0, 'PlatformEscrow'),
   (1, 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1', 'slip44:501', 0, 'PlatformEscrow'),
   (1, 'eip155:11155111', 'erc20:0x1c7d4b196cb0c7b01d743fbc6116a902379c7238', 0, 'PlatformEscrow'),
