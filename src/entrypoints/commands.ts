@@ -3,6 +3,9 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 
 import { DiscoveryModule } from '@nestjs/core';
 
+import { WithdrawalsModule } from 'src/modules/withdrawals/withdrawals.module.js';
+import { WithdrawalsProcessor } from 'src/modules/withdrawals/withdrawals.processor.js';
+
 import { DocumentModule } from '../modules/documents/document.module';
 import { DocumentProcessor } from '../modules/documents/document.processor';
 import { IndexerModule } from '../modules/indexer/indexer.module';
@@ -31,7 +34,8 @@ export type CommandKey =
   | 'migration'
   | 'notification'
   | 'pricefeed'
-  | 'wallet-balance-collector';
+  | 'wallet-balance-collector'
+  | 'withdrawals';
 
 export interface BootstrapContext {
   app: INestApplicationContext;
@@ -180,6 +184,20 @@ export const COMMAND_DEFINITIONS: Record<CommandKey, CommandDefinition> = {
       return {
         cleanup: () => {
           logger.log('Wallet balance collector worker shutting down');
+        },
+      };
+    },
+  },
+  withdrawals: {
+    imports: [WithdrawalsModule],
+    providers: [WithdrawalsProcessor],
+    usesBull: true,
+    async bootstrap() {
+      const logger = new TelemetryLogger('WithdrawalsWorker');
+      logger.log('Withdrawals worker started successfully');
+      return {
+        cleanup: () => {
+          logger.log('Withdrawals worker shutting down');
         },
       };
     },
