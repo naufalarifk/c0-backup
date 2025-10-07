@@ -61,7 +61,7 @@ export class PortfolioController {
     @Session() session: UserSession,
   ): Promise<PortfolioAnalyticsResponseDto> {
     const {
-      session: { id },
+      user: { id },
     } = session;
     this.logger.log(`Getting portfolio analytics for user: ${id}`);
     return await this.accountsService.getPortfolioAnalytics(id);
@@ -103,7 +103,7 @@ export class PortfolioController {
     @Session() session: UserSession,
   ): Promise<PortfolioOverviewResponseDto> {
     const {
-      session: { id },
+      user: { id },
     } = session;
     this.logger.log(`Getting portfolio overview for user: ${id}`);
     return await this.accountsService.getPortfolioOverview(id);

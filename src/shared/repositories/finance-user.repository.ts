@@ -420,7 +420,7 @@ export abstract class FinanceUserRepsitory extends UserRepository {
         b.image AS "blockchainImage"
       FROM currencies c
       JOIN blockchains b ON c.blockchain_key = b.key
-      WHERE (${params.blockchainKey}::text IS NULL OR c.blockchain_key = ${params.blockchainKey})
+      WHERE(${params.blockchainKey}::text IS NULL OR c.blockchain_key = ${params.blockchainKey})
         AND (${params.minLtv}::numeric IS NULL OR c.max_ltv >= ${params.minLtv})
         AND (${params.maxLtv}::numeric IS NULL OR c.max_ltv <= ${params.maxLtv})
         AND (
@@ -848,9 +848,8 @@ export abstract class FinanceUserRepsitory extends UserRepository {
           WHEN 'eip155:1' THEN 2
           WHEN 'eip155:56' THEN 3
           WHEN 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' THEN 4
-          ELSE 5
-        END,
-        name
+          WHEN 'cg:testnet' THEN 5
+        END
     `;
 
     assertArrayMapOf(rows, function (row) {

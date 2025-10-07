@@ -37,25 +37,25 @@ export class SolanaMainnetIndexerListener extends IndexerListener {
   #activeStrategies = new Set<string>();
   #activeSubscriptions = new Map<string, number>();
   #connection: Connection;
+  #config: SolanaIndexerConfig = {
+    rpcUrlEnvVar: 'SOLANA_RPC_URL',
+    wsUrlEnvVar: 'SOLANA_WS_URL',
+    defaultRpcUrl: 'https://api.mainnet-beta.solana.com',
+  };
 
   constructor(
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
-    config: SolanaIndexerConfig = {
-      rpcUrlEnvVar: 'SOLANA_RPC_URL',
-      wsUrlEnvVar: 'SOLANA_WS_URL',
-      defaultRpcUrl: 'https://api.mainnet-beta.solana.com',
-    },
   ) {
     super(discovery, redis, invoicePaymentQueue);
 
-    const rpcUrl = process.env[config.rpcUrlEnvVar] || config.defaultRpcUrl;
-    const wsUrl = config.wsUrlEnvVar ? process.env[config.wsUrlEnvVar] : undefined;
+    const rpcUrl = process.env[this.#config.rpcUrlEnvVar] || this.#config.defaultRpcUrl;
+    const wsUrl = this.#config.wsUrlEnvVar ? process.env[this.#config.wsUrlEnvVar] : undefined;
 
     this.#connection = new Connection(rpcUrl, {
       commitment: 'confirmed',
-      wsEndpoint: wsUrl || config.defaultWsUrl,
+      wsEndpoint: wsUrl || this.#config.defaultWsUrl,
     });
 
     this.#connection.onAccountChange = this.#connection.onAccountChange.bind(this.#connection);

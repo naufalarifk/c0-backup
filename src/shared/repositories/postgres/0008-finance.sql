@@ -176,19 +176,19 @@ INSERT INTO currencies (
 ) VALUES
   -- Native Bitcoin (collateral only)
   ('bip122:000000000019d6689c085ae165831e93', 'slip44:0', 'Bitcoin', 'BTC', 8, 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
-   '0', '0', 60.0, 75.0, 70.0, 60.0, '0'), -- BTC as collateral: 60% max LTV (CONF-002)
+   '0', '0', 60.0, 48.0, 57.0, 60.0, '0'), -- BTC as collateral: 60% max LTV (CONF-002)
   -- Native Ethereum (collateral only)
   ('eip155:1', 'slip44:60', 'Ethereum', 'ETH', 18, 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
-   '0', '0', 60.0, 75.0, 70.0, 60.0, '0'), -- ETH as collateral: 70% max LTV (CONF-002)
+   '0', '0', 70.0, 56.0, 66.5, 70.0, '0'), -- ETH as collateral: 70% max LTV (CONF-002)
   -- Native BNB on BSC (collateral only)
   ('eip155:56', 'slip44:714', 'Binance Coin', 'BNB', 18, 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
-   '0', '0', 60.0, 75.0, 70.0, 60.0, '0'), -- BNB as collateral: 50% max LTV (CONF-002)
-  -- USDT on BSC (BEP-20) - loan currency
+   '0', '0', 50.0, 40.0, 47.5, 50.0, '0'), -- BNB as collateral: 50% max LTV (CONF-002)
+  -- USDC on BSC (BEP-20) - loan currency
   ('eip155:56', 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d', 'Binance-Peg USD Coin', 'USDC', 18, 'https://cryptologos.cc/logos/tether-usdt-logo.png',
-   '100000000000000000000', '100000000000000000000000', 0, 0, 0, 0, '0'), -- Min 100 USDC, Max 100000 USDC for loans
+   '500000000000000000000', '0', 0, 0, 0, 0, '100000000000000000000'), -- Min 500 USDC for loans, Min 100 USDC for withdrawals
   -- Native SOL on Solana (collateral only)
   ('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp', 'slip44:501', 'Solana', 'SOL', 9, 'https://cryptologos.cc/logos/solana-sol-logo.png',
-   '0', '0', 60.0, 75.0, 70.0, 60.0, '0'), -- SOL as collateral: 50% max LTV (CONF-002)
+   '0', '0', 50.0, 40.0, 47.5, 50.0, '0'), -- SOL as collateral: 50% max LTV (CONF-002)
   -- Generic USD Token, the platform requires user to hold cross chain USD-Pegged Token
   ('crosschain', 'iso4217:usd', 'USD Token', 'USD', 6, 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
    '0', '0', 0, 0, 0, 0, '0'),
