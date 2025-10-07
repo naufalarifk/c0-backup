@@ -15,14 +15,17 @@ export class BitcoinMainnetIndexerListener extends IndexerListener {
   #isRunning = false;
   #pollInterval?: NodeJS.Timeout;
   #lastProcessedBlock = 0;
+  #pollIntervalMs: number;
 
   constructor(
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
     private readonly btcService: BitcoinService,
+    pollIntervalMs = 60_000,
   ) {
     super(discovery, redis, invoicePaymentQueue);
+    this.#pollIntervalMs = pollIntervalMs;
   }
 
   async stop() {
@@ -83,7 +86,7 @@ export class BitcoinMainnetIndexerListener extends IndexerListener {
 
     this.#pollInterval = setInterval(async () => {
       await this.#pollForTransactions();
-    }, 60_000);
+    }, this.#pollIntervalMs);
   }
 
   async #pollForTransactions() {
@@ -124,7 +127,12 @@ export class BitcoinMainnetIndexerListener extends IndexerListener {
       const tx = await this.btcService.getTransaction(txid);
 
       for (const output of tx.vout || []) {
-        const addresses = output.scriptPubKey?.addresses || [];
+        // Handle both old (addresses array) and new (address string) formats
+        const addresses: string[] = output.scriptPubKey?.addresses
+          ? output.scriptPubKey.addresses
+          : output.scriptPubKey?.address
+            ? [output.scriptPubKey.address]
+            : [];
 
         for (const address of addresses) {
           const watcher = this.#findWatcher(address);
