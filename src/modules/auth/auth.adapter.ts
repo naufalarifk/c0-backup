@@ -1,7 +1,6 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: integration */
-
 import type { Session } from 'better-auth';
-import type { AdapterDebugLogs } from 'better-auth/adapters';
+import type { DBAdapterDebugLogOption } from 'better-auth/adapters';
 
 import { BetterAuthError } from 'better-auth';
 import { createAdapterFactory } from 'better-auth/adapters';
@@ -15,7 +14,7 @@ interface AuthAdapterOptions {
   /**
    * Helps you debug issues with the adapter.
    */
-  debugLogs?: AdapterDebugLogs;
+  debugLogs?: DBAdapterDebugLogOption;
 }
 
 export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
