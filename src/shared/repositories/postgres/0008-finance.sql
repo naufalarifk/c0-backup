@@ -246,7 +246,7 @@ INSERT INTO currencies (
   ('solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1', 'spl:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr', 'USD Coin (Solana Devnet)', 'USDC', 6, 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
    '0', '0', 0, 0, 0, 0, '0'),
   ('cg:testnet', 'mock:native', 'Mockchain Coin', 'MCK', 18, 'https://assets.cryptogadai.com/currencies/mockchain.png',
-   '0', '0', 0, 0, 0, 0, '0'),
+   '0', '0', 70.0, 56.0, 66.5, 70.0, '0'), -- MCK as collateral: 70% max LTV (same as ETH for testing)
   ('cg:testnet', 'mock:usd', 'Mockchain Dollar', 'USDT', 18, 'https://assets.cryptogadai.com/currencies/mockchain-usd.png',
    '100000000000000000000', '100000000000000000000000', 0, 0, 0, 0, '0')
 ON CONFLICT (blockchain_key, token_id) DO UPDATE SET

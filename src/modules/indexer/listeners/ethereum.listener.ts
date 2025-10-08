@@ -57,6 +57,10 @@ export abstract class EthereumIndexerListener extends IndexerListener {
     this.#tokenPrefix = config.tokenPrefix;
     this.#chainName = config.chainName;
     this.#wsUrl = config.wsUrl;
+  }
+
+  async start() {
+    await super.start();
 
     this.#provider = new ethers.WebSocketProvider(this.#wsUrl);
 
@@ -68,9 +72,11 @@ export abstract class EthereumIndexerListener extends IndexerListener {
     const ws = this.#provider.websocket as unknown as {
       addEventListener: (event: string, listener: (event: unknown) => void) => void;
     };
+
     ws.addEventListener('error', (event: unknown) => {
       this.logger.error(`${this.#chainName} WebSocket error`, event);
     });
+
     ws.addEventListener('close', () => {
       this.logger.log(`${this.#chainName} WebSocket connection closed`);
     });

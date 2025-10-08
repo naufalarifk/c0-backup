@@ -247,6 +247,15 @@ export class InvoiceDto {
   @IsOptional()
   @IsDateString()
   expiredDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Invoice status',
+    enum: ['Pending', 'Paid', 'Expired', 'Failed'],
+    example: 'Pending',
+  })
+  @IsOptional()
+  @IsString()
+  status?: 'Pending' | 'Paid' | 'Expired' | 'Failed';
 }
 
 export class PaginationMetaDto {

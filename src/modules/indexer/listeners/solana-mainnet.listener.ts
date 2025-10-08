@@ -43,13 +43,18 @@ export class SolanaMainnetIndexerListener extends IndexerListener {
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
-    appConfig: AppConfigService,
+    private appConfig: AppConfigService,
   ) {
     super(discovery, redis, invoicePaymentQueue);
 
     const config = appConfig.indexerConfigs.solana.mainnet;
     this.#chainName = config.chainName;
+  }
 
+  async start() {
+    await super.start();
+
+    const config = this.appConfig.indexerConfigs.solana.mainnet;
     const rpcUrl = config.rpcUrl;
     const wsUrl = config.wsUrl;
 

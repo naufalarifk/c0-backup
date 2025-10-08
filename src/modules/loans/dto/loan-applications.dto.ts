@@ -137,6 +137,22 @@ export class LoanCalculationResponseDto {
   })
   data: {
     requiredCollateralAmount: string;
+    collateralToLoanRatio: number;
+    liquidationPrice: string;
+    liquidationThreshold: number;
+    estimatedInterestAmount: string;
+    totalRepaymentAmount: string;
+    fees: {
+      liquidationFee: string;
+      premiumRisk: string;
+      provision: string;
+    };
+    ltv: number;
+    marketRates: {
+      collateralPrice: string;
+      principalPrice: string;
+    };
+    // Legacy fields for backward compatibility
     exchangeRate: string;
     collateralCurrency: CurrencyDto;
     principalCurrency: CurrencyDto;
