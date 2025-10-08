@@ -597,68 +597,124 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
     const validatedLimit = Math.min(Math.max(1, params.limit ?? 20), 100);
     const offset = (validatedPage - 1) * validatedLimit;
 
-    // Get total count
-    const countRows = await this.sql`
-      SELECT COUNT(*) as total
-      FROM loan_applications
-      WHERE borrower_user_id = ${params.borrowerUserId}
-        AND (${params.status ?? null} IS NULL OR status = ${params.status ?? null})
-    `;
+    let totalCount = 0;
+    try {
+      // Get total count
+      const countRows = params.status
+        ? await this.sql`
+            SELECT COUNT(*) as total
+            FROM loan_applications
+            WHERE borrower_user_id = ${params.borrowerUserId}
+              AND status = ${params.status}
+          `
+        : await this.sql`
+            SELECT COUNT(*) as total
+            FROM loan_applications
+            WHERE borrower_user_id = ${params.borrowerUserId}
+          `;
 
-    const totalCount = Number(
       assertArrayMapOf(countRows, function (row) {
         assertDefined(row, 'Count query failed');
         assertProp(check(isString, isNumber), row, 'total');
         return row;
-      })[0].total,
-    );
+      });
+      totalCount = countRows && countRows.length > 0 ? Number((countRows as any)[0].total) : 0;
+    } catch (error) {
+      // If count query fails, default to 0 (empty results)
+      totalCount = 0;
+    }
 
     // Get loan applications with currency details
-    const applicationRows = await this.sql`
-      SELECT
-        la.id::text as id,
-        la.loan_offer_id::text as "loanOfferId",
-        jsonb_build_object(
-          'blockchainKey', c1.blockchain_key,
-          'tokenId', c1.token_id,
-          'decimals', c1.decimals,
-          'symbol', c1.symbol,
-          'name', c1.name
-        ) as "principalCurrency",
-        la.principal_amount::text as "principalAmount",
-        la.provision_amount::text as "provisionAmount",
-        la.max_interest_rate::numeric as "maxInterestRate",
-        la.min_ltv_ratio::numeric as "minLtvRatio",
-        la.max_ltv_ratio::numeric as "maxLtvRatio",
-        la.term_in_months::int as "termInMonths",
-        la.liquidation_mode as "liquidationMode",
-        jsonb_build_object(
-          'blockchainKey', c2.blockchain_key,
-          'tokenId', c2.token_id,
-          'decimals', c2.decimals,
-          'symbol', c2.symbol,
-          'name', c2.name
-        ) as "collateralCurrency",
-        la.collateral_deposit_amount::text as "collateralDepositAmount",
-        la.status,
-        la.applied_date as "appliedDate",
-        la.expired_date as "expirationDate",
-        la.published_date as "publishedDate",
-        la.matched_date as "matchedDate",
-        la.matched_loan_offer_id::text as "matchedLoanOfferId",
-        la.closed_date as "closedDate",
-        la.closure_reason as "closureReason"
-      FROM loan_applications la
-      JOIN currencies c1 ON la.principal_currency_blockchain_key = c1.blockchain_key
-        AND la.principal_currency_token_id = c1.token_id
-      JOIN currencies c2 ON la.collateral_currency_blockchain_key = c2.blockchain_key
-        AND la.collateral_currency_token_id = c2.token_id
-      WHERE la.borrower_user_id = ${params.borrowerUserId}
-        AND (${params.status ?? null} IS NULL OR la.status = ${params.status ?? null})
-      ORDER BY la.applied_date DESC
-      LIMIT ${validatedLimit}
-      OFFSET ${offset}
-    `;
+    const applicationRows = params.status
+      ? await this.sql`
+          SELECT
+            la.id::text as id,
+            la.loan_offer_id::text as "loanOfferId",
+            jsonb_build_object(
+              'blockchainKey', c1.blockchain_key,
+              'tokenId', c1.token_id,
+              'decimals', c1.decimals,
+              'symbol', c1.symbol,
+              'name', c1.name
+            ) as "principalCurrency",
+            la.principal_amount::text as "principalAmount",
+            la.provision_amount::text as "provisionAmount",
+            la.max_interest_rate::numeric as "maxInterestRate",
+            la.min_ltv_ratio::numeric as "minLtvRatio",
+            la.max_ltv_ratio::numeric as "maxLtvRatio",
+            la.term_in_months::int as "termInMonths",
+            la.liquidation_mode as "liquidationMode",
+            jsonb_build_object(
+              'blockchainKey', c2.blockchain_key,
+              'tokenId', c2.token_id,
+              'decimals', c2.decimals,
+              'symbol', c2.symbol,
+              'name', c2.name
+            ) as "collateralCurrency",
+            la.collateral_deposit_amount::text as "collateralDepositAmount",
+            la.status,
+            la.applied_date as "appliedDate",
+            la.expired_date as "expirationDate",
+            la.published_date as "publishedDate",
+            la.matched_date as "matchedDate",
+            la.matched_loan_offer_id::text as "matchedLoanOfferId",
+            la.closed_date as "closedDate",
+            la.closure_reason as "closureReason"
+          FROM loan_applications la
+          JOIN currencies c1 ON la.principal_currency_blockchain_key = c1.blockchain_key
+            AND la.principal_currency_token_id = c1.token_id
+          JOIN currencies c2 ON la.collateral_currency_blockchain_key = c2.blockchain_key
+            AND la.collateral_currency_token_id = c2.token_id
+          WHERE la.borrower_user_id = ${params.borrowerUserId}
+            AND la.status = ${params.status}
+          ORDER BY la.applied_date DESC
+          LIMIT ${validatedLimit}
+          OFFSET ${offset}
+        `
+      : await this.sql`
+          SELECT
+            la.id::text as id,
+            la.loan_offer_id::text as "loanOfferId",
+            jsonb_build_object(
+              'blockchainKey', c1.blockchain_key,
+              'tokenId', c1.token_id,
+              'decimals', c1.decimals,
+              'symbol', c1.symbol,
+              'name', c1.name
+            ) as "principalCurrency",
+            la.principal_amount::text as "principalAmount",
+            la.provision_amount::text as "provisionAmount",
+            la.max_interest_rate::numeric as "maxInterestRate",
+            la.min_ltv_ratio::numeric as "minLtvRatio",
+            la.max_ltv_ratio::numeric as "maxLtvRatio",
+            la.term_in_months::int as "termInMonths",
+            la.liquidation_mode as "liquidationMode",
+            jsonb_build_object(
+              'blockchainKey', c2.blockchain_key,
+              'tokenId', c2.token_id,
+              'decimals', c2.decimals,
+              'symbol', c2.symbol,
+              'name', c2.name
+            ) as "collateralCurrency",
+            la.collateral_deposit_amount::text as "collateralDepositAmount",
+            la.status,
+            la.applied_date as "appliedDate",
+            la.expired_date as "expirationDate",
+            la.published_date as "publishedDate",
+            la.matched_date as "matchedDate",
+            la.matched_loan_offer_id::text as "matchedLoanOfferId",
+            la.closed_date as "closedDate",
+            la.closure_reason as "closureReason"
+          FROM loan_applications la
+          JOIN currencies c1 ON la.principal_currency_blockchain_key = c1.blockchain_key
+            AND la.principal_currency_token_id = c1.token_id
+          JOIN currencies c2 ON la.collateral_currency_blockchain_key = c2.blockchain_key
+            AND la.collateral_currency_token_id = c2.token_id
+          WHERE la.borrower_user_id = ${params.borrowerUserId}
+          ORDER BY la.applied_date DESC
+          LIMIT ${validatedLimit}
+          OFFSET ${offset}
+        `;
 
     const loanApplications = applicationRows.map(function (row: unknown) {
       assertDefined(row, 'Loan application row is undefined');
