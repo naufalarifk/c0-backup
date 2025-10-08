@@ -104,3 +104,11 @@ refer to working structure of ethereum.listener.ts and ethereum.listener.test.ts
 
 run the test: `node --import tsx --test src/modules/indexer/listeners/bitcoin.listener.test.ts` (create if not exists)
 ```
+
+```
+Your task is to implement valuation module. Valuation processor flow shall be:
+- pricefeed shall dispatch event when new exchange rate is available
+- valuation processor shall receive the exchange rate event
+- valuation processor shall recalculate all active loan valuation using the new exchange rate
+- valuation processor shall dispatch events based on cretirias defined in `SRS-CG-v2.4-EN.md`
+```

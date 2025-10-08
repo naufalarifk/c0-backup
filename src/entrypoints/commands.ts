@@ -17,6 +17,8 @@ import { LoanMatcherModule } from '../modules/loan-matcher/loan-matcher.module';
 import { NotificationModule } from '../modules/notifications/notification.module';
 import { PricefeedModule } from '../modules/pricefeed/pricefeed.module';
 import { PricefeedScheduler } from '../modules/pricefeed/pricefeed.scheduler';
+import { ValuationModule } from '../modules/valuation/valuation.module';
+import { ValuationProcessor } from '../modules/valuation/valuation.processor';
 import { WalletBalanceCollectorModule } from '../modules/wallet-balance-collector/wallet-balance-collector.module';
 import { WalletBalanceCollectorProcessor } from '../modules/wallet-balance-collector/wallet-balance-collector.processor';
 import { CryptogadaiRepository } from '../shared/repositories/cryptogadai.repository';
@@ -34,6 +36,7 @@ export type CommandKey =
   | 'migration'
   | 'notification'
   | 'pricefeed'
+  | 'valuation'
   | 'wallet-balance-collector'
   | 'withdrawals';
 
@@ -86,6 +89,20 @@ export const COMMAND_DEFINITIONS: Record<CommandKey, CommandDefinition> = {
       return {
         cleanup: () => {
           logger.log('Price feed worker shutting down');
+        },
+      };
+    },
+  },
+  valuation: {
+    imports: [ValuationModule],
+    providers: [ValuationProcessor],
+    usesBull: true,
+    async bootstrap() {
+      const logger = new TelemetryLogger('ValuationWorker');
+      logger.log('Valuation worker started successfully');
+      return {
+        cleanup: () => {
+          logger.log('Valuation worker shutting down');
         },
       };
     },
