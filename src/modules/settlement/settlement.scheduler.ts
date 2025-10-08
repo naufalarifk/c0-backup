@@ -2,13 +2,13 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 
+import { defaultSettlementConfig } from './settlement.config';
 import { SettlementService } from './settlement.service';
-import { defaultSettlementConfig } from './settlement.types';
 
 /**
  * Settlement Scheduler
  * Runs settlement process at midnight (00:00 AM) every day
- * Transfers 50% of blockchain balances to Binance network
+ * Transfers balances between hot wallets and Binance based on configured ratio
  */
 @Injectable()
 export class SettlementScheduler implements OnModuleInit {
@@ -21,8 +21,8 @@ export class SettlementScheduler implements OnModuleInit {
 
   async onModuleInit() {
     const isEnabled = this.configService.get<boolean>(
-      'SETTLEMENT_ENABLED',
-      defaultSettlementConfig.enabled,
+      'SETTLEMENT_SCHEDULER_ENABLED',
+      defaultSettlementConfig.schedulerEnabled,
     );
 
     if (!isEnabled) {
@@ -30,8 +30,35 @@ export class SettlementScheduler implements OnModuleInit {
       return;
     }
 
+    const cronSchedule = this.configService.get<string>(
+      'SETTLEMENT_CRON_SCHEDULE',
+      defaultSettlementConfig.cronSchedule,
+    );
+
     this.logger.log('Settlement scheduler initialized');
-    this.logger.log(`Scheduled to run at: ${defaultSettlementConfig.cronSchedule} (midnight)`);
+    this.logger.log(`Scheduled to run at: ${cronSchedule}`);
+
+    // Run initial settlement on module init if configured
+    const runOnInit = this.configService.get<boolean>(
+      'SETTLEMENT_RUN_ON_INIT',
+      defaultSettlementConfig.runOnInit,
+    );
+
+    if (runOnInit) {
+      this.logger.log('Running initial settlement on module init');
+      // Run async without blocking module initialization
+      this.settlementService
+        .executeSettlement()
+        .then(results => {
+          const successCount = results.filter(r => r.success).length;
+          this.logger.log(
+            `Initial settlement completed: ${successCount}/${results.length} succeeded`,
+          );
+        })
+        .catch(error => {
+          this.logger.error('Initial settlement failed:', error);
+        });
+    }
   }
 
   /**
@@ -49,8 +76,8 @@ export class SettlementScheduler implements OnModuleInit {
   })
   async handleSettlementCron() {
     const isEnabled = this.configService.get<boolean>(
-      'SETTLEMENT_ENABLED',
-      defaultSettlementConfig.enabled,
+      'SETTLEMENT_SCHEDULER_ENABLED',
+      defaultSettlementConfig.schedulerEnabled,
     );
 
     if (!isEnabled) {
@@ -58,7 +85,7 @@ export class SettlementScheduler implements OnModuleInit {
       return;
     }
 
-    this.logger.log('⏰ Scheduled settlement triggered at midnight');
+    this.logger.log('Starting scheduled settlement');
 
     try {
       const results = await this.settlementService.executeSettlement();
@@ -69,11 +96,11 @@ export class SettlementScheduler implements OnModuleInit {
         .reduce((sum, r) => sum + Number.parseFloat(r.settlementAmount), 0);
 
       this.logger.log(
-        `✅ Scheduled settlement completed: ${successCount}/${results.length} succeeded, ` +
+        `Scheduled settlement completed successfully: ${successCount}/${results.length} succeeded, ` +
           `Total transferred: ${totalAmount.toFixed(2)}`,
       );
     } catch (error) {
-      this.logger.error('❌ Scheduled settlement failed:', error);
+      this.logger.error('Scheduled settlement failed:', error);
       // Don't throw - we want the scheduler to continue running
     }
   }

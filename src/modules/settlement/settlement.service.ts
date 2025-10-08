@@ -3,20 +3,11 @@ import type { BlockchainBalance, SettlementResult } from './settlement.types';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import {
-  assertArrayMapOf,
-  assertDefined,
-  assertProp,
-  assertPropString,
-  check,
-  isBoolean,
-  isNullable,
-  isString,
-} from 'typeshaper';
-
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { WalletService } from '../../shared/wallets/wallet.service';
-import { defaultSettlementConfig } from './settlement.types';
+import { BinanceAssetMapperService } from './binance-asset-mapper.service';
+import { BinanceClientService } from './binance-client.service';
+import { defaultSettlementConfig } from './settlement.config';
 
 @Injectable()
 export class SettlementService {
@@ -26,6 +17,8 @@ export class SettlementService {
     private readonly repository: CryptogadaiRepository,
     private readonly configService: ConfigService,
     private readonly walletService: WalletService,
+    private readonly binanceClient: BinanceClientService,
+    private readonly binanceMapper: BinanceAssetMapperService,
   ) {}
 
   /**
@@ -36,42 +29,7 @@ export class SettlementService {
     this.logger.debug('Fetching hot wallet balances...');
 
     try {
-      // Query platform escrow accounts (user_id = 1) for all blockchains
-      // Exclude: crosschain currencies, binance (target network), and mock/testnet currencies
-      // These represent the actual hot wallet balances on each blockchain
-      const balances = await this.repository.sql`
-        SELECT 
-          a.currency_blockchain_key as blockchain_key,
-          SUM(a.balance)::text as total_balance,
-          a.currency_token_id
-        FROM accounts a
-        WHERE a.user_id = 1
-          AND a.account_type = 'PlatformEscrow'
-          AND a.balance > 0
-          AND a.currency_blockchain_key NOT IN ('crosschain', 'eip155:56', 'cg:testnet')
-          AND a.currency_blockchain_key NOT LIKE 'bip122:000000000933%'
-          AND a.currency_blockchain_key NOT LIKE 'eip155:11155111%'
-          AND a.currency_blockchain_key NOT LIKE 'eip155:97%'
-          AND a.currency_blockchain_key NOT LIKE 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1%'
-        GROUP BY a.currency_blockchain_key, a.currency_token_id
-        ORDER BY a.currency_blockchain_key, a.currency_token_id
-      `;
-
-      // Validate and map the results
-      assertArrayMapOf(balances, b => {
-        assertDefined(b);
-        assertPropString(b, 'blockchain_key');
-        assertPropString(b, 'total_balance');
-        assertPropString(b, 'currency_token_id');
-        return b;
-      });
-
-      const blockchainBalances: BlockchainBalance[] = balances.map(b => ({
-        blockchainKey: b.blockchain_key,
-        balance: b.total_balance,
-        currency: b.currency_token_id,
-      }));
-
+      const blockchainBalances = await this.repository.platformGetsHotWalletBalances();
       this.logger.debug(`Found ${blockchainBalances.length} hot wallet balances`);
       return blockchainBalances;
     } catch (error) {
@@ -82,30 +40,40 @@ export class SettlementService {
 
   /**
    * Get Binance balance for a specific currency
+   * Uses Binance API if enabled, falls back to blockchain balance (BSC) if not
    */
   async getBinanceBalance(currencyTokenId: string): Promise<string> {
     try {
-      const result = await this.repository.sql`
-        SELECT SUM(balance)::text as total_balance
-        FROM accounts
-        WHERE user_id = 1
-          AND account_type = 'PlatformEscrow'
-          AND currency_blockchain_key = 'eip155:56'
-          AND currency_token_id = ${currencyTokenId}
-        GROUP BY currency_token_id
-      `;
+      // If Binance API is enabled, fetch from exchange
+      if (this.binanceClient.isApiEnabled()) {
+        const assetMapping = this.binanceMapper.tokenToBinanceAsset(currencyTokenId);
 
-      if (result.length === 0) {
-        return '0';
+        if (!assetMapping) {
+          this.logger.warn(
+            `No Binance asset mapping for ${currencyTokenId}, using blockchain balance`,
+          );
+          return await this.repository.platformGetsTargetNetworkBalance(currencyTokenId);
+        }
+
+        const balance = await this.binanceClient.getAssetBalance(assetMapping.asset);
+
+        if (!balance) {
+          this.logger.debug(`No Binance balance for ${assetMapping.asset}`);
+          return '0';
+        }
+
+        // Return free + locked balance
+        const total = Number.parseFloat(balance.free) + Number.parseFloat(balance.locked);
+        this.logger.debug(
+          `Binance API balance for ${assetMapping.asset}: ${total} (free: ${balance.free}, locked: ${balance.locked})`,
+        );
+
+        return total.toString();
       }
 
-      assertArrayMapOf(result, r => {
-        assertDefined(r);
-        assertPropString(r, 'total_balance');
-        return r;
-      });
-
-      return result[0].total_balance;
+      // Fallback to blockchain balance (treats Binance as BSC address)
+      this.logger.debug('Binance API disabled, using blockchain balance');
+      return await this.repository.platformGetsTargetNetworkBalance(currencyTokenId);
     } catch (error) {
       this.logger.error(`Failed to fetch Binance balance for ${currencyTokenId}:`, error);
       return '0';
@@ -161,7 +129,7 @@ export class SettlementService {
     const ratio =
       this.configService.get<number>(
         'SETTLEMENT_PERCENTAGE',
-        defaultSettlementConfig.settlementPercentage,
+        defaultSettlementConfig.targetPercentage,
       ) / 100;
 
     this.logger.log(`Processing settlement for currency: ${currencyTokenId}`);
@@ -171,30 +139,8 @@ export class SettlementService {
 
     try {
       // 1. Get all hot wallet balances for this currency
-      // Exclude: crosschain, binance (target network), and mock/testnet currencies
-      const hotWallets = await this.repository.sql`
-        SELECT 
-          a.currency_blockchain_key as blockchain_key,
-          a.balance::text as balance
-        FROM accounts a
-        WHERE a.user_id = 1
-          AND a.account_type = 'PlatformEscrow'
-          AND a.currency_token_id = ${currencyTokenId}
-          AND a.balance > 0
-          AND a.currency_blockchain_key NOT IN ('crosschain', 'eip155:56', 'cg:testnet')
-          AND a.currency_blockchain_key NOT LIKE 'bip122:000000000933%'
-          AND a.currency_blockchain_key NOT LIKE 'eip155:11155111%'
-          AND a.currency_blockchain_key NOT LIKE 'eip155:97%'
-          AND a.currency_blockchain_key NOT LIKE 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1%'
-        ORDER BY a.currency_blockchain_key
-      `;
-
-      assertArrayMapOf(hotWallets, hw => {
-        assertDefined(hw);
-        assertPropString(hw, 'blockchain_key');
-        assertPropString(hw, 'balance');
-        return hw;
-      });
+      const hotWallets =
+        await this.repository.platformGetsHotWalletBalancesForCurrency(currencyTokenId);
 
       if (hotWallets.length === 0) {
         this.logger.debug(`No hot wallet balances found for ${currencyTokenId}`);
@@ -233,62 +179,24 @@ export class SettlementService {
 
       // 5. Execute settlement transfers
       if (settlementNum > 0) {
-        // Need to transfer TO Binance - proportionally from all hot wallets
-        const binanceHotWallet = await this.walletService.getHotWallet(targetNetwork);
-
-        for (const hw of hotWallets) {
-          const hwBalance = Number.parseFloat(hw.balance);
-          const proportion = hwBalance / totalHotWallet;
-          const transferAmount = settlementNum * proportion;
-
-          if (transferAmount < 0.01) {
-            this.logger.debug(`Skipping ${hw.blockchain_key}: transfer amount too small`);
-            continue;
-          }
-
-          try {
-            const sourceHotWallet = await this.walletService.getHotWallet(hw.blockchain_key);
-
-            this.logger.log(
-              `Transferring ${transferAmount.toFixed(2)} ${currencyTokenId} from ${hw.blockchain_key} to Binance...`,
-            );
-
-            const txResult = await sourceHotWallet.wallet.transfer({
-              tokenId: currencyTokenId,
-              from: sourceHotWallet.address,
-              to: binanceHotWallet.address,
-              value: transferAmount.toString(),
-            });
-
-            results.push({
-              success: true,
-              blockchainKey: hw.blockchain_key,
-              originalBalance: hw.balance,
-              settlementAmount: transferAmount.toString(),
-              remainingBalance: (hwBalance - transferAmount).toString(),
-              transactionHash: txResult.txHash,
-              timestamp: new Date(),
-            });
-
-            this.logger.log(`✓ Transfer completed (tx: ${txResult.txHash})`);
-          } catch (error) {
-            this.logger.error(`Failed to transfer from ${hw.blockchain_key}:`, error);
-            results.push({
-              success: false,
-              blockchainKey: hw.blockchain_key,
-              originalBalance: hw.balance,
-              settlementAmount: '0',
-              remainingBalance: hw.balance,
-              error: error instanceof Error ? error.message : 'Unknown error',
-              timestamp: new Date(),
-            });
-          }
-        }
+        // Need to transfer TO Binance - deposit from hot wallets to Binance
+        results.push(
+          ...(await this.depositToBinance(
+            currencyTokenId,
+            hotWallets,
+            totalHotWallet,
+            settlementNum,
+          )),
+        );
       } else {
         // Need to withdraw FROM Binance - distribute to hot wallets
-        // This is less common but included for completeness
-        this.logger.warn(
-          'Withdrawal from Binance not implemented yet - manual intervention required',
+        results.push(
+          ...(await this.withdrawFromBinance(
+            currencyTokenId,
+            hotWallets,
+            totalHotWallet,
+            Math.abs(settlementNum),
+          )),
         );
       }
 
@@ -300,8 +208,160 @@ export class SettlementService {
   }
 
   /**
+   * Group currency token IDs by their Binance asset
+   *
+   * Binance groups balances by ASSET (e.g., USDT), not by network.
+   * This means USDT on ETH, BSC, Polygon, etc. all share ONE balance on Binance.
+   *
+   * Example:
+   * Input: ['eip155:1/erc20:0xdac17...', 'eip155:56/bep20:0x55d3...']
+   * Output: Map { 'USDT' => ['eip155:1/erc20:0xdac17...', 'eip155:56/bep20:0x55d3...'] }
+   */
+  private groupCurrenciesByAsset(currencyTokenIds: string[]): Map<string, string[]> {
+    const assetGroups = new Map<string, string[]>();
+
+    for (const tokenId of currencyTokenIds) {
+      const mapping = this.binanceMapper.tokenToBinanceAsset(tokenId);
+
+      if (!mapping) {
+        this.logger.warn(`No Binance mapping for ${tokenId}, will skip in settlement`);
+        continue;
+      }
+
+      const asset = mapping.asset; // e.g., 'USDT', 'BTC', 'USDC'
+
+      if (!assetGroups.has(asset)) {
+        assetGroups.set(asset, []);
+      }
+
+      assetGroups.get(asset)!.push(tokenId);
+    }
+
+    return assetGroups;
+  }
+
+  /**
+   * Settle all hot wallets for a specific Binance asset across multiple networks
+   *
+   * This handles the fact that Binance has ONE balance per asset (e.g., USDT)
+   * regardless of which network it's on (ETH, BSC, Polygon, etc.)
+   *
+   * @param asset - Binance asset symbol (e.g., 'USDT', 'BTC')
+   * @param tokenIds - Array of currency token IDs that map to this asset
+   * @param ratio - Settlement ratio (percentage of balance to maintain on Binance)
+   */
+  async settleAsset(asset: string, tokenIds: string[], ratio: number): Promise<SettlementResult[]> {
+    this.logger.log(`Settling asset: ${asset} across ${tokenIds.length} network(s)`);
+    this.logger.log(`Networks: ${tokenIds.join(', ')}`);
+
+    const results: SettlementResult[] = [];
+
+    try {
+      // 1. Get hot wallet balances across ALL networks for this asset
+      const allHotWallets: Array<{
+        blockchainKey: string;
+        balance: string;
+        currencyTokenId: string;
+      }> = [];
+
+      for (const tokenId of tokenIds) {
+        const wallets = await this.repository.platformGetsHotWalletBalancesForCurrency(tokenId);
+
+        // Tag each wallet with its currency token ID for later reference
+        for (const wallet of wallets) {
+          allHotWallets.push({
+            ...wallet,
+            currencyTokenId: tokenId,
+          });
+        }
+      }
+
+      if (allHotWallets.length === 0) {
+        this.logger.debug(`No hot wallet balances found for ${asset}`);
+        return [];
+      }
+
+      // 2. Calculate total across all networks
+      const totalHotWallet = allHotWallets.reduce(
+        (sum, hw) => sum + Number.parseFloat(hw.balance),
+        0,
+      );
+
+      this.logger.log(`Total ${asset} in hot wallets: ${totalHotWallet.toFixed(2)}`);
+
+      // 3. Get Binance balance (single balance covering all networks)
+      let currentBinanceNum = 0;
+
+      if (this.binanceClient.isApiEnabled()) {
+        const binanceBalance = await this.binanceClient.getAssetBalance(asset);
+
+        if (binanceBalance) {
+          currentBinanceNum =
+            Number.parseFloat(binanceBalance.free) + Number.parseFloat(binanceBalance.locked);
+          this.logger.log(`Binance ${asset} balance (API): ${currentBinanceNum.toFixed(2)}`);
+        } else {
+          this.logger.log(`No Binance balance found for ${asset} (API)`);
+        }
+      } else {
+        // Fallback: try to get blockchain balance (BSC only)
+        this.logger.debug('Binance API disabled, using blockchain balance fallback');
+        // Use first token ID as representative
+        const currentBinance = await this.getBinanceBalance(tokenIds[0]);
+        currentBinanceNum = Number.parseFloat(currentBinance);
+        this.logger.log(`Binance ${asset} balance (blockchain): ${currentBinanceNum.toFixed(2)}`);
+      }
+
+      // 4. Calculate required settlement amount
+      const settlementAmount = this.calculateSettlementAmount(
+        totalHotWallet.toString(),
+        currentBinanceNum.toString(),
+        ratio,
+      );
+      const settlementNum = Number.parseFloat(settlementAmount);
+
+      if (Math.abs(settlementNum) < 0.01) {
+        this.logger.log(`Settlement not needed for ${asset} (difference < 0.01)`);
+        return [];
+      }
+
+      this.logger.log(
+        `Settlement needed: ${settlementNum > 0 ? 'Transfer TO' : 'Withdraw FROM'} Binance: ${Math.abs(settlementNum).toFixed(2)} ${asset}`,
+      );
+
+      // 5. Execute settlement transfers
+      if (settlementNum > 0) {
+        // Need to transfer TO Binance - deposit from hot wallets
+        results.push(
+          ...(await this.depositToBinanceByAsset(
+            asset,
+            allHotWallets,
+            totalHotWallet,
+            settlementNum,
+          )),
+        );
+      } else {
+        // Need to withdraw FROM Binance - distribute to hot wallets
+        results.push(
+          ...(await this.withdrawFromBinanceByAsset(
+            asset,
+            allHotWallets,
+            totalHotWallet,
+            Math.abs(settlementNum),
+          )),
+        );
+      }
+
+      return results;
+    } catch (error) {
+      this.logger.error(`Failed to settle asset ${asset}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Execute settlement for all currencies
-   * Maintains ratio: (hot_wallets_total) / binance_balance = configured ratio
+   * Groups by Binance asset (USDT, BTC, etc.) since Binance maintains one balance per asset
+   * regardless of which network the tokens are on (ETH, BSC, Polygon, etc.)
    */
   async executeSettlement(): Promise<SettlementResult[]> {
     const isEnabled = this.configService.get<boolean>(
@@ -318,40 +378,32 @@ export class SettlementService {
 
     try {
       // Get all unique currencies that have balances in hot wallets
-      // Exclude: crosschain, binance (target network), and mock/testnet currencies
-      const currencies = await this.repository.sql`
-        SELECT DISTINCT a.currency_token_id
-        FROM accounts a
-        WHERE a.user_id = 1
-          AND a.account_type = 'PlatformEscrow'
-          AND a.balance > 0
-          AND a.currency_blockchain_key NOT IN ('crosschain', 'eip155:56', 'cg:testnet')
-          AND a.currency_blockchain_key NOT LIKE 'bip122:000000000933%'
-          AND a.currency_blockchain_key NOT LIKE 'eip155:11155111%'
-          AND a.currency_blockchain_key NOT LIKE 'eip155:97%'
-          AND a.currency_blockchain_key NOT LIKE 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1%'
-        ORDER BY a.currency_token_id
-      `;
-
-      assertArrayMapOf(currencies, c => {
-        assertDefined(c);
-        assertPropString(c, 'currency_token_id');
-        return c;
-      });
+      const currencies = await this.repository.platformGetsCurrenciesWithBalances();
 
       if (currencies.length === 0) {
         this.logger.log('No currencies found to settle');
         return [];
       }
 
-      this.logger.log(`Processing settlement for ${currencies.length} currency(ies)`);
+      this.logger.log(`Found ${currencies.length} currency token(s) in hot wallets`);
+
+      // Group currencies by Binance asset (USDT, BTC, etc.)
+      const assetGroups = this.groupCurrenciesByAsset(currencies);
+
+      this.logger.log(`Grouped into ${assetGroups.size} Binance asset(s)`);
+
+      const ratio =
+        this.configService.get<number>(
+          'SETTLEMENT_PERCENTAGE',
+          defaultSettlementConfig.targetPercentage,
+        ) / 100;
 
       const allResults: SettlementResult[] = [];
 
-      // Process each currency separately
-      for (const curr of currencies) {
-        this.logger.log(`--- Settling ${curr.currency_token_id} ---`);
-        const results = await this.settleCurrency(curr.currency_token_id);
+      // Process each asset (not each currency token)
+      for (const [asset, tokenIds] of assetGroups) {
+        this.logger.log(`\n--- Settling ${asset} ---`);
+        const results = await this.settleAsset(asset, tokenIds, ratio);
         allResults.push(...results);
       }
 
@@ -359,7 +411,7 @@ export class SettlementService {
       const failCount = allResults.filter(r => !r.success).length;
 
       this.logger.log(
-        `=== Settlement Complete: ${successCount} succeeded, ${failCount} failed ===`,
+        `\n=== Settlement Complete: ${successCount} succeeded, ${failCount} failed ===`,
       );
 
       // Store settlement results in database
@@ -375,32 +427,401 @@ export class SettlementService {
   }
 
   /**
+   * Deposit funds TO Binance from hot wallets (asset-based)
+   * Handles deposits across multiple networks for the same asset
+   *
+   * @param asset - Binance asset (e.g., 'USDT')
+   * @param hotWallets - All hot wallets across all networks for this asset
+   * @param totalHotWallet - Total balance across all networks
+   * @param settlementAmount - Amount to deposit
+   */
+  private async depositToBinanceByAsset(
+    asset: string,
+    hotWallets: Array<{ blockchainKey: string; balance: string; currencyTokenId: string }>,
+    totalHotWallet: number,
+    settlementAmount: number,
+  ): Promise<SettlementResult[]> {
+    const results: SettlementResult[] = [];
+
+    // Transfer from each hot wallet proportionally
+    for (const hw of hotWallets) {
+      const hwBalance = Number.parseFloat(hw.balance);
+      const proportion = hwBalance / totalHotWallet;
+      const transferAmount = settlementAmount * proportion;
+
+      if (transferAmount < 0.01) {
+        this.logger.debug(`Skipping ${hw.blockchainKey}: transfer amount too small`);
+        continue;
+      }
+
+      // Get asset mapping for this specific token
+      const assetMapping = this.binanceMapper.tokenToBinanceAsset(hw.currencyTokenId);
+
+      if (!assetMapping) {
+        this.logger.error(`Cannot deposit: no asset mapping for ${hw.currencyTokenId}`);
+        continue;
+      }
+
+      // Get Binance deposit address for this specific network
+      let depositAddress: string;
+      try {
+        if (this.binanceClient.isApiEnabled()) {
+          const depositInfo = await this.binanceClient.getDepositAddress(
+            assetMapping.asset,
+            assetMapping.network,
+          );
+          depositAddress = depositInfo.address;
+          this.logger.log(
+            `Binance deposit address for ${assetMapping.asset} (${assetMapping.network}): ${depositAddress}`,
+          );
+        } else {
+          // Fallback to configured target network address
+          const targetNetwork = this.configService.get<string>(
+            'SETTLEMENT_TARGET_NETWORK',
+            defaultSettlementConfig.targetNetwork,
+          );
+          const binanceHotWallet = await this.walletService.getHotWallet(targetNetwork);
+          depositAddress = binanceHotWallet.address;
+          this.logger.warn('Binance API disabled, using BSC hot wallet address');
+        }
+      } catch (error) {
+        this.logger.error(
+          `Failed to get Binance deposit address for ${assetMapping.network}:`,
+          error,
+        );
+        continue;
+      }
+
+      // Execute transfer
+      try {
+        const sourceHotWallet = await this.walletService.getHotWallet(hw.blockchainKey);
+
+        this.logger.log(
+          `Depositing ${transferAmount.toFixed(2)} ${asset} from ${hw.blockchainKey} to Binance (${depositAddress})...`,
+        );
+
+        const txResult = await sourceHotWallet.wallet.transfer({
+          tokenId: hw.currencyTokenId,
+          from: sourceHotWallet.address,
+          to: depositAddress,
+          value: transferAmount.toString(),
+        });
+
+        results.push({
+          success: true,
+          blockchainKey: hw.blockchainKey,
+          originalBalance: hw.balance,
+          settlementAmount: transferAmount.toString(),
+          remainingBalance: (hwBalance - transferAmount).toString(),
+          transactionHash: txResult.txHash,
+          timestamp: new Date(),
+        });
+
+        this.logger.log(`✓ Deposit completed (tx: ${txResult.txHash})`);
+      } catch (error) {
+        this.logger.error(`Failed to deposit from ${hw.blockchainKey}:`, error);
+        results.push({
+          success: false,
+          blockchainKey: hw.blockchainKey,
+          originalBalance: hw.balance,
+          settlementAmount: '0',
+          remainingBalance: hw.balance,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: new Date(),
+        });
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Deposit funds TO Binance from hot wallets (legacy single-currency method)
+   * Kept for backward compatibility with settleCurrency()
+   * Gets Binance deposit address and sends blockchain transfers
+   */
+  private async depositToBinance(
+    currencyTokenId: string,
+    hotWallets: Array<{ blockchainKey: string; balance: string }>,
+    totalHotWallet: number,
+    settlementAmount: number,
+  ): Promise<SettlementResult[]> {
+    const results: SettlementResult[] = [];
+
+    // Get Binance asset mapping
+    const assetMapping = this.binanceMapper.tokenToBinanceAsset(currencyTokenId);
+
+    if (!assetMapping) {
+      this.logger.error(`Cannot deposit to Binance: no asset mapping for ${currencyTokenId}`);
+      return [];
+    }
+
+    // Get Binance deposit address
+    let depositAddress: string;
+    try {
+      if (this.binanceClient.isApiEnabled()) {
+        const depositInfo = await this.binanceClient.getDepositAddress(
+          assetMapping.asset,
+          assetMapping.network,
+        );
+        depositAddress = depositInfo.address;
+        this.logger.log(
+          `Binance deposit address for ${assetMapping.asset} (${assetMapping.network}): ${depositAddress}`,
+        );
+      } else {
+        // Fallback to configured target network address
+        const targetNetwork = this.configService.get<string>(
+          'SETTLEMENT_TARGET_NETWORK',
+          defaultSettlementConfig.targetNetwork,
+        );
+        const binanceHotWallet = await this.walletService.getHotWallet(targetNetwork);
+        depositAddress = binanceHotWallet.address;
+        this.logger.warn('Binance API disabled, using BSC hot wallet address');
+      }
+    } catch (error) {
+      this.logger.error('Failed to get Binance deposit address:', error);
+      return [];
+    }
+
+    // Transfer from each hot wallet proportionally
+    for (const hw of hotWallets) {
+      const hwBalance = Number.parseFloat(hw.balance);
+      const proportion = hwBalance / totalHotWallet;
+      const transferAmount = settlementAmount * proportion;
+
+      if (transferAmount < 0.01) {
+        this.logger.debug(`Skipping ${hw.blockchainKey}: transfer amount too small`);
+        continue;
+      }
+
+      try {
+        const sourceHotWallet = await this.walletService.getHotWallet(hw.blockchainKey);
+
+        this.logger.log(
+          `Depositing ${transferAmount.toFixed(2)} ${currencyTokenId} from ${hw.blockchainKey} to Binance (${depositAddress})...`,
+        );
+
+        const txResult = await sourceHotWallet.wallet.transfer({
+          tokenId: currencyTokenId,
+          from: sourceHotWallet.address,
+          to: depositAddress,
+          value: transferAmount.toString(),
+        });
+
+        results.push({
+          success: true,
+          blockchainKey: hw.blockchainKey,
+          originalBalance: hw.balance,
+          settlementAmount: transferAmount.toString(),
+          remainingBalance: (hwBalance - transferAmount).toString(),
+          transactionHash: txResult.txHash,
+          timestamp: new Date(),
+        });
+
+        this.logger.log(`✓ Deposit completed (tx: ${txResult.txHash})`);
+      } catch (error) {
+        this.logger.error(`Failed to deposit from ${hw.blockchainKey}:`, error);
+        results.push({
+          success: false,
+          blockchainKey: hw.blockchainKey,
+          originalBalance: hw.balance,
+          settlementAmount: '0',
+          remainingBalance: hw.balance,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: new Date(),
+        });
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Withdraw funds FROM Binance to hot wallets (asset-based)
+   * Handles withdrawals across multiple networks for the same asset
+   *
+   * @param asset - Binance asset (e.g., 'USDT')
+   * @param hotWallets - All hot wallets across all networks for this asset
+   * @param totalHotWallet - Total balance across all networks
+   * @param withdrawalAmount - Amount to withdraw
+   */
+  private async withdrawFromBinanceByAsset(
+    asset: string,
+    hotWallets: Array<{ blockchainKey: string; balance: string; currencyTokenId: string }>,
+    totalHotWallet: number,
+    withdrawalAmount: number,
+  ): Promise<SettlementResult[]> {
+    const results: SettlementResult[] = [];
+
+    if (!this.binanceClient.isApiEnabled()) {
+      this.logger.error('Binance API is disabled - cannot perform withdrawals');
+      this.logger.warn('Manual intervention required to withdraw from Binance');
+      return [];
+    }
+
+    // Withdraw to each hot wallet proportionally
+    for (const hw of hotWallets) {
+      const hwBalance = Number.parseFloat(hw.balance);
+      const proportion = hwBalance / totalHotWallet;
+      const transferAmount = withdrawalAmount * proportion;
+
+      if (transferAmount < 0.01) {
+        this.logger.debug(`Skipping ${hw.blockchainKey}: withdrawal amount too small`);
+        continue;
+      }
+
+      try {
+        const targetHotWallet = await this.walletService.getHotWallet(hw.blockchainKey);
+
+        this.logger.log(
+          `Withdrawing ${transferAmount.toFixed(2)} ${asset} from Binance to ${hw.blockchainKey} (${targetHotWallet.address})...`,
+        );
+
+        // Get network for withdrawal
+        const network = this.binanceMapper.blockchainKeyToBinanceNetwork(hw.blockchainKey);
+
+        if (!network) {
+          throw new Error(`Cannot map blockchain ${hw.blockchainKey} to Binance network`);
+        }
+
+        const withdrawalResult = await this.binanceClient.withdraw(
+          asset,
+          targetHotWallet.address,
+          transferAmount.toString(),
+          network,
+        );
+
+        results.push({
+          success: true,
+          blockchainKey: hw.blockchainKey,
+          originalBalance: hw.balance,
+          settlementAmount: transferAmount.toString(),
+          remainingBalance: (hwBalance + transferAmount).toString(),
+          transactionHash: withdrawalResult.id, // Store withdrawal ID as txHash
+          timestamp: new Date(),
+        });
+
+        this.logger.log(`✓ Withdrawal initiated (ID: ${withdrawalResult.id})`);
+      } catch (error) {
+        this.logger.error(`Failed to withdraw to ${hw.blockchainKey}:`, error);
+        results.push({
+          success: false,
+          blockchainKey: hw.blockchainKey,
+          originalBalance: hw.balance,
+          settlementAmount: '0',
+          remainingBalance: hw.balance,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: new Date(),
+        });
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Withdraw funds FROM Binance to hot wallets (legacy single-currency method)
+   * Kept for backward compatibility with settleCurrency()
+   * Uses Binance withdrawal API to send to blockchain addresses
+   */
+  private async withdrawFromBinance(
+    currencyTokenId: string,
+    hotWallets: Array<{ blockchainKey: string; balance: string }>,
+    totalHotWallet: number,
+    withdrawalAmount: number,
+  ): Promise<SettlementResult[]> {
+    const results: SettlementResult[] = [];
+
+    // Get Binance asset mapping
+    const assetMapping = this.binanceMapper.tokenToBinanceAsset(currencyTokenId);
+
+    if (!assetMapping) {
+      this.logger.error(`Cannot withdraw from Binance: no asset mapping for ${currencyTokenId}`);
+      return [];
+    }
+
+    if (!this.binanceClient.isApiEnabled()) {
+      this.logger.error('Binance API is disabled - cannot perform withdrawals');
+      this.logger.warn('Manual intervention required to withdraw from Binance');
+      return [];
+    }
+
+    // Withdraw to each hot wallet proportionally
+    for (const hw of hotWallets) {
+      const hwBalance = Number.parseFloat(hw.balance);
+      const proportion = hwBalance / totalHotWallet;
+      const transferAmount = withdrawalAmount * proportion;
+
+      if (transferAmount < 0.01) {
+        this.logger.debug(`Skipping ${hw.blockchainKey}: withdrawal amount too small`);
+        continue;
+      }
+
+      try {
+        const targetHotWallet = await this.walletService.getHotWallet(hw.blockchainKey);
+
+        this.logger.log(
+          `Withdrawing ${transferAmount.toFixed(2)} ${assetMapping.asset} from Binance to ${hw.blockchainKey} (${targetHotWallet.address})...`,
+        );
+
+        // Get network for withdrawal
+        const network = this.binanceMapper.blockchainKeyToBinanceNetwork(hw.blockchainKey);
+
+        if (!network) {
+          throw new Error(`Cannot map blockchain ${hw.blockchainKey} to Binance network`);
+        }
+
+        const withdrawalResult = await this.binanceClient.withdraw(
+          assetMapping.asset,
+          targetHotWallet.address,
+          transferAmount.toString(),
+          network,
+        );
+
+        results.push({
+          success: true,
+          blockchainKey: hw.blockchainKey,
+          originalBalance: hw.balance,
+          settlementAmount: transferAmount.toString(),
+          remainingBalance: (hwBalance + transferAmount).toString(),
+          transactionHash: withdrawalResult.id, // Store withdrawal ID as txHash
+          timestamp: new Date(),
+        });
+
+        this.logger.log(`✓ Withdrawal initiated (ID: ${withdrawalResult.id})`);
+      } catch (error) {
+        this.logger.error(`Failed to withdraw to ${hw.blockchainKey}:`, error);
+        results.push({
+          success: false,
+          blockchainKey: hw.blockchainKey,
+          originalBalance: hw.balance,
+          settlementAmount: '0',
+          remainingBalance: hw.balance,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: new Date(),
+        });
+      }
+    }
+
+    return results;
+  }
+
+  /**
    * Store settlement results in the database for audit trail
    */
   private async storeSettlementResults(results: SettlementResult[]): Promise<void> {
     try {
       for (const result of results) {
-        await this.repository.sql`
-          INSERT INTO settlement_logs (
-            blockchain_key,
-            original_balance,
-            settlement_amount,
-            remaining_balance,
-            transaction_hash,
-            success,
-            error_message,
-            settled_at
-          ) VALUES (
-            ${result.blockchainKey},
-            ${result.originalBalance},
-            ${result.settlementAmount},
-            ${result.remainingBalance},
-            ${result.transactionHash ?? null},
-            ${result.success},
-            ${result.error ?? null},
-            ${result.timestamp.toISOString()}
-          )
-        `;
+        await this.repository.platformStoresSettlementResult({
+          blockchainKey: result.blockchainKey,
+          originalBalance: result.originalBalance,
+          settlementAmount: result.settlementAmount,
+          remainingBalance: result.remainingBalance,
+          transactionHash: result.transactionHash ?? null,
+          success: result.success,
+          errorMessage: result.error ?? null,
+          settledAt: result.timestamp,
+        });
       }
 
       this.logger.debug(`Stored ${results.length} settlement results in database`);
@@ -415,44 +836,17 @@ export class SettlementService {
    */
   async getSettlementHistory(limit = 100): Promise<SettlementResult[]> {
     try {
-      const rows = await this.repository.sql`
-        SELECT 
-          blockchain_key,
-          original_balance,
-          settlement_amount,
-          remaining_balance,
-          transaction_hash,
-          success,
-          error_message,
-          settled_at
-        FROM settlement_logs
-        ORDER BY settled_at DESC
-        LIMIT ${limit}
-      `;
+      const logs = await this.repository.platformGetsSettlementHistory(limit);
 
-      // Validate and map the results
-      assertArrayMapOf(rows, row => {
-        assertDefined(row);
-        assertPropString(row, 'blockchain_key');
-        assertPropString(row, 'original_balance');
-        assertPropString(row, 'settlement_amount');
-        assertPropString(row, 'remaining_balance');
-        assertProp(check(isNullable, isString), row, 'transaction_hash');
-        assertProp(isBoolean, row, 'success');
-        assertProp(check(isNullable, isString), row, 'error_message');
-        assertPropString(row, 'settled_at');
-        return row;
-      });
-
-      return rows.map(row => ({
-        success: row.success,
-        blockchainKey: row.blockchain_key,
-        originalBalance: row.original_balance,
-        settlementAmount: row.settlement_amount,
-        remainingBalance: row.remaining_balance,
-        transactionHash: row.transaction_hash ?? undefined,
-        error: row.error_message ?? undefined,
-        timestamp: new Date(row.settled_at),
+      return logs.map(log => ({
+        success: log.success,
+        blockchainKey: log.blockchainKey,
+        originalBalance: log.originalBalance,
+        settlementAmount: log.settlementAmount,
+        remainingBalance: log.remainingBalance,
+        transactionHash: log.transactionHash ?? undefined,
+        error: log.errorMessage ?? undefined,
+        timestamp: log.settledAt,
       }));
     } catch (error) {
       this.logger.error('Failed to fetch settlement history:', error);
