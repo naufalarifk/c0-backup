@@ -2,6 +2,7 @@ onlyBuiltDependencies:
   - '@nestjs/core'
   - '@scarf/scarf'
   - '@swc/core'
+  - bigint-buffer
   - bufferutil
   - cpu-features
   - esbuild
