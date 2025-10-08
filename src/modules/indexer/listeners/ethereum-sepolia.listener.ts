@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DiscoveryService } from '@nestjs/core';
 
+import { AppConfigService } from '../../../shared/services/app-config.service';
 import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { InvoicePaymentQueueService } from '../../invoice-payments/invoice-payment.queue.service';
@@ -20,13 +21,8 @@ export class EthereumSepoliaIndexerListener extends EthereumIndexerListener {
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
+    appConfig: AppConfigService,
   ) {
-    super(discovery, redis, invoicePaymentQueue, {
-      chainName: 'Ethereum Sepolia',
-      wsUrlEnvVar: 'ETHEREUM_SEPOLIA_WS_URL',
-      defaultWsUrl: 'wss://sepolia.infura.io/ws/v3/YOUR_INFURA_PROJECT_ID',
-      nativeTokenId: 'slip44:60',
-      tokenPrefix: 'erc20',
-    });
+    super(discovery, redis, invoicePaymentQueue, appConfig.indexerConfigs.ethereum.sepolia);
   }
 }

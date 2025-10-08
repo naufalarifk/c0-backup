@@ -4,6 +4,7 @@ import { DiscoveryService } from '@nestjs/core';
 import { AccountLayout } from '@solana/spl-token';
 import { Connection, PublicKey } from '@solana/web3.js';
 
+import { AppConfigService } from '../../../shared/services/app-config.service';
 import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { InvoicePaymentQueueService } from '../../invoice-payments/invoice-payment.queue.service';
@@ -22,11 +23,10 @@ type SolanaTokenStrategy =
       mintAddress: string;
     };
 
-type SolanaIndexerConfig = {
-  rpcUrlEnvVar: string;
-  wsUrlEnvVar?: string;
-  defaultRpcUrl: string;
-  defaultWsUrl?: string;
+export type SolanaIndexerConfig = {
+  rpcUrl: string;
+  wsUrl?: string;
+  chainName: string;
 };
 
 @Injectable()
@@ -37,25 +37,25 @@ export class SolanaMainnetIndexerListener extends IndexerListener {
   #activeStrategies = new Set<string>();
   #activeSubscriptions = new Map<string, number>();
   #connection: Connection;
-  #config: SolanaIndexerConfig = {
-    rpcUrlEnvVar: 'SOLANA_RPC_URL',
-    wsUrlEnvVar: 'SOLANA_WS_URL',
-    defaultRpcUrl: 'https://api.mainnet-beta.solana.com',
-  };
+  #chainName: string;
 
   constructor(
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
+    appConfig: AppConfigService,
   ) {
     super(discovery, redis, invoicePaymentQueue);
 
-    const rpcUrl = process.env[this.#config.rpcUrlEnvVar] || this.#config.defaultRpcUrl;
-    const wsUrl = this.#config.wsUrlEnvVar ? process.env[this.#config.wsUrlEnvVar] : undefined;
+    const config = appConfig.indexerConfigs.solana.mainnet;
+    this.#chainName = config.chainName;
+
+    const rpcUrl = config.rpcUrl;
+    const wsUrl = config.wsUrl;
 
     this.#connection = new Connection(rpcUrl, {
       commitment: 'confirmed',
-      wsEndpoint: wsUrl || this.#config.defaultWsUrl,
+      wsEndpoint: wsUrl,
     });
 
     this.#connection.onAccountChange = this.#connection.onAccountChange.bind(this.#connection);
@@ -105,7 +105,7 @@ export class SolanaMainnetIndexerListener extends IndexerListener {
     const isFirstAddress = !this.#activeStrategies.has(strategy.tokenKey);
     if (isFirstAddress) {
       this.#activeStrategies.add(strategy.tokenKey);
-      this.logger.log('Starting Solana indexer strategy', {
+      this.logger.log(`Starting ${this.#chainName} indexer strategy`, {
         mode: strategy.mode,
         tokenId: strategy.tokenId,
       });
@@ -164,9 +164,12 @@ export class SolanaMainnetIndexerListener extends IndexerListener {
       this.#watchersByToken.delete(strategy.tokenKey);
       this.#activeStrategies.delete(strategy.tokenKey);
 
-      this.logger.log('No more wallets tracked for Solana token, stopped strategy runner', {
-        tokenId: strategy.tokenId,
-      });
+      this.logger.log(
+        `No more wallets tracked for ${this.#chainName} token, stopped strategy runner`,
+        {
+          tokenId: strategy.tokenId,
+        },
+      );
     }
   }
 
@@ -229,7 +232,7 @@ export class SolanaMainnetIndexerListener extends IndexerListener {
             if (newBalance > previousBalance) {
               const amount = (newBalance - previousBalance).toString();
 
-              this.logger.log('Detected native SOL transaction', {
+              this.logger.log(`Detected native ${this.#chainName} transaction`, {
                 address: watcher.address,
                 amount: (newBalance - previousBalance) / 1e9,
                 slot: context.slot,
@@ -257,7 +260,7 @@ export class SolanaMainnetIndexerListener extends IndexerListener {
 
       this.#activeSubscriptions.set(`${strategy.tokenKey}:${watchKey}`, subscriptionId);
 
-      this.logger.log('Native SOL listener started for address', {
+      this.logger.log(`Native ${this.#chainName} listener started for address`, {
         address: watcher.address,
       });
     } catch (error) {

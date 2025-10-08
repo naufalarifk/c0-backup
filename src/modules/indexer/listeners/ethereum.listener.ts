@@ -21,12 +21,11 @@ type EthereumTokenStrategy =
       contractAddress: `0x${string}`;
     };
 
-type EthereumIndexerConfig = {
+export type EthereumIndexerConfig = {
   nativeTokenId: string;
   tokenPrefix: string;
-  wsUrlEnvVar: string;
   chainName: string;
-  defaultWsUrl: string;
+  wsUrl: string;
 };
 
 /**
@@ -43,9 +42,8 @@ export abstract class EthereumIndexerListener extends IndexerListener {
 
   #nativeTokenId: string;
   #tokenPrefix: string;
-  #wsUrlEnvVar: string;
   #chainName: string;
-  #defaultWsUrl: string;
+  #wsUrl: string;
 
   constructor(
     discovery: DiscoveryService,
@@ -57,12 +55,10 @@ export abstract class EthereumIndexerListener extends IndexerListener {
 
     this.#nativeTokenId = config.nativeTokenId;
     this.#tokenPrefix = config.tokenPrefix;
-    this.#wsUrlEnvVar = config.wsUrlEnvVar;
     this.#chainName = config.chainName;
-    this.#defaultWsUrl = config.defaultWsUrl;
+    this.#wsUrl = config.wsUrl;
 
-    const wsUrl = process.env[this.#wsUrlEnvVar] || this.#defaultWsUrl;
-    this.#provider = new ethers.WebSocketProvider(wsUrl);
+    this.#provider = new ethers.WebSocketProvider(this.#wsUrl);
 
     this.#provider.on('error', (error: Error) => {
       this.logger.error(`${this.#chainName} provider error`, error);

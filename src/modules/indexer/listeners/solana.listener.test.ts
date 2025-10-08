@@ -22,10 +22,11 @@ import {
   sendAndConfirmTransaction,
   Transaction,
 } from '@solana/web3.js';
-import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers';
+import { GenericContainer, StartedTestContainer } from 'testcontainers';
 import { LogWaitStrategy } from 'testcontainers/build/wait-strategies/log-wait-strategy';
 import { assertDefined, assertPropString } from 'typeshaper';
 
+import { AppConfigService } from '../../../shared/services/app-config.service';
 import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { InvoicePaymentQueueService } from '../../invoice-payments/invoice-payment.queue.service';
@@ -42,12 +43,9 @@ class TestSolanaIndexerListener extends SolanaMainnetIndexerListener {
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
-    rpcUrl: string,
+    appConfig: AppConfigService,
   ) {
-    super(discovery, redis, invoicePaymentQueue, {
-      rpcUrlEnvVar: 'TEST_SOLANA_RPC_URL',
-      defaultRpcUrl: rpcUrl,
-    });
+    super(discovery, redis, invoicePaymentQueue, appConfig);
   }
 
   // Override getBlockchainKey for testing
@@ -64,6 +62,7 @@ describe('SolanaIndexerListener Integration Tests', function () {
   let redisService: RedisService;
   let connection: Connection;
   let detectedTransactions: DetectedTransaction[] = [];
+  let appConfigMock: AppConfigService;
 
   before(
     async function () {
@@ -105,6 +104,19 @@ describe('SolanaIndexerListener Integration Tests', function () {
       connection = new Connection(solanaRpcUrl, {
         commitment: 'confirmed',
       });
+
+      appConfigMock = {
+        indexerConfigs: {
+          ethereum: {},
+          solana: {
+            mainnet: {
+              chainName: 'Solana Localnet',
+              rpcUrl: solanaRpcUrl,
+              wsUrl: undefined,
+            },
+          },
+        },
+      } as unknown as AppConfigService;
 
       // Wait for the validator to be ready
       let retries = 0;
@@ -169,10 +181,15 @@ describe('SolanaIndexerListener Integration Tests', function () {
               discovery: DiscoveryService,
               redis: RedisService,
               queue: InvoicePaymentQueueService,
+              appConfig: AppConfigService,
             ) => {
-              return new TestSolanaIndexerListener(discovery, redis, queue, solanaRpcUrl);
+              return new TestSolanaIndexerListener(discovery, redis, queue, appConfig);
             },
-            inject: [DiscoveryService, RedisService, InvoicePaymentQueueService],
+            inject: [DiscoveryService, RedisService, InvoicePaymentQueueService, AppConfigService],
+          },
+          {
+            provide: AppConfigService,
+            useValue: appConfigMock,
           },
           DiscoveryService,
         ],

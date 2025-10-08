@@ -12,11 +12,12 @@ import { LogWaitStrategy } from 'testcontainers/build/wait-strategies/log-wait-s
 import { assertDefined, assertPropString } from 'typeshaper';
 import { isAddress, isHash } from 'viem';
 
+import { AppConfigService } from '../../../shared/services/app-config.service';
 import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { InvoicePaymentQueueService } from '../../invoice-payments/invoice-payment.queue.service';
 import { AddressChanged, DetectedTransaction, Listener } from '../indexer-listener.abstract';
-import { EthereumIndexerListener } from './ethereum.listener';
+import { type EthereumIndexerConfig, EthereumIndexerListener } from './ethereum.listener';
 
 /**
  * Test implementation of EthereumIndexerListener for local testing
@@ -28,15 +29,10 @@ class TestEthereumIndexerListener extends EthereumIndexerListener {
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
-    wsUrl: string,
+    appConfig: AppConfigService,
   ) {
-    super(discovery, redis, invoicePaymentQueue, {
-      chainName: 'Test Ethereum',
-      defaultWsUrl: wsUrl,
-      wsUrlEnvVar: 'TEST_ETH_WS_URL',
-      nativeTokenId: 'slip44:60',
-      tokenPrefix: 'erc20',
-    });
+    const configs = appConfig.indexerConfigs.ethereum as Record<string, EthereumIndexerConfig>;
+    super(discovery, redis, invoicePaymentQueue, configs.test);
   }
 
   // Override getBlockchainKey for testing
@@ -53,6 +49,7 @@ describe('EthereumIndexerListener Integration Tests', function () {
   let redisService: RedisService;
   let provider: ethers.WebSocketProvider;
   let detectedTransactions: DetectedTransaction[] = [];
+  let appConfigMock: AppConfigService;
 
   before(
     async function () {
@@ -90,6 +87,26 @@ describe('EthereumIndexerListener Integration Tests', function () {
       const httpProvider = new ethers.JsonRpcProvider(anvilHttpUrl);
       await httpProvider.getNetwork();
       provider = new ethers.WebSocketProvider(anvilWsUrl);
+
+      appConfigMock = {
+        indexerConfigs: {
+          ethereum: {
+            test: {
+              chainName: 'Test Ethereum',
+              wsUrl: anvilWsUrl,
+              nativeTokenId: 'slip44:60',
+              tokenPrefix: 'erc20',
+            },
+          },
+          solana: {
+            mainnet: {
+              chainName: 'Solana Mainnet',
+              rpcUrl: 'http://localhost:0',
+              wsUrl: undefined,
+            },
+          },
+        },
+      } as unknown as AppConfigService;
 
       const mockInvoicePaymentQueue = {
         enqueuePaymentDetection: async (data: unknown) => {
@@ -138,10 +155,15 @@ describe('EthereumIndexerListener Integration Tests', function () {
               discovery: DiscoveryService,
               redis: RedisService,
               queue: InvoicePaymentQueueService,
+              appConfig: AppConfigService,
             ) => {
-              return new TestEthereumIndexerListener(discovery, redis, queue, anvilWsUrl);
+              return new TestEthereumIndexerListener(discovery, redis, queue, appConfig);
             },
-            inject: [DiscoveryService, RedisService, InvoicePaymentQueueService],
+            inject: [DiscoveryService, RedisService, InvoicePaymentQueueService, AppConfigService],
+          },
+          {
+            provide: AppConfigService,
+            useValue: appConfigMock,
           },
           DiscoveryService,
         ],
