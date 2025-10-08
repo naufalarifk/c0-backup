@@ -284,8 +284,9 @@ export class LoanOffersService {
         lenderId: offer.lenderUserId,
         lender: {
           id: offer.lenderUserId,
-          type: LenderType.INDIVIDUAL,
-          name: 'Lender User',
+          type:
+            offer.lenderUserType === 'Individual' ? LenderType.INDIVIDUAL : LenderType.INSTITUTION,
+          name: offer.lenderUserName || 'Lender User',
           verified: true,
         },
         principalCurrency: {
@@ -372,8 +373,9 @@ export class LoanOffersService {
         lenderId: lenderId,
         lender: {
           id: lenderId,
-          type: LenderType.INDIVIDUAL,
-          name: 'Lender User',
+          type:
+            offer.lenderUserType === 'Individual' ? LenderType.INDIVIDUAL : LenderType.INSTITUTION,
+          name: offer.lenderUserName || 'Lender User',
           verified: true,
         },
         principalCurrency: {

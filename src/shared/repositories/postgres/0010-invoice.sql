@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS invoice_payments (
   id BIGSERIAL PRIMARY KEY,
   invoice_id BIGINT NOT NULL REFERENCES invoices (id),
   payment_date TIMESTAMP NOT NULL,
-  payment_hash VARCHAR(64) NOT NULL UNIQUE,
+  payment_hash VARCHAR(128) NOT NULL UNIQUE,
   amount DECIMAL(78, 0) NOT NULL
 );
 

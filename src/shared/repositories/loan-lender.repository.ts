@@ -356,9 +356,9 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
     assertProp(check(isString, isNumber), countRow, 'total');
     const totalCount = Number(countRow.total);
 
-    // Get loan offers with currency details
+    // Get loan offers with currency details and lender info
     const offerRows = await this.sql`
-      SELECT 
+      SELECT
         lo.id,
         lo.offered_principal_amount,
         lo.available_principal_amount,
@@ -378,10 +378,13 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
         c.token_id,
         c.decimals,
         c.symbol,
-        c.name
+        c.name,
+        u.name AS lender_user_name,
+        u.user_type AS lender_user_type
       FROM loan_offers lo
-      JOIN currencies c ON lo.principal_currency_blockchain_key = c.blockchain_key 
+      JOIN currencies c ON lo.principal_currency_blockchain_key = c.blockchain_key
         AND lo.principal_currency_token_id = c.token_id
+      LEFT JOIN users u ON lo.lender_user_id = u.id
       WHERE lo.lender_user_id = ${lenderUserId}
         AND (${status}::text IS NULL OR lo.status = ${status})
       ORDER BY lo.created_date DESC
@@ -410,9 +413,13 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
       assertProp(check(isString, isNumber), row, 'decimals');
       assertPropString(row, 'symbol');
       assertPropString(row, 'name');
+      assertPropNullableString(row, 'lender_user_name');
+      assertPropNullableString(row, 'lender_user_type');
 
       return {
         id: String(row.id),
+        lenderUserName: row.lender_user_name || undefined,
+        lenderUserType: row.lender_user_type || undefined,
         principalCurrency: {
           blockchainKey: row.blockchain_key,
           tokenId: row.token_id,
