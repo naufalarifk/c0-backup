@@ -3,6 +3,7 @@ import { forwardRef, Module } from '@nestjs/common';
 
 import { SharedModule } from '../../shared/shared.module';
 import { LoanMatcherModule } from '../loan-matcher/loan-matcher.module';
+import { LoansModule } from '../loans/loans.module';
 import { NotificationModule } from '../notifications/notification.module';
 import { WalletBalanceCollectorModule } from '../wallet-balance-collector/wallet-balance-collector.module';
 import { InvoicePaymentQueueService } from './invoice-payment.queue.service';
@@ -13,6 +14,7 @@ import { InvoicePaymentService } from './invoice-payment.service';
     SharedModule,
     NotificationModule,
     forwardRef(() => LoanMatcherModule),
+    LoansModule,
     WalletBalanceCollectorModule,
     BullModule.registerQueue({
       name: 'invoicePaymentQueue',
