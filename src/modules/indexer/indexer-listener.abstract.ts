@@ -48,7 +48,7 @@ export abstract class IndexerListener {
 
   #refreshInterval: NodeJS.Timeout;
   #addressAddedListner = async (raw: unknown) => {
-    const blockchainKey = this.getBlockchainKey();
+    const _blockchainKey = this.getBlockchainKey();
     // RedisService may pass already-parsed objects or strings
     let data: unknown;
     if (isString(raw)) {
@@ -66,7 +66,7 @@ export abstract class IndexerListener {
     await this.onAddressAdded(data);
   };
   #addressRemovedListener = async (raw: unknown) => {
-    const blockchainKey = this.getBlockchainKey();
+    const _blockchainKey = this.getBlockchainKey();
     // RedisService may pass already-parsed objects or strings
     let data: unknown;
     if (isString(raw)) {

@@ -2,6 +2,7 @@ import type { AnyNotificationPayload, RealtimeNotificationPayload } from '../not
 
 import { Injectable, Logger } from '@nestjs/common';
 
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { RealtimeEventsService } from '../../realtime/services/realtime-events.service';
 import { NotificationChannelEnum } from '../notification.types';
 import { NotificationProvider } from '../notification-provider.abstract';
@@ -10,7 +11,7 @@ import { NotificationProviderFlag } from '../notification-provider.factory';
 @Injectable()
 @NotificationProviderFlag(NotificationChannelEnum.Realtime)
 export class WebSocketNotificationProvider extends NotificationProvider {
-  private readonly logger = new Logger(WebSocketNotificationProvider.name);
+  private readonly logger = new TelemetryLogger(WebSocketNotificationProvider.name);
 
   constructor(private readonly realtimeEventsService: RealtimeEventsService) {
     super();

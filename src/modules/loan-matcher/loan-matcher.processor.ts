@@ -4,11 +4,12 @@ import type { LoanMatchingWorkerData } from './loan-matcher.types';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { LoanMatcherService } from './loan-matcher.service';
 
 @Processor('loanMatcherQueue')
 export class LoanMatcherProcessor extends WorkerHost {
-  private readonly logger = new Logger(LoanMatcherProcessor.name);
+  private readonly logger = new TelemetryLogger(LoanMatcherProcessor.name);
 
   constructor(private readonly loanMatcherService: LoanMatcherService) {
     super();

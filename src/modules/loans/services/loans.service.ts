@@ -12,6 +12,7 @@ import { assertDefined, assertProp, assertPropString, check, isNumber, isString 
 
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { LoanStatus as RepositoryLoanStatus } from '../../../shared/repositories/loan.types';
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { DocumentService } from '../../documents/document.service';
 import { DocumentGenerationStatus, DocumentTypeEnum } from '../../documents/document.types';
 import { LoanStatus, PaginationMetaDto, UserRole } from '../dto/common.dto';
@@ -48,7 +49,7 @@ interface PaginationParams {
 
 @Injectable()
 export class LoansService {
-  private readonly logger = new Logger(LoansService.name);
+  private readonly logger = new TelemetryLogger(LoansService.name);
 
   constructor(
     @Inject(CryptogadaiRepository)

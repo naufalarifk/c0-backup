@@ -3,6 +3,7 @@ import type { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { InvoicePaymentJobData } from './invoice-payment.types';
 
 export interface EnqueueInvoicePaymentOptions {
@@ -13,7 +14,7 @@ export interface EnqueueInvoicePaymentOptions {
 
 @Injectable()
 export class InvoicePaymentQueueService {
-  private readonly logger = new Logger(InvoicePaymentQueueService.name);
+  private readonly logger = new TelemetryLogger(InvoicePaymentQueueService.name);
 
   constructor(
     @InjectQueue('invoicePaymentQueue')

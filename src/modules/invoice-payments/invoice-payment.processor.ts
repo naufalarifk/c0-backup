@@ -3,6 +3,7 @@ import type { Job } from 'bullmq';
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { WalletBalanceCollectorQueueService } from '../wallet-balance-collector/wallet-balance-collector.queue.service';
 import { InvoicePaymentService } from './invoice-payment.service';
 import { InvoicePaymentJobData } from './invoice-payment.types';
@@ -10,7 +11,7 @@ import { InvoicePaymentJobData } from './invoice-payment.types';
 @Injectable()
 @Processor('invoicePaymentQueue')
 export class InvoicePaymentProcessor extends WorkerHost {
-  private readonly logger = new Logger(InvoicePaymentProcessor.name);
+  private readonly logger = new TelemetryLogger(InvoicePaymentProcessor.name);
 
   constructor(
     private readonly invoicePaymentService: InvoicePaymentService,

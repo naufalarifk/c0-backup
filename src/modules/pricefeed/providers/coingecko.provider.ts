@@ -2,6 +2,7 @@ import type { PriceData, PriceFeedRequest } from '../pricefeed-provider.types';
 
 import { Injectable, Logger } from '@nestjs/common';
 
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { AbstractPriceFeedProvider, PriceFeedProvider } from '../pricefeed-provider.abstract';
 
 interface CoinGeckoPriceResponse {
@@ -13,7 +14,7 @@ interface CoinGeckoPriceResponse {
 @Injectable()
 @PriceFeedProvider('coingecko')
 export class CoinGeckoPriceFeedProvider extends AbstractPriceFeedProvider {
-  private readonly logger = new Logger(CoinGeckoPriceFeedProvider.name);
+  private readonly logger = new TelemetryLogger(CoinGeckoPriceFeedProvider.name);
   private readonly baseUrl = 'https://api.coingecko.com/api/v3';
 
   private getCoinGeckoId(tokenId: string): string {

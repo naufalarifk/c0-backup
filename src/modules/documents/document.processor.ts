@@ -4,12 +4,13 @@ import type { DocumentGenerationPayload } from './document.types';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { DocumentService } from './document.service';
 import { DocumentGenerationStatus, DocumentTypeEnum } from './document.types';
 
 @Processor('documentQueue')
 export class DocumentProcessor extends WorkerHost {
-  private readonly logger = new Logger(DocumentProcessor.name);
+  private readonly logger = new TelemetryLogger(DocumentProcessor.name);
 
   constructor(private readonly documentService: DocumentService) {
     super();

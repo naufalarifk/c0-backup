@@ -19,6 +19,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { Session } from '../auth/auth.decorator';
 import { AuthGuard } from '../auth/auth.guard';
 import { AccountsService } from './accounts.service';
@@ -33,7 +34,7 @@ import {
 @UseGuards(AuthGuard)
 @Controller('accounts')
 export class AccountsController {
-  private readonly logger = new Logger(AccountsController.name);
+  private readonly logger = new TelemetryLogger(AccountsController.name);
 
   constructor(private readonly accountsService: AccountsService) {}
 

@@ -5,6 +5,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { toLowestDenomination } from '../../shared/utils/decimal';
 import { defaultPricefeedConfig } from './pricefeed.config';
 import { PriceFeedProviderFactory } from './pricefeed-provider.factory';
@@ -12,7 +13,7 @@ import { assertPriceFeedSource, type PriceFeedRequest } from './pricefeed-provid
 
 @Injectable()
 export class PricefeedService {
-  private readonly logger = new Logger(PricefeedService.name);
+  private readonly logger = new TelemetryLogger(PricefeedService.name);
 
   constructor(
     private readonly repository: CryptogadaiRepository,

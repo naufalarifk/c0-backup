@@ -4,12 +4,13 @@ import type { InvoiceExpirationWorkerData } from './invoice-expiration.types';
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { InvoiceExpirationService } from './invoice-expiration.service';
 
 @Injectable()
 @Processor('invoiceExpirationQueue')
 export class InvoiceExpirationProcessor extends WorkerHost {
-  private readonly logger = new Logger(InvoiceExpirationProcessor.name);
+  private readonly logger = new TelemetryLogger(InvoiceExpirationProcessor.name);
 
   constructor(private readonly invoiceExpirationService: InvoiceExpirationService) {
     super();

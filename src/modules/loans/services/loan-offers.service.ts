@@ -10,6 +10,7 @@ import { assertDefined, assertPropNumber } from 'typeshaper';
 import { InvoiceService } from '../../../shared/invoice/invoice.service';
 import { InvoiceError } from '../../../shared/invoice/invoice.types';
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { IndexerEventService } from '../../indexer/indexer-event.service';
 import { LenderType, LoanOfferStatus, PaginationMetaDto } from '../dto/common.dto';
 import {
@@ -41,7 +42,7 @@ interface PaginationParams {
 
 @Injectable()
 export class LoanOffersService {
-  private readonly logger = new Logger(LoanOffersService.name);
+  private readonly logger = new TelemetryLogger(LoanOffersService.name);
 
   constructor(
     private readonly indexerEventService: IndexerEventService,

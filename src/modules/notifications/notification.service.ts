@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { NotificationType } from '../../shared/types';
 import { type AnyNotificationPayload, assertIsNotificationChannel } from './notification.types';
 import { NotificationComposer } from './notification-composer.abstract';
@@ -9,7 +10,7 @@ import { NotificationProviderFactory } from './notification-provider.factory';
 
 @Injectable()
 export class NotificationService {
-  private readonly logger = new Logger(NotificationService.name);
+  private readonly logger = new TelemetryLogger(NotificationService.name);
 
   constructor(
     private readonly composerFactory: NotificationComposerFactory,
