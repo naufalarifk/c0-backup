@@ -65,4 +65,42 @@ export class SmsController {
       userId: session.user.id,
     };
   }
+
+  @Get('test/push-notifications')
+  @Auth({ public: true })
+  async testPushNotifications() {
+    try {
+      await this.pushSender.sendNotification({
+        userId: '1068',
+        title: '🎉 Test Push Notification',
+        body: 'Tap to open your profile. System berjalan dengan baik!',
+        subtitle: 'Test Notification',
+        data: {
+          type: 'test',
+          action: 'open_profile',
+          targetScreen: '/(tabs)/profile',
+          metadata: {
+            timestamp: new Date().toISOString(),
+            userId: '1068',
+          },
+        },
+        priority: 'high',
+        badge: 1,
+        channelId: 'important', // Android channel
+      });
+
+      return {
+        success: true,
+        message: 'Push notification sent with navigation data',
+        userId: '1068',
+      };
+    } catch (error) {
+      console.log('KOKOM :>> ', error);
+      return {
+        success: false,
+        message: 'Failed to send push notification',
+        error: error.message,
+      };
+    }
+  }
 }
