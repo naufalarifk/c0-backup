@@ -6,6 +6,7 @@ import { RepositoryModule } from '../../shared/repositories/repository.module';
 import { WalletModule } from '../../shared/wallets/wallet.module';
 import { BinanceAssetMapperService } from './binance-asset-mapper.service';
 import { BinanceClientService } from './binance-client.service';
+import { SettlementController } from './settlement.controller';
 import { SettlementScheduler } from './settlement.scheduler';
 import { SettlementService } from './settlement.service';
 
@@ -41,6 +42,7 @@ import { SettlementService } from './settlement.service';
     RepositoryModule,
     WalletModule,
   ],
+  controllers: [SettlementController],
   providers: [
     SettlementService,
     SettlementScheduler,
