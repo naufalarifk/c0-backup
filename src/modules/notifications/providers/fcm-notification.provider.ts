@@ -2,6 +2,7 @@ import type { AnyNotificationPayload, FCMNotificationPayload } from '../notifica
 
 import { Injectable, Logger } from '@nestjs/common';
 
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { NotificationChannelEnum } from '../notification.types';
 import { NotificationProvider } from '../notification-provider.abstract';
 import { NotificationProviderFlag } from '../notification-provider.factory';
@@ -9,7 +10,7 @@ import { NotificationProviderFlag } from '../notification-provider.factory';
 @Injectable()
 @NotificationProviderFlag(NotificationChannelEnum.FCM)
 export class FCMNotificationProvider extends NotificationProvider {
-  private readonly logger = new Logger(FCMNotificationProvider.name);
+  private readonly logger = new TelemetryLogger(FCMNotificationProvider.name);
 
   isSendablePayload(payload: AnyNotificationPayload): payload is FCMNotificationPayload {
     return payload.channel.includes(NotificationChannelEnum.FCM);

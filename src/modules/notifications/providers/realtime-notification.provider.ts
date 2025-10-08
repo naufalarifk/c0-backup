@@ -4,6 +4,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { AppConfigService } from '../../../shared/services/app-config.service';
 import { RedisService } from '../../../shared/services/redis.service';
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { NotificationChannelEnum } from '../notification.types';
 import { NotificationProvider } from '../notification-provider.abstract';
 import { NotificationProviderFlag } from '../notification-provider.factory';
@@ -11,7 +12,7 @@ import { NotificationProviderFlag } from '../notification-provider.factory';
 @Injectable()
 @NotificationProviderFlag(NotificationChannelEnum.Realtime)
 export class RealtimeNotificationProvider extends NotificationProvider {
-  private readonly logger = new Logger(RealtimeNotificationProvider.name);
+  private readonly logger = new TelemetryLogger(RealtimeNotificationProvider.name);
   private readonly realtimeChannel: string;
 
   constructor(

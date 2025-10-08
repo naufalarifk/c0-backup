@@ -8,13 +8,13 @@ import { Listener } from '../indexer-listener.abstract';
 import { EthereumIndexerListener } from './ethereum.listener';
 
 /**
- * Binance Smart Chain (BSC) Mainnet indexer listener.
- * Monitors native BNB and BEP-20 token transactions on BSC mainnet (chain ID: eip155:56).
+ * Ethereum Hoodi testnet indexer listener.
+ * Monitors native ETH and ERC-20 token transactions on Ethereum Hoodi testnet (chain ID: eip155:560048).
  */
 @Injectable()
-@Listener('eip155:56')
-export class BscMainnetIndexerListener extends EthereumIndexerListener {
-  readonly logger = new TelemetryLogger(BscMainnetIndexerListener.name);
+@Listener('eip155:560048')
+export class EthereumHoodiIndexerListener extends EthereumIndexerListener {
+  readonly logger = new TelemetryLogger(EthereumHoodiIndexerListener.name);
 
   constructor(
     discovery: DiscoveryService,
@@ -22,11 +22,11 @@ export class BscMainnetIndexerListener extends EthereumIndexerListener {
     invoicePaymentQueue: InvoicePaymentQueueService,
   ) {
     super(discovery, redis, invoicePaymentQueue, {
-      chainName: 'BSC Mainnet',
-      wsUrlEnvVar: 'BSC_WS_URL',
-      defaultWsUrl: 'wss://bsc-mainnet.infura.io/ws/v3/YOUR_PROJECT_ID',
-      nativeTokenId: 'slip44:714',
-      tokenPrefix: 'bep20',
+      chainName: 'Ethereum Hoodi',
+      wsUrlEnvVar: 'ETHEREUM_HOODI_WS_URL',
+      defaultWsUrl: 'wss://ethereum-hoodi-rpc.publicnode.com',
+      nativeTokenId: 'slip44:60',
+      tokenPrefix: 'erc20',
     });
   }
 }

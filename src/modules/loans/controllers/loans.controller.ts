@@ -21,6 +21,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { Session } from '../../auth/auth.decorator';
 import { AuthGuard } from '../../auth/auth.guard';
 import { ErrorResponseDto, LoanStatus, UserRole } from '../dto/common.dto';
@@ -44,7 +45,7 @@ import { LoansService } from '../services/loans.service';
 @UseGuards(AuthGuard)
 @Controller('loans')
 export class LoansController {
-  private readonly logger = new Logger(LoansController.name);
+  private readonly logger = new TelemetryLogger(LoansController.name);
 
   constructor(private readonly loansService: LoansService) {}
 

@@ -6,6 +6,8 @@ import type { NotificationData } from './notification.types';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 
+import { TelemetryLogger } from '../../shared/telemetry.logger';
+
 export interface QueueNotificationOptions {
   priority?: number;
   delay?: number;
@@ -18,7 +20,7 @@ export interface QueueNotificationOptions {
 
 @Injectable()
 export class NotificationQueueService {
-  private readonly logger = new Logger(NotificationQueueService.name);
+  private readonly logger = new TelemetryLogger(NotificationQueueService.name);
 
   constructor(
     @InjectQueue('notificationQueue')

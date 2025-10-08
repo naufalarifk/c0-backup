@@ -10,6 +10,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import invariant from 'tiny-invariant';
 
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import {
   LoanMatcherStrategy,
   MatcherStrategy,
@@ -19,7 +20,7 @@ import {
 @Injectable()
 @MatcherStrategy(MatcherStrategyType.Enhanced)
 export class EnhancedLoanMatcherStrategy extends LoanMatcherStrategy {
-  private readonly logger = new Logger(EnhancedLoanMatcherStrategy.name);
+  private readonly logger = new TelemetryLogger(EnhancedLoanMatcherStrategy.name);
 
   constructor(repository: CryptogadaiRepository) {
     super(repository);

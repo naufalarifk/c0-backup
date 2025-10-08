@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DiscoveryService } from '@nestjs/core';
 
-import { AppConfigService } from '../../../shared/services/app-config.service';
 import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { InvoicePaymentQueueService } from '../../invoice-payments/invoice-payment.queue.service';
@@ -18,7 +17,6 @@ export class EthereumSepoliaIndexerListener extends EthereumIndexerListener {
   readonly logger = new TelemetryLogger(EthereumSepoliaIndexerListener.name);
 
   constructor(
-    appConfig: AppConfigService,
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,

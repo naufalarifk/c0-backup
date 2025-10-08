@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 
 import { v4 as uuidv4 } from 'uuid';
 
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { DocumentStorageProvider, type StorageResult } from '../document-storage-provider.abstract';
 import {
   DocumentStorageProviderFlag,
@@ -15,7 +16,7 @@ import {
 @Injectable()
 @DocumentStorageProviderFlag(DocumentStorageProviderType.LOCAL)
 export class LocalStorageProvider extends DocumentStorageProvider {
-  private readonly logger = new Logger(LocalStorageProvider.name);
+  private readonly logger = new TelemetryLogger(LocalStorageProvider.name);
   private readonly storagePath: string;
   private readonly baseUrl: string;
 

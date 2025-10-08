@@ -2,6 +2,7 @@ import type { PriceData, PriceFeedRequest } from '../pricefeed-provider.types';
 
 import { Injectable, Logger } from '@nestjs/common';
 
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { AbstractPriceFeedProvider, PriceFeedProvider } from '../pricefeed-provider.abstract';
 
 interface BinanceTickerResponse {
@@ -13,7 +14,7 @@ interface BinanceTickerResponse {
 @Injectable()
 @PriceFeedProvider('binance')
 export class BinancePriceFeedProvider extends AbstractPriceFeedProvider {
-  private readonly logger = new Logger(BinancePriceFeedProvider.name);
+  private readonly logger = new TelemetryLogger(BinancePriceFeedProvider.name);
   private readonly baseUrl = 'https://api.binance.com/api/v3';
 
   async fetchPrice(request: PriceFeedRequest): Promise<PriceData> {

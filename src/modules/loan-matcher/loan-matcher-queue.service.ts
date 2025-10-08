@@ -4,6 +4,8 @@ import type { LoanMatchingWorkerData } from './loan-matcher.types';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 
+import { TelemetryLogger } from '../../shared/telemetry.logger';
+
 export interface QueueLoanMatchingOptions {
   priority?: number;
   delay?: number;
@@ -16,7 +18,7 @@ export interface QueueLoanMatchingOptions {
 
 @Injectable()
 export class LoanMatcherQueueService {
-  private readonly logger = new Logger(LoanMatcherQueueService.name);
+  private readonly logger = new TelemetryLogger(LoanMatcherQueueService.name);
 
   constructor(
     @InjectQueue('loanMatcherQueue')

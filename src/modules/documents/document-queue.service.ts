@@ -4,12 +4,13 @@ import type { DocumentData, DocumentGenerationPayload } from './document.types';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { DocumentService } from './document.service';
 import { DocumentTypeEnum } from './document.types';
 
 @Injectable()
 export class DocumentQueueService {
-  private readonly logger = new Logger(DocumentQueueService.name);
+  private readonly logger = new TelemetryLogger(DocumentQueueService.name);
 
   constructor(
     @InjectQueue('documentQueue')

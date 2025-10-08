@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable, Logger, NotFoundException } fr
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { AccountBalance, AccountMutation } from '../../shared/repositories/finance.types';
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import {
   AccountBalanceDto,
   AccountBalancesResponseDto,
@@ -25,7 +26,7 @@ import {
 
 @Injectable()
 export class AccountsService {
-  private readonly logger = new Logger(AccountsService.name);
+  private readonly logger = new TelemetryLogger(AccountsService.name);
 
   constructor(
     @Inject(CryptogadaiRepository)

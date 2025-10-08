@@ -11,6 +11,7 @@ import {
 } from 'typeshaper';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { LoanMatcherQueueService } from '../loan-matcher/loan-matcher-queue.service';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
 
@@ -23,7 +24,7 @@ interface RecordPaymentParams {
 
 @Injectable()
 export class InvoicePaymentService {
-  private readonly logger = new Logger(InvoicePaymentService.name);
+  private readonly logger = new TelemetryLogger(InvoicePaymentService.name);
 
   constructor(
     @Inject(CryptogadaiRepository) private readonly repository: CryptogadaiRepository,

@@ -20,6 +20,7 @@ import {
   isString,
 } from 'typeshaper';
 
+import { Auth } from '../decorators/auth.decorator';
 import { LoanMatcherQueueService } from '../modules/loan-matcher/loan-matcher-queue.service';
 import { LoansService } from '../modules/loans/services/loans.service';
 import { NotificationQueueService } from '../modules/notifications/notification-queue.service';
@@ -28,6 +29,7 @@ import { CgTestnetBlockchainEventService } from './services/cg-testnet-blockchai
 import { TelemetryLogger } from './telemetry.logger';
 
 @Controller('test')
+@Auth({ public: true })
 export class TestController {
   #logger = new TelemetryLogger(TestController.name);
 

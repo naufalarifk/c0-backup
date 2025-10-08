@@ -3,6 +3,7 @@ import type { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { WalletBalanceCollectionJobData } from './balance-collection.types';
 
 export interface EnqueueWalletBalanceCollectionOptions {
@@ -13,7 +14,7 @@ export interface EnqueueWalletBalanceCollectionOptions {
 
 @Injectable()
 export class WalletBalanceCollectorQueueService {
-  private readonly logger = new Logger(WalletBalanceCollectorQueueService.name);
+  private readonly logger = new TelemetryLogger(WalletBalanceCollectorQueueService.name);
 
   constructor(
     @InjectQueue('walletBalanceCollectorQueue')

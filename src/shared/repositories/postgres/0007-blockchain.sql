@@ -20,6 +20,7 @@ INSERT INTO blockchains (key, name, short_name, image) VALUES
   -- Testnets / Devnets
   ('bip122:000000000933ea01ad0ee984209779ba', 'Bitcoin Testnet', 'TBTC', 'https://cryptologos.cc/logos/bitcoin-btc-logo.png'),
   ('eip155:11155111', 'Ethereum Sepolia', 'SEPOLIA', 'https://cryptologos.cc/logos/ethereum-eth-logo.png'),
+  ('eip155:560048', 'Ethereum Hoodi', 'HOODI', 'https://cryptologos.cc/logos/ethereum-eth-logo.png'),
   ('eip155:97', 'Binance Smart Chain Testnet', 'BSC-TEST', 'https://cryptologos.cc/logos/bnb-bnb-logo.png'),
   ('solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1', 'Solana Devnet', 'SOL-DEV', 'https://cryptologos.cc/logos/solana-sol-logo.png'),
   ('solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z', 'Solana Testnet', 'SOL-TEST', 'https://cryptologos.cc/logos/solana-sol-logo.png'),

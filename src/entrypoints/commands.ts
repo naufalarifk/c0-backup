@@ -3,6 +3,9 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 
 import { DiscoveryModule } from '@nestjs/core';
 
+import { WithdrawalsModule } from 'src/modules/withdrawals/withdrawals.module.js';
+import { WithdrawalsProcessor } from 'src/modules/withdrawals/withdrawals.processor.js';
+
 import { DocumentModule } from '../modules/documents/document.module';
 import { DocumentProcessor } from '../modules/documents/document.processor';
 import { IndexerModule } from '../modules/indexer/indexer.module';
@@ -14,6 +17,8 @@ import { LoanMatcherModule } from '../modules/loan-matcher/loan-matcher.module';
 import { NotificationModule } from '../modules/notifications/notification.module';
 import { PricefeedModule } from '../modules/pricefeed/pricefeed.module';
 import { PricefeedScheduler } from '../modules/pricefeed/pricefeed.scheduler';
+import { ValuationModule } from '../modules/valuation/valuation.module';
+import { ValuationProcessor } from '../modules/valuation/valuation.processor';
 import { WalletBalanceCollectorModule } from '../modules/wallet-balance-collector/wallet-balance-collector.module';
 import { WalletBalanceCollectorProcessor } from '../modules/wallet-balance-collector/wallet-balance-collector.processor';
 import { CryptogadaiRepository } from '../shared/repositories/cryptogadai.repository';
@@ -31,7 +36,9 @@ export type CommandKey =
   | 'migration'
   | 'notification'
   | 'pricefeed'
-  | 'wallet-balance-collector';
+  | 'valuation'
+  | 'wallet-balance-collector'
+  | 'withdrawals';
 
 export interface BootstrapContext {
   app: INestApplicationContext;
@@ -82,6 +89,20 @@ export const COMMAND_DEFINITIONS: Record<CommandKey, CommandDefinition> = {
       return {
         cleanup: () => {
           logger.log('Price feed worker shutting down');
+        },
+      };
+    },
+  },
+  valuation: {
+    imports: [ValuationModule],
+    providers: [ValuationProcessor],
+    usesBull: true,
+    async bootstrap() {
+      const logger = new TelemetryLogger('ValuationWorker');
+      logger.log('Valuation worker started successfully');
+      return {
+        cleanup: () => {
+          logger.log('Valuation worker shutting down');
         },
       };
     },
@@ -180,6 +201,20 @@ export const COMMAND_DEFINITIONS: Record<CommandKey, CommandDefinition> = {
       return {
         cleanup: () => {
           logger.log('Wallet balance collector worker shutting down');
+        },
+      };
+    },
+  },
+  withdrawals: {
+    imports: [WithdrawalsModule],
+    providers: [WithdrawalsProcessor],
+    usesBull: true,
+    async bootstrap() {
+      const logger = new TelemetryLogger('WithdrawalsWorker');
+      logger.log('Withdrawals worker started successfully');
+      return {
+        cleanup: () => {
+          logger.log('Withdrawals worker shutting down');
         },
       };
     },

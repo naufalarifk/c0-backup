@@ -79,3 +79,36 @@ The flow shall be as follows:
 
 Your task is to implement any missing compoenents from flow above.
 ```
+
+```
+Your task is to implement integration/smoke test for solana based blockchain. The test shall cover the following:
+- setup local solana node with any spl token program for testing (use WebSearch to find proper way of creating spl token on local solana dev node)
+- setup backend as necessary
+- test listening to incoming sol native coin balance to address on watchlist
+- test listening to incoming spl token balance to address on watchlist
+- each incoming balance shall be dispatched as events
+
+refer to working structure of ethereum.listener.ts and ethereum.listener.test.ts for reference.
+
+run the test: `node --import tsx --test src/modules/indexer/listeners/solana.listener.test.ts`
+```
+
+```
+Your task is to implement integration/smoke test for bitcoin based blockchain. The test shall cover the following:
+- setup local bitcoin local node node for testing (use WebSearch to find proper way)
+- setup backend as necessary
+- test listening to incoming transfer balance to address on watchlist
+- each incoming balance shall be dispatched as events
+
+refer to working structure of ethereum.listener.ts and ethereum.listener.test.ts for reference.
+
+run the test: `node --import tsx --test src/modules/indexer/listeners/bitcoin.listener.test.ts` (create if not exists)
+```
+
+```
+Your task is to implement valuation module. Valuation processor flow shall be:
+- pricefeed shall dispatch event when new exchange rate is available
+- valuation processor shall receive the exchange rate event
+- valuation processor shall recalculate all active loan valuation using the new exchange rate
+- valuation processor shall dispatch events based on cretirias defined in `SRS-CG-v2.4-EN.md`
+```

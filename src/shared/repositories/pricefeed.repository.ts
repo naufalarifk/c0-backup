@@ -286,9 +286,9 @@ export abstract class PricefeedRepository extends FinanceRepository {
         qc.image as quote_logo_url
       FROM exchange_rates er
       JOIN price_feeds pf ON er.price_feed_id = pf.id
-      JOIN currencies bc ON pf.blockchain_key = bc.blockchain_key 
+      JOIN currencies bc ON pf.blockchain_key = bc.blockchain_key
         AND pf.base_currency_token_id = bc.token_id
-      JOIN currencies qc ON pf.blockchain_key = qc.blockchain_key 
+      JOIN currencies qc ON pf.blockchain_key = qc.blockchain_key
         AND pf.quote_currency_token_id = qc.token_id
       WHERE (${baseCurrencyBlockchainKey}::text IS NULL OR bc.blockchain_key = ${baseCurrencyBlockchainKey})
         AND (${baseCurrencyTokenId}::text IS NULL OR bc.token_id = ${baseCurrencyTokenId})

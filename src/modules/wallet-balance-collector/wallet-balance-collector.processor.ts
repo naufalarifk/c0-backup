@@ -3,13 +3,14 @@ import type { Job } from 'bullmq';
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { WalletBalanceCollectionJobData } from './balance-collection.types';
 import { WalletBalanceCollectorService } from './wallet-balance-collector.service';
 
 @Injectable()
 @Processor('walletBalanceCollectorQueue')
 export class WalletBalanceCollectorProcessor extends WorkerHost {
-  private readonly logger = new Logger(WalletBalanceCollectorProcessor.name);
+  private readonly logger = new TelemetryLogger(WalletBalanceCollectorProcessor.name);
 
   constructor(private readonly walletBalanceCollectorService: WalletBalanceCollectorService) {
     super();

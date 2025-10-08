@@ -10,6 +10,7 @@ import {
 import * as vault from 'node-vault';
 
 import { AppConfigService } from '../services/app-config.service';
+import { TelemetryLogger } from '../telemetry.logger';
 import { DecryptionResult, EncryptionResult } from './cryptography.dto';
 import { CryptographyServiceError } from './cryptography.error';
 import { CryptographyService } from './cryptography.service';
@@ -20,7 +21,7 @@ export class VaultCryptographyService
   extends CryptographyService
   implements OnModuleInit, OnModuleDestroy
 {
-  private readonly logger = new Logger(VaultCryptographyService.name);
+  private readonly logger = new TelemetryLogger(VaultCryptographyService.name);
 
   private vaultClient: vault.client;
   private tokenRenewalTimer: NodeJS.Timeout;

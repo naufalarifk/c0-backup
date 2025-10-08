@@ -3,6 +3,7 @@ import type { AnyNotificationPayload, SMSNotificationPayload } from '../notifica
 import { Injectable, Logger } from '@nestjs/common';
 
 import { TwilioService } from '../../../shared/services/twilio.service';
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { NotificationChannelEnum } from '../notification.types';
 import { NotificationProvider } from '../notification-provider.abstract';
 import { NotificationProviderFlag } from '../notification-provider.factory';
@@ -10,7 +11,7 @@ import { NotificationProviderFlag } from '../notification-provider.factory';
 @Injectable()
 @NotificationProviderFlag(NotificationChannelEnum.SMS)
 export class SMSNotificationProvider extends NotificationProvider {
-  private readonly logger = new Logger(SMSNotificationProvider.name);
+  private readonly logger = new TelemetryLogger(SMSNotificationProvider.name);
 
   constructor(readonly _twilioService: TwilioService) {
     super();

@@ -2,6 +2,7 @@ import type { AnyNotificationPayload, APNSNotificationPayload } from '../notific
 
 import { Injectable, Logger } from '@nestjs/common';
 
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { NotificationChannelEnum } from '../notification.types';
 import { NotificationProvider } from '../notification-provider.abstract';
 import { NotificationProviderFlag } from '../notification-provider.factory';
@@ -9,7 +10,7 @@ import { NotificationProviderFlag } from '../notification-provider.factory';
 @Injectable()
 @NotificationProviderFlag(NotificationChannelEnum.APN)
 export class APNSNotificationProvider extends NotificationProvider {
-  private readonly logger = new Logger(APNSNotificationProvider.name);
+  private readonly logger = new TelemetryLogger(APNSNotificationProvider.name);
 
   isSendablePayload(payload: AnyNotificationPayload): payload is APNSNotificationPayload {
     return payload.channel.includes(NotificationChannelEnum.APN);

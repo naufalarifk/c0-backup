@@ -5,10 +5,11 @@ import { Queue } from 'bullmq';
 import { assertDefined } from 'typeshaper';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 
 @Injectable()
 export class DocumentEventService {
-  private readonly logger = new Logger(DocumentEventService.name);
+  private readonly logger = new TelemetryLogger(DocumentEventService.name);
 
   constructor(
     @Inject(CryptogadaiRepository)

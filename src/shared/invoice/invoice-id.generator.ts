@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { AppConfigService } from '../services/app-config.service';
+import { TelemetryLogger } from '../telemetry.logger';
 
 interface InvoiceIdConfig {
   epochMs: number;
@@ -23,7 +24,7 @@ export class InvoiceIdGenerator {
   private static readonly WORKER_ID_BASE = 0x10; // 16 (4 bits)
   private static readonly SEQUENCE_BASE = 0x1000; // 4096 (12 bits)
 
-  private readonly logger = new Logger(InvoiceIdGenerator.name);
+  private readonly logger = new TelemetryLogger(InvoiceIdGenerator.name);
   private readonly config: InvoiceIdConfig;
 
   private lastTimestamp = 0;
