@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import {
   BlockchainsResponseDto,
   CurrenciesResponseDto,
@@ -11,7 +12,7 @@ import {
 
 @Injectable()
 export class FinanceConfigService {
-  private readonly logger = new Logger(FinanceConfigService.name);
+  private readonly logger = new TelemetryLogger(FinanceConfigService.name);
 
   constructor(private readonly repository: CryptogadaiRepository) {}
 

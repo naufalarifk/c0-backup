@@ -4,6 +4,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { IsDateString, IsNumber, IsString } from 'class-validator';
 
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 
 class SeedExchangeRateDto {
   @IsString()
@@ -31,7 +32,7 @@ class SeedExchangeRateDto {
 @ApiTags('admin')
 @Controller('admin')
 export class AdminTestDataController {
-  private readonly logger = new Logger(AdminTestDataController.name);
+  private readonly logger = new TelemetryLogger(AdminTestDataController.name);
 
   constructor(private readonly repository: CryptogadaiRepository) {}
 

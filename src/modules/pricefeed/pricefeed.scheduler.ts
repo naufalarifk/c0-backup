@@ -2,12 +2,13 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { defaultPricefeedConfig } from './pricefeed.config';
 import { PricefeedService } from './pricefeed.service';
 
 @Injectable()
 export class PricefeedScheduler implements OnModuleInit {
-  private readonly logger = new Logger(PricefeedScheduler.name);
+  private readonly logger = new TelemetryLogger(PricefeedScheduler.name);
 
   constructor(
     private readonly pricefeedService: PricefeedService,

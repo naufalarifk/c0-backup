@@ -21,7 +21,7 @@ import { BitcoinMainnetIndexerListener } from './bitcoin-mainnet.listener';
  * Test implementation of Bitcoin service for local regtest testing
  */
 class TestBitcoinService extends BitcoinService {
-  constructor(private rpcUrlOverride: string) {
+  constructor(rpcUrlOverride: string) {
     super();
     (this as any).rpcUrl = rpcUrlOverride;
     (this as any).rpcUser = 'bitcoinrpc';
@@ -62,7 +62,7 @@ describe('BitcoinIndexerListener Integration Tests', function () {
   let module: TestingModule;
   let listener: TestBitcoinIndexerListener;
   let redisService: RedisService;
-  let btcService: TestBitcoinService;
+  let _btcService: TestBitcoinService;
   let detectedTransactions: DetectedTransaction[] = [];
   let bitcoinRpcUrl: string;
 
@@ -186,7 +186,7 @@ describe('BitcoinIndexerListener Integration Tests', function () {
 
       redisService = module.get<RedisService>(RedisService);
       listener = module.get<TestBitcoinIndexerListener>(TestBitcoinIndexerListener);
-      btcService = module.get<BitcoinService>(BitcoinService) as TestBitcoinService;
+      _btcService = module.get<BitcoinService>(BitcoinService) as TestBitcoinService;
 
       await module.init();
     },

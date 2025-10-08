@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+import { TelemetryLogger } from '../telemetry.logger';
 import { WalletService } from '../wallets/wallet.service';
 import {
   IInvoiceService,
@@ -11,7 +12,7 @@ import { InvoiceIdGenerator } from './invoice-id.generator';
 
 @Injectable()
 export class InvoiceService implements IInvoiceService {
-  private readonly logger = new Logger(InvoiceService.name);
+  private readonly logger = new TelemetryLogger(InvoiceService.name);
 
   constructor(
     private readonly platformWalletService: WalletService,

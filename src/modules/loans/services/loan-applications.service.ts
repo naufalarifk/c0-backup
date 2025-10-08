@@ -10,6 +10,7 @@ import {
 import { InvoiceService } from '../../../shared/invoice/invoice.service';
 import { InvoiceError } from '../../../shared/invoice/invoice.types';
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { IndexerEventService } from '../../indexer/indexer-event.service';
 import { LiquidationMode, LoanApplicationStatus, PaginationMetaDto } from '../dto/common.dto';
 import {
@@ -29,7 +30,7 @@ import { LoanCalculationService } from './loan-calculation.service';
 
 @Injectable()
 export class LoanApplicationsService {
-  private readonly logger = new Logger(LoanApplicationsService.name);
+  private readonly logger = new TelemetryLogger(LoanApplicationsService.name);
 
   constructor(
     private readonly cryptogadaiRepository: CryptogadaiRepository,

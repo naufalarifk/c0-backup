@@ -14,6 +14,7 @@ import {
 } from 'typeshaper';
 
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import {
   type DocumentData,
   DocumentTypeEnum,
@@ -38,7 +39,7 @@ export interface DocumentRequestResponse {
 
 @Injectable()
 export class LoanDocumentRequestService {
-  private readonly logger = new Logger(LoanDocumentRequestService.name);
+  private readonly logger = new TelemetryLogger(LoanDocumentRequestService.name);
 
   constructor(
     @Inject(CryptogadaiRepository)

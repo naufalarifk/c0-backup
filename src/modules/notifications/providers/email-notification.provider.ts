@@ -3,6 +3,7 @@ import type { AnyNotificationPayload, EmailNotificationPayload } from '../notifi
 import { Injectable, Logger } from '@nestjs/common';
 
 import { EmailService } from '../../../shared/services/email.service';
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { NotificationChannelEnum } from '../notification.types';
 import { NotificationProvider } from '../notification-provider.abstract';
 import { NotificationProviderFlag } from '../notification-provider.factory';
@@ -10,7 +11,7 @@ import { NotificationProviderFlag } from '../notification-provider.factory';
 @Injectable()
 @NotificationProviderFlag(NotificationChannelEnum.Email)
 export class EmailNotificationProvider extends NotificationProvider {
-  private readonly logger = new Logger(EmailNotificationProvider.name);
+  private readonly logger = new TelemetryLogger(EmailNotificationProvider.name);
 
   constructor(private readonly emailService: EmailService) {
     super();

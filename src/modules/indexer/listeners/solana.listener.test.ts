@@ -81,11 +81,11 @@ describe('SolanaIndexerListener Integration Tests', function () {
         },
       );
 
-      solanaValidator.stdout?.on('data', data => {
+      solanaValidator.stdout?.on('data', _data => {
         // console.debug(`[solana-test-validator] ${data.toString()}`);
       });
 
-      solanaValidator.stderr?.on('data', data => {
+      solanaValidator.stderr?.on('data', _data => {
         // console.error(`[solana-test-validator] ${data.toString()}`);
       });
 
@@ -112,7 +112,7 @@ describe('SolanaIndexerListener Integration Tests', function () {
         try {
           await connection.getVersion();
           break;
-        } catch (error) {
+        } catch (_error) {
           retries++;
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
@@ -299,7 +299,9 @@ describe('SolanaIndexerListener Integration Tests', function () {
           }),
         );
 
-        const signature = await sendAndConfirmTransaction(connection, transaction, [senderKeypair]);
+        const _signature = await sendAndConfirmTransaction(connection, transaction, [
+          senderKeypair,
+        ]);
 
         await new Promise(resolve => setTimeout(resolve, 2000));
 
@@ -563,8 +565,8 @@ describe('SolanaIndexerListener Integration Tests', function () {
         }),
       );
 
-      const sig1 = await sendAndConfirmTransaction(connection, tx1, [senderKeypair]);
-      const sig2 = await sendAndConfirmTransaction(connection, tx2, [senderKeypair]);
+      const _sig1 = await sendAndConfirmTransaction(connection, tx1, [senderKeypair]);
+      const _sig2 = await sendAndConfirmTransaction(connection, tx2, [senderKeypair]);
 
       await new Promise(resolve => setTimeout(resolve, 3000));
 

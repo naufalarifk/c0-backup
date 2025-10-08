@@ -7,12 +7,13 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { v4 as uuidv4 } from 'uuid';
 
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { DocumentComposer, DocumentComposerAbstract } from '../document-composer.abstract';
 
 @Injectable()
 @DocumentComposer('LoanAgreement')
 export class LoanAgreementComposer extends DocumentComposerAbstract<LoanAgreementData> {
-  private readonly logger = new Logger(LoanAgreementComposer.name);
+  private readonly logger = new TelemetryLogger(LoanAgreementComposer.name);
 
   async generateDocument(data: LoanAgreementData): Promise<GeneratedDocument> {
     this.logger.log(`Generating loan agreement for loan: ${data.loanId}`);

@@ -125,7 +125,7 @@ async function connectWebSocket(params: {
           ws.off('message', messageHandler);
           reject(new Error(`WebSocket authentication failed: ${JSON.stringify(parsed)}`));
         }
-      } catch (error) {
+      } catch (_error) {
         // Ignore parse errors during auth
       }
     };
@@ -303,7 +303,7 @@ async function waitForNotificationType(
       if (data?.type === notificationType) {
         return event;
       }
-    } catch (error) {
+    } catch (_error) {
       // Timeout or other error
       break;
     }

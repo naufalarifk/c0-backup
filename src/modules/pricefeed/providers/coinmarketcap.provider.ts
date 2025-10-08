@@ -3,6 +3,7 @@ import type { PriceData, PriceFeedRequest } from '../pricefeed-provider.types';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { AbstractPriceFeedProvider, PriceFeedProvider } from '../pricefeed-provider.abstract';
 
 interface CoinMarketCapQuoteResponse {
@@ -21,7 +22,7 @@ interface CoinMarketCapQuoteResponse {
 @Injectable()
 @PriceFeedProvider('coinmarketcap')
 export class CoinMarketCapPriceFeedProvider extends AbstractPriceFeedProvider {
-  private readonly logger = new Logger(CoinMarketCapPriceFeedProvider.name);
+  private readonly logger = new TelemetryLogger(CoinMarketCapPriceFeedProvider.name);
   private readonly baseUrl = 'https://pro-api.coinmarketcap.com/v1';
   private readonly apiKey: string;
 

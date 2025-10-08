@@ -10,12 +10,13 @@ import { ActiveButExpiredInvoice } from 'src/shared/repositories/finance.types.j
 import { assertProp, isInstanceOf } from 'typeshaper';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { IndexerEventService } from '../indexer/indexer-event.service';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
 
 @Injectable()
 export class InvoiceExpirationService {
-  private readonly logger = new Logger(InvoiceExpirationService.name);
+  private readonly logger = new TelemetryLogger(InvoiceExpirationService.name);
 
   constructor(
     @Inject(CryptogadaiRepository)

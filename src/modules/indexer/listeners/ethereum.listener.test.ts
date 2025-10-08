@@ -308,7 +308,7 @@ describe('EthereumIndexerListener Integration Tests', function () {
         const signer = await provider.getSigner(0);
 
         // SimpleERC20 source code - minimal ERC20 for testing
-        const sourceCode = `
+        const _sourceCode = `
           // SPDX-License-Identifier: MIT
           pragma solidity ^0.8.0;
 
@@ -350,7 +350,7 @@ describe('EthereumIndexerListener Integration Tests', function () {
         ok(isAddress(tokenAddress), 'Deployed token should have valid address');
 
         // Verify deployment
-        const code = await provider.getCode(tokenAddress);
+        const _code = await provider.getCode(tokenAddress);
       },
       { timeout: 15000 },
     );
@@ -362,7 +362,7 @@ describe('EthereumIndexerListener Integration Tests', function () {
         detectedTransactions = [];
 
         const accounts = await provider.listAccounts();
-        const signer = await provider.getSigner(0);
+        const _signer = await provider.getSigner(0);
         const recipientAddress = accounts[4].address;
 
         ok(isAddress(recipientAddress), 'Recipient should be valid address');
@@ -419,7 +419,7 @@ describe('EthereumIndexerListener Integration Tests', function () {
         detectedTransactions = [];
 
         const accounts = await provider.listAccounts();
-        const signer = await provider.getSigner(0);
+        const _signer = await provider.getSigner(0);
         const recipientAddress = accounts[5].address;
 
         // Send tokens to non-watched address
