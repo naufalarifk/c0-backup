@@ -1288,7 +1288,7 @@ export async function runFinanceRepositoryTestSuite(
         ok(btcCurrency, 'BTC collateral currency should exist');
         equal(btcCurrency.blockchainKey, 'bip122:000000000019d6689c085ae165831e93');
         equal(btcCurrency.tokenId, 'slip44:0');
-        equal(btcCurrency.maxLtv, 60.0);
+        equal(btcCurrency.maxLtv, 0.6);
         ok(btcCurrency.blockchain, 'Should include blockchain info');
         equal(btcCurrency.blockchain.name, 'Bitcoin');
 
@@ -1359,16 +1359,16 @@ export async function runFinanceRepositoryTestSuite(
 
       it('should filter currencies by LTV range', async function () {
         const result = await repo.userViewsCurrencies({
-          minLtv: 60,
-          maxLtv: 70,
+          minLtv: 0.6,
+          maxLtv: 0.7,
         });
 
         ok(result.currencies.length > 0, 'Should have currencies in LTV range');
 
         // All returned currencies should be within the LTV range
         for (const currency of result.currencies) {
-          ok(currency.maxLtv >= 60, 'Currency max LTV should be >= 60');
-          ok(currency.maxLtv <= 70, 'Currency max LTV should be <= 70');
+          ok(currency.maxLtv >= 0.6, 'Currency max LTV should be >= 0.6');
+          ok(currency.maxLtv <= 0.7, 'Currency max LTV should be <= 0.7');
         }
       });
 
