@@ -4,6 +4,7 @@ import { AdminInstitutionsModule } from './institutions/admin-institutions.modul
 import { AdminKycModule } from './kyc/admin-kyc.module';
 import { AdminSettingsModule } from './settings/admin-settings.module';
 import { AdminTestDataModule } from './test-data/admin-test-data.module';
+import { AdminUsersModule } from './users/admin-users.module';
 import { AdminWithdrawalModule } from './withdrawals/admin-withdrawal.module';
 
 @Module({
@@ -13,6 +14,7 @@ import { AdminWithdrawalModule } from './withdrawals/admin-withdrawal.module';
     AdminInstitutionsModule,
     AdminTestDataModule,
     AdminSettingsModule,
+    AdminUsersModule,
   ],
 })
 export class AdminModule {}
