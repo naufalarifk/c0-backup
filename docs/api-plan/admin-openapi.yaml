@@ -60,56 +60,6 @@ x-common-parameters: &commonPaginationParams
       maximum: 100
       default: 20
 
-x-search-sort-params: &searchSortParams
-  - name: search
-    in: query
-    description: Search by name or email
-    schema:
-      type: string
-  - name: sortBy
-    in: query
-    description: Sort field
-    schema:
-      type: string
-      default: submittedDate
-  - name: sortOrder
-    in: query
-    description: Sort order
-    schema:
-      type: string
-      enum: [asc, desc]
-      default: desc
-
-x-common-responses: &commonErrorResponses
-  '401':
-    $ref: '#/components/responses/Unauthorized'
-  '403':
-    $ref: '#/components/responses/AdminRequired'
-  '500':
-    $ref: '#/components/responses/InternalServerError'
-
-x-validation-responses: &validationResponses
-  <<: *commonErrorResponses
-  '400':
-    $ref: '#/components/responses/ValidationError'
-  '404':
-    $ref: '#/components/responses/NotFound'
-
-x-action-responses: &actionResponses
-  <<: *validationResponses
-  '409':
-    $ref: '#/components/responses/AlreadyProcessed'
-
-x-path-id-param: &pathIdParam
-  name: id
-  in: path
-  required: true
-  description: Resource ID
-  schema:
-    type: integer
-    format: int64
-
-
 paths:
   # KYC Management - RF-042, RF-043
   /api/admin/kyc/queue:
@@ -566,6 +516,88 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  # Currency Management
+  /api/admin/currencies:
+    get:
+      tags:
+        - Currency Management
+      summary: Get all currencies and their configurations
+      description: |
+        Retrieve all supported currencies and their current configuration settings.
+
+        **Configuration Categories:**
+        - Basic currency information (name, symbol, decimals)
+        - Withdrawal limits and fees
+        - Loan principal limits
+        - LTV (Loan-to-Value) ratios and thresholds
+      operationId: getCurrencies
+      responses:
+        '200':
+          description: Currencies retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrencyListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminRequired'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/admin/currencies/{blockchainKey}/{tokenId}:
+    put:
+      tags:
+        - Currency Management
+      summary: Update currency configuration
+      description: |
+        Update configuration settings for a specific currency.
+
+        **Updatable Settings:**
+        - Withdrawal fees and limits
+        - Loan principal amount limits
+        - LTV ratios and liquidation thresholds
+
+        **Note:** Basic currency information (name, symbol, decimals, image) cannot be modified.
+      operationId: updateCurrencyConfig
+      parameters:
+        - name: blockchainKey
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Blockchain identifier (CAIP-2 format)
+        - name: tokenId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Token identifier (CAIP-19 format)
+      requestBody:
+        required: true
+        description: Updated currency configuration
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CurrencyConfigUpdate'
+      responses:
+        '200':
+          description: Currency configuration updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrencyConfig'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   # Withdrawal Management - RF-046 (Basic withdrawal management only)
   /api/admin/withdrawals:
     get:
@@ -590,7 +622,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [pending, processing, confirming, completed, failed]
+            enum: [Requested, Sent, Confirmed, Failed, RefundApproved, RefundRejected]
       responses:
         '200':
           description: Withdrawal queue retrieved successfully
@@ -603,7 +635,34 @@ paths:
         '403':
           $ref: '#/components/responses/AdminRequired'
 
-  /api/admin/withdrawals/{id}/refund:
+  /api/admin/withdrawals/{id}:
+    get:
+      tags:
+        - Withdrawal Management
+      summary: Get withdrawal details
+      description: |
+        Retrieve detailed information about a specific withdrawal, including error reason when failed.
+      operationId: getWithdrawalDetails
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Withdrawal details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WithdrawalDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminRequired'
+
     post:
       tags:
         - Withdrawal Management
@@ -827,7 +886,7 @@ components:
           type: string
         status:
           type: string
-          enum: [pending, processing, confirming, completed, failed]
+          enum: [Requested, Sent, Confirmed, Failed, RefundApproved, RefundRejected]
         requestedAt:
           type: string
           format: date-time
@@ -838,6 +897,75 @@ components:
         priority:
           type: string
           enum: [low, normal, high, urgent]
+
+    WithdrawalDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            userId:
+              type: string
+            userEmail:
+              type: string
+            currency:
+              type: string
+            blockchainKey:
+              type: string
+            tokenId:
+              type: string
+            amount:
+              type: string
+            requestAmount:
+              type: string
+            status:
+              type: string
+              enum: [Requested, Sent, Confirmed, Failed, RefundApproved, RefundRejected]
+            beneficiaryAddress:
+              type: string
+            requestDate:
+              type: string
+              format: date-time
+            sentDate:
+              type: string
+              format: date-time
+              nullable: true
+            sentAmount:
+              type: string
+              nullable: true
+            sentHash:
+              type: string
+              nullable: true
+            confirmedDate:
+              type: string
+              format: date-time
+              nullable: true
+            failedDate:
+              type: string
+              format: date-time
+              nullable: true
+            failureReason:
+              type: string
+              nullable: true
+              description: Detailed reason for withdrawal failure
+            failureRefundReviewerUserId:
+              type: string
+              nullable: true
+            failureRefundApprovedDate:
+              type: string
+              format: date-time
+              nullable: true
+            failureRefundRejectedDate:
+              type: string
+              format: date-time
+              nullable: true
+            failureRefundRejectionReason:
+              type: string
+              nullable: true
 
     RefundResponse:
       type: object
@@ -1260,109 +1388,99 @@ components:
           description: Admin who set this configuration
         adminUserName:
           type: string
-          description: Name of admin who set this configuration
-        loanParameters:
-          type: object
-          properties:
-            disbursementFeeRate:
-              type: number
-              format: decimal
-              description: Platform fee rate for loan disbursement (0.01 = 1%)
-            redeliveryFeeRate:
-              type: number
-              format: decimal
-              description: Platform fee rate for loan redelivery (0.01 = 1%)
-            maxLtvRatio:
-              type: number
-              format: decimal
-              description: Maximum loan-to-value ratio (0.80 = 80%)
-            repaymentDurationInDays:
-              type: integer
-              description: Loan repayment duration in days
-            liquidationMode:
-              type: string
-              enum: [Partial, Full]
-              description: Default liquidation mode for new loans
-            liquidationFeeRate:
-              type: number
-              format: decimal
-              description: Platform fee rate for liquidation (0.01 = 1%)
-
-    PlatformConfigUpdate:
-      type: object
-      required: [loanDisbursementFeeRate, loanRedeliveryFeeRate, loanMaxLtvRatio, loanRepaymentDurationInDays, loanLiquidationMode, loanLiquidationFeeRate]
-      properties:
-        loanDisbursementFeeRate:
+          nullable: true
+          description: Name of admin who set this configuration (optional)
+        loanProvisionRate:
           type: number
           format: decimal
-          minimum: 0.001
-          maximum: 1
-          description: Platform fee rate for loan disbursement (0.01 = 1%)
-        loanRedeliveryFeeRate:
+          description: Platform provision rate applied to loans (e.g. 0.03 = 3.0%)
+        loanIndividualRedeliveryFeeRate:
           type: number
           format: decimal
-          minimum: 0.001
-          maximum: 1
-          description: Platform fee rate for loan redelivery (0.01 = 1%)
+          description: Redelivery fee rate applied to individual loans (e.g. 0.10 = 10%)
+        loanInstitutionRedeliveryFeeRate:
+          type: number
+          format: decimal
+          description: Redelivery fee rate applied to institution loans (e.g. 0.025 = 2.5%)
+        loanMinLtvRatio:
+          type: number
+          format: decimal
+          description: Minimum allowed loan-to-value ratio (e.g. 0.60 = 60%)
         loanMaxLtvRatio:
           type: number
           format: decimal
-          minimum: 0.1
-          maximum: 0.95
-          description: Maximum loan-to-value ratio (0.80 = 80%)
+          description: Maximum allowed loan-to-value ratio (e.g. 0.75 = 75%)
         loanRepaymentDurationInDays:
           type: integer
-          minimum: 1
-          maximum: 365
           description: Loan repayment duration in days
         loanLiquidationMode:
           type: string
           enum: [Partial, Full]
-          description: Default liquidation mode for new loans
+          description: Default liquidation mode for loans
+        loanLiquidationPremiRate:
+          type: number
+          format: decimal
+          description: Liquidation premi rate (percentage expressed as decimal, e.g. 0.02 = 2%)
         loanLiquidationFeeRate:
           type: number
           format: decimal
-          minimum: 0.001
-          maximum: 1
-          description: Platform fee rate for liquidation (0.01 = 1%)
+          description: Liquidation fee rate (percentage expressed as decimal, e.g. 0.02 = 2%)
 
-    # Financial Operations Schemas
-    FailedWithdrawalSummary:
+    PlatformConfigUpdate:
       type: object
+      required: [loanProvisionRate, loanIndividualRedeliveryFeeRate, loanInstitutionRedeliveryFeeRate, loanMinLtvRatio, loanMaxLtvRatio, loanRepaymentDurationInDays, loanLiquidationMode, loanLiquidationPremiRate, loanLiquidationFeeRate]
       properties:
-        id:
-          type: string
-          description: Withdrawal ID
-        userId:
-          type: string
-          description: User ID who initiated withdrawal
-        userEmail:
-          type: string
-          description: User email for identification
-        amount:
-          type: string
-          description: Withdrawal amount
-        currency:
-          type: string
-          description: Currency code
-        failureType:
-          type: string
-          enum: [blockchain_failure, insufficient_balance, network_error, invalid_address, timeout]
-        failureReason:
-          type: string
-          description: Detailed failure reason
-        failedDate:
-          type: string
-          format: date-time
-        retryCount:
+        loanProvisionRate:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 1
+          description: Platform provision rate applied to loans (e.g. 0.03 = 3.0%)
+        loanIndividualRedeliveryFeeRate:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 1
+          description: Redelivery fee rate applied to individual loans (e.g. 0.10 = 10%)
+        loanInstitutionRedeliveryFeeRate:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 1
+          description: Redelivery fee rate applied to institution loans (e.g. 0.025 = 2.5%)
+        loanMinLtvRatio:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 1
+          description: Minimum allowed loan-to-value ratio (e.g. 0.60 = 60%)
+        loanMaxLtvRatio:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 1
+          description: Maximum allowed loan-to-value ratio (e.g. 0.75 = 75%)
+        loanRepaymentDurationInDays:
           type: integer
-          description: Number of retry attempts
-        recommendedAction:
+          minimum: 1
+          maximum: 3650
+          description: Loan repayment duration in days
+        loanLiquidationMode:
           type: string
-          description: Recommended administrative action
-        refundEligible:
-          type: boolean
-          description: Whether withdrawal is eligible for refund
+          enum: [Partial, Full]
+          description: Default liquidation mode for loans
+        loanLiquidationPremiRate:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 1
+          description: Liquidation premi rate (e.g. 0.02 = 2%)
+        loanLiquidationFeeRate:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 1
+          description: Liquidation fee rate (e.g. 0.02 = 2%)
 
     # Loan Operations Schemas
     LoanPortfolioSummary:
@@ -1416,6 +1534,134 @@ components:
         registeredDate:
           type: string
           format: date-time
+
+    CurrencyListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            currencies:
+              type: array
+              items:
+                $ref: '#/components/schemas/CurrencyConfig'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    CurrencyConfig:
+      type: object
+      required:
+        - blockchainKey
+        - tokenId
+        - name
+        - symbol
+        - decimals
+        - image
+      properties:
+        blockchainKey:
+          type: string
+          description: Blockchain identifier (CAIP-2 format)
+        tokenId:
+          type: string
+          description: Token identifier (CAIP-19 format)
+        name:
+          type: string
+          description: Human-readable currency name
+        symbol:
+          type: string
+          description: Currency symbol (e.g., BTC, ETH)
+        decimals:
+          type: integer
+          description: Number of decimal places for the currency
+        image:
+          type: string
+          description: URL to currency logo/icon
+        withdrawalFeeRate:
+          type: number
+          format: decimal
+          description: Fee rate for withdrawals (decimal, e.g. 0.001 = 0.1%)
+        minWithdrawalAmount:
+          type: string
+          description: Minimum withdrawal amount (in smallest currency unit)
+        maxWithdrawalAmount:
+          type: string
+          description: Maximum withdrawal amount (in smallest currency unit)
+        maxDailyWithdrawalAmount:
+          type: string
+          description: Maximum daily withdrawal amount (in smallest currency unit)
+        minLoanPrincipalAmount:
+          type: string
+          description: Minimum loan principal amount (in smallest currency unit)
+        maxLoanPrincipalAmount:
+          type: string
+          description: Maximum loan principal amount (in smallest currency unit)
+        maxLtv:
+          type: number
+          format: decimal
+          description: Maximum loan-to-value ratio (decimal, e.g. 0.75 = 75%)
+        ltvWarningThreshold:
+          type: number
+          format: decimal
+          description: LTV warning threshold (decimal, e.g. 0.70 = 70%)
+        ltvCriticalThreshold:
+          type: number
+          format: decimal
+          description: LTV critical threshold (decimal, e.g. 0.80 = 80%)
+        ltvLiquidationThreshold:
+          type: number
+          format: decimal
+          description: LTV liquidation threshold (decimal, e.g. 0.85 = 85%)
+
+    CurrencyConfigUpdate:
+      type: object
+      properties:
+        withdrawalFeeRate:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 1
+          description: Fee rate for withdrawals (decimal, e.g. 0.001 = 0.1%)
+        minWithdrawalAmount:
+          type: string
+          description: Minimum withdrawal amount (in smallest currency unit)
+        maxWithdrawalAmount:
+          type: string
+          description: Maximum withdrawal amount (in smallest currency unit)
+        maxDailyWithdrawalAmount:
+          type: string
+          description: Maximum daily withdrawal amount (in smallest currency unit)
+        minLoanPrincipalAmount:
+          type: string
+          description: Minimum loan principal amount (in smallest currency unit)
+        maxLoanPrincipalAmount:
+          type: string
+          description: Maximum loan principal amount (in smallest currency unit)
+        maxLtv:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 1
+          description: Maximum loan-to-value ratio (decimal, e.g. 0.75 = 75%)
+        ltvWarningThreshold:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 1
+          description: LTV warning threshold (decimal, e.g. 0.70 = 70%)
+        ltvCriticalThreshold:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 1
+          description: LTV critical threshold (decimal, e.g. 0.80 = 80%)
+        ltvLiquidationThreshold:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 1
+          description: LTV liquidation threshold (decimal, e.g. 0.85 = 85%)
 
     PaginationMeta:
       type: object

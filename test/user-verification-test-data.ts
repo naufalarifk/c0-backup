@@ -27,6 +27,7 @@ export interface InstitutionTestData {
   businessSubdistrict: string;
   businessAddress: string;
   businessPostalCode: string;
+  establishmentNumber: string;
   directorName: string;
   directorPosition: string;
 }
@@ -68,6 +69,7 @@ export function createValidInstitutionData(
     businessSubdistrict: 'Senayan',
     businessAddress: 'Jl. Asia Afrika No. 8, Komplex Gelora Bung Karno',
     businessPostalCode: '10270',
+    establishmentNumber: 'AHU-1234567890',
     directorName: 'Budi Santoso',
     directorPosition: 'CEO',
     ...overrides,

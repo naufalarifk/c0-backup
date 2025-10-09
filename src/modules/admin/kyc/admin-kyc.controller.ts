@@ -188,6 +188,23 @@ export class AdminKycController {
     try {
       const result = await this.repo.adminViewsPendingKYCs();
 
+      // Get user emails for all pending KYC submissions
+      const userIds = result.kycs.map(kyc => kyc.userId);
+      const userEmails = await this.repo.sql`
+        SELECT id::text AS user_id, email
+        FROM users
+        WHERE id::text = ANY(${userIds})
+      `;
+
+      // Create a map of userId to email
+      const emailMap = new Map<string, string>();
+      userEmails.forEach(user => {
+        assertDefined(user);
+        assertPropString(user, 'user_id');
+        assertPropNullableString(user, 'email');
+        emailMap.set(user.user_id, user.email || '');
+      });
+
       const submissions = result.kycs.map(kyc => {
         const submittedDate = new Date(kyc.submittedDate);
         const now = new Date();
@@ -207,7 +224,7 @@ export class AdminKycController {
           id: Number(kyc.id),
           userId: Number(kyc.userId),
           userName: kyc.name,
-          userEmail: '',
+          userEmail: emailMap.get(kyc.userId) || '',
           submittedDate: submittedDate.toISOString(),
           timeInQueue,
           priority: 'normal' as const,
