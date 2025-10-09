@@ -171,7 +171,7 @@ suite('Loan Market API', function () {
     it('should handle very large principal amounts', async function () {
       const loanOfferData = {
         totalAmount: '999999999999.000000000000000000', // Very large amount
-        interestRate: 12.5,
+        interestRate: 0.125,
         termOptions: [3, 6],
         minLoanAmount: '1000.000000000000000000',
         maxLoanAmount: '999999999999.000000000000000000',
@@ -202,7 +202,7 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'eip155:1',
         collateralTokenId: 'slip44:60',
         principalAmount: '49.000000000000000000', // Below minimum 50 USDT
-        maxInterestRate: 15.0,
+        maxInterestRate: 0.15,
         termMonths: 6,
         liquidationMode: 'Full',
         minLtvRatio: 0.5,
@@ -232,7 +232,7 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'eip155:1',
         collateralTokenId: 'slip44:60',
         principalAmount: '20001.000000000000000000', // Above maximum 20,000 USDT
-        maxInterestRate: 15.0,
+        maxInterestRate: 0.15,
         termMonths: 6,
         liquidationMode: 'Full',
         minLtvRatio: 0.5,
@@ -262,7 +262,7 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'eip155:1',
         collateralTokenId: 'slip44:60',
         principalAmount: '0.000000000000000001', // Very small amount
-        maxInterestRate: 15.0,
+        maxInterestRate: 0.15,
         termMonths: 6,
         liquidationMode: 'Full',
         minLtvRatio: 0.5,
@@ -288,7 +288,7 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'eip155:1',
         collateralTokenId: 'slip44:60',
         principalAmount: '5000.000000000000000000',
-        maxInterestRate: 15.0,
+        maxInterestRate: 0.15,
         termMonths: 6,
         liquidationMode: 'Full',
         minLtvRatio: 1.5, // Invalid - exceeds 100%
@@ -318,7 +318,7 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'eip155:1',
         collateralTokenId: 'slip44:60',
         principalAmount: '5000.000000000000000000',
-        maxInterestRate: 15.0,
+        maxInterestRate: 0.15,
         termMonths: 6,
         liquidationMode: 'Full',
         minLtvRatio: 0.5,
@@ -379,7 +379,7 @@ suite('Loan Market API', function () {
     it('should validate interest rate bounds per SRS CONF-001', async function () {
       const loanOfferData = {
         totalAmount: '10000.000000000000000000',
-        interestRate: 0.05, // Below minimum 0.1%
+        interestRate: 0.0005, // Below minimum 0.1% (0.05%)
         termOptions: [3, 6],
         minLoanAmount: '1000.000000000000000000',
         maxLoanAmount: '10000.000000000000000000',
@@ -414,7 +414,7 @@ suite('Loan Market API', function () {
         collateralBlockchainKey: 'cosmos:cosmoshub-3', // Unsupported blockchain
         collateralTokenId: 'slip44:118',
         principalAmount: '5000.000000000000000000',
-        maxInterestRate: 15.0,
+        maxInterestRate: 0.15,
         termMonths: 6,
         liquidationMode: 'Full',
         minLtvRatio: 0.5,

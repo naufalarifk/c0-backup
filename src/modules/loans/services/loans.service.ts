@@ -762,7 +762,8 @@ export class LoansService {
     // Get current platform configuration to retrieve loan provision rate
     const provisionRateConfig = await this.repository.platformRetrievesProvisionRate();
 
-    const provisionRate = new BigNumber(provisionRateConfig.loanProvisionRate).div(100); // Convert percentage to decimal
+    // Platform config loanProvisionRate is already in 0-1 decimal format (e.g., 0.03 = 3%)
+    const provisionRate = new BigNumber(provisionRateConfig.loanProvisionRate);
     const fee = principal.times(provisionRate);
     return fee.toFixed();
   }

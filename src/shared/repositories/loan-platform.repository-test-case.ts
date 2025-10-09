@@ -368,14 +368,15 @@ export async function runLoanPlatformRepositoryTestSuite(
             });
 
             // Setup platform config and exchange rates
+            // All rates and ratios are in 0-1 decimal format (e.g., 0.025 = 2.5%)
             await repo.testSetupPlatformConfig({
               effectiveDate: generateUniqueConfigDate(),
               adminUserId: 1,
-              loanProvisionRate: 2.5,
-              loanIndividualRedeliveryFeeRate: 1.0,
-              loanInstitutionRedeliveryFeeRate: 0.5,
-              loanMinLtvRatio: 50,
-              loanMaxLtvRatio: 75,
+              loanProvisionRate: 0.025,
+              loanIndividualRedeliveryFeeRate: 0.01,
+              loanInstitutionRedeliveryFeeRate: 0.005,
+              loanMinLtvRatio: 0.5,
+              loanMaxLtvRatio: 0.75,
               loanRepaymentDurationInDays: 30,
             });
 
@@ -648,14 +649,15 @@ export async function runLoanPlatformRepositoryTestSuite(
 
         // Use currencies already defined in the database schema
 
+        // All rates and ratios are in 0-1 decimal format (e.g., 0.025 = 2.5%)
         await repo.testSetupPlatformConfig({
           effectiveDate: generateUniqueConfigDate(),
           adminUserId: 1,
-          loanProvisionRate: 2.5,
-          loanIndividualRedeliveryFeeRate: 1.0,
-          loanInstitutionRedeliveryFeeRate: 0.5,
-          loanMinLtvRatio: 50,
-          loanMaxLtvRatio: 75,
+          loanProvisionRate: 0.025,
+          loanIndividualRedeliveryFeeRate: 0.01,
+          loanInstitutionRedeliveryFeeRate: 0.005,
+          loanMinLtvRatio: 0.5,
+          loanMaxLtvRatio: 0.75,
           loanRepaymentDurationInDays: 30,
         });
 
@@ -976,14 +978,15 @@ export async function runLoanPlatformRepositoryTestSuite(
 
         // Use currencies already defined in the database schema
 
+        // All rates and ratios are in 0-1 decimal format (e.g., 0.025 = 2.5%)
         await repo.testSetupPlatformConfig({
           effectiveDate: generateUniqueConfigDate(),
           adminUserId: 1,
-          loanProvisionRate: 2.5,
-          loanIndividualRedeliveryFeeRate: 1.0,
-          loanInstitutionRedeliveryFeeRate: 0.5,
-          loanMinLtvRatio: 50,
-          loanMaxLtvRatio: 75,
+          loanProvisionRate: 0.025,
+          loanIndividualRedeliveryFeeRate: 0.01,
+          loanInstitutionRedeliveryFeeRate: 0.005,
+          loanMinLtvRatio: 0.5,
+          loanMaxLtvRatio: 0.75,
           loanRepaymentDurationInDays: 30,
         });
 

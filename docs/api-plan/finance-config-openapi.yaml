@@ -130,20 +130,20 @@ paths:
             example: "eip155:1"
         - name: minLtv
           in: query
-          description: Filter currencies with minimum LTV ratio
+          description: Filter currencies with minimum LTV ratio (decimal, e.g., 0.5 = 50%)
           schema:
             type: number
             minimum: 0
-            maximum: 100
-            example: 50.0
+            maximum: 1
+            example: 0.5
         - name: maxLtv
           in: query
-          description: Filter currencies with maximum LTV ratio
+          description: Filter currencies with maximum LTV ratio (decimal, e.g., 0.7 = 70%)
           schema:
             type: number
             minimum: 0
-            maximum: 100
-            example: 70.0
+            maximum: 1
+            example: 0.7
       responses:
         '200':
           description: Currencies retrieved successfully
@@ -166,10 +166,10 @@ paths:
                           logoUrl: "https://cryptologos.cc/logos/bitcoin-btc-logo.png"
                           isCollateralCurrency: true
                           isLoanCurrency: false
-                          maxLtv: 60.0
-                          ltvWarningThreshold: 48.0
-                          ltvCriticalThreshold: 57.0
-                          ltvLiquidationThreshold: 60.0
+                          maxLtv: 0.60
+                          ltvWarningThreshold: 0.48
+                          ltvCriticalThreshold: 0.57
+                          ltvLiquidationThreshold: 0.60
                           minLoanPrincipalAmount: "0"
                           maxLoanPrincipalAmount: "0"
                           minWithdrawalAmount: "0"
@@ -189,10 +189,10 @@ paths:
                           logoUrl: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
                           isCollateralCurrency: true
                           isLoanCurrency: false
-                          maxLtv: 70.0
-                          ltvWarningThreshold: 56.0
-                          ltvCriticalThreshold: 66.5
-                          ltvLiquidationThreshold: 70.0
+                          maxLtv: 0.70
+                          ltvWarningThreshold: 0.56
+                          ltvCriticalThreshold: 0.665
+                          ltvLiquidationThreshold: 0.70
                           minLoanPrincipalAmount: "0"
                           maxLoanPrincipalAmount: "0"
                           minWithdrawalAmount: "0"
@@ -212,10 +212,10 @@ paths:
                           logoUrl: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
                           isCollateralCurrency: true
                           isLoanCurrency: false
-                          maxLtv: 50.0
-                          ltvWarningThreshold: 40.0
-                          ltvCriticalThreshold: 47.5
-                          ltvLiquidationThreshold: 50.0
+                          maxLtv: 0.50
+                          ltvWarningThreshold: 0.40
+                          ltvCriticalThreshold: 0.475
+                          ltvLiquidationThreshold: 0.50
                           minLoanPrincipalAmount: "0"
                           maxLoanPrincipalAmount: "0"
                           minWithdrawalAmount: "0"
@@ -235,10 +235,10 @@ paths:
                           logoUrl: "https://cryptologos.cc/logos/solana-sol-logo.png"
                           isCollateralCurrency: true
                           isLoanCurrency: false
-                          maxLtv: 50.0
-                          ltvWarningThreshold: 40.0
-                          ltvCriticalThreshold: 47.5
-                          ltvLiquidationThreshold: 50.0
+                          maxLtv: 0.50
+                          ltvWarningThreshold: 0.40
+                          ltvCriticalThreshold: 0.475
+                          ltvLiquidationThreshold: 0.50
                           minLoanPrincipalAmount: "0"
                           maxLoanPrincipalAmount: "0"
                           minWithdrawalAmount: "0"
@@ -287,10 +287,10 @@ paths:
                           logoUrl: "https://cryptologos.cc/logos/bitcoin-btc-logo.png"
                           isCollateralCurrency: true
                           isLoanCurrency: false
-                          maxLtv: 60.0
-                          ltvWarningThreshold: 48.0
-                          ltvCriticalThreshold: 57.0
-                          ltvLiquidationThreshold: 60.0
+                          maxLtv: 0.60
+                          ltvWarningThreshold: 0.48
+                          ltvCriticalThreshold: 0.57
+                          ltvLiquidationThreshold: 0.60
                           minLoanPrincipalAmount: "0"
                           maxLoanPrincipalAmount: "0"
                           minWithdrawalAmount: "0"
@@ -310,10 +310,10 @@ paths:
                           logoUrl: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
                           isCollateralCurrency: true
                           isLoanCurrency: false
-                          maxLtv: 70.0
-                          ltvWarningThreshold: 56.0
-                          ltvCriticalThreshold: 66.5
-                          ltvLiquidationThreshold: 70.0
+                          maxLtv: 0.70
+                          ltvWarningThreshold: 0.56
+                          ltvCriticalThreshold: 0.665
+                          ltvLiquidationThreshold: 0.70
                           minLoanPrincipalAmount: "0"
                           maxLoanPrincipalAmount: "0"
                           minWithdrawalAmount: "0"
@@ -333,10 +333,10 @@ paths:
                           logoUrl: "https://cryptologos.cc/logos/bnb-bnb-logo.png"
                           isCollateralCurrency: true
                           isLoanCurrency: false
-                          maxLtv: 50.0
-                          ltvWarningThreshold: 40.0
-                          ltvCriticalThreshold: 47.5
-                          ltvLiquidationThreshold: 50.0
+                          maxLtv: 0.50
+                          ltvWarningThreshold: 0.40
+                          ltvCriticalThreshold: 0.475
+                          ltvLiquidationThreshold: 0.50
                           minLoanPrincipalAmount: "0"
                           maxLoanPrincipalAmount: "0"
                           minWithdrawalAmount: "0"
@@ -356,10 +356,10 @@ paths:
                           logoUrl: "https://cryptologos.cc/logos/solana-sol-logo.png"
                           isCollateralCurrency: true
                           isLoanCurrency: false
-                          maxLtv: 50.0
-                          ltvWarningThreshold: 40.0
-                          ltvCriticalThreshold: 47.5
-                          ltvLiquidationThreshold: 50.0
+                          maxLtv: 0.50
+                          ltvWarningThreshold: 0.40
+                          ltvCriticalThreshold: 0.475
+                          ltvLiquidationThreshold: 0.50
                           minLoanPrincipalAmount: "0"
                           maxLoanPrincipalAmount: "0"
                           minWithdrawalAmount: "0"
@@ -702,31 +702,31 @@ components:
         maxLtv:
           type: number
           format: decimal
-          description: Maximum Loan-to-Value ratio for collateral (percentage)
-          example: 70.0
+          description: Maximum Loan-to-Value ratio for collateral (decimal, e.g., 0.70 = 70%)
+          example: 0.70
           minimum: 0
-          maximum: 100
+          maximum: 1
         ltvWarningThreshold:
           type: number
           format: decimal
-          description: LTV threshold that triggers warning notifications
-          example: 56.0
+          description: LTV threshold that triggers warning notifications (decimal, e.g., 0.56 = 56%)
+          example: 0.56
           minimum: 0
-          maximum: 100
+          maximum: 1
         ltvCriticalThreshold:
           type: number
           format: decimal
-          description: LTV threshold that triggers critical alerts
-          example: 66.5
+          description: LTV threshold that triggers critical alerts (decimal, e.g., 0.665 = 66.5%)
+          example: 0.665
           minimum: 0
-          maximum: 100
+          maximum: 1
         ltvLiquidationThreshold:
           type: number
           format: decimal
-          description: LTV threshold that triggers automatic liquidation
-          example: 70.0
+          description: LTV threshold that triggers automatic liquidation (decimal, e.g., 0.70 = 70%)
+          example: 0.70
           minimum: 0
-          maximum: 100
+          maximum: 1
         minLoanPrincipalAmount:
           type: string
           description: Minimum loan amount in smallest unit (wei/satoshi equivalent)

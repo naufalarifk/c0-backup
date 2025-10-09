@@ -157,7 +157,7 @@ suite('Finance Configuration API', function () {
           currency.decimals >= 0 && currency.decimals <= 18,
           'Decimals should be between 0 and 18',
         );
-        ok(currency.maxLtv >= 0 && currency.maxLtv <= 100, 'Max LTV should be between 0 and 100');
+        ok(currency.maxLtv >= 0 && currency.maxLtv <= 1, 'Max LTV should be between 0 and 1');
 
         return currency;
       });
@@ -265,7 +265,7 @@ suite('Finance Configuration API', function () {
     });
 
     it('should filter currencies by LTV range', async function () {
-      const response = await testUser.fetch('/api/currencies?minLtv=50&maxLtv=70', {
+      const response = await testUser.fetch('/api/currencies?minLtv=0.5&maxLtv=0.7', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -282,16 +282,16 @@ suite('Finance Configuration API', function () {
         assertDefined(currency);
         assertPropNumber(currency, 'maxLtv');
         ok(
-          currency.maxLtv >= 50 && currency.maxLtv <= 70,
-          `Max LTV (${currency.maxLtv}) should be within specified range (50-70)`,
+          currency.maxLtv >= 0.5 && currency.maxLtv <= 0.7,
+          `Max LTV (${currency.maxLtv}) should be within specified range (0.5-0.7)`,
         );
         return currency;
       });
 
-      // Verify count: at least 4 collateral currencies with LTV in range 50-70
+      // Verify count: at least 4 collateral currencies with LTV in range 0.5-0.7
       ok(
         data.data.currencies.length >= 4,
-        'Should have at least 4 currencies with LTV in range 50-70',
+        'Should have at least 4 currencies with LTV in range 0.5-0.7',
       );
     });
 

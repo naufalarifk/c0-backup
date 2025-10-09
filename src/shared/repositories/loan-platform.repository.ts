@@ -891,7 +891,8 @@ export abstract class LoanPlatformRepository extends LoanUserRepository {
       const config = configRows[0];
       assertDefined(config, 'Platform config validation failed');
       assertProp(check(isString, isNumber), config, 'loan_max_ltv_ratio');
-      threshold = Number(config.loan_max_ltv_ratio) / 100; // Convert percentage to decimal
+      // Platform config loan_max_ltv_ratio is already in 0-1 decimal format
+      threshold = Number(config.loan_max_ltv_ratio);
     }
 
     if (!threshold) {

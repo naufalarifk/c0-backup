@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS loan_offers (
   min_loan_principal_amount DECIMAL(78, 0) NOT NULL CHECK (min_loan_principal_amount > 0), -- defined by lender_user_id or derived from currencies.min_loan_principal_amount of principal_currency_token_id at creation
   max_loan_principal_amount DECIMAL(78, 0) NOT NULL CHECK (max_loan_principal_amount > 0), -- defined by lender_user_id or derived from currencies.max_loan_principal_amount of principal_currency_token_id at creation
 
-  interest_rate DECIMAL(8, 4) NOT NULL CHECK (interest_rate >= 0 AND interest_rate <= 100), -- 0 - 100, configured by lender_user_id
+  interest_rate DECIMAL(8, 4) NOT NULL CHECK (interest_rate >= 0 AND interest_rate <= 1), -- 0 - 1 decimal (e.g., 0.05 = 5%), configured by lender_user_id
   term_in_months_options INT[] NOT NULL, -- Pilihan durasi pinjaman dalam bulan
 
   status VARCHAR(32) NOT NULL DEFAULT 'Funding' CHECK (status IN ('Funding', 'Published', 'Closed', 'Expired')),
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS loan_applications (
   principal_currency_token_id VARCHAR(64) NOT NULL,
   principal_amount DECIMAL(78, 0) NOT NULL CHECK (principal_amount > 0),
   provision_amount DECIMAL(78, 0) NOT NULL CHECK (provision_amount >= 0), -- calculated by principal_amount * platform_configs.loan_provision_rate at applied_date
-  max_interest_rate DECIMAL(8, 4) NOT NULL CHECK (max_interest_rate >= 0 AND max_interest_rate <= 100), -- configured by borrower_user_id
+  max_interest_rate DECIMAL(8, 4) NOT NULL CHECK (max_interest_rate >= 0 AND max_interest_rate <= 1), -- 0 - 1 decimal (e.g., 0.10 = 10%), configured by borrower_user_id
   min_ltv_ratio DECIMAL(8, 4) NOT NULL CHECK (min_ltv_ratio > 0 AND min_ltv_ratio <= 1), -- based on platform_configs.loan_min_ltv_ratio at applied_date
   max_ltv_ratio DECIMAL(8, 4) NOT NULL CHECK (max_ltv_ratio > 0 AND max_ltv_ratio <= 1), -- based on platform_configs.loan_max_ltv_ratio at applied_date
   term_in_months INT NOT NULL CHECK (term_in_months > 0),

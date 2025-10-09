@@ -14,6 +14,7 @@ export class AdminCurrenciesService {
 
   async getCurrencies(): Promise<CurrencyConfigDto[]> {
     // Get all currencies with their configurations
+    // All rates and ratios are stored in 0-1 decimal format
     const rows = await this.repo.sql`
       SELECT
         blockchain_key,
@@ -22,16 +23,16 @@ export class AdminCurrenciesService {
         symbol,
         decimals,
         image,
-        (COALESCE(withdrawal_fee_rate, 0) / 100)::FLOAT as withdrawal_fee_rate,
+        COALESCE(withdrawal_fee_rate, 0)::FLOAT as withdrawal_fee_rate,
         COALESCE(min_withdrawal_amount, '0')::TEXT as min_withdrawal_amount,
         COALESCE(max_withdrawal_amount, '0')::TEXT as max_withdrawal_amount,
         COALESCE(max_daily_withdrawal_amount, '0')::TEXT as max_daily_withdrawal_amount,
         COALESCE(min_loan_principal_amount, '0')::TEXT as min_loan_principal_amount,
         COALESCE(max_loan_principal_amount, '0')::TEXT as max_loan_principal_amount,
-        (COALESCE(max_ltv, 0) / 100)::FLOAT as max_ltv,
-        (COALESCE(ltv_warning_threshold, 0) / 100)::FLOAT as ltv_warning_threshold,
-        (COALESCE(ltv_critical_threshold, 0) / 100)::FLOAT as ltv_critical_threshold,
-        (COALESCE(ltv_liquidation_threshold, 0) / 100)::FLOAT as ltv_liquidation_threshold
+        COALESCE(max_ltv, 0)::FLOAT as max_ltv,
+        COALESCE(ltv_warning_threshold, 0)::FLOAT as ltv_warning_threshold,
+        COALESCE(ltv_critical_threshold, 0)::FLOAT as ltv_critical_threshold,
+        COALESCE(ltv_liquidation_threshold, 0)::FLOAT as ltv_liquidation_threshold
       FROM currencies
       ORDER BY blockchain_key, token_id
     `;
@@ -114,19 +115,20 @@ export class AdminCurrenciesService {
         );
       }
 
-      // Update currency configuration (convert decimal rates to percentages for storage)
+      // Update currency configuration
+      // All rates and ratios are stored in 0-1 decimal format
       await this.repo.sql`
         UPDATE currencies SET
-          withdrawal_fee_rate = ${updateData.withdrawalFeeRate * 100},
+          withdrawal_fee_rate = ${updateData.withdrawalFeeRate},
           min_withdrawal_amount = ${updateData.minWithdrawalAmount},
           max_withdrawal_amount = ${updateData.maxWithdrawalAmount},
           max_daily_withdrawal_amount = ${updateData.maxDailyWithdrawalAmount},
           min_loan_principal_amount = ${updateData.minLoanPrincipalAmount},
           max_loan_principal_amount = ${updateData.maxLoanPrincipalAmount},
-          max_ltv = ${updateData.maxLtv * 100},
-          ltv_warning_threshold = ${updateData.ltvWarningThreshold * 100},
-          ltv_critical_threshold = ${updateData.ltvCriticalThreshold * 100},
-          ltv_liquidation_threshold = ${updateData.ltvLiquidationThreshold * 100}
+          max_ltv = ${updateData.maxLtv},
+          ltv_warning_threshold = ${updateData.ltvWarningThreshold},
+          ltv_critical_threshold = ${updateData.ltvCriticalThreshold},
+          ltv_liquidation_threshold = ${updateData.ltvLiquidationThreshold}
         WHERE blockchain_key = ${blockchainKey} AND token_id = ${tokenId}
       `;
 

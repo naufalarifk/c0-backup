@@ -126,9 +126,18 @@ export class LoanCalculationService {
 
   /**
    * Converts percentage to decimal (e.g., 75 -> 0.75)
+   * Used for interest rates which are stored as 0-100 in the database
    */
   private percentageToDecimal(percentage: string | number): BigNumber {
     return new BigNumber(percentage).dividedBy(100);
+  }
+
+  /**
+   * Converts a rate/ratio that's already in decimal format (0-1) to BigNumber
+   * Used for platform config rates/ratios which are stored as 0-1 in the database
+   */
+  private decimalToBigNumber(decimal: string | number): BigNumber {
+    return new BigNumber(decimal);
   }
 
   /**
@@ -150,9 +159,10 @@ export class LoanCalculationService {
 
     // principalAmount is already in smallest units
     const principalAmountBN = new BigNumber(principalAmount);
-    const provisionRateBN = this.percentageToDecimal(platformConfig.loanProvisionRate);
-    const minLtvRatioBN = this.percentageToDecimal(platformConfig.loanMinLtvRatio);
-    const maxLtvRatioBN = this.percentageToDecimal(platformConfig.loanMaxLtvRatio);
+    // Platform config rates/ratios are already in 0-1 decimal format
+    const provisionRateBN = this.decimalToBigNumber(platformConfig.loanProvisionRate);
+    const minLtvRatioBN = this.decimalToBigNumber(platformConfig.loanMinLtvRatio);
+    const maxLtvRatioBN = this.decimalToBigNumber(platformConfig.loanMaxLtvRatio);
 
     // Exchange rate is stored in smallest units (e.g., 1000000000000000000 for 1.0 USD)
     // We need to convert it to decimal form by dividing by 10^decimals
@@ -214,9 +224,10 @@ export class LoanCalculationService {
 
     // principalAmount is already in smallest units
     const principalAmountBN = new BigNumber(principalAmount);
-    const provisionRateBN = this.percentageToDecimal(platformConfig.loanProvisionRate);
-    const minLtvRatioBN = this.percentageToDecimal(platformConfig.loanMinLtvRatio);
-    const maxLtvRatioBN = this.percentageToDecimal(platformConfig.loanMaxLtvRatio);
+    // Platform config rates/ratios are already in 0-1 decimal format
+    const provisionRateBN = this.decimalToBigNumber(platformConfig.loanProvisionRate);
+    const minLtvRatioBN = this.decimalToBigNumber(platformConfig.loanMinLtvRatio);
+    const maxLtvRatioBN = this.decimalToBigNumber(platformConfig.loanMaxLtvRatio);
 
     // Exchange rate is stored in smallest units (e.g., 1000000000000000000 for 1.0 USD)
     // We need to convert it to decimal form by dividing by 10^decimals
@@ -363,12 +374,12 @@ export class LoanCalculationService {
    */
   calculateLoanOriginationParams(params: {
     principalAmount: string;
-    interestRate: number;
+    interestRate: number; // 0-1 decimal (e.g., 0.05 = 5%)
     termInMonths: number;
     collateralAmount: string;
     matchedLtvRatio: number;
     matchedCollateralValuationAmount: string;
-    provisionRate: number; // e.g., 3 for 3%
+    provisionRate: number; // 0-1 decimal (e.g., 0.03 = 3%)
   }): {
     principalAmount: string;
     interestAmount: string;
@@ -394,8 +405,8 @@ export class LoanCalculationService {
 
     // Convert to BigNumber for precise calculations
     const principalAmountBN = new BigNumber(principalAmount);
-    const interestRateBN = this.percentageToDecimal(interestRate);
-    const provisionRateBN = this.percentageToDecimal(provisionRate);
+    const interestRateBN = this.decimalToBigNumber(interestRate);
+    const provisionRateBN = this.decimalToBigNumber(provisionRate);
 
     // Calculate interest amount (simple interest for the term)
     const interestAmountBN = principalAmountBN.multipliedBy(interestRateBN);
@@ -406,7 +417,7 @@ export class LoanCalculationService {
     const premiAmount = premiAmountBN.integerValue(BigNumber.ROUND_DOWN).toString();
 
     // Calculate liquidation fee (fixed 2% of principal as per common practice)
-    const liquidationFeeRateBN = this.percentageToDecimal(2);
+    const liquidationFeeRateBN = this.decimalToBigNumber(0.02);
     const liquidationFeeAmountBN = principalAmountBN.multipliedBy(liquidationFeeRateBN);
     const liquidationFeeAmount = liquidationFeeAmountBN
       .integerValue(BigNumber.ROUND_DOWN)
@@ -417,7 +428,7 @@ export class LoanCalculationService {
     const repaymentAmount = repaymentAmountBN.integerValue(BigNumber.ROUND_DOWN).toString();
 
     // Calculate redelivery fee (1% of interest amount)
-    const redeliveryFeeRateBN = this.percentageToDecimal(1);
+    const redeliveryFeeRateBN = this.decimalToBigNumber(0.01);
     const redeliveryFeeAmountBN = interestAmountBN.multipliedBy(redeliveryFeeRateBN);
     const redeliveryFeeAmount = redeliveryFeeAmountBN.integerValue(BigNumber.ROUND_DOWN).toString();
 

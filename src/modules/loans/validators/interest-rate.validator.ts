@@ -14,11 +14,12 @@ export class InterestRateValidConstraint implements ValidatorConstraintInterface
       return false;
     }
     // Return false for invalid interest rates (outside SRS CONF-001 bounds)
-    return value >= 0.1 && value <= 50;
+    // Format: 0-1 decimal (e.g., 0.001 = 0.1%, 0.125 = 12.5%, 0.50 = 50%)
+    return value >= 0.001 && value <= 0.5;
   }
 
   defaultMessage(): string {
-    return 'Interest rate must be between 0.1% and 50%';
+    return 'Interest rate must be between 0.001 and 0.50 (0.1% to 50%)';
   }
 }
 

@@ -118,47 +118,47 @@ export class CurrencyDetailDto {
   isLoanCurrency: boolean;
 
   @ApiProperty({
-    description: 'Maximum Loan-to-Value ratio for collateral (percentage)',
-    example: 70.0,
+    description: 'Maximum Loan-to-Value ratio for collateral (decimal, e.g., 0.70 = 70%)',
+    example: 0.7,
     minimum: 0,
-    maximum: 100,
+    maximum: 1,
   })
   @IsNumber()
   @Min(0)
-  @Max(100)
+  @Max(1)
   maxLtv: number;
 
   @ApiProperty({
-    description: 'LTV threshold that triggers warning notifications',
-    example: 56.0,
+    description: 'LTV threshold that triggers warning notifications (decimal, e.g., 0.56 = 56%)',
+    example: 0.56,
     minimum: 0,
-    maximum: 100,
+    maximum: 1,
   })
   @IsNumber()
   @Min(0)
-  @Max(100)
+  @Max(1)
   ltvWarningThreshold: number;
 
   @ApiProperty({
-    description: 'LTV threshold that triggers critical alerts',
-    example: 66.5,
+    description: 'LTV threshold that triggers critical alerts (decimal, e.g., 0.665 = 66.5%)',
+    example: 0.665,
     minimum: 0,
-    maximum: 100,
+    maximum: 1,
   })
   @IsNumber()
   @Min(0)
-  @Max(100)
+  @Max(1)
   ltvCriticalThreshold: number;
 
   @ApiProperty({
-    description: 'LTV threshold that triggers automatic liquidation',
-    example: 70.0,
+    description: 'LTV threshold that triggers automatic liquidation (decimal, e.g., 0.70 = 70%)',
+    example: 0.7,
     minimum: 0,
-    maximum: 100,
+    maximum: 1,
   })
   @IsNumber()
   @Min(0)
-  @Max(100)
+  @Max(1)
   ltvLiquidationThreshold: number;
 
   @ApiProperty({
@@ -197,8 +197,8 @@ export class CurrencyDetailDto {
   maxDailyWithdrawalAmount: string;
 
   @ApiProperty({
-    description: 'Withdrawal fee rate (decimal, e.g., 0.001 = 0.1%)',
-    example: 0.0,
+    description: 'Withdrawal fee rate as decimal (e.g., 0.001 = 0.1%)',
+    example: 0.001,
     minimum: 0,
     maximum: 1,
   })
@@ -399,31 +399,31 @@ export class GetCurrenciesQueryDto {
   blockchainKey?: string;
 
   @ApiProperty({
-    description: 'Filter currencies with minimum LTV ratio',
+    description: 'Filter currencies with minimum LTV ratio (decimal, e.g., 0.50 = 50%)',
     minimum: 0,
-    maximum: 100,
-    example: 50.0,
+    maximum: 1,
+    example: 0.5,
     required: false,
   })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0)
-  @Max(100)
+  @Max(1)
   minLtv?: number;
 
   @ApiProperty({
-    description: 'Filter currencies with maximum LTV ratio',
+    description: 'Filter currencies with maximum LTV ratio (decimal, e.g., 0.70 = 70%)',
     minimum: 0,
-    maximum: 100,
-    example: 70.0,
+    maximum: 1,
+    example: 0.7,
     required: false,
   })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0)
-  @Max(100)
+  @Max(1)
   maxLtv?: number;
 }
 

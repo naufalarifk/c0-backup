@@ -32,35 +32,35 @@ export class PlatformConfigDto {
   adminUserName?: string | null;
 
   @ApiProperty({
-    description: 'Platform provision rate applied to loans (e.g. 0.03 = 3.0%)',
+    description: 'Platform provision rate applied to loans as decimal (e.g., 0.03 = 3%)',
     format: 'decimal',
     example: 0.03,
   })
   loanProvisionRate: number;
 
   @ApiProperty({
-    description: 'Redelivery fee rate applied to individual loans (e.g. 0.10 = 10%)',
+    description: 'Redelivery fee rate applied to individual loans as decimal (e.g., 0.10 = 10%)',
     format: 'decimal',
     example: 0.1,
   })
   loanIndividualRedeliveryFeeRate: number;
 
   @ApiProperty({
-    description: 'Redelivery fee rate applied to institution loans (e.g. 0.025 = 2.5%)',
+    description: 'Redelivery fee rate applied to institution loans as decimal (e.g., 0.025 = 2.5%)',
     format: 'decimal',
     example: 0.025,
   })
   loanInstitutionRedeliveryFeeRate: number;
 
   @ApiProperty({
-    description: 'Minimum allowed loan-to-value ratio (e.g. 0.60 = 60%)',
+    description: 'Minimum allowed loan-to-value ratio as decimal (e.g., 0.60 = 60%)',
     format: 'decimal',
     example: 0.6,
   })
   loanMinLtvRatio: number;
 
   @ApiProperty({
-    description: 'Maximum allowed loan-to-value ratio (e.g. 0.75 = 75%)',
+    description: 'Maximum allowed loan-to-value ratio as decimal (e.g., 0.75 = 75%)',
     format: 'decimal',
     example: 0.75,
   })
@@ -80,14 +80,14 @@ export class PlatformConfigDto {
   loanLiquidationMode: LoanLiquidationMode;
 
   @ApiProperty({
-    description: 'Liquidation premi rate (percentage expressed as decimal, e.g. 0.02 = 2%)',
+    description: 'Liquidation premium rate as decimal (e.g., 0.02 = 2%)',
     format: 'decimal',
     example: 0.02,
   })
   loanLiquidationPremiRate: number;
 
   @ApiProperty({
-    description: 'Liquidation fee rate (percentage expressed as decimal, e.g. 0.02 = 2%)',
+    description: 'Liquidation fee rate as decimal (e.g., 0.02 = 2%)',
     format: 'decimal',
     example: 0.02,
   })
@@ -110,7 +110,7 @@ export class PlatformConfigResponseDto {
 
 export class PlatformConfigUpdateDto {
   @ApiProperty({
-    description: 'Platform provision rate applied to loans (e.g. 0.03 = 3.0%)',
+    description: 'Platform provision rate applied to loans as decimal (e.g., 0.03 = 3%)',
     format: 'decimal',
     minimum: 0,
     maximum: 1,
@@ -122,7 +122,7 @@ export class PlatformConfigUpdateDto {
   loanProvisionRate: number;
 
   @ApiProperty({
-    description: 'Redelivery fee rate applied to individual loans (e.g. 0.10 = 10%)',
+    description: 'Redelivery fee rate applied to individual loans as decimal (e.g., 0.10 = 10%)',
     format: 'decimal',
     minimum: 0,
     maximum: 1,
@@ -134,7 +134,7 @@ export class PlatformConfigUpdateDto {
   loanIndividualRedeliveryFeeRate: number;
 
   @ApiProperty({
-    description: 'Redelivery fee rate applied to institution loans (e.g. 0.025 = 2.5%)',
+    description: 'Redelivery fee rate applied to institution loans as decimal (e.g., 0.025 = 2.5%)',
     format: 'decimal',
     minimum: 0,
     maximum: 1,
@@ -146,7 +146,7 @@ export class PlatformConfigUpdateDto {
   loanInstitutionRedeliveryFeeRate: number;
 
   @ApiProperty({
-    description: 'Minimum allowed loan-to-value ratio (e.g. 0.60 = 60%)',
+    description: 'Minimum allowed loan-to-value ratio as decimal (e.g., 0.60 = 60%)',
     format: 'decimal',
     minimum: 0,
     maximum: 1,
@@ -158,7 +158,7 @@ export class PlatformConfigUpdateDto {
   loanMinLtvRatio: number;
 
   @ApiProperty({
-    description: 'Maximum allowed loan-to-value ratio (e.g. 0.75 = 75%)',
+    description: 'Maximum allowed loan-to-value ratio as decimal (e.g., 0.75 = 75%)',
     format: 'decimal',
     minimum: 0,
     maximum: 1,
@@ -189,7 +189,7 @@ export class PlatformConfigUpdateDto {
   loanLiquidationMode: LoanLiquidationMode;
 
   @ApiProperty({
-    description: 'Liquidation premi rate (e.g. 0.02 = 2%)',
+    description: 'Liquidation premium rate as decimal (e.g., 0.02 = 2%)',
     format: 'decimal',
     minimum: 0,
     maximum: 1,
@@ -201,7 +201,7 @@ export class PlatformConfigUpdateDto {
   loanLiquidationPremiRate: number;
 
   @ApiProperty({
-    description: 'Liquidation fee rate (e.g. 0.02 = 2%)',
+    description: 'Liquidation fee rate as decimal (e.g., 0.02 = 2%)',
     format: 'decimal',
     minimum: 0,
     maximum: 1,
