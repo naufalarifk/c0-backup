@@ -4,9 +4,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
-import { WalletService } from '../../shared/wallets/wallet.service';
 import { BinanceAssetMapperService } from './binance-asset-mapper.service';
 import { BinanceClientService } from './binance-client.service';
+import { SettlementWalletService } from './currencies/wallet.service';
 import { defaultSettlementConfig } from './settlement.config';
 
 @Injectable()
@@ -16,27 +16,10 @@ export class SettlementService {
   constructor(
     private readonly repository: CryptogadaiRepository,
     private readonly configService: ConfigService,
-    private readonly walletService: WalletService,
+    private readonly walletService: SettlementWalletService,
     private readonly binanceClient: BinanceClientService,
     private readonly binanceMapper: BinanceAssetMapperService,
   ) {}
-
-  /**
-   * Get all blockchain balances from hot wallets (excluding crosschain and binance)
-   * This represents the actual on-chain balances that need to be balanced with Binance
-   */
-  async getHotWalletBalances(): Promise<BlockchainBalance[]> {
-    this.logger.debug('Fetching hot wallet balances...');
-
-    try {
-      const blockchainBalances = await this.repository.platformGetsHotWalletBalances();
-      this.logger.debug(`Found ${blockchainBalances.length} hot wallet balances`);
-      return blockchainBalances;
-    } catch (error) {
-      this.logger.error('Failed to fetch hot wallet balances:', error);
-      throw error;
-    }
-  }
 
   /**
    * Get Binance balance for a specific currency

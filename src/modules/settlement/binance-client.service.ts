@@ -38,11 +38,22 @@ export class BinanceClientService {
     this.isEnabled = this.configService.get<boolean>('BINANCE_API_ENABLED', false);
 
     if (this.isEnabled) {
-      const apiKey = this.configService.get<string>('BINANCE_API_KEY');
-      const apiSecret = this.configService.get<string>('BINANCE_API_SECRET');
+      const nodeEnv = this.configService.get<string>('NODE_ENV', 'development');
+      const isDevelopment = nodeEnv === 'development';
+
+      // In development mode, use test API keys; in production, use main keys
+      const apiKey = isDevelopment
+        ? this.configService.get<string>('BINANCE_TEST_API_KEY')
+        : this.configService.get<string>('BINANCE_API_KEY');
+
+      const apiSecret = isDevelopment
+        ? this.configService.get<string>('BINANCE_TEST_API_SECRET')
+        : this.configService.get<string>('BINANCE_API_SECRET');
 
       if (!apiKey || !apiSecret) {
-        this.logger.warn('Binance API credentials not configured - Binance integration disabled');
+        this.logger.warn(
+          `Binance API credentials not configured for ${nodeEnv} mode - Binance integration disabled`,
+        );
         this.isEnabled = false;
       } else {
         const baseURL = this.configService.get<string>(
@@ -51,7 +62,9 @@ export class BinanceClientService {
         );
 
         this.client = new Spot(apiKey, apiSecret, { baseURL });
-        this.logger.log('Binance API client initialized successfully');
+        this.logger.log(
+          `Binance API client initialized successfully (${nodeEnv} mode using ${isDevelopment ? 'test' : 'production'} credentials)`,
+        );
       }
     } else {
       this.logger.warn('Binance API integration is disabled via configuration');

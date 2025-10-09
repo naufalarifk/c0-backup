@@ -9,6 +9,13 @@ import { Auth } from '../../decorators/auth.decorator';
 import { Session } from '../auth/auth.decorator';
 import { SettlementScheduler } from './settlement.scheduler';
 
+/*
+@todo
+1. transfer from wallet to binance
+2. transfer from binance to wallet
+3. check balance
+4. admin could manually transfer
+*/
 @Controller('admin/settlement')
 @ApiTags('Admin - Settlement')
 @Auth(['Admin'])

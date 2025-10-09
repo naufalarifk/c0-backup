@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS currencies (
   blockchain_key VARCHAR(64) NOT NULL REFERENCES blockchains (key),
   token_id VARCHAR(64) NOT NULL, -- specification: https://chainagnostic.org/CAIPs/caip-19
   name VARCHAR(64) NOT NULL,
-  symbol VARCHAR(16) NOT NULL,
+  symbol VARCHAR(16) NOT NULL, -- add binance symbol for binance network
   decimals INT NOT NULL,
   image TEXT NOT NULL,
   withdrawal_fee_rate DECIMAL(8, 4) NOT NULL DEFAULT 0,
