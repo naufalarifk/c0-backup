@@ -16,12 +16,12 @@ import { NotificationsModule } from '../modules/notifications/notifications.modu
 import { PortfolioModule } from '../modules/portfolio/portfolio.module';
 import { RealtimeModule } from '../modules/realtime/realtime.module';
 import { SmsModule } from '../modules/sms/sms.module';
+import { TestModule } from '../modules/test/test.module';
 import { UsersModule } from '../modules/users/users.module';
 import { WithdrawalsModule } from '../modules/withdrawals/withdrawals.module';
 import { HealthcheckController } from '../shared/healthcheck.controller';
 import { AppConfigService } from '../shared/services/app-config.service';
 import { SharedModule } from '../shared/shared.module';
-import { TestController } from '../shared/test.controller';
 
 @Module({
   imports: [
@@ -50,6 +50,7 @@ import { TestController } from '../shared/test.controller';
     LoansModule,
     LoanMatcherModule,
     AdminModule,
+    TestModule,
   ],
   providers: [
     // Global guards
@@ -58,6 +59,6 @@ import { TestController } from '../shared/test.controller';
       useClass: ThrottlerGuard,
     },
   ],
-  controllers: [HealthcheckController, TestController],
+  controllers: [HealthcheckController],
 })
 export class AppModule {}
