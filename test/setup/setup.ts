@@ -121,22 +121,23 @@ export async function setup() {
   const backendPort = String(20000 + Math.floor(Math.random() * 10000));
   const backendAddr = `localhost:${backendPort}`;
 
-  await new Promise<void>(function (resolve, reject) {
-    const build = spawn('pnpm', ['build'], {
-      cwd: cgBackendPath,
-      stdio: 'inherit',
-    });
-    build.on('error', function (error) {
-      reject(new Error(`Failed to build CG Backend: ${error.message}`));
-    });
-    build.on('exit', function (code) {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`CG Backend build exited with code ${code}`));
-      }
-    });
-  });
+  // SKIP BUILD STEP
+  // await new Promise<void>(function (resolve, reject) {
+  //   const build = spawn('pnpm', ['build'], {
+  //     cwd: cgBackendPath,
+  //     stdio: 'inherit',
+  //   });
+  //   build.on('error', function (error) {
+  //     reject(new Error(`Failed to build CG Backend: ${error.message}`));
+  //   });
+  //   build.on('exit', function (code) {
+  //     if (code === 0) {
+  //       resolve();
+  //     } else {
+  //       reject(new Error(`CG Backend build exited with code ${code}`));
+  //     }
+  //   });
+  // });
 
   const [backend] = await Promise.all([
     new Promise<{

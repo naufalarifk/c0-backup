@@ -464,7 +464,7 @@ export class AdminKycController {
       this.logger.log('KYC approved by admin', {
         kycId,
         adminId: session.user.id,
-        notes: body.notes,
+        notes: body?.notes,
       });
 
       return {

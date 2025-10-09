@@ -77,17 +77,22 @@ CREATE OR REPLACE FUNCTION update_user_kyc_on_approval()
 RETURNS TRIGGER AS $$
 BEGIN
   -- Handle approval (from NULL to NOT NULL verified_date)
+  -- Note: status is now set explicitly in the repository method
+  -- The users.kyc_id update is also handled in the repository method
   IF OLD.verified_date IS NULL AND NEW.verified_date IS NOT NULL THEN
-    NEW.status = 'Verified';
-
-    UPDATE users
-    SET kyc_id = NEW.id
-    WHERE id = NEW.user_id;
+    -- Only set status if not already set by the UPDATE query
+    IF NEW.status != 'Verified' THEN
+      NEW.status = 'Verified';
+    END IF;
   END IF;
 
   -- Handle rejection (from NULL to NOT NULL rejected_date)
+  -- Note: status is now set explicitly in the repository method
   IF OLD.rejected_date IS NULL AND NEW.rejected_date IS NOT NULL THEN
-    NEW.status = 'Rejected';
+    -- Only set status if not already set by the UPDATE query
+    IF NEW.status != 'Rejected' THEN
+      NEW.status = 'Rejected';
+    END IF;
   END IF;
 
   RETURN NEW;
