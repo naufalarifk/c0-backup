@@ -199,8 +199,9 @@ export class InstitutionsService {
 
     if (Object.keys(errors).length > 0) {
       throw new UnprocessableEntityException({
+        code: 'VALIDATION_ERROR',
         message: 'Request validation failed',
-        errors,
+        details: errors,
       });
     }
 
@@ -292,7 +293,7 @@ export class InstitutionsService {
 
     return {
       invitation: {
-        id: result.id,
+        id: Number(result.id),
         userEmail: createInstitutionInviteDto.userEmail,
         role: createInstitutionInviteDto.role,
         invitedDate: invitationData.invitationDate.toISOString(),
@@ -570,7 +571,7 @@ export class InstitutionsService {
 
     const result = {
       invitation: {
-        id: String(invitation.id),
+        id: Number(invitation.id),
         userEmail: invitation.user_email,
         role: invitation.role,
         invitedDate: invitation.invited_date?.toISOString() || new Date().toISOString(),

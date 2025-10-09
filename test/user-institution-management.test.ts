@@ -183,8 +183,8 @@ suite('Institution Management API', function () {
       const profileData = await profileResponse.json();
       assertDefined(profileData);
       assertPropDefined(profileData, 'user');
-      assertPropString(profileData.user, 'institutionId');
-      institutionId = profileData.user.institutionId;
+      assertPropNumber(profileData.user, 'institutionId');
+      institutionId = String(profileData.user.institutionId);
     });
 
     it('should list institution members successfully', async function () {
@@ -302,8 +302,8 @@ suite('Institution Management API', function () {
       const profileData = await profileResponse.json();
       assertDefined(profileData);
       assertPropDefined(profileData, 'user');
-      assertPropString(profileData.user, 'institutionId');
-      institutionId = profileData.user.institutionId;
+      assertPropNumber(profileData.user, 'institutionId');
+      institutionId = String(profileData.user.institutionId);
     });
 
     it('should return 400 when trying to remove institution owner', async function () {
@@ -409,8 +409,8 @@ suite('Institution Management API', function () {
       const profileData = await profileResponse.json();
       assertDefined(profileData);
       assertPropDefined(profileData, 'user');
-      assertPropString(profileData.user, 'institutionId');
-      institutionId = profileData.user.institutionId;
+      assertPropNumber(profileData.user, 'institutionId');
+      institutionId = String(profileData.user.institutionId);
     });
 
     it('should list pending invitations successfully', async function () {
@@ -432,7 +432,7 @@ suite('Institution Management API', function () {
       if (data.invitations.length > 0) {
         assertPropArrayMapOf(data, 'invitations', invitation => {
           assertDefined(invitation);
-          assertPropString(invitation, 'id');
+          assertPropNumber(invitation, 'id');
           assertPropString(invitation, 'userEmail');
           assertProp(v => v === ('Finance' as const), invitation, 'role');
           assertPropString(invitation, 'invitedDate');
@@ -557,7 +557,7 @@ suite('Institution Management API', function () {
       assertPropDefined(data, 'invitation');
 
       const invitation = data.invitation;
-      assertPropString(invitation, 'id');
+      assertPropNumber(invitation, 'id');
       assertPropString(invitation, 'userEmail');
       assertPropString(invitation, 'role');
       strictEqual(invitation.userEmail, invitationData.userEmail);
@@ -583,7 +583,7 @@ suite('Institution Management API', function () {
       assertPropDefined(data, 'invitation');
 
       const invitation = data.invitation;
-      assertPropString(invitation, 'id');
+      assertPropNumber(invitation, 'id');
       assertPropString(invitation, 'userEmail');
       assertPropString(invitation, 'role');
       strictEqual(invitation.userEmail, invitationData.userEmail);
@@ -807,7 +807,7 @@ suite('Institution Management API', function () {
       assertPropString(data, 'message');
 
       const invitation = data.invitation;
-      assertPropString(invitation, 'id');
+      assertPropNumber(invitation, 'id');
       assertPropString(invitation, 'userEmail');
       assertPropString(invitation, 'role');
       assertPropString(invitation, 'invitedDate');
@@ -982,7 +982,7 @@ suite('Institution Management API', function () {
       assertPropDefined(data, 'invitation');
 
       const invitation = data.invitation;
-      assertPropString(invitation, 'id');
+      assertPropNumber(invitation, 'id');
       assertPropString(invitation, 'userEmail');
       assertProp(v => v === ('Finance' as const), invitation, 'role');
       assertPropString(invitation, 'invitedDate');

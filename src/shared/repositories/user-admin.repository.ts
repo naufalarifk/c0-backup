@@ -38,17 +38,49 @@ export abstract class UserAdminRepository extends UserUserRepository {
   async adminApprovesKyc(params: AdminApprovesKycParams): Promise<AdminApprovesKycResult> {
     const tx = await this.beginTransaction();
     try {
+      // First check if the KYC exists and get its details
+      const checkRows = await tx.sql`
+        SELECT id::text AS id, user_id::text AS "userId", verified_date, rejected_date
+        FROM user_kycs
+        WHERE id = ${params.kycId}
+      `;
+
+      if (checkRows.length === 0) {
+        await tx.rollbackTransaction();
+        throw new Error(`KYC with id ${params.kycId} not found`);
+      }
+
+      assertArrayMapOf(checkRows, function (row) {
+        assertDefined(row);
+        assertPropString(row, 'id');
+        assertPropString(row, 'userId');
+        assertProp(check(isNullable, isInstanceOf(Date)), row, 'verified_date');
+        assertProp(check(isNullable, isInstanceOf(Date)), row, 'rejected_date');
+        return row;
+      });
+
+      const existingKyc = checkRows[0];
+      if (existingKyc.verified_date !== null) {
+        await tx.rollbackTransaction();
+        throw new Error(`KYC with id ${params.kycId} is already verified`);
+      }
+      if (existingKyc.rejected_date !== null) {
+        await tx.rollbackTransaction();
+        throw new Error(`KYC with id ${params.kycId} is already rejected`);
+      }
+
       const rows = await tx.sql`
         UPDATE user_kycs
         SET verifier_user_id = ${params.verifierUserId},
-            verified_date = ${params.approvalDate}
-        WHERE id = ${params.kycId} AND verified_date IS NULL AND rejected_date IS NULL
+            verified_date = ${params.approvalDate},
+            status = 'Verified'
+        WHERE id = ${params.kycId}
         RETURNING id::text AS id, user_id::text AS "userId", verified_date AS "verifiedDate";
       `;
 
       if (rows.length === 0) {
         await tx.rollbackTransaction();
-        throw new Error('KYC approval failed');
+        throw new Error(`KYC approval UPDATE failed for id ${params.kycId}`);
       }
 
       assertArrayMapOf(rows, function (row) {
@@ -59,10 +91,17 @@ export abstract class UserAdminRepository extends UserUserRepository {
         return row;
       });
 
+      // Update the user's kyc_id reference after successful KYC approval
+      await tx.sql`
+        UPDATE users
+        SET kyc_id = ${params.kycId}
+        WHERE id = ${rows[0].userId}
+      `;
+
       await tx.commitTransaction();
       return rows[0];
     } catch (error) {
-      console.error('UserRepository', error);
+      console.error('UserRepository.adminApprovesKyc error:', error);
       await tx.rollbackTransaction();
       throw error;
     }
@@ -75,7 +114,8 @@ export abstract class UserAdminRepository extends UserUserRepository {
         UPDATE user_kycs
         SET verifier_user_id = ${params.verifierUserId},
             rejected_date = ${params.rejectionDate},
-            rejection_reason = ${params.rejectionReason}
+            rejection_reason = ${params.rejectionReason},
+            status = 'Rejected'
         WHERE id = ${params.kycId} AND verified_date IS NULL AND rejected_date IS NULL
         RETURNING id::text AS id, user_id::text AS "userId", rejected_date AS "rejectedDate";
       `;
