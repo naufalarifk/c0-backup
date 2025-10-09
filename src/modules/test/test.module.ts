@@ -10,6 +10,7 @@ import { BlockchainTestController } from './blockchain-test.controller';
 import { LoanTestController } from './loan-test.controller';
 import { PricefeedTestController } from './pricefeed-test.controller';
 import { UserTestController } from './user-test.controller';
+import { WithdrawalTestController } from './withdrawal-test.controller';
 
 @Module({
   imports: [SharedModule, LoansModule, LoanMatcherModule, NotificationModule],
@@ -20,6 +21,7 @@ import { UserTestController } from './user-test.controller';
     LoanTestController,
     PricefeedTestController,
     BlockchainTestController,
+    WithdrawalTestController,
   ],
 })
 export class TestModule {}

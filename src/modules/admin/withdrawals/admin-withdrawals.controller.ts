@@ -1,6 +1,16 @@
 import type { UserSession } from '../../auth/types';
 
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  ValidationPipe,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -13,12 +23,14 @@ import {
 import { Throttle } from '@nestjs/throttler';
 
 import { Auth } from '../../../decorators/auth.decorator';
+import { validationOptions } from '../../../shared/utils/validation-options';
 import { Session } from '../../auth/auth.decorator';
 import {
   AdminRefundDecisionDto,
   FailedWithdrawalDetailsDto,
   FailedWithdrawalListDto,
   FailedWithdrawalListQueryDto,
+  ProcessWithdrawalRefundDto,
   RefundProcessResponseDto,
 } from './admin-withdrawal.dto';
 import { AdminWithdrawalsService } from './admin-withdrawals.service';
@@ -380,5 +392,133 @@ export class AdminWithdrawalsController {
       averageResolutionTime: '4.2 hours',
       refundRate: 74.1,
     };
+  }
+
+  // OpenAPI-compliant endpoints (RF-046)
+  @Get()
+  @ApiOperation({
+    summary: 'Get withdrawal management queue',
+    description:
+      'Display and manage withdrawal requests queue for admin review (OpenAPI spec RF-046)',
+  })
+  @ApiQuery({
+    name: 'page',
+    description: 'Page number for pagination',
+    type: 'number',
+    required: false,
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    description: 'Number of items per page',
+    type: 'number',
+    required: false,
+    example: 20,
+  })
+  @ApiQuery({
+    name: 'status',
+    description: 'Filter by withdrawal status',
+    type: 'string',
+    required: false,
+    enum: ['Requested', 'Sent', 'Confirmed', 'Failed', 'RefundApproved', 'RefundRejected'],
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Withdrawal queue retrieved successfully',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - admin authentication required',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - insufficient admin privileges',
+  })
+  async getWithdrawalsQueue(
+    @Query('page') page = 1,
+    @Query('limit') limit = 20,
+    @Query('status') status?: string,
+    @Session() session?: UserSession,
+  ) {
+    return this.adminWithdrawalsService.getWithdrawalsQueue({
+      page: Number(page),
+      limit: Number(limit),
+      status,
+    });
+  }
+
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Get withdrawal details',
+    description:
+      'Retrieve detailed information about a specific withdrawal, including error reason when failed (OpenAPI spec RF-046)',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Withdrawal ID',
+    example: '12345',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Withdrawal details retrieved successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Withdrawal not found',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - admin authentication required',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - insufficient admin privileges',
+  })
+  async getWithdrawalDetails(@Param('id') id: string, @Session() session?: UserSession) {
+    return this.adminWithdrawalsService.getWithdrawalDetails(id);
+  }
+
+  @Post(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Process withdrawal refund',
+    description:
+      'Process refund for failed withdrawal after administrative review (OpenAPI spec RF-046, RF-025)',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Withdrawal ID',
+    example: '12345',
+  })
+  @ApiBody({
+    type: ProcessWithdrawalRefundDto,
+    description: 'Refund processing details',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Withdrawal refund processed successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - validation error',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Withdrawal not found',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - admin authentication required',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - insufficient admin privileges',
+  })
+  async processWithdrawalRefund(
+    @Param('id') id: string,
+    @Body(new ValidationPipe(validationOptions)) body: ProcessWithdrawalRefundDto,
+    @Session() session: UserSession,
+  ) {
+    return this.adminWithdrawalsService.processWithdrawalRefund(id, session.user.id, body);
   }
 }
