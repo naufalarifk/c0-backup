@@ -101,10 +101,7 @@ export async function createTestUser(options: TestUserOptions): Promise<TestUser
   await waitForEmailVerification(testSetup.mailpitUrl, email);
 
   // Sign in the user
-  await authClient.signIn.email({
-    email,
-    password,
-  });
+  await authClient.signIn.email({ email, password });
 
   // Set user type if specified
   if (userType) {
@@ -139,16 +136,11 @@ export async function createTestUser(options: TestUserOptions): Promise<TestUser
       }),
     });
 
-    if (!adminRoleResponse.ok) {
-      const errorText = await adminRoleResponse.text();
-      console.error(
-        `Admin role assignment failed with status ${adminRoleResponse.status}: ${errorText}`,
-      );
-    }
-    // Note: Not asserting admin role assignment success as endpoint may not exist in test environment
+    ok(adminRoleResponse.ok, 'Admin role assignment should be successful');
 
-    // Add a small delay to allow session to sync with database changes
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Sign out and sign back in to refresh the session with the updated admin role
+    await authClient.signOut();
+    await authClient.signIn.email({ email, password });
   }
 
   return {

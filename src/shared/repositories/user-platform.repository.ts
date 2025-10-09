@@ -31,7 +31,7 @@ export abstract class UserPlatformRepository extends UserAdminRepository {
       const rows = await tx.sql`
         INSERT INTO notifications (user_id, type, title, content, creation_date)
         VALUES (${params.userId}, ${params.type}, ${params.title}, ${params.content}, ${params.creationDate ?? new Date()})
-        RETURNING id, user_id AS "userId"
+        RETURNING id AS "id", user_id AS "userId"
       `;
 
       assertArrayMapOf(rows, function (row) {
@@ -47,6 +47,7 @@ export abstract class UserPlatformRepository extends UserAdminRepository {
 
       await tx.commitTransaction();
 
+      // Return directly with string conversion
       return {
         id: String(rows[0].id),
         userId: String(rows[0].userId),
@@ -68,7 +69,7 @@ export abstract class UserPlatformRepository extends UserAdminRepository {
     const rows = params.activeOnly
       ? await this.sql`
           SELECT
-            id,
+            id AS "id",
             push_token AS "pushToken",
             device_id AS "deviceId",
             device_type AS "deviceType",
@@ -83,7 +84,7 @@ export abstract class UserPlatformRepository extends UserAdminRepository {
         `
       : await this.sql`
           SELECT
-            id,
+            id AS "id",
             push_token AS "pushToken",
             device_id AS "deviceId",
             device_type AS "deviceType",
@@ -111,6 +112,7 @@ export abstract class UserPlatformRepository extends UserAdminRepository {
       return row;
     });
 
+    // Minimal mapping for type conversions
     const tokens = rows.map(row => ({
       id: String(row.id),
       pushToken: row.pushToken,
@@ -120,7 +122,7 @@ export abstract class UserPlatformRepository extends UserAdminRepository {
       deviceModel: row.deviceModel ?? null,
       currentSessionId: row.currentSessionId ?? null,
       isActive: Boolean(row.isActive),
-      lastUsedDate: new Date(row.lastUsedDate),
+      lastUsedDate: row.lastUsedDate,
     }));
 
     return { tokens };
@@ -138,7 +140,7 @@ export abstract class UserPlatformRepository extends UserAdminRepository {
       params.targetDevices === 'active_sessions'
         ? await this.sql`
             SELECT
-              id,
+              id AS "id",
               push_token AS "pushToken",
               device_id AS "deviceId",
               current_session_id AS "currentSessionId"
@@ -148,7 +150,7 @@ export abstract class UserPlatformRepository extends UserAdminRepository {
         : params.targetDevices === 'specific' && params.deviceIds?.length
           ? await this.sql`
               SELECT
-                id,
+                id AS "id",
                 push_token AS "pushToken",
                 device_id AS "deviceId",
                 current_session_id AS "currentSessionId"
@@ -157,7 +159,7 @@ export abstract class UserPlatformRepository extends UserAdminRepository {
             `
           : await this.sql`
               SELECT
-                id,
+                id AS "id",
                 push_token AS "pushToken",
                 device_id AS "deviceId",
                 current_session_id AS "currentSessionId"
@@ -174,6 +176,7 @@ export abstract class UserPlatformRepository extends UserAdminRepository {
       return row;
     });
 
+    // Minimal mapping for type conversions
     const tokens = rows.map(row => ({
       id: String(row.id),
       pushToken: row.pushToken,
@@ -199,8 +202,14 @@ export abstract class UserPlatformRepository extends UserAdminRepository {
         UPDATE push_tokens
         SET is_active = false, updated_date = NOW()
         WHERE last_used_date < ${thirtyDaysAgo} AND is_active = true
-        RETURNING id
+        RETURNING id AS "id"
       `;
+
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row, 'Failed to cleanup stale tokens');
+        assertProp(check(isString, isNumber), row, 'id');
+        return row;
+      });
 
       await tx.commitTransaction();
 
@@ -227,7 +236,7 @@ export abstract class UserPlatformRepository extends UserAdminRepository {
       // Get all tokens with session references
       const tokens = await tx.sql`
         SELECT
-          id,
+          id AS "id",
           current_session_id AS "currentSessionId"
         FROM push_tokens
         WHERE current_session_id IS NOT NULL

@@ -29,7 +29,7 @@ export class PlatformConfigDto {
     nullable: true,
   })
   @IsOptional()
-  adminUserName?: string;
+  adminUserName?: string | null;
 
   @ApiProperty({
     description: 'Platform provision rate applied to loans (e.g. 0.03 = 3.0%)',
