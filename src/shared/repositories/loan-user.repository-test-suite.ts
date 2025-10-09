@@ -158,7 +158,7 @@ export async function runLoanUserRepositoryTestSuite(
             offeredPrincipalAmount: '10000000000',
             minLoanPrincipalAmount: '1000000000',
             maxLoanPrincipalAmount: '5000000000',
-            interestRate: 12.5,
+            interestRate: 0.125,
             termInMonthsOptions: [3, 6, 12],
             createdDate: new Date('2025-10-30'),
             expirationDate: new Date('2025-12-31'),
@@ -181,7 +181,7 @@ export async function runLoanUserRepositoryTestSuite(
               principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
               principalAmount: '2000000000000000000000', // 2000 USDC in smallest units
               provisionAmount: '60000000000000000000', // 3% provision
-              maxInterestRate: 15.0,
+              maxInterestRate: 0.15,
               minLtvRatio: 0.6,
               maxLtvRatio: 0.75,
               termInMonths: 6,
