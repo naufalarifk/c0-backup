@@ -1,8 +1,10 @@
+import { isDefined } from 'class-validator';
 import {
   assertArrayMapOf,
   assertDefined,
   assertProp,
   assertPropNullableString,
+  assertPropNumber,
   assertPropString,
   check,
   hasPropArray,
@@ -618,7 +620,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
         assertProp(check(isString, isNumber), row, 'total');
         return row;
       });
-      totalCount = countRows && countRows.length > 0 ? Number((countRows as any)[0].total) : 0;
+      totalCount = countRows && countRows.length > 0 ? Number(countRows[0].total) : 0;
     } catch (error) {
       // If count query fails, default to 0 (empty results)
       totalCount = 0;
@@ -738,12 +740,24 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
       assertProp(check(isNullable, isInstanceOf(Date)), row, 'closedDate');
       assertProp(check(isNullable, isString), row, 'closureReason');
 
-      const r = row as any; // Cast to access JSONB properties
+      assertProp(isDefined, row, 'principalCurrency');
+      assertPropString(row.principalCurrency, 'blockchainKey');
+      assertPropString(row.principalCurrency, 'tokenId');
+      assertPropNumber(row.principalCurrency, 'decimals');
+      assertPropString(row.principalCurrency, 'symbol');
+      assertPropString(row.principalCurrency, 'name');
+
+      assertProp(isDefined, row, 'collateralCurrency');
+      assertPropString(row.collateralCurrency, 'blockchainKey');
+      assertPropString(row.collateralCurrency, 'tokenId');
+      assertPropNumber(row.collateralCurrency, 'decimals');
+      assertPropString(row.collateralCurrency, 'symbol');
+      assertPropString(row.collateralCurrency, 'name');
 
       return {
         id: row.id,
         loanOfferId: row.loanOfferId || undefined,
-        principalCurrency: r.principalCurrency,
+        principalCurrency: row.principalCurrency,
         principalAmount: row.principalAmount,
         provisionAmount: row.provisionAmount,
         maxInterestRate: Number(row.maxInterestRate),
@@ -751,7 +765,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
         maxLtvRatio: Number(row.maxLtvRatio),
         termInMonths: Number(row.termInMonths),
         liquidationMode: row.liquidationMode as 'Partial' | 'Full',
-        collateralCurrency: r.collateralCurrency,
+        collateralCurrency: row.collateralCurrency,
         collateralDepositAmount: row.collateralDepositAmount,
         status: row.status as
           | 'PendingCollateral'
