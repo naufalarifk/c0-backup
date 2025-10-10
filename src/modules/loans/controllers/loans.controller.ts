@@ -115,6 +115,12 @@ export class LoansController {
     description: 'Filter by user role',
   })
   @ApiQuery({
+    name: 'loanOfferId',
+    required: false,
+    type: String,
+    description: 'Filter by loan offer ID',
+  })
+  @ApiQuery({
     name: 'status',
     required: false,
     enum: LoanStatus,
@@ -130,6 +136,7 @@ export class LoansController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('role') role?: string,
+    @Query('loanOfferId') loanOfferId?: string,
     @Query('status') status?: string,
   ): Promise<LoanListResponseDto> {
     this.logger.log(`Listing loans for user: ${session.user.id}`);
@@ -137,6 +144,7 @@ export class LoansController {
       page: page || 1,
       limit: limit || 20,
       role: this.convertStringToUserRole(role),
+      loanOfferId,
       status: this.convertStringToLoanStatus(status),
     });
   }

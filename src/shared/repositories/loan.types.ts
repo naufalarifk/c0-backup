@@ -431,6 +431,7 @@ export type PlatformDisbursesPrincipalResult = {
 export type UserViewsLoansParams = {
   userId: string;
   role?: 'borrower' | 'lender'; // Filter by user role in loan
+  loanOfferId?: string; // Filter by loan offer ID
   page?: number;
   limit?: number;
   status?: LoanStatus;
