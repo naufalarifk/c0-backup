@@ -262,18 +262,18 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
         throw new Error('Failed to create exchange rate record');
       }
 
-      const result = assertArrayMapOf(exchangeRateInsertRows, function (row) {
+      assertArrayMapOf(exchangeRateInsertRows, function (row) {
         assertDefined(row, 'Exchange rate insert failed');
         assertPropString(row, 'id');
         assertPropString(row, 'bidPrice');
         assertPropString(row, 'askPrice');
         assertProp(isInstanceOf(Date), row, 'sourceDate');
         return row;
-      })[0];
+      });
 
       await tx.commitTransaction();
 
-      return result;
+      return exchangeRateInsertRows[0];
     } catch (error) {
       await tx.rollbackTransaction();
       throw error;
@@ -497,19 +497,20 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   ): Promise<BorrowerUpdatesLoanApplicationResult> {
     const tx = await this.beginTransaction();
     try {
-      const currentApplication = assertArrayMapOf(
-        await tx.sql`
+      const currentApplicationRows = await tx.sql`
         SELECT status, expired_date as "expiredDate"
         FROM loan_applications
         WHERE id = ${params.loanApplicationId} AND borrower_user_id = ${params.borrowerUserId}
-      `,
-        function (row) {
-          assertDefined(row, 'Current application validation failed');
-          assertPropString(row, 'status');
-          assertProp(check(isNullable, isInstanceOf(Date)), row, 'expiredDate');
-          return row;
-        },
-      )[0];
+      `;
+
+      assertArrayMapOf(currentApplicationRows, function (row) {
+        assertDefined(row, 'Current application validation failed');
+        assertPropString(row, 'status');
+        assertProp(check(isNullable, isInstanceOf(Date)), row, 'expiredDate');
+        return row;
+      });
+
+      const currentApplication = currentApplicationRows[0];
 
       if (!currentApplication) {
         throw new Error('Loan application not found or access denied');
@@ -542,8 +543,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           throw new Error(`Invalid action: ${params.action}`);
       }
 
-      const updatedApplication = assertArrayMapOf(
-        await tx.sql`
+      const updatedApplicationRows = await tx.sql`
         UPDATE loan_applications
         SET
           status = ${newStatus},
@@ -556,16 +556,18 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           status,
           expired_date as "expirationDate",
           closure_reason as "closureReason"
-      `,
-        function (row) {
-          assertDefined(row, 'Updated application validation failed');
-          assertPropString(row, 'id');
-          assertPropString(row, 'status');
-          assertProp(isInstanceOf(Date), row, 'expirationDate');
-          assertProp(check(isNullable, isString), row, 'closureReason');
-          return row;
-        },
-      )[0];
+      `;
+
+      assertArrayMapOf(updatedApplicationRows, function (row) {
+        assertDefined(row, 'Updated application validation failed');
+        assertPropString(row, 'id');
+        assertPropString(row, 'status');
+        assertProp(isInstanceOf(Date), row, 'expirationDate');
+        assertProp(check(isNullable, isString), row, 'closureReason');
+        return row;
+      });
+
+      const updatedApplication = updatedApplicationRows[0];
 
       if (!updatedApplication) {
         throw new Error('Loan application update failed');
@@ -802,8 +804,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   async borrowerRepaysLoan(params: BorrowerRepaysLoanParams): Promise<BorrowerRepaysLoanResult> {
     const tx = await this.beginTransaction();
     try {
-      const loan = assertArrayMapOf(
-        await tx.sql`
+      const loanRows = await tx.sql`
         SELECT
           l.id,
           l.principal_currency_blockchain_key,
@@ -819,21 +820,23 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
         JOIN currencies c ON l.principal_currency_blockchain_key = c.blockchain_key
           AND l.principal_currency_token_id = c.token_id
         WHERE l.id = ${params.loanId} AND la.borrower_user_id = ${params.borrowerUserId}
-      `,
-        function (row) {
-          assertDefined(row, 'Loan validation failed');
-          assertProp(check(isString, isNumber), row, 'id');
-          assertPropString(row, 'principal_currency_blockchain_key');
-          assertPropString(row, 'principal_currency_token_id');
-          assertProp(check(isString, isNumber), row, 'repayment_amount');
-          assertPropString(row, 'status');
-          assertProp(check(isString, isNumber), row, 'borrower_user_id');
-          assertProp(check(isString, isNumber), row, 'decimals');
-          assertPropString(row, 'symbol');
-          assertPropString(row, 'name');
-          return row;
-        },
-      )[0];
+      `;
+
+      assertArrayMapOf(loanRows, function (row) {
+        assertDefined(row, 'Loan validation failed');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertPropString(row, 'principal_currency_blockchain_key');
+        assertPropString(row, 'principal_currency_token_id');
+        assertProp(check(isString, isNumber), row, 'repayment_amount');
+        assertPropString(row, 'status');
+        assertProp(check(isString, isNumber), row, 'borrower_user_id');
+        assertProp(check(isString, isNumber), row, 'decimals');
+        assertPropString(row, 'symbol');
+        assertPropString(row, 'name');
+        return row;
+      });
+
+      const loan = loanRows[0];
 
       if (!loan) {
         throw new Error('Loan not found or access denied');
@@ -844,9 +847,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
       }
 
       // Use provided wallet information for repayment invoice
-
-      const invoice = assertArrayMapOf(
-        await tx.sql`
+      const invoiceRows = await tx.sql`
         INSERT INTO invoices (
           user_id,
           currency_blockchain_key,
@@ -883,19 +884,21 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           due_date,
           expired_date,
           paid_date
-      `,
-        function (row) {
-          assertDefined(row, 'Repayment invoice creation failed');
-          assertProp(check(isString, isNumber), row, 'id');
-          assertProp(check(isString, isNumber), row, 'invoiced_amount');
-          assertPropString(row, 'status');
-          assertProp(isInstanceOf(Date), row, 'invoice_date');
-          assertProp(check(isNullable, isInstanceOf(Date)), row, 'due_date');
-          assertProp(check(isNullable, isInstanceOf(Date)), row, 'expired_date');
-          assertProp(check(isNullable, isInstanceOf(Date)), row, 'paid_date');
-          return row;
-        },
-      )[0];
+      `;
+
+      assertArrayMapOf(invoiceRows, function (row) {
+        assertDefined(row, 'Repayment invoice creation failed');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isString, isNumber), row, 'invoiced_amount');
+        assertPropString(row, 'status');
+        assertProp(isInstanceOf(Date), row, 'invoice_date');
+        assertProp(check(isNullable, isInstanceOf(Date)), row, 'due_date');
+        assertProp(check(isNullable, isInstanceOf(Date)), row, 'expired_date');
+        assertProp(check(isNullable, isInstanceOf(Date)), row, 'paid_date');
+        return row;
+      });
+
+      const invoice = invoiceRows[0];
 
       // Create loan repayment record
       await tx.sql`
@@ -951,8 +954,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   async borrowerRequestsEarlyLiquidationEstimate(
     params: BorrowerRequestsEarlyLiquidationEstimateParams,
   ): Promise<BorrowerRequestsEarlyLiquidationEstimateResult> {
-    const loan = assertArrayMapOf(
-      await this.sql`
+    const loanRows = await this.sql`
       SELECT
         l.id,
         l.principal_amount,
@@ -982,27 +984,29 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
       JOIN currencies cc ON la.collateral_currency_blockchain_key = cc.blockchain_key
         AND la.collateral_currency_token_id = cc.token_id
       WHERE l.id = ${params.loanId} AND la.borrower_user_id = ${params.borrowerUserId}
-    `,
-      function (row) {
-        assertDefined(row, 'Loan validation failed');
-        assertProp(check(isString, isNumber), row, 'id');
-        assertProp(check(isString, isNumber), row, 'principal_amount');
-        assertProp(check(isString, isNumber), row, 'interest_amount');
-        assertProp(check(isString, isNumber), row, 'premi_amount');
-        assertProp(check(isString, isNumber), row, 'liquidation_fee_amount');
-        assertProp(check(isString, isNumber), row, 'repayment_amount');
-        assertProp(check(isString, isNumber), row, 'collateral_amount');
-        assertPropString(row, 'status');
-        assertProp(check(isString, isNumber), row, 'mc_ltv_ratio');
-        assertPropString(row, 'liquidation_mode');
-        assertPropString(row, 'collateral_currency_blockchain_key');
-        assertPropString(row, 'collateral_currency_token_id');
-        assertProp(check(isString, isNumber), row, 'collateral_decimals');
-        assertPropString(row, 'collateral_symbol');
-        assertPropString(row, 'collateral_name');
-        return row;
-      },
-    )[0];
+    `;
+
+    assertArrayMapOf(loanRows, function (row) {
+      assertDefined(row, 'Loan validation failed');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'principal_amount');
+      assertProp(check(isString, isNumber), row, 'interest_amount');
+      assertProp(check(isString, isNumber), row, 'premi_amount');
+      assertProp(check(isString, isNumber), row, 'liquidation_fee_amount');
+      assertProp(check(isString, isNumber), row, 'repayment_amount');
+      assertProp(check(isString, isNumber), row, 'collateral_amount');
+      assertPropString(row, 'status');
+      assertProp(check(isString, isNumber), row, 'mc_ltv_ratio');
+      assertPropString(row, 'liquidation_mode');
+      assertPropString(row, 'collateral_currency_blockchain_key');
+      assertPropString(row, 'collateral_currency_token_id');
+      assertProp(check(isString, isNumber), row, 'collateral_decimals');
+      assertPropString(row, 'collateral_symbol');
+      assertPropString(row, 'collateral_name');
+      return row;
+    });
+
+    const loan = loanRows[0];
 
     if (!loan) {
       throw new Error('Loan not found or access denied');
@@ -1012,8 +1016,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
       throw new Error(`Cannot estimate liquidation for loan with status: ${loan.status}`);
     }
 
-    const exchangeRate = assertArrayMapOf(
-      await this.sql`
+    const exchangeRateRows = await this.sql`
       SELECT
         id,
         bid_price,
@@ -1024,16 +1027,18 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
         AND source_date <= ${params.estimateDate.toISOString()}
       ORDER BY source_date DESC
       LIMIT 1
-    `,
-      function (row) {
-        assertDefined(row, 'Exchange rate validation failed');
-        assertProp(check(isString, isNumber), row, 'id');
-        assertProp(check(isString, isNumber), row, 'bid_price');
-        assertProp(check(isString, isNumber), row, 'ask_price');
-        assertProp(isInstanceOf(Date), row, 'source_date');
-        return row;
-      },
-    )[0];
+    `;
+
+    assertArrayMapOf(exchangeRateRows, function (row) {
+      assertDefined(row, 'Exchange rate validation failed');
+      assertProp(check(isString, isNumber), row, 'id');
+      assertProp(check(isString, isNumber), row, 'bid_price');
+      assertProp(check(isString, isNumber), row, 'ask_price');
+      assertProp(isInstanceOf(Date), row, 'source_date');
+      return row;
+    });
+
+    const exchangeRate = exchangeRateRows[0];
 
     if (!exchangeRate) {
       throw new Error('Exchange rate not found for collateral currency');
@@ -1097,22 +1102,23 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   ): Promise<BorrowerRequestsEarlyLiquidationResult> {
     const tx = await this.beginTransaction();
     try {
-      const loan = assertArrayMapOf(
-        await tx.sql`
+      const loanRows = await tx.sql`
         SELECT
           l.id,
           l.status
         FROM loans l
         JOIN loan_applications la ON l.loan_application_id = la.id
         WHERE l.id = ${params.loanId} AND la.borrower_user_id = ${params.borrowerUserId}
-      `,
-        function (row) {
-          assertDefined(row, 'Loan validation failed');
-          assertProp(check(isString, isNumber), row, 'id');
-          assertPropString(row, 'status');
-          return row;
-        },
-      )[0];
+      `;
+
+      assertArrayMapOf(loanRows, function (row) {
+        assertDefined(row, 'Loan validation failed');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertPropString(row, 'status');
+        return row;
+      });
+
+      const loan = loanRows[0];
 
       if (!loan) {
         throw new Error('Loan not found or access denied');
@@ -1179,8 +1185,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   async borrowerGetsLoanAmounts(
     params: BorrowerGetsLoanAmountsParams,
   ): Promise<BorrowerGetsLoanAmountsResult> {
-    const result = assertArrayMapOf(
-      await this.sql`
+    const rows = await this.sql`
       SELECT
         l.id::text as "loanId",
         l.repayment_amount::text as "repaymentAmount",
@@ -1192,19 +1197,21 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
       FROM loans l
       JOIN loan_applications la ON l.loan_application_id = la.id
       WHERE l.id = ${params.loanId} AND la.borrower_user_id = ${params.borrowerUserId}
-    `,
-      function (row) {
-        assertDefined(row, 'Loan validation failed');
-        assertPropString(row, 'loanId');
-        assertPropString(row, 'repaymentAmount');
-        assertPropString(row, 'premiAmount');
-        assertPropString(row, 'liquidationFeeAmount');
-        assertPropString(row, 'principalAmount');
-        assertPropString(row, 'interestAmount');
-        assertPropString(row, 'status');
-        return row;
-      },
-    )[0];
+    `;
+
+    assertArrayMapOf(rows, function (row) {
+      assertDefined(row, 'Loan validation failed');
+      assertPropString(row, 'loanId');
+      assertPropString(row, 'repaymentAmount');
+      assertPropString(row, 'premiAmount');
+      assertPropString(row, 'liquidationFeeAmount');
+      assertPropString(row, 'principalAmount');
+      assertPropString(row, 'interestAmount');
+      assertPropString(row, 'status');
+      return row;
+    });
+
+    const result = rows[0];
 
     if (!result) {
       throw new Error('Loan not found or access denied');
@@ -1221,20 +1228,21 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   ): Promise<PlatformUpdatesLiquidationTargetAmountResult> {
     const tx = await this.beginTransaction();
     try {
-      const result = assertArrayMapOf(
-        await tx.sql`
+      const rows = await tx.sql`
         UPDATE loan_liquidations
         SET liquidation_target_amount = ${params.liquidationTargetAmount}
         WHERE loan_id = ${params.loanId}
         RETURNING loan_id::text as "loanId", liquidation_target_amount::text as "liquidationTargetAmount"
-      `,
-        function (row) {
-          assertDefined(row, 'Liquidation update failed');
-          assertPropString(row, 'loanId');
-          assertPropString(row, 'liquidationTargetAmount');
-          return row;
-        },
-      )[0];
+      `;
+
+      assertArrayMapOf(rows, function (row) {
+        assertDefined(row, 'Liquidation update failed');
+        assertPropString(row, 'loanId');
+        assertPropString(row, 'liquidationTargetAmount');
+        return row;
+      });
+
+      const result = rows[0];
 
       if (!result) {
         throw new Error(`Liquidation record not found for loan ${params.loanId}`);
@@ -1254,8 +1262,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
   ): Promise<BorrowerRequestsEarlyRepaymentResult> {
     const tx = await this.beginTransaction();
     try {
-      const loan = assertArrayMapOf(
-        await tx.sql`
+      const loanRows = await tx.sql`
         SELECT
           l.id,
           l.principal_amount,
@@ -1277,26 +1284,28 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
         JOIN currencies c ON l.principal_currency_blockchain_key = c.blockchain_key
           AND l.principal_currency_token_id = c.token_id
         WHERE l.id = ${params.loanId} AND la.borrower_user_id = ${params.borrowerUserId}
-      `,
-        function (row) {
-          assertDefined(row, 'Loan validation failed');
-          assertProp(check(isString, isNumber), row, 'id');
-          assertProp(check(isString, isNumber), row, 'principal_amount');
-          assertProp(check(isString, isNumber), row, 'interest_amount');
-          assertProp(check(isString, isNumber), row, 'premi_amount');
-          assertProp(check(isString, isNumber), row, 'repayment_amount');
-          assertPropString(row, 'principal_currency_blockchain_key');
-          assertPropString(row, 'principal_currency_token_id');
-          assertPropString(row, 'status');
-          assertProp(isInstanceOf(Date), row, 'origination_date');
-          assertProp(isInstanceOf(Date), row, 'maturity_date');
-          assertProp(check(isString, isNumber), row, 'term_in_months');
-          assertProp(check(isString, isNumber), row, 'decimals');
-          assertPropString(row, 'symbol');
-          assertPropString(row, 'name');
-          return row;
-        },
-      )[0];
+      `;
+
+      assertArrayMapOf(loanRows, function (row) {
+        assertDefined(row, 'Loan validation failed');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isString, isNumber), row, 'principal_amount');
+        assertProp(check(isString, isNumber), row, 'interest_amount');
+        assertProp(check(isString, isNumber), row, 'premi_amount');
+        assertProp(check(isString, isNumber), row, 'repayment_amount');
+        assertPropString(row, 'principal_currency_blockchain_key');
+        assertPropString(row, 'principal_currency_token_id');
+        assertPropString(row, 'status');
+        assertProp(isInstanceOf(Date), row, 'origination_date');
+        assertProp(isInstanceOf(Date), row, 'maturity_date');
+        assertProp(check(isString, isNumber), row, 'term_in_months');
+        assertProp(check(isString, isNumber), row, 'decimals');
+        assertPropString(row, 'symbol');
+        assertPropString(row, 'name');
+        return row;
+      });
+
+      const loan = loanRows[0];
 
       if (!loan) {
         throw new Error('Loan not found or access denied');
@@ -1312,8 +1321,7 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
 
       // Use provided wallet information for early repayment invoice
 
-      const invoice = assertArrayMapOf(
-        await tx.sql`
+      const invoiceRows = await tx.sql`
         INSERT INTO invoices (
           user_id,
           currency_blockchain_key,
@@ -1350,19 +1358,21 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
           due_date,
           expired_date,
           paid_date
-      `,
-        function (row) {
-          assertDefined(row, 'Early repayment invoice creation failed');
-          assertProp(check(isString, isNumber), row, 'id');
-          assertProp(check(isString, isNumber), row, 'invoiced_amount');
-          assertPropString(row, 'status');
-          assertProp(isInstanceOf(Date), row, 'invoice_date');
-          assertProp(check(isNullable, isInstanceOf(Date)), row, 'due_date');
-          assertProp(check(isNullable, isInstanceOf(Date)), row, 'expired_date');
-          assertProp(check(isNullable, isInstanceOf(Date)), row, 'paid_date');
-          return row;
-        },
-      )[0];
+      `;
+
+      assertArrayMapOf(invoiceRows, function (row) {
+        assertDefined(row, 'Early repayment invoice creation failed');
+        assertProp(check(isString, isNumber), row, 'id');
+        assertProp(check(isString, isNumber), row, 'invoiced_amount');
+        assertPropString(row, 'status');
+        assertProp(isInstanceOf(Date), row, 'invoice_date');
+        assertProp(check(isNullable, isInstanceOf(Date)), row, 'due_date');
+        assertProp(check(isNullable, isInstanceOf(Date)), row, 'expired_date');
+        assertProp(check(isNullable, isInstanceOf(Date)), row, 'paid_date');
+        return row;
+      });
+
+      const invoice = invoiceRows[0];
 
       await tx.sql`
         INSERT INTO loan_repayments (
