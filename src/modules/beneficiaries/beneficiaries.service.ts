@@ -72,6 +72,7 @@ export class BeneficiariesService {
       address: createBeneficiaryDto.address,
       blockchain: createBeneficiaryDto.blockchainKey,
       label: createBeneficiaryDto.label, // Include label in JWT
+      callbackURL: createBeneficiaryDto.callbackURL, // Include callbackURL in JWT
     };
 
     const verificationToken = await this.generateBeneficiaryToken(tokenPayload);
@@ -83,7 +84,13 @@ export class BeneficiariesService {
     });
 
     // Send verification email with token
-    await this.sendVerificationEmail(userId, verificationToken, createBeneficiaryDto);
+    await this.sendVerificationEmail(
+      userId,
+      verificationToken,
+      createBeneficiaryDto.blockchainKey,
+      createBeneficiaryDto.address,
+      createBeneficiaryDto.callbackURL,
+    );
 
     // Return success without storing in database
     return ResponseHelper.success('Verification email sent', {
@@ -207,11 +214,38 @@ export class BeneficiariesService {
     // tokenPayload will never be null here since errors are thrown above
     ensure(tokenPayload, 'Token verification failed');
 
-    // Re-validate that address is still unique (in case it was added elsewhere)
-    await this.validateUniqueAddress(tokenPayload.userId, {
-      blockchainKey: tokenPayload.blockchain,
-      address: tokenPayload.address,
-    } as CreateBeneficiaryDto);
+    // Check if beneficiary already exists (already verified case)
+    const existingBeneficiaries = await this.repo.userViewsWithdrawalBeneficiaries({
+      userId: tokenPayload.userId,
+    });
+
+    const existingBeneficiary = existingBeneficiaries.beneficiaries.find(
+      beneficiary =>
+        beneficiary.blockchainKey === tokenPayload.blockchain &&
+        beneficiary.address.toLowerCase() === tokenPayload.address.toLowerCase(),
+    );
+
+    // Determine redirect URL: prioritize URL from query params, then from token, then default
+    const redirectURL = verifyDto.callbackURL || tokenPayload.callbackURL || '/';
+
+    // If beneficiary already exists, return success without creating duplicate
+    if (existingBeneficiary) {
+      this.logger.log('Beneficiary already verified - skipping duplicate creation', {
+        beneficiaryId: existingBeneficiary.id,
+        userId: tokenPayload.userId,
+        address: tokenPayload.address,
+      });
+
+      return ResponseHelper.success('Beneficiary address already activated', {
+        id: existingBeneficiary.id,
+        blockchainKey: existingBeneficiary.blockchainKey,
+        address: existingBeneficiary.address,
+        label: tokenPayload.label,
+        status: 'active',
+        message: 'This withdrawal address has already been verified and is active.',
+        redirectURL,
+      });
+    }
 
     // Create beneficiary in database (immediately active)
     const beneficiary = await this.repo.userRegistersWithdrawalBeneficiary({
@@ -225,9 +259,6 @@ export class BeneficiariesService {
       userId: tokenPayload.userId,
       address: tokenPayload.address,
     });
-
-    // Determine redirect URL: prioritize URL from query params, then from token, then default
-    const redirectURL = verifyDto.callbackURL || '/';
 
     return ResponseHelper.success('Beneficiary address activated', {
       id: beneficiary.id,
@@ -245,26 +276,48 @@ export class BeneficiariesService {
    *
    * @param userId - User ID
    * @param token - Verification token
-   * @param beneficiaryDto - Beneficiary details
+   * @param blockchainKey - Blockchain identifier
+   * @param address - Beneficiary address
+   * @param callbackURL - Optional callback URL
    */
   private async sendVerificationEmail(
     userId: string,
     token: string,
-    beneficiaryDto: CreateBeneficiaryDto,
+    blockchainKey: string,
+    address: string,
+    callbackURL?: string,
   ): Promise<void> {
     // Get user details for email
     const user = await this.repo.userViewsProfile({ userId });
     ensureExists(user, 'User not found');
     assertPropString(user, 'email', 'User email must be a string');
 
+    // Extract base URL from authConfig.url (remove /api/auth suffix if present)
+    const authUrl = this.configService.authConfig.url;
+    const baseUrl = authUrl.replace(/\/api\/auth$/, '');
+
+    // Build verification URL with callbackURL if provided
+    let verificationUrl = `${baseUrl}/api/beneficiaries/verify?token=${token}`;
+    if (callbackURL) {
+      verificationUrl += `&callbackURL=${callbackURL}`;
+    }
+
+    this.logger.log('Sending beneficiary verification email', {
+      userId,
+      address,
+      blockchainKey,
+      callbackURL,
+      verificationUrl,
+    });
+
     // Queue verification email notification
     const notificationData: BeneficiaryVerificationNotificationData = {
       type: 'BeneficiaryVerification',
-      url: `${this.configService.authConfig.url}/api/beneficiaries/verify?token=${token}&callbackURL=${beneficiaryDto.callbackURL || '/'}`,
+      url: verificationUrl,
       userId: user.id,
       email: user.email,
-      blockchain: beneficiaryDto.blockchainKey,
-      address: beneficiaryDto.address,
+      blockchain: blockchainKey,
+      address: address,
     };
     await this.notificationQueueService.queueNotification(notificationData);
   }
@@ -299,6 +352,7 @@ export class BeneficiariesService {
     address: string;
     blockchain: string;
     label?: string;
+    callbackURL?: string;
   } | null> {
     try {
       const result = await jwtVerify(
@@ -313,6 +367,7 @@ export class BeneficiariesService {
         address: string;
         blockchain: string;
         label?: string;
+        callbackURL?: string;
       };
     } catch (error) {
       const tokenPreview = token.slice(0, 20) + '...';

@@ -38,7 +38,7 @@ export class BeneficiariesController {
   }
 
   @Post()
-  @Throttle({ default: { limit: 3, ttl: 3_600 * 1_000 } })
+  @Throttle({ default: { limit: 30, ttl: 3_600 * 1_000 } })
   @ApiOperation({
     summary: 'Register withdrawal address',
     description: 'Register a new beneficiary address for cryptocurrency withdrawals',
@@ -87,6 +87,7 @@ export class BeneficiariesController {
   }
 
   @Get('verify')
+  @Auth({ public: true })
   @ApiOperation({
     summary: 'Verify beneficiary address',
     description:
@@ -133,10 +134,9 @@ export class BeneficiariesController {
     } catch (error) {
       // On error, redirect to callback URL with error status
       const errorRedirectURL = callbackURL || '/';
+      const errorMessage = encodeURIComponent(error?.message || 'Verification failed');
 
-      return res.redirect(
-        `${errorRedirectURL}?status=error&message=${error?.message || 'Verification failed'}`,
-      );
+      return res.redirect(`${errorRedirectURL}?status=error&message=${errorMessage}`);
     }
   }
 }

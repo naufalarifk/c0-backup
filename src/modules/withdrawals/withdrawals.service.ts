@@ -88,7 +88,7 @@ export class WithdrawalsService {
 
     // 5. Beneficiary validation (check ownership)
     const { beneficiaries } = await this.repo.userViewsWithdrawalBeneficiaries({ userId: user.id });
-    const beneficiary = beneficiaries.find(b => b.id === createWithdrawalDto.beneficiaryId);
+    const beneficiary = beneficiaries.find(b => b.id === Number(createWithdrawalDto.beneficiaryId));
     ensureExists(beneficiary, 'Withdrawal address not found. Please add it first');
 
     // 6. Amount limits validation (min/max withdrawal amounts)

@@ -326,12 +326,14 @@ export abstract class FinanceUserRepsitory extends UserRepository {
         INSERT INTO beneficiaries (
           user_id,
           blockchain_key,
-          address
+          address,
+          verified_date
         )
         VALUES (
           ${params.userId},
           ${params.blockchainKey},
-          ${params.address}
+          ${params.address},
+          NOW()
         )
         RETURNING
           id,
@@ -366,13 +368,21 @@ export abstract class FinanceUserRepsitory extends UserRepository {
   ): Promise<UserViewsWithdrawalBeneficiariesResult> {
     const rows = await this.sql`
       SELECT
-        id,
-        user_id AS "userId",
-        blockchain_key AS "blockchainKey",
-        address
-      FROM beneficiaries
-      WHERE user_id = ${params.userId}
-      ORDER BY blockchain_key, address
+        b.id,
+        b.user_id AS "userId",
+        b.blockchain_key AS "blockchainKey",
+        b.address,
+        b.label,
+        b.created_date AS "createdDate",
+        b.verified_date AS "verifiedDate",
+        bc.key AS "blockchain_key",
+        bc.name AS "blockchain_name",
+        bc.short_name AS "blockchain_short_name",
+        bc.image AS "blockchain_image"
+      FROM beneficiaries b
+      JOIN blockchains bc ON b.blockchain_key = bc.key
+      WHERE b.user_id = ${params.userId}
+      ORDER BY b.blockchain_key, b.address
     `;
 
     assertArrayMapOf(rows, function (row) {
@@ -381,9 +391,24 @@ export abstract class FinanceUserRepsitory extends UserRepository {
       assertProp(check(isString, isNumber), row, 'userId');
       assertPropString(row, 'blockchainKey');
       assertPropString(row, 'address');
+      assertProp(check(isNullable, isString), row, 'label');
+      assertProp(isInstanceOf(Date), row, 'createdDate');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'verifiedDate');
+      assertPropString(row, 'blockchain_key');
+      assertPropString(row, 'blockchain_name');
+      assertPropString(row, 'blockchain_short_name');
+      assertPropString(row, 'blockchain_image');
 
-      setPropValue(row, 'id', String(row.id));
+      setPropValue(row, 'id', Number(row.id));
       setPropValue(row, 'userId', String(row.userId));
+      setPropValue(row, 'verifiedDate', row.verifiedDate || null);
+      setPropValue(row, 'isActive', row.verifiedDate !== null);
+      setPropValue(row, 'blockchain', {
+        key: row.blockchain_key,
+        name: row.blockchain_name,
+        shortName: row.blockchain_short_name,
+        image: row.blockchain_image,
+      });
       return row;
     });
 

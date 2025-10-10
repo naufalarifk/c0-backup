@@ -300,4 +300,87 @@ export class AdminTestController {
       processingAdmin: 'test-admin',
     };
   }
+
+  @Post('mark-kyc-verified-by-email')
+  async markKycVerifiedByEmail(@Body() body: { email: string }) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Test endpoints are not available in production');
+    }
+
+    const { email } = body;
+    if (!email || typeof email !== 'string') {
+      throw new BadRequestException('email is required');
+    }
+
+    const userRows = await this.repo.sql`
+      SELECT id FROM users WHERE email = ${email}
+    `;
+
+    if (userRows.length === 0) {
+      throw new NotFoundException(`User with email ${email} not found`);
+    }
+
+    const user = userRows[0];
+    assertDefined(user);
+    assertProp(check(isString, isNumber), user, 'id');
+    const userId = String(user.id);
+
+    // Delete any existing KYC records for this user
+    await this.repo.sql`
+      DELETE FROM user_kycs WHERE user_id = ${userId}
+    `;
+
+    // Generate unique NIK for test using user ID (pad to 16 digits)
+    const testNik = userId.toString().padStart(16, '0');
+
+    // Create a verified KYC record directly
+    await this.repo.sql`
+      INSERT INTO user_kycs (
+        user_id,
+        id_card_photo,
+        selfie_with_id_card_photo,
+        nik,
+        name,
+        birth_city,
+        birth_date,
+        province,
+        city,
+        district,
+        subdistrict,
+        address,
+        postal_code,
+        status,
+        submitted_date,
+        verified_date,
+        verifier_user_id
+      )
+      VALUES (
+        ${userId},
+        'test://id-card.jpg',
+        'test://selfie-with-id.jpg',
+        ${testNik},
+        'Test User',
+        'Jakarta',
+        '1990-01-01',
+        'DKI Jakarta',
+        'Jakarta Pusat',
+        'Menteng',
+        'Gondangdia',
+        '123 Test Street',
+        '10310',
+        'Verified',
+        NOW(),
+        NOW(),
+        1
+      )
+    `;
+
+    this.#logger.debug(`Marked user ${userId} (${email}) as KYC verified for testing`);
+
+    return {
+      success: true,
+      message: `User ${email} has been marked as KYC verified`,
+      userId: Number(userId),
+    };
+  }
 }

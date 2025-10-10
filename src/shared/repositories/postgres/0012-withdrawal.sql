@@ -4,7 +4,10 @@ CREATE TABLE IF NOT EXISTS beneficiaries (
   id BIGSERIAL PRIMARY KEY,
   user_id BIGINT NOT NULL REFERENCES users (id),
   blockchain_key VARCHAR(64) NOT NULL,
-  address VARCHAR(64) NOT NULL
+  address VARCHAR(64) NOT NULL,
+  label VARCHAR(255),
+  created_date TIMESTAMP NOT NULL DEFAULT NOW(),
+  verified_date TIMESTAMP
 );
 
 ALTER TABLE beneficiaries DROP CONSTRAINT IF EXISTS fk_beneficiaries_currency;
@@ -12,6 +15,9 @@ ALTER TABLE beneficiaries DROP COLUMN IF EXISTS currency_blockchain_key;
 ALTER TABLE beneficiaries DROP COLUMN IF EXISTS currency_token_id;
 ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS blockchain_key VARCHAR(64);
 ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS address VARCHAR(64);
+ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS label VARCHAR(255);
+ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS created_date TIMESTAMP NOT NULL DEFAULT NOW();
+ALTER TABLE beneficiaries ADD COLUMN IF NOT EXISTS verified_date TIMESTAMP;
 DO $$ 
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'fk_beneficiaries_blockchain') THEN

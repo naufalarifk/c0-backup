@@ -44,7 +44,7 @@ Write the audit report in @$spec_discrepency_report_path
 
 claude \
   --dangerously-skip-permissions \
-  --model claude-sonnet-4-20250514 \
+  --model claude-sonnet-4-5-20250929 \
   --append-system-prompt "Claude shall act as a project manager and backend lead developer, ensuring the API specification aligns perfectly with the UI textual descriptions." \
   --print \
   "$translation_prompt"

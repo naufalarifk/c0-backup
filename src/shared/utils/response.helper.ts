@@ -3,9 +3,9 @@
  */
 
 export interface ApiSuccessResponse<T = unknown> {
-  message: string;
+  success: boolean;
   data: T;
-  timestamp: string;
+  message?: string;
 }
 
 export interface ApiErrorResponse {
@@ -22,9 +22,9 @@ export class ResponseHelper {
    */
   static success<T>(message: string, data: T): ApiSuccessResponse<T> {
     return {
-      message,
+      success: true,
       data,
-      timestamp: new Date().toLocaleString(),
+      message,
     };
   }
 

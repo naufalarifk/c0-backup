@@ -312,11 +312,15 @@ export interface UserViewsWithdrawalBeneficiariesParams {
 }
 
 export interface WithdrawalBeneficiaryListItem {
-  id: string;
+  id: number;
   userId: string;
   blockchainKey: string;
   address: string;
-  label?: string;
+  label?: string | null;
+  createdDate: Date;
+  verifiedDate: Date | null;
+  isActive: boolean;
+  blockchain: Blockchain;
 }
 
 export interface UserViewsWithdrawalBeneficiariesResult {
