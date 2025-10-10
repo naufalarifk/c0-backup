@@ -797,7 +797,7 @@ paths:
     get:
       tags: [Loan Applications]
       summary: Get loan application details
-      description: Retrieve detailed information about a specific loan application
+      description: Retrieve detailed information about a specific loan application with calculated breakdown
       parameters:
         - name: id
           in: path
@@ -806,11 +806,17 @@ paths:
             type: string
       responses:
         '200':
-          description: Loan application details
+          description: Loan application details with calculated fields
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LoanApplicationResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/LoanApplicationDetailResponse'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -1197,6 +1203,235 @@ components:
                 $ref: '#/components/schemas/LoanApplicationResponse'
             pagination:
               $ref: '#/components/schemas/PaginationMeta'
+
+    LoanApplicationDetailResponse:
+      type: object
+      description: Detailed loan application information with calculated fields
+      properties:
+        id:
+          type: string
+          description: Loan application identifier
+          example: "app_78901"
+        applicationNumber:
+          type: string
+          description: Application number for display
+          example: "LA-2025-001"
+        status:
+          type: string
+          enum: [Draft, PendingCollateral, Published, Matched, Expired, Cancelled]
+          description: Current application status
+        appliedDate:
+          type: string
+          format: date-time
+          description: Date when application was created
+        dueDate:
+          type: string
+          format: date-time
+          description: Loan repayment due date
+        loanAmount:
+          type: object
+          description: Total loan amount
+          properties:
+            amount:
+              type: string
+              pattern: '^\d+\.\d{18}$'
+              example: "5000.000000000000000000"
+            currency:
+              type: string
+              example: "USDT"
+          required: [amount, currency]
+        loanBreakdown:
+          type: object
+          description: Detailed breakdown of loan components
+          properties:
+            principal:
+              type: object
+              properties:
+                amount:
+                  type: string
+                  pattern: '^\d+\.\d{18}$'
+                currency:
+                  type: string
+              required: [amount, currency]
+            interest:
+              type: object
+              properties:
+                amount:
+                  type: string
+                  pattern: '^\d+\.\d{18}$'
+                currency:
+                  type: string
+                rate:
+                  type: number
+                  description: Interest rate as decimal (e.g., 0.12 for 12%)
+              required: [amount, currency, rate]
+            provisions:
+              type: object
+              properties:
+                amount:
+                  type: string
+                  pattern: '^\d+\.\d{18}$'
+                currency:
+                  type: string
+                rate:
+                  type: number
+                  description: Provisions rate as decimal (e.g., 0.03 for 3%)
+              required: [amount, currency, rate]
+            totalRepayment:
+              type: object
+              properties:
+                amount:
+                  type: string
+                  pattern: '^\d+\.\d{18}$'
+                  description: Total amount to repay (principal + interest + provisions)
+                currency:
+                  type: string
+              required: [amount, currency]
+          required: [principal, interest, provisions, totalRepayment]
+        terms:
+          type: object
+          description: Loan terms
+          properties:
+            duration:
+              type: string
+              example: "3 Months"
+            paymentType:
+              type: string
+              example: "Full Payment"
+          required: [duration, paymentType]
+        collateral:
+          type: object
+          description: Detailed collateral information
+          properties:
+            selectedAsset:
+              type: string
+              description: Collateral currency symbol
+              example: "ETH"
+            requiredAmount:
+              type: object
+              properties:
+                amount:
+                  type: string
+                  pattern: '^\d+\.\d{18}$'
+                currency:
+                  type: string
+              required: [amount, currency]
+            currentValue:
+              type: object
+              description: Current value in principal currency
+              properties:
+                amount:
+                  type: string
+                  pattern: '^\d+\.\d{18}$'
+                currency:
+                  type: string
+              required: [amount, currency]
+            currentPrice:
+              type: object
+              description: Current price per unit of collateral
+              properties:
+                amount:
+                  type: string
+                  pattern: '^\d+\.\d{18}$'
+                currency:
+                  type: string
+              required: [amount, currency]
+            ltv:
+              type: integer
+              description: Loan-to-value ratio as percentage
+              example: 70
+            liquidationTrigger:
+              type: string
+              description: Condition that triggers liquidation
+              example: "LTV exceeds 70%"
+          required: [selectedAsset, requiredAmount, currentValue, currentPrice, ltv, liquidationTrigger]
+        riskAssessment:
+          type: object
+          description: Risk assessment information
+          properties:
+            riskLevel:
+              type: string
+              enum: [Low, Medium, High]
+              example: "Medium"
+            marginCall:
+              type: string
+              description: Margin call trigger condition
+              example: "LTV > 63%"
+            liquidation:
+              type: string
+              description: Liquidation trigger condition
+              example: "LTV > 70%"
+          required: [riskLevel, marginCall, liquidation]
+        paymentMethods:
+          type: array
+          description: Available payment methods
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              description:
+                type: string
+              icon:
+                type: string
+              isRecommended:
+                type: boolean
+        liquidationExecutions:
+          type: array
+          description: Liquidation execution history (if any)
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                description: Liquidation execution identifier
+              executedDate:
+                type: string
+                format: date-time
+                description: Execution date
+              triggerPrice:
+                type: object
+                description: Price that triggered liquidation
+                properties:
+                  amount:
+                    type: string
+                    pattern: '^\d+\.\d{18}$'
+                  currency:
+                    type: string
+              liquidatedAmount:
+                type: object
+                description: Amount liquidated
+                properties:
+                  amount:
+                    type: string
+                    pattern: '^\d+\.\d{18}$'
+                  currency:
+                    type: string
+              reason:
+                type: string
+                description: Liquidation reason
+              status:
+                type: string
+                enum: [Executed, Pending, Failed]
+        liquidationMode:
+          type: string
+          enum: [Partial, Full]
+          description: Liquidation mode for this application
+      required:
+        - id
+        - applicationNumber
+        - status
+        - appliedDate
+        - dueDate
+        - loanAmount
+        - loanBreakdown
+        - terms
+        - collateral
+        - riskAssessment
+        - paymentMethods
+        - liquidationMode
 
     # Common Schemas
     BorrowerInfo:

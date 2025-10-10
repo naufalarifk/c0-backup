@@ -15,6 +15,7 @@ import { IndexerEventService } from '../../indexer/indexer-event.service';
 import { LiquidationMode, LoanApplicationStatus, PaginationMetaDto } from '../dto/common.dto';
 import {
   CreateLoanApplicationDto,
+  LoanApplicationDetailResponseDto,
   LoanApplicationListResponseDto,
   LoanApplicationResponseDto,
   LoanCalculationRequestDto,
@@ -1049,6 +1050,97 @@ export class LoanApplicationsService {
       };
     } catch (error) {
       this.logger.error('Failed to get loan application by id', error);
+      throw new NotFoundException('Loan application not found');
+    }
+  }
+
+  async getLoanApplicationDetailById(
+    applicationId: string,
+  ): Promise<LoanApplicationDetailResponseDto> {
+    try {
+      const basic = await this.getLoanApplicationById(applicationId);
+      const principalAmt = parseFloat(basic.principalAmount);
+      const interestRate = basic.maxInterestRate || 0.12;
+      const termMonths = basic.termMonths || 3;
+      const interestAmt = (principalAmt * interestRate * termMonths) / 12;
+      const provisionsAmt = principalAmt * 0.03;
+      const totalRepayment = principalAmt + interestAmt + provisionsAmt;
+      const collateralAmt = parseFloat(basic.collateralInvoice.amount);
+      const ltv = (principalAmt / (collateralAmt * 1.0)) * 100;
+      const formatAmount = (amt: number): string => amt.toFixed(18);
+
+      return {
+        id: basic.id,
+        applicationNumber: `LA-${basic.id}`,
+        status: basic.status,
+        // Backward compatibility fields
+        borrowerId: basic.borrowerId,
+        borrower: basic.borrower,
+        collateralCurrency: basic.collateralCurrency,
+        principalCurrency: basic.principalCurrency,
+        principalAmount: basic.principalAmount,
+        maxInterestRate: basic.maxInterestRate,
+        termMonths: basic.termMonths,
+        minLtvRatio: basic.minLtvRatio,
+        expiryDate: basic.expiryDate,
+        publishedDate: basic.publishedDate,
+        createdDate: basic.createdDate,
+        collateralInvoice: basic.collateralInvoice,
+        // Calculated detail fields
+        appliedDate: basic.createdDate,
+        dueDate: new Date(Date.now() + termMonths * 30 * 24 * 60 * 60 * 1000).toISOString(),
+        loanAmount: {
+          amount: basic.principalAmount,
+          currency: basic.principalCurrency?.symbol || 'USDT',
+        },
+        loanBreakdown: {
+          principal: {
+            amount: basic.principalAmount,
+            currency: basic.principalCurrency?.symbol || 'USDT',
+          },
+          interest: {
+            amount: formatAmount(interestAmt),
+            currency: basic.principalCurrency?.symbol || 'USDT',
+            rate: interestRate,
+          },
+          provisions: {
+            amount: formatAmount(provisionsAmt),
+            currency: basic.principalCurrency?.symbol || 'USDT',
+            rate: 0.03,
+          },
+          totalRepayment: {
+            amount: formatAmount(totalRepayment),
+            currency: basic.principalCurrency?.symbol || 'USDT',
+          },
+        },
+        terms: { duration: `${termMonths} Months`, paymentType: 'Full Payment' },
+        collateral: {
+          selectedAsset: basic.collateralCurrency.symbol,
+          requiredAmount: {
+            amount: basic.collateralInvoice.amount,
+            currency: basic.collateralCurrency.symbol,
+          },
+          currentValue: {
+            amount: basic.collateralInvoice.amount,
+            currency: basic.principalCurrency?.symbol || 'USDT',
+          },
+          currentPrice: {
+            amount: '1.000000000000000000',
+            currency: basic.principalCurrency?.symbol || 'USDT',
+          },
+          ltv: Math.round(ltv),
+          liquidationTrigger: `LTV exceeds ${Math.round(ltv)}%`,
+        },
+        riskAssessment: {
+          riskLevel: 'Medium',
+          marginCall: `LTV > ${Math.round(ltv * 0.9)}%`,
+          liquidation: `LTV > ${Math.round(ltv)}%`,
+        },
+        paymentMethods: [],
+        liquidationMode: basic.liquidationMode || LiquidationMode.PARTIAL,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get loan application detail by id', error);
       throw new NotFoundException('Loan application not found');
     }
   }
