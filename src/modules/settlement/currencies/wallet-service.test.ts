@@ -18,7 +18,6 @@ describe('SettlementWalletService', () => {
         getAddress: mock.fn(async () => '0x1234567890123456789012345678901234567890'),
       } as unknown as Wallet;
 
-      const mockCryptogadaiRepository = {} as unknown as any;
       const expectedHotWallet: HotWallet = {
         blockchainKey: 'eip155:1',
         address: '0x1234567890123456789012345678901234567890',

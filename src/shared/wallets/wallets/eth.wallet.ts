@@ -52,4 +52,17 @@ export class EthWallet extends Wallet {
       );
     }
   }
+
+  async getBalance(address: string): Promise<number> {
+    try {
+      const balance = await this.provider.getBalance(address);
+      // Convert from wei to ETH
+      return parseFloat(ethers.formatEther(balance));
+    } catch (error) {
+      invariant(
+        false,
+        `Get balance failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
 }

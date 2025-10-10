@@ -113,4 +113,9 @@ export abstract class BtcWallet extends Wallet {
       );
     }
   }
+  async getBalance(address: string): Promise<number> {
+    const utxos = await this.rpcClient.getUnspentOutputs(address);
+    const totalSatoshis = utxos.reduce((sum, utxo) => sum + utxo.value, 0);
+    return totalSatoshis / 100000000; // Convert to BTC
+  }
 }
