@@ -455,7 +455,7 @@ export abstract class FinancePlatformRepository extends FinanceAdminRepository {
     const updateRows = await this.sql`
       UPDATE withdrawals
       SET status = ${status},
-          refund_requested_date = ${refundRequestedDate ? refundRequestedDate.toISOString() : null}
+          failure_refund_requested_date = ${refundRequestedDate ? refundRequestedDate.toISOString() : null}
       WHERE id = ${withdrawalId}
       RETURNING id, status
     `;

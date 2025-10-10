@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS withdrawals (
   confirmed_date TIMESTAMP,
   failed_date TIMESTAMP,
   failure_reason TEXT,
+  failure_refund_requested_date TIMESTAMP,
   failure_refund_reviewer_user_id BIGINT REFERENCES users (id),
   failure_refund_approved_date TIMESTAMP,
   failure_refund_rejected_date TIMESTAMP,
@@ -50,17 +51,19 @@ CREATE TABLE IF NOT EXISTS withdrawals (
   FOREIGN KEY (currency_blockchain_key, currency_token_id) REFERENCES currencies (blockchain_key, token_id),
   CHECK (
     -- Status validation
-    status IN ('Requested', 'Sent', 'Confirmed', 'Failed', 'RefundApproved', 'RefundRejected') AND
+    status IN ('Requested', 'Sent', 'Confirmed', 'Failed', 'RefundRequested', 'RefundApproved', 'RefundRejected') AND
     -- Status-based consistency checks: sent_date required for Sent/Confirmed statuses
-    (status IN ('Requested', 'Failed', 'RefundApproved', 'RefundRejected') OR sent_date IS NOT NULL) AND
+    (status IN ('Requested', 'Failed', 'RefundRequested', 'RefundApproved', 'RefundRejected') OR sent_date IS NOT NULL) AND
     -- Hash consistency: if sent_date exists, sent_hash must exist
     (sent_date IS NULL OR sent_hash IS NOT NULL) AND
     -- Confirmed date only for Confirmed status
     (status = 'Confirmed' OR confirmed_date IS NULL) AND
     -- Failed date only for Failed/Refund statuses
-    (status IN ('Failed', 'RefundApproved', 'RefundRejected') OR failed_date IS NULL) AND
+    (status IN ('Failed', 'RefundRequested', 'RefundApproved', 'RefundRejected') OR failed_date IS NULL) AND
     -- Refund dates only for refund statuses
     (status IN ('RefundApproved', 'RefundRejected') OR (failure_refund_approved_date IS NULL AND failure_refund_rejected_date IS NULL)) AND
+    -- Refund requested date only for refund-related statuses
+    (status IN ('RefundRequested', 'RefundApproved', 'RefundRejected') OR failure_refund_requested_date IS NULL) AND
     -- Amount consistency
     (sent_amount IS NULL OR sent_amount > 0) AND
     (sent_amount IS NULL OR sent_amount <= request_amount * 1.1) -- Allow for small fee adjustments
@@ -69,6 +72,7 @@ CREATE TABLE IF NOT EXISTS withdrawals (
 
 ALTER TABLE withdrawals ADD COLUMN IF NOT EXISTS currency_token_id VARCHAR(64) NOT NULL;
 ALTER TABLE withdrawals ADD COLUMN IF NOT EXISTS currency_blockchain_key VARCHAR(64) NOT NULL;
+ALTER TABLE withdrawals ADD COLUMN IF NOT EXISTS failure_refund_requested_date TIMESTAMP;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'fk_withdrawals_currency') THEN
@@ -166,7 +170,11 @@ BEGIN
       RAISE EXCEPTION 'Cannot change status from Confirmed to %', NEW.status;
     END IF;
 
-    IF old_status = 'Failed' AND NEW.status NOT IN ('Failed', 'RefundApproved', 'RefundRejected') THEN
+    IF old_status = 'Failed' AND NEW.status NOT IN ('Failed', 'RefundRequested', 'RefundApproved', 'RefundRejected') THEN
+      RAISE EXCEPTION 'Invalid status transition from % to %', old_status, NEW.status;
+    END IF;
+
+    IF old_status = 'RefundRequested' AND NEW.status NOT IN ('RefundRequested', 'RefundApproved', 'RefundRejected') THEN
       RAISE EXCEPTION 'Invalid status transition from % to %', old_status, NEW.status;
     END IF;
 
@@ -184,8 +192,12 @@ BEGIN
     RAISE EXCEPTION 'Sent amount must be positive';
   END IF;
 
-  IF NEW.status IN ('RefundApproved', 'RefundRejected') AND NEW.failed_date IS NULL THEN
+  IF NEW.status IN ('RefundRequested', 'RefundApproved', 'RefundRejected') AND NEW.failed_date IS NULL THEN
     RAISE EXCEPTION 'Failed date must be set for refund status %', NEW.status;
+  END IF;
+
+  IF NEW.status IN ('RefundRequested', 'RefundApproved', 'RefundRejected') AND NEW.failure_refund_requested_date IS NULL THEN
+    RAISE EXCEPTION 'Refund requested date must be set for refund status %', NEW.status;
   END IF;
 
   IF NEW.status = 'RefundRejected' AND NEW.failure_refund_rejection_reason IS NULL THEN

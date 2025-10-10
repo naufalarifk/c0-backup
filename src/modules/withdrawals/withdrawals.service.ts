@@ -227,7 +227,11 @@ export class WithdrawalsService {
     return withdrawal;
   }
 
-  async refund(userId: string, withdrawalId: string): Promise<WithdrawalRefundRequestResponseDto> {
+  async refund(
+    userId: string,
+    withdrawalId: string,
+    reason: string,
+  ): Promise<WithdrawalRefundRequestResponseDto> {
     // Check if withdrawal exists and belongs to user
     const { withdrawal } = await this.repo.userViewsWithdrawalDetails({
       userId,
@@ -253,6 +257,7 @@ export class WithdrawalsService {
     });
 
     return {
+      success: true,
       message: 'Refund request submitted successfully. Admin approval required.',
       withdrawalId,
       status: 'RefundRequested',

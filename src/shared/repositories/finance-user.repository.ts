@@ -555,6 +555,9 @@ export abstract class FinanceUserRepsitory extends UserRepository {
         w.beneficiary_id AS "beneficiaryId",
         b.address AS "beneficiaryAddress",
         b.blockchain_key AS "beneficiaryBlockchainKey",
+        b.label AS "beneficiaryLabel",
+        b.created_date AS "beneficiaryCreatedDate",
+        b.verified_date AS "beneficiaryVerifiedDate",
         b.user_id AS "beneficiaryUserId",
         w.currency_blockchain_key AS "currencyBlockchainKey",
         w.currency_token_id AS "currencyTokenId",
@@ -591,12 +594,15 @@ export abstract class FinanceUserRepsitory extends UserRepository {
       OFFSET ${offset}
     `;
 
-    assertArrayMapOf(rows, function (row) {
+    assertArrayMapOf(rows, row => {
       assertDefined(row);
       assertProp(check(isString, isNumber), row, 'id');
       assertProp(check(isString, isNumber), row, 'beneficiaryId');
       assertPropString(row, 'beneficiaryAddress');
       assertPropString(row, 'beneficiaryBlockchainKey');
+      assertPropNullableString(row, 'beneficiaryLabel');
+      assertProp(isInstanceOf(Date), row, 'beneficiaryCreatedDate');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'beneficiaryVerifiedDate');
       assertProp(check(isString, isNumber), row, 'beneficiaryUserId');
       assertPropString(row, 'currencyBlockchainKey');
       assertPropString(row, 'currencyTokenId');
@@ -616,7 +622,10 @@ export abstract class FinanceUserRepsitory extends UserRepository {
       assertProp(check(isNullable, isInstanceOf(Date)), row, 'confirmedDate');
       assertProp(check(isNullable, isInstanceOf(Date)), row, 'failedDate');
       assertPropNullableString(row, 'failureReason');
+      return row;
+    });
 
+    const withdrawals = rows.map(row => {
       const requestAmount = parseFloat(String(row.requestAmount));
       const sentAmount = row.sentAmount ? parseFloat(String(row.sentAmount)) : null;
       const networkFee = sentAmount
@@ -624,7 +633,19 @@ export abstract class FinanceUserRepsitory extends UserRepository {
         : null;
 
       let calculatedState: string;
-      if (row.failedDate) {
+      // Check status first for refund-related states
+      if (
+        row.status === 'RefundRequested' ||
+        row.status === 'RefundApproved' ||
+        row.status === 'RefundRejected'
+      ) {
+        const statusToStateMap: Record<string, string> = {
+          RefundRequested: 'refund_requested',
+          RefundApproved: 'refund_approved',
+          RefundRejected: 'refund_rejected',
+        };
+        calculatedState = statusToStateMap[row.status] || row.status.toLowerCase();
+      } else if (row.failedDate) {
         calculatedState = 'failed';
       } else if (row.confirmedDate) {
         calculatedState = 'confirmed';
@@ -638,8 +659,6 @@ export abstract class FinanceUserRepsitory extends UserRepository {
           Sent: 'sent',
           Confirmed: 'confirmed',
           Failed: 'failed',
-          RefundApproved: 'refund_approved',
-          RefundRejected: 'refund_rejected',
         };
         calculatedState = statusToStateMap[row.status] || row.status.toLowerCase();
       }
@@ -654,7 +673,7 @@ export abstract class FinanceUserRepsitory extends UserRepository {
           : null;
 
       return {
-        id: String(row.id),
+        id: Number(row.id),
         currency: {
           blockchainKey: row.currencyBlockchainKey,
           tokenId: row.currencyTokenId,
@@ -664,13 +683,13 @@ export abstract class FinanceUserRepsitory extends UserRepository {
           logoUrl: row.currencyImage || undefined,
         },
         beneficiary: {
-          id: String(row.beneficiaryId),
+          id: Number(row.beneficiaryId),
           blockchainKey: row.beneficiaryBlockchainKey,
           address: row.beneficiaryAddress,
-          label: undefined,
-          createdDate: row.requestDate,
-          verifiedDate: row.requestDate,
-          isActive: true,
+          label: row.beneficiaryLabel || undefined,
+          createdDate: row.beneficiaryCreatedDate,
+          verifiedDate: row.beneficiaryVerifiedDate || undefined,
+          isActive: row.beneficiaryVerifiedDate !== null,
           blockchain: {
             key: row.beneficiaryBlockchainKey,
             name: row.blockchainName || row.beneficiaryBlockchainKey,
@@ -695,7 +714,7 @@ export abstract class FinanceUserRepsitory extends UserRepository {
     });
 
     return {
-      withdrawals: rows,
+      withdrawals,
       pagination: {
         page: validatedPage,
         limit: validatedLimit,
@@ -748,7 +767,7 @@ export abstract class FinanceUserRepsitory extends UserRepository {
       return { withdrawal: null };
     }
 
-    assertArrayMapOf(rows, function (row) {
+    assertArrayMapOf(rows, row => {
       assertDefined(row);
       assertProp(check(isString, isNumber), row, 'id');
       assertProp(check(isString, isNumber), row, 'beneficiaryId');
@@ -774,7 +793,10 @@ export abstract class FinanceUserRepsitory extends UserRepository {
       assertProp(check(isNullable, isInstanceOf(Date)), row, 'confirmedDate');
       assertProp(check(isNullable, isInstanceOf(Date)), row, 'failedDate');
       assertPropNullableString(row, 'failureReason');
+      return row;
+    });
 
+    const withdrawal = rows.map(row => {
       const requestAmount = parseFloat(String(row.requestAmount));
       const sentAmount = row.sentAmount ? parseFloat(String(row.sentAmount)) : null;
       const networkFee = sentAmount
@@ -782,7 +804,19 @@ export abstract class FinanceUserRepsitory extends UserRepository {
         : null;
 
       let calculatedState: string;
-      if (row.failedDate) {
+      // Check status first for refund-related states
+      if (
+        row.status === 'RefundRequested' ||
+        row.status === 'RefundApproved' ||
+        row.status === 'RefundRejected'
+      ) {
+        const statusToStateMap: Record<string, string> = {
+          RefundRequested: 'refund_requested',
+          RefundApproved: 'refund_approved',
+          RefundRejected: 'refund_rejected',
+        };
+        calculatedState = statusToStateMap[row.status] || row.status.toLowerCase();
+      } else if (row.failedDate) {
         calculatedState = 'failed';
       } else if (row.confirmedDate) {
         calculatedState = 'confirmed';
@@ -796,8 +830,6 @@ export abstract class FinanceUserRepsitory extends UserRepository {
           Sent: 'sent',
           Confirmed: 'confirmed',
           Failed: 'failed',
-          RefundApproved: 'refund_approved',
-          RefundRejected: 'refund_rejected',
         };
         calculatedState = statusToStateMap[row.status] || row.status.toLowerCase();
       }
@@ -812,7 +844,7 @@ export abstract class FinanceUserRepsitory extends UserRepository {
           : null;
 
       return {
-        id: String(row.id),
+        id: Number(row.id),
         currency: {
           blockchainKey: row.currencyBlockchainKey,
           tokenId: row.currencyTokenId,
@@ -822,7 +854,7 @@ export abstract class FinanceUserRepsitory extends UserRepository {
           logoUrl: row.currencyImage || undefined,
         },
         beneficiary: {
-          id: String(row.beneficiaryId),
+          id: Number(row.beneficiaryId),
           blockchainKey: row.beneficiaryBlockchainKey,
           address: row.beneficiaryAddress,
           label: undefined,
@@ -850,9 +882,9 @@ export abstract class FinanceUserRepsitory extends UserRepository {
         blockchainExplorerUrl: blockchainExplorerUrl || undefined,
         estimatedConfirmationTime: estimatedConfirmationTime || undefined,
       };
-    });
+    })[0];
 
-    return { withdrawal: rows[0] };
+    return { withdrawal };
   }
 
   // Blockchain Management Methods
