@@ -3,6 +3,7 @@ import type { UserSession } from '../auth/types';
 import { Controller, Get, HttpStatus, Logger, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { AccountsService } from '../accounts/accounts.service';
 import {
   PortfolioAnalyticsResponseDto,
@@ -16,7 +17,7 @@ import { AuthGuard } from '../auth/auth.guard';
 @UseGuards(AuthGuard)
 @Controller('portfolio')
 export class PortfolioController {
-  private readonly logger = new Logger(PortfolioController.name);
+  private readonly logger = new TelemetryLogger(PortfolioController.name);
 
   constructor(private readonly accountsService: AccountsService) {}
 
@@ -61,7 +62,7 @@ export class PortfolioController {
     @Session() session: UserSession,
   ): Promise<PortfolioAnalyticsResponseDto> {
     const {
-      session: { id },
+      user: { id },
     } = session;
     this.logger.log(`Getting portfolio analytics for user: ${id}`);
     return await this.accountsService.getPortfolioAnalytics(id);
@@ -103,7 +104,7 @@ export class PortfolioController {
     @Session() session: UserSession,
   ): Promise<PortfolioOverviewResponseDto> {
     const {
-      session: { id },
+      user: { id },
     } = session;
     this.logger.log(`Getting portfolio overview for user: ${id}`);
     return await this.accountsService.getPortfolioOverview(id);

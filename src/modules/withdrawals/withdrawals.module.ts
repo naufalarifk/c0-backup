@@ -6,7 +6,6 @@ import { AdminWithdrawalModule } from '../admin/withdrawals/admin-withdrawal.mod
 import { NotificationModule } from '../notifications/notification.module';
 import { BlockchainService } from './blockchain.service';
 import { WithdrawalsController } from './withdrawals.controller';
-import { WithdrawalsProcessor } from './withdrawals.processor';
 import { WithdrawalsService } from './withdrawals.service';
 import { WithdrawalsQueueService } from './withdrawals-queue.service';
 
@@ -19,12 +18,6 @@ import { WithdrawalsQueueService } from './withdrawals-queue.service';
     }),
   ],
   controllers: [WithdrawalsController],
-  providers: [
-    WithdrawalsService,
-    WithdrawalsQueueService,
-    WithdrawalsProcessor,
-    BlockchainService,
-    DiscoveryService,
-  ],
+  providers: [WithdrawalsService, WithdrawalsQueueService, BlockchainService, DiscoveryService],
 })
 export class WithdrawalsModule {}

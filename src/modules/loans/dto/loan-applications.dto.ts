@@ -137,6 +137,22 @@ export class LoanCalculationResponseDto {
   })
   data: {
     requiredCollateralAmount: string;
+    collateralToLoanRatio: number;
+    liquidationPrice: string;
+    liquidationThreshold: number;
+    estimatedInterestAmount: string;
+    totalRepaymentAmount: string;
+    fees: {
+      liquidationFee: string;
+      premiumRisk: string;
+      provision: string;
+    };
+    ltv: number;
+    marketRates: {
+      collateralPrice: string;
+      principalPrice: string;
+    };
+    // Legacy fields for backward compatibility
     exchangeRate: string;
     collateralCurrency: CurrencyDto;
     principalCurrency: CurrencyDto;
@@ -173,12 +189,14 @@ export class CreateLoanApplicationDto {
   principalAmount: string;
 
   @ApiProperty({
-    description: 'Maximum acceptable interest rate',
-    example: 15,
-    minimum: 0.1,
-    maximum: 50,
+    description: 'Maximum acceptable interest rate as decimal (e.g., 0.15 = 15%)',
+    example: 0.15,
+    minimum: 0.001,
+    maximum: 0.5,
   })
   @IsNumber()
+  @Min(0.001)
+  @Max(0.5)
   maxInterestRate: number;
 
   @ApiProperty({
@@ -341,6 +359,22 @@ export class LoanApplicationResponseDto {
   @Min(0)
   @Max(1)
   minLtvRatio?: number;
+
+  @ApiPropertyOptional({
+    description: 'Matched loan offer identifier',
+    example: 'offer_123',
+  })
+  @IsOptional()
+  @IsString()
+  matchedLoanOfferId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Matched LTV ratio',
+    example: 0.6,
+  })
+  @IsOptional()
+  @IsNumber()
+  matchedLtvRatio?: number;
 }
 
 export class LoanApplicationListResponseDto {

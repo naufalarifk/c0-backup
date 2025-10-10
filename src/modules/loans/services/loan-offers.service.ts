@@ -10,6 +10,7 @@ import { assertDefined, assertPropNumber } from 'typeshaper';
 import { InvoiceService } from '../../../shared/invoice/invoice.service';
 import { InvoiceError } from '../../../shared/invoice/invoice.types';
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { IndexerEventService } from '../../indexer/indexer-event.service';
 import { LenderType, LoanOfferStatus, PaginationMetaDto } from '../dto/common.dto';
 import {
@@ -41,7 +42,7 @@ interface PaginationParams {
 
 @Injectable()
 export class LoanOffersService {
-  private readonly logger = new Logger(LoanOffersService.name);
+  private readonly logger = new TelemetryLogger(LoanOffersService.name);
 
   constructor(
     private readonly indexerEventService: IndexerEventService,
@@ -283,8 +284,9 @@ export class LoanOffersService {
         lenderId: offer.lenderUserId,
         lender: {
           id: offer.lenderUserId,
-          type: LenderType.INDIVIDUAL,
-          name: 'Lender User',
+          type:
+            offer.lenderUserType === 'Individual' ? LenderType.INDIVIDUAL : LenderType.INSTITUTION,
+          name: offer.lenderUserName || 'Lender User',
           verified: true,
         },
         principalCurrency: {
@@ -371,8 +373,9 @@ export class LoanOffersService {
         lenderId: lenderId,
         lender: {
           id: lenderId,
-          type: LenderType.INDIVIDUAL,
-          name: 'Lender User',
+          type:
+            offer.lenderUserType === 'Individual' ? LenderType.INDIVIDUAL : LenderType.INSTITUTION,
+          name: offer.lenderUserName || 'Lender User',
           verified: true,
         },
         principalCurrency: {

@@ -1,7 +1,11 @@
+import type { Queue } from 'bullmq';
+
+import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { toLowestDenomination } from '../../shared/utils/decimal';
 import { defaultPricefeedConfig } from './pricefeed.config';
 import { PriceFeedProviderFactory } from './pricefeed-provider.factory';
@@ -9,12 +13,14 @@ import { assertPriceFeedSource, type PriceFeedRequest } from './pricefeed-provid
 
 @Injectable()
 export class PricefeedService {
-  private readonly logger = new Logger(PricefeedService.name);
+  private readonly logger = new TelemetryLogger(PricefeedService.name);
 
   constructor(
     private readonly repository: CryptogadaiRepository,
     private readonly providerFactory: PriceFeedProviderFactory,
     private readonly configService: ConfigService,
+    @InjectQueue('valuationQueue')
+    private readonly valuationQueue: Queue,
   ) {}
 
   async fetchAndStorePrices(): Promise<void> {
@@ -65,7 +71,7 @@ export class PricefeedService {
               priceFeed.quoteCurrencyDecimals,
             );
 
-            await this.repository.platformFeedsExchangeRate({
+            const result = await this.repository.platformFeedsExchangeRate({
               priceFeedId: priceFeed.id,
               bidPrice: bidPriceLowest,
               askPrice: askPriceLowest,
@@ -76,6 +82,19 @@ export class PricefeedService {
             this.logger.debug(
               `Successfully fetched and stored price for ${priceFeed.baseCurrencyTokenId}/${priceFeed.quoteCurrencyTokenId} from ${priceFeed.source}`,
             );
+
+            // Emit exchange rate updated event to valuation queue
+            await this.emitExchangeRateUpdatedEvent({
+              exchangeRateId: result.id,
+              priceFeedId: result.priceFeedId,
+              blockchainKey: priceFeed.blockchainKey,
+              baseCurrencyTokenId: priceFeed.baseCurrencyTokenId,
+              quoteCurrencyTokenId: priceFeed.quoteCurrencyTokenId,
+              bidPrice: result.bidPrice,
+              askPrice: result.askPrice,
+              retrievalDate: result.retrievalDate,
+              sourceDate: result.sourceDate,
+            });
           } catch (error) {
             this.logger.error(`Failed to fetch price for feed ${priceFeed.id}:`, error);
           }
@@ -89,6 +108,41 @@ export class PricefeedService {
     } catch (error) {
       this.logger.error('Error during price feed fetch cycle:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Emits exchange rate updated event to valuation queue for loan valuation processing
+   */
+  private async emitExchangeRateUpdatedEvent(event: {
+    exchangeRateId: string;
+    priceFeedId: string;
+    blockchainKey: string;
+    baseCurrencyTokenId: string;
+    quoteCurrencyTokenId: string;
+    bidPrice: string;
+    askPrice: string;
+    retrievalDate: Date;
+    sourceDate: Date;
+  }): Promise<void> {
+    try {
+      await this.valuationQueue.add('exchangeRateUpdated', event, {
+        priority: 2,
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        },
+      });
+
+      this.logger.debug(
+        `Emitted exchange rate update event for ${event.baseCurrencyTokenId}/${event.quoteCurrencyTokenId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to emit exchange rate update event: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      // Don't throw - we don't want to fail price feed updates if event emission fails
     }
   }
 }

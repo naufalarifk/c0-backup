@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { AuthGuard } from '../auth/auth.guard';
 import {
   BlockchainsResponseDto,
@@ -23,7 +24,7 @@ import { FinanceConfigService } from './finance-config.service';
 @Controller('blockchains')
 @UseGuards(AuthGuard)
 export class BlockchainController {
-  private readonly logger = new Logger(BlockchainController.name);
+  private readonly logger = new TelemetryLogger(BlockchainController.name);
 
   constructor(private readonly financeConfigService: FinanceConfigService) {}
 
@@ -64,7 +65,7 @@ export class BlockchainController {
 @Controller('currencies')
 @UseGuards(AuthGuard)
 export class CurrencyController {
-  private readonly logger = new Logger(CurrencyController.name);
+  private readonly logger = new TelemetryLogger(CurrencyController.name);
 
   constructor(private readonly financeConfigService: FinanceConfigService) {}
 
@@ -136,7 +137,7 @@ export class CurrencyController {
 @Controller('exchange-rates')
 @UseGuards(AuthGuard)
 export class ExchangeRateController {
-  private readonly logger = new Logger(ExchangeRateController.name);
+  private readonly logger = new TelemetryLogger(ExchangeRateController.name);
 
   constructor(private readonly financeConfigService: FinanceConfigService) {}
 

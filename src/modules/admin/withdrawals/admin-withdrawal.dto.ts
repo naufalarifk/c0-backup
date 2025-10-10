@@ -228,6 +228,24 @@ export class RefundProcessResponseDto {
   processedAt: string;
 }
 
+export class ProcessWithdrawalRefundDto {
+  @ApiProperty({
+    description: 'Administrative reason for refund approval',
+    example: 'Transaction timeout due to network congestion',
+  })
+  @IsString()
+  @IsNotEmpty()
+  reason: string;
+
+  @ApiPropertyOptional({
+    description: 'Internal notes for audit trail',
+    example: 'Verified that transaction failed after 24 hours',
+  })
+  @IsString()
+  @IsOptional()
+  adminNotes?: string;
+}
+
 export class AdminNotificationDto {
   @ApiProperty({
     description: 'Notification type',

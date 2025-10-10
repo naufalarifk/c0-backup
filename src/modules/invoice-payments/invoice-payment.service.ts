@@ -1,9 +1,19 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
-import { assertDefined, assertProp, assertPropString, check, isNumber, isString } from 'typeshaper';
+import {
+  assertDefined,
+  assertProp,
+  assertPropString,
+  check,
+  isNullable,
+  isNumber,
+  isString,
+} from 'typeshaper';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { LoanMatcherQueueService } from '../loan-matcher/loan-matcher-queue.service';
+import { LoanCalculationService } from '../loans/services/loan-calculation.service';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
 
 interface RecordPaymentParams {
@@ -15,12 +25,13 @@ interface RecordPaymentParams {
 
 @Injectable()
 export class InvoicePaymentService {
-  private readonly logger = new Logger(InvoicePaymentService.name);
+  private readonly logger = new TelemetryLogger(InvoicePaymentService.name);
 
   constructor(
     @Inject(CryptogadaiRepository) private readonly repository: CryptogadaiRepository,
     private readonly notificationQueue: NotificationQueueService,
     private readonly loanMatcherQueue: LoanMatcherQueueService,
+    private readonly loanCalculationService: LoanCalculationService,
   ) {}
 
   async recordPayment(params: RecordPaymentParams): Promise<void> {
@@ -35,6 +46,9 @@ export class InvoicePaymentService {
       this.logger.log(
         `Recorded invoice payment ${params.transactionHash} for invoice by wallet ${params.walletAddress}`,
       );
+
+      // Send realtime notification for invoice payment
+      await this.#notifyInvoicePayment(params.walletAddress);
 
       // Check if this payment resulted in publishing a loan offer or loan application
       await this.#checkAndNotifyLoanOfferPublished(params.walletAddress);
@@ -68,7 +82,8 @@ export class InvoicePaymentService {
           lo.offered_principal_amount,
           lo.interest_rate,
           lo.term_in_months_options,
-          c.symbol
+          c.symbol,
+          c.decimals
         FROM loan_offers lo
         INNER JOIN invoices inv ON inv.loan_offer_id = lo.id
         LEFT JOIN currencies c ON c.blockchain_key = lo.principal_currency_blockchain_key
@@ -89,16 +104,23 @@ export class InvoicePaymentService {
       assertProp(check(isString, isNumber), loanOffer, 'id');
       assertProp(check(isString, isNumber), loanOffer, 'lender_user_id');
       assertPropString(loanOffer, 'status');
+      assertProp(check(isString, isNumber), loanOffer, 'decimals');
+
+      // Format amount from smallest units to human-readable format
+      const amountFormatted =
+        'offered_principal_amount' in loanOffer && loanOffer.offered_principal_amount
+          ? this.loanCalculationService.fromSmallestUnit(
+              String(loanOffer.offered_principal_amount),
+              Number(loanOffer.decimals),
+            )
+          : undefined;
 
       // Queue notification for lender
       await this.notificationQueue.queueNotification({
         type: 'LoanOfferPublished',
         userId: String(loanOffer.lender_user_id),
         loanOfferId: String(loanOffer.id),
-        amount:
-          'offered_principal_amount' in loanOffer && loanOffer.offered_principal_amount
-            ? String(loanOffer.offered_principal_amount)
-            : undefined,
+        amount: amountFormatted,
         interestRate:
           'interest_rate' in loanOffer && loanOffer.interest_rate
             ? String(loanOffer.interest_rate)
@@ -196,6 +218,105 @@ export class InvoicePaymentService {
       );
     } catch (error) {
       this.logger.error('Failed to check and notify loan application published:', error);
+      // Don't throw, as this is a notification failure, not a payment processing failure
+    }
+  }
+
+  async #notifyInvoicePayment(walletAddress: string): Promise<void> {
+    try {
+      // Query the invoice to get its updated status and type
+      const rows = await this.repository.sql`
+        SELECT
+          inv.id,
+          inv.user_id,
+          inv.status,
+          inv.loan_offer_id,
+          inv.loan_application_id,
+          inv.invoiced_amount,
+          inv.paid_amount,
+          inv.currency_blockchain_key,
+          inv.currency_token_id,
+          c.decimals
+        FROM invoices inv
+        LEFT JOIN currencies c ON c.blockchain_key = inv.currency_blockchain_key
+          AND c.token_id = inv.currency_token_id
+        WHERE inv.wallet_address = ${walletAddress}
+        ORDER BY inv.id DESC
+        LIMIT 1
+      `;
+
+      if (rows.length === 0) {
+        this.logger.warn(`No invoice found for wallet ${walletAddress}`);
+        return;
+      }
+
+      const invoice = rows[0] as Record<string, unknown>;
+      assertDefined(invoice);
+      assertProp(check(isString, isNumber), invoice, 'id');
+      assertProp(check(isString, isNumber), invoice, 'user_id');
+      assertPropString(invoice, 'status');
+      assertProp(check(isNullable, isString, isNumber), invoice, 'loan_offer_id');
+      assertProp(check(isNullable, isString, isNumber), invoice, 'loan_application_id');
+      assertProp(check(isString, isNumber), invoice, 'invoiced_amount');
+      assertProp(check(isString, isNumber), invoice, 'paid_amount');
+      assertProp(check(isString, isNumber), invoice, 'decimals');
+
+      const userId = String(invoice.user_id);
+      const invoiceId = String(invoice.id);
+      const status = invoice.status;
+      const isLoanOffer = invoice.loan_offer_id !== null;
+      const isLoanApplication = invoice.loan_application_id !== null;
+      const decimals = Number(invoice.decimals);
+
+      // Format amounts from smallest units to human-readable format
+      const invoicedAmount = this.loanCalculationService.fromSmallestUnit(
+        String(invoice.invoiced_amount),
+        decimals,
+      );
+      const paidAmount = this.loanCalculationService.fromSmallestUnit(
+        String(invoice.paid_amount),
+        decimals,
+      );
+
+      // Determine notification type based on invoice type and status
+      let notificationType:
+        | 'LoanOfferInvoicePartiallyPaid'
+        | 'LoanOfferInvoiceFullyPaid'
+        | 'LoanApplicationCollateralInvoicePartiallyPaid'
+        | 'LoanApplicationCollateralInvoiceFullyPaid'
+        | null = null;
+
+      if (isLoanOffer && status === 'PartiallyPaid') {
+        notificationType = 'LoanOfferInvoicePartiallyPaid';
+      } else if (isLoanOffer && status === 'Paid') {
+        notificationType = 'LoanOfferInvoiceFullyPaid';
+      } else if (isLoanApplication && status === 'PartiallyPaid') {
+        notificationType = 'LoanApplicationCollateralInvoicePartiallyPaid';
+      } else if (isLoanApplication && status === 'Paid') {
+        notificationType = 'LoanApplicationCollateralInvoiceFullyPaid';
+      }
+
+      if (!notificationType) {
+        this.logger.log(
+          `No realtime notification needed for invoice ${invoiceId} (status: ${status}, isLoanOffer: ${isLoanOffer}, isLoanApplication: ${isLoanApplication})`,
+        );
+        return;
+      }
+
+      // Queue realtime notification
+      await this.notificationQueue.queueNotification({
+        type: notificationType,
+        userId: userId,
+        invoiceId: invoiceId,
+        invoicedAmount: invoicedAmount,
+        paidAmount: paidAmount,
+      });
+
+      this.logger.log(
+        `Queued ${notificationType} realtime notification for invoice ${invoiceId} (user: ${userId})`,
+      );
+    } catch (error) {
+      this.logger.error('Failed to notify invoice payment:', error);
       // Don't throw, as this is a notification failure, not a payment processing failure
     }
   }

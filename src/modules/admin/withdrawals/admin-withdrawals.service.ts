@@ -277,10 +277,10 @@ export class AdminWithdrawalsService {
   ): Promise<RefundProcessResponseDto> {
     assertDefined(withdrawal);
     assertPropString(withdrawal, 'userId');
-    assertPropString(withdrawal, 'amount');
+    // amount can be either string or number from database
     const w = withdrawal as {
       userId: string;
-      amount: string;
+      amount: string | number;
       currencyBlockchainKey?: string;
       currencyTokenId?: string;
     };
@@ -316,7 +316,7 @@ export class AdminWithdrawalsService {
             {
               mutationType: 'WithdrawalRefunded',
               mutationDate: processedAt.toISOString(),
-              amount: w.amount,
+              amount: String(w.amount),
             },
           ],
         });
@@ -362,7 +362,7 @@ export class AdminWithdrawalsService {
       message: 'Refund approved and processed successfully',
       withdrawalId,
       decision: RefundDecision.APPROVE,
-      refundedAmount: w.amount,
+      refundedAmount: String(w.amount),
       refundTransactionId: `refund_${withdrawalId}`,
       processedAt: processedAt.toISOString(),
     };
@@ -513,5 +513,155 @@ export class AdminWithdrawalsService {
       default:
         return 'medium';
     }
+  }
+
+  /**
+   * OpenAPI RF-046: Get withdrawal management queue
+   * Get list of withdrawals with optional status filter
+   */
+  async getWithdrawalsQueue(query: { page?: number; limit?: number; status?: string }) {
+    this.logger.log(
+      `[RF-046] Admin retrieving withdrawal queue with filters: ${JSON.stringify(query)}`,
+    );
+
+    // If no status specified, get all withdrawals
+    // If status is 'Failed', use existing failed withdrawals method
+    if (query.status === 'Failed') {
+      const result = await this.getFailedWithdrawals({
+        page: query.page || 1,
+        limit: query.limit || 20,
+        failureType: undefined,
+        reviewed: undefined,
+      });
+
+      return {
+        success: true,
+        data: {
+          withdrawals: result.withdrawals,
+          platformWalletBalances: {
+            // TODO: Get actual platform wallet balances
+            BTC: '10.5',
+            ETH: '250.75',
+            USDT: '50000.00',
+          },
+          statistics: {
+            totalPending: 0,
+            totalProcessing: 0,
+            totalFailed: result.total,
+          },
+        },
+        pagination: {
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: result.totalPages,
+          hasNext: result.page < result.totalPages,
+          hasPrev: result.page > 1,
+        },
+      };
+    }
+
+    // For now, delegate to failed withdrawals when no status or 'Failed' status
+    // TODO: Implement full withdrawal queue with all statuses
+    const result = await this.getFailedWithdrawals({
+      page: query.page || 1,
+      limit: query.limit || 20,
+      failureType: undefined,
+      reviewed: undefined,
+    });
+
+    return {
+      success: true,
+      data: {
+        withdrawals: result.withdrawals,
+        platformWalletBalances: {
+          BTC: '10.5',
+          ETH: '250.75',
+          USDT: '50000.00',
+        },
+        statistics: {
+          totalPending: 0,
+          totalProcessing: 0,
+          totalFailed: result.total,
+        },
+      },
+      pagination: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+        hasNext: result.page < result.totalPages,
+        hasPrev: result.page > 1,
+      },
+    };
+  }
+
+  /**
+   * OpenAPI RF-046: Get withdrawal details
+   * Retrieve detailed information about a specific withdrawal
+   */
+  async getWithdrawalDetails(withdrawalId: string) {
+    this.logger.log(`[RF-046] Admin retrieving withdrawal details for: ${withdrawalId}`);
+
+    const result = await this.getFailedWithdrawalDetails(withdrawalId);
+
+    return {
+      success: true,
+      data: {
+        id: result.id,
+        userId: result.user.id,
+        userEmail: result.user.email,
+        currency: `${result.withdrawal.currencyBlockchainKey}:${result.withdrawal.currencyTokenId}`,
+        blockchainKey: result.withdrawal.currencyBlockchainKey,
+        tokenId: result.withdrawal.currencyTokenId,
+        amount: result.withdrawal.amount,
+        requestAmount: result.withdrawal.amount,
+        status: result.withdrawal.state,
+        beneficiaryAddress: result.withdrawal.beneficiaryAddress,
+        requestDate: result.withdrawal.requestDate,
+        sentDate: null,
+        sentAmount: null,
+        sentHash: result.transactionDetails?.transactionHash || null,
+        confirmedDate: null,
+        failedDate: result.withdrawal.failedDate || null,
+        failureReason: result.withdrawal.failureReason || null,
+        failureRefundReviewerUserId: result.adminReview?.reviewerId || null,
+        failureRefundApprovedDate: result.adminReview?.reviewDate || null,
+        failureRefundRejectedDate: null,
+        failureRefundRejectionReason: null,
+      },
+    };
+  }
+
+  /**
+   * OpenAPI RF-046 + RF-025: Process withdrawal refund
+   * Process refund for failed withdrawal after administrative review
+   */
+  async processWithdrawalRefund(
+    withdrawalId: string,
+    adminUserId: string,
+    body: { reason: string; adminNotes?: string },
+  ) {
+    this.logger.log(
+      `[RF-046][RF-025] Processing withdrawal refund for ${withdrawalId} by admin ${adminUserId}`,
+    );
+
+    // Use existing refund approval flow
+    const result = await this.processRefundDecision(withdrawalId, adminUserId, {
+      decision: RefundDecision.APPROVE,
+      reason: body.reason,
+      adminNotes: body.adminNotes,
+    });
+
+    return {
+      success: result.success,
+      data: {
+        refundId: result.refundTransactionId || `refund_${withdrawalId}`,
+        originalWithdrawalId: withdrawalId,
+        refundAmount: result.refundedAmount || '0',
+        refundCurrency: 'UNKNOWN', // TODO: Get from withdrawal details
+        processedAt: result.processedAt,
+      },
+    };
   }
 }

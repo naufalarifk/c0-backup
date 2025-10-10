@@ -37,12 +37,13 @@ async function connectWebSocket(params: {
     eventName: string,
     timeoutMs?: number,
   ) => Promise<{ event: string; data: unknown }>;
-  close: () => void;
+  close: () => Promise<void>;
 }> {
   const wsUrl = params.backendUrl.replace(/^http/, 'ws');
   const ws = new WebSocket(`${wsUrl}/api/realtime`);
   const messages: Array<{ event: string; data: unknown }> = [];
   const eventPromises = new Map<string, Array<(msg: { event: string; data: unknown }) => void>>();
+  const activeTimeouts = new Set<NodeJS.Timeout>();
 
   // Wait for WebSocket connection to open
   await new Promise<void>((resolve, reject) => {
@@ -124,7 +125,7 @@ async function connectWebSocket(params: {
           ws.off('message', messageHandler);
           reject(new Error(`WebSocket authentication failed: ${JSON.stringify(parsed)}`));
         }
-      } catch (error) {
+      } catch (_error) {
         // Ignore parse errors during auth
       }
     };
@@ -146,6 +147,7 @@ async function connectWebSocket(params: {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         // Clean up
+        activeTimeouts.delete(timeout);
         const waiters = eventPromises.get(eventName);
         if (waiters) {
           const index = waiters.indexOf(resolver);
@@ -159,8 +161,25 @@ async function connectWebSocket(params: {
         reject(new Error(`Timeout waiting for event: ${eventName}`));
       }, timeoutMs);
 
+      // Track the timeout so it can be cleared on close
+      activeTimeouts.add(timeout);
+
       const resolver = (message: { event: string; data: unknown }) => {
         clearTimeout(timeout);
+        activeTimeouts.delete(timeout);
+
+        // Clean up the waiter from the map
+        const waiters = eventPromises.get(eventName);
+        if (waiters) {
+          const index = waiters.indexOf(resolver);
+          if (index > -1) {
+            waiters.splice(index, 1);
+          }
+          if (waiters.length === 0) {
+            eventPromises.delete(eventName);
+          }
+        }
+
         resolve(message);
       };
 
@@ -170,8 +189,56 @@ async function connectWebSocket(params: {
     });
   };
 
-  const close = () => {
-    ws.close();
+  const close = async () => {
+    // Clear all pending timeouts
+    for (const timeout of activeTimeouts) {
+      clearTimeout(timeout);
+    }
+    activeTimeouts.clear();
+
+    // Clear any pending waiters in eventPromises
+    for (const [eventName, waiters] of eventPromises.entries()) {
+      for (const waiter of waiters) {
+        // Resolve pending waiters with null data to prevent hanging promises
+        try {
+          waiter({ event: eventName, data: null });
+        } catch {
+          // Ignore errors from rejected promises
+        }
+      }
+    }
+    eventPromises.clear();
+
+    // Close the WebSocket connection and wait for it to fully close
+    if (ws.readyState === ws.OPEN || ws.readyState === ws.CONNECTING) {
+      await new Promise<void>(resolve => {
+        const onClose = () => {
+          ws.off('close', onClose);
+          ws.off('error', onError);
+          resolve();
+        };
+        const onError = () => {
+          ws.off('close', onClose);
+          ws.off('error', onError);
+          resolve();
+        };
+
+        ws.once('close', onClose);
+        ws.once('error', onError);
+
+        // Force close after a short timeout if the close event doesn't fire
+        setTimeout(() => {
+          ws.off('close', onClose);
+          ws.off('error', onError);
+          resolve();
+        }, 100);
+
+        ws.close();
+      });
+    }
+
+    // Remove all listeners to prevent memory leaks
+    ws.removeAllListeners();
   };
 
   return { ws, messages, waitForEvent, close };
@@ -185,10 +252,66 @@ async function waitWithTimeout<T>(
   timeoutMs: number,
   errorMessage: string,
 ): Promise<T> {
+  let timeoutHandle: NodeJS.Timeout | undefined;
   return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(errorMessage)), timeoutMs)),
+    promise.then(result => {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+      return result;
+    }),
+    new Promise<T>((_, reject) => {
+      timeoutHandle = setTimeout(() => reject(new Error(errorMessage)), timeoutMs);
+    }),
   ]);
+}
+
+/**
+ * Helper to wait for a specific notification type within notification.created events
+ */
+async function waitForNotificationType(
+  ws: Awaited<ReturnType<typeof connectWebSocket>>,
+  notificationType: string,
+  timeoutMs = 15000,
+): Promise<{ event: string; data: unknown }> {
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeoutMs) {
+    // Check existing messages for the notification type
+    const existingMessage = ws.messages.find(msg => {
+      if (msg.event !== 'notification.created') return false;
+      const data = msg.data as { type?: string };
+      return data?.type === notificationType;
+    });
+
+    if (existingMessage) {
+      return existingMessage;
+    }
+
+    // Wait for next notification.created event
+    try {
+      const remainingTime = timeoutMs - (Date.now() - startTime);
+      if (remainingTime <= 0) break;
+
+      const event = await waitWithTimeout(
+        ws.waitForEvent('notification.created'),
+        remainingTime,
+        'Timeout waiting for notification.created event',
+      );
+
+      const data = event.data as { type?: string };
+      if (data?.type === notificationType) {
+        return event;
+      }
+    } catch (_error) {
+      // Timeout or other error
+      break;
+    }
+  }
+
+  throw new Error(
+    `Timeout waiting for notification type: ${notificationType} (waited ${timeoutMs}ms)`,
+  );
 }
 
 suite('Loan Match with Realtime Events', function () {
@@ -218,8 +341,12 @@ suite('Loan Match with Realtime Events', function () {
     let borrowerWs: Awaited<ReturnType<typeof connectWebSocket>> | undefined;
 
     after(async function () {
-      lenderWs?.close();
-      borrowerWs?.close();
+      if (lenderWs) {
+        await lenderWs.close();
+      }
+      if (borrowerWs) {
+        await borrowerWs.close();
+      }
     });
 
     it('should setup user lender', async function () {
@@ -268,7 +395,7 @@ suite('Loan Match with Realtime Events', function () {
         principalBlockchainKey: 'cg:testnet',
         principalTokenId: 'mock:usd',
         totalAmount: '20000.000000000000000000',
-        interestRate: 10.0,
+        interestRate: 0.1,
         termOptions: [3, 6, 12],
         minLoanAmount: '1000.000000000000000000',
         maxLoanAmount: '20000.000000000000000000',
@@ -351,14 +478,11 @@ suite('Loan Match with Realtime Events', function () {
       // Give the system time to process the invoice payment and send notifications
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Debug: Log all received messages
-      console.log('DEBUG: All lender websocket messages received so far:', lenderWs.messages);
-
-      // Wait for notification.created event with a longer timeout for queue processing
-      const notificationEvent = await waitWithTimeout(
-        lenderWs.waitForEvent('notification.created'),
+      // Wait for LoanOfferPublished notification type
+      const notificationEvent = await waitForNotificationType(
+        lenderWs,
+        'LoanOfferPublished',
         30000,
-        'Timeout waiting for loan offer published notification',
       );
 
       assertDefined(notificationEvent);
@@ -374,12 +498,8 @@ suite('Loan Match with Realtime Events', function () {
       assertPropString(notificationData, 'content');
       assertPropString(notificationData, 'createdAt');
 
-      // Verify notification type is related to loan offer published
-      ok(
-        notificationData.type === 'LoanOfferPublished' ||
-          notificationData.type.includes('LoanOffer'),
-        'Notification should be related to loan offer published',
-      );
+      // Verify notification type
+      strictEqual(notificationData.type, 'LoanOfferPublished');
 
       // Verify loan offer is now published
       const response = await lender.fetch(`/api/loan-offers/${lenderOfferId}`);
@@ -440,7 +560,7 @@ suite('Loan Match with Realtime Events', function () {
         collateralBlockchainKey: 'cg:testnet',
         collateralTokenId: 'mock:native',
         principalAmount: '8000.000000000000000000',
-        maxInterestRate: 12.0,
+        maxInterestRate: 0.12,
         termMonths: 6,
         liquidationMode: 'Full',
         minLtvRatio: 0.6,
@@ -521,11 +641,11 @@ suite('Loan Match with Realtime Events', function () {
       // Give the system time to process the invoice payment and send notifications
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Wait for notification.created event with a longer timeout for queue processing
-      const notificationEvent = await waitWithTimeout(
-        borrowerWs.waitForEvent('notification.created'),
+      // Wait for LoanApplicationPublished notification type
+      const notificationEvent = await waitForNotificationType(
+        borrowerWs,
+        'LoanApplicationPublished',
         30000,
-        'Timeout waiting for loan application published notification',
       );
 
       assertDefined(notificationEvent);
@@ -537,14 +657,10 @@ suite('Loan Match with Realtime Events', function () {
       assertDefined(notificationData);
       assertPropString(notificationData, 'type');
 
-      // Verify notification type is related to loan application published
-      ok(
-        notificationData.type === 'LoanApplicationPublished' ||
-          notificationData.type.includes('LoanApplication'),
-        'Notification should be related to loan application published',
-      );
+      // Verify notification type
+      strictEqual(notificationData.type, 'LoanApplicationPublished');
 
-      // Verify loan application is now published
+      // Verify loan application is now published (or already matched if the matcher was very fast)
       const response = await borrower.fetch(`/api/loan-applications/${borrowerApplicationId}`);
       strictEqual(response.status, 200);
       const data = await response.json();
@@ -553,7 +669,10 @@ suite('Loan Match with Realtime Events', function () {
 
       const application = data.data;
       assertPropString(application, 'status');
-      strictEqual(application.status, 'Published');
+      ok(
+        application.status === 'Published' || application.status === 'Matched',
+        `Expected status to be Published or Matched, got ${application.status}`,
+      );
       assertPropString(application, 'publishedDate');
     });
 
@@ -592,11 +711,14 @@ suite('Loan Match with Realtime Events', function () {
       ok(lenderWs, 'Lender WebSocket must be connected');
       ok(borrowerWs, 'Borrower WebSocket must be connected');
 
+      // Give the notification queue time to process the match notifications
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
       // Wait for lender notification about loan match
-      const lenderNotificationEvent = await waitWithTimeout(
-        lenderWs.waitForEvent('notification.created'),
+      const lenderNotificationEvent = await waitForNotificationType(
+        lenderWs,
+        'LoanOfferMatched',
         15000,
-        'Timeout waiting for lender loan matched notification',
       );
 
       assertDefined(lenderNotificationEvent);
@@ -612,10 +734,10 @@ suite('Loan Match with Realtime Events', function () {
       strictEqual(lenderNotificationData.type, 'LoanOfferMatched');
 
       // Wait for borrower notification about loan match
-      const borrowerNotificationEvent = await waitWithTimeout(
-        borrowerWs.waitForEvent('notification.created'),
+      const borrowerNotificationEvent = await waitForNotificationType(
+        borrowerWs,
+        'LoanApplicationMatched',
         15000,
-        'Timeout waiting for borrower loan matched notification',
       );
 
       assertDefined(borrowerNotificationEvent);
@@ -645,10 +767,15 @@ suite('Loan Match with Realtime Events', function () {
       assertPropString(offer, 'status');
       assertPropString(offer, 'disbursedAmount');
       assertPropString(offer, 'availableAmount');
+      assertPropString(offer, 'totalAmount');
 
-      // Disbursed amount should be greater than 0 after matching
-      const disbursedAmount = parseFloat(offer.disbursedAmount);
-      ok(disbursedAmount > 0, 'Disbursed amount should be greater than 0');
+      // Available amount should be reduced after matching (funds reserved)
+      const availableAmount = parseFloat(offer.availableAmount);
+      const totalAmount = parseFloat(offer.totalAmount);
+      ok(
+        availableAmount < totalAmount,
+        'Available amount should be less than total amount after matching',
+      );
 
       // Verify loan application data
       const appResponse = await borrower.fetch(`/api/loan-applications/${borrowerApplicationId}`);
@@ -662,25 +789,88 @@ suite('Loan Match with Realtime Events', function () {
       strictEqual(application.matchedLoanOfferId, lenderOfferId);
       assertPropNumber(application, 'matchedLtvRatio');
       ok(application.matchedLtvRatio > 0 && application.matchedLtvRatio <= 1);
+    });
 
-      // Verify loan exists and is active
-      const loansResponse = await borrower.fetch('/api/loans/my-loans');
-      strictEqual(loansResponse.status, 200);
-      const loansData = await loansResponse.json();
-      assertDefined(loansData);
-      assertPropDefined(loansData, 'data');
-      assertPropArray(loansData.data, 'loans');
+    it('should verify loans exist in /api/loans after matching and origination', async function () {
+      ok(borrower, 'Borrower must exist');
+      ok(lender, 'Lender must exist');
 
-      // Verify exactly one loan exists for this borrower
-      strictEqual(loansData.data.loans.length, 1, 'Exactly one loan should exist');
+      // Note: With automatic loan origination after matching, loan records should be created
+      // immediately after the match is successful.
 
-      const loan = loansData.data.loans[0];
-      assertDefined(loan);
-      assertPropString(loan, 'id');
-      assertPropString(loan, 'status');
-      assertPropString(loan, 'principalAmount');
-      assertPropString(loan, 'collateralAmount');
-      assertPropNumber(loan, 'interestRate');
+      // Query loans for borrower - should have 1 loan
+      const borrowerLoansResponse = await borrower.fetch('/api/loans');
+      strictEqual(borrowerLoansResponse.status, 200);
+      const borrowerLoansData = await borrowerLoansResponse.json();
+      assertDefined(borrowerLoansData);
+      assertPropDefined(borrowerLoansData, 'data');
+      assertPropArray(borrowerLoansData.data, 'loans');
+      strictEqual(
+        borrowerLoansData.data.loans.length,
+        1,
+        'Borrower should have exactly 1 loan after matching and origination',
+      );
+
+      // Verify borrower loan details
+      const borrowerLoan = borrowerLoansData.data.loans[0];
+      assertDefined(borrowerLoan);
+      assertPropString(borrowerLoan, 'id');
+      assertPropString(borrowerLoan, 'borrowerId');
+      assertPropString(borrowerLoan, 'lenderId');
+      assertPropString(borrowerLoan, 'principalAmount');
+      assertPropString(borrowerLoan, 'collateralAmount');
+      assertPropNumber(borrowerLoan, 'interestRate');
+      assertPropNumber(borrowerLoan, 'termMonths');
+      assertPropNumber(borrowerLoan, 'currentLtv');
+      assertPropNumber(borrowerLoan, 'maxLtvRatio');
+      assertPropString(borrowerLoan, 'status');
+      assertPropString(borrowerLoan, 'originationDate');
+      assertPropString(borrowerLoan, 'maturityDate');
+
+      // Status should be ACTIVE after automatic disbursement
+      // Note: platformDisbursesPrincipal updates status from 'Originated' to 'Active'
+      // which maps to 'ACTIVE' in the API
+      strictEqual(
+        borrowerLoan.status,
+        'ACTIVE',
+        `Expected status to be ACTIVE after automatic disbursement, got ${borrowerLoan.status}`,
+      );
+
+      // Disbursement date should be set after automatic disbursement
+      assertPropString(borrowerLoan, 'disbursementDate');
+      ok(
+        borrowerLoan.disbursementDate,
+        'Disbursement date should be set after automatic disbursement',
+      );
+
+      // Query loans for lender - should have 1 loan
+      const lenderLoansResponse = await lender.fetch('/api/loans');
+      strictEqual(lenderLoansResponse.status, 200);
+      const lenderLoansData = await lenderLoansResponse.json();
+      assertDefined(lenderLoansData);
+      assertPropDefined(lenderLoansData, 'data');
+      assertPropArray(lenderLoansData.data, 'loans');
+      strictEqual(
+        lenderLoansData.data.loans.length,
+        1,
+        'Lender should have exactly 1 loan after matching and origination',
+      );
+
+      // Verify lender loan details
+      const lenderLoan = lenderLoansData.data.loans[0];
+      assertDefined(lenderLoan);
+      assertPropString(lenderLoan, 'id');
+      assertPropString(lenderLoan, 'borrowerId');
+      assertPropString(lenderLoan, 'lenderId');
+
+      // Verify both borrower and lender see the same loan
+      strictEqual(borrowerLoan.id, lenderLoan.id, 'Borrower and lender should see the same loan');
+      strictEqual(
+        borrowerLoan.borrowerId,
+        borrower.id,
+        'Loan borrower ID should match borrower user ID',
+      );
+      strictEqual(borrowerLoan.lenderId, lender.id, 'Loan lender ID should match lender user ID');
     });
   });
 });

@@ -13,7 +13,7 @@ import { Reflector } from '@nestjs/core';
 import { fromNodeHeaders } from 'better-auth/node';
 
 import { UserType } from '../decorators/user-type.decorator';
-import { AUTH_INSTANCE_KEY } from '../modules/auth/auth.symbols';
+import { AuthService } from '../modules/auth/auth.service';
 import { CryptogadaiRepository } from '../shared/repositories/cryptogadai.repository';
 
 @Injectable()
@@ -21,8 +21,7 @@ export class UserTypeGuard implements CanActivate {
   constructor(
     @Inject(Reflector)
     private readonly reflector: Reflector,
-    @Inject(AUTH_INSTANCE_KEY)
-    private readonly auth: Auth,
+    private readonly auth: AuthService,
     private readonly repo: CryptogadaiRepository,
   ) {}
 

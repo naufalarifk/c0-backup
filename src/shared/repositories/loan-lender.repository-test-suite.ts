@@ -121,7 +121,7 @@ export async function runLoanLenderRepositoryTestSuite(
             offeredPrincipalAmount: '10000000000', // 10 USDC (18 decimals)
             minLoanPrincipalAmount: '1000000000', // 1 USDC
             maxLoanPrincipalAmount: '5000000000', // 5 USDC
-            interestRate: 12.5,
+            interestRate: 0.125, // 12.5%
             termInMonthsOptions: [3, 6, 12],
             expirationDate,
             createdDate: createDate,
@@ -143,7 +143,7 @@ export async function runLoanLenderRepositoryTestSuite(
           equal(result.availablePrincipalAmount, '10000000000');
           equal(result.minLoanPrincipalAmount, '1000000000');
           equal(result.maxLoanPrincipalAmount, '5000000000');
-          equal(result.interestRate, 12.5);
+          equal(result.interestRate, 0.125);
           deepEqual(result.termInMonthsOptions, [3, 6, 12]);
           equal(result.status, 'Funding');
           equal(result.createdDate.toISOString(), createDate.toISOString());
@@ -180,7 +180,7 @@ export async function runLoanLenderRepositoryTestSuite(
               offeredPrincipalAmount: '10000000000',
               minLoanPrincipalAmount: '1000000000',
               maxLoanPrincipalAmount: '5000000000',
-              interestRate: 12.5,
+              interestRate: 0.125, // 12.5%
               termInMonthsOptions: [3, 6, 12],
               expirationDate,
               createdDate: createDate,
@@ -227,7 +227,7 @@ export async function runLoanLenderRepositoryTestSuite(
             offeredPrincipalAmount: '5000000000',
             minLoanPrincipalAmount: '1000000000',
             maxLoanPrincipalAmount: '2500000000',
-            interestRate: 10.0,
+            interestRate: 0.1, // 10%
             termInMonthsOptions: [3, 6],
             expirationDate: new Date('2024-02-01T00:00:00Z'),
             createdDate: createDate,
@@ -243,7 +243,7 @@ export async function runLoanLenderRepositoryTestSuite(
             offeredPrincipalAmount: '15000000000',
             minLoanPrincipalAmount: '2000000000',
             maxLoanPrincipalAmount: '7500000000',
-            interestRate: 15.0,
+            interestRate: 0.15, // 15%
             termInMonthsOptions: [6, 12],
             expirationDate: new Date('2024-03-01T00:00:00Z'),
             createdDate: createDate,
@@ -253,8 +253,8 @@ export async function runLoanLenderRepositoryTestSuite(
 
           notEqual(offer1.id, offer2.id);
           notEqual(offer1.fundingInvoice.id, offer2.fundingInvoice.id);
-          equal(offer1.interestRate, 10.0);
-          equal(offer2.interestRate, 15.0);
+          equal(offer1.interestRate, 0.1);
+          equal(offer2.interestRate, 0.15);
         });
       });
 
@@ -293,7 +293,7 @@ export async function runLoanLenderRepositoryTestSuite(
             offeredPrincipalAmount: '10000000000',
             minLoanPrincipalAmount: '1000000000',
             maxLoanPrincipalAmount: '5000000000',
-            interestRate: 12.0,
+            interestRate: 0.12, // 12%
             termInMonthsOptions: [6],
             expirationDate: new Date('2024-02-01T00:00:00Z'),
             createdDate: new Date('2024-01-01T00:00:00Z'),
@@ -356,7 +356,7 @@ export async function runLoanLenderRepositoryTestSuite(
             offeredPrincipalAmount: '10000000000',
             minLoanPrincipalAmount: '1000000000',
             maxLoanPrincipalAmount: '5000000000',
-            interestRate: 12.0,
+            interestRate: 0.12, // 12%
             termInMonthsOptions: [6],
             expirationDate: new Date('2024-02-01T00:00:00Z'),
             createdDate: new Date('2024-01-01T00:00:00Z'),
@@ -411,7 +411,7 @@ export async function runLoanLenderRepositoryTestSuite(
             offeredPrincipalAmount: '10000000000',
             minLoanPrincipalAmount: '1000000000',
             maxLoanPrincipalAmount: '5000000000',
-            interestRate: 12.0,
+            interestRate: 0.12, // 12%
             termInMonthsOptions: [6],
             expirationDate: new Date('2024-02-01T00:00:00Z'),
             createdDate: new Date('2024-01-01T00:00:00Z'),
@@ -479,7 +479,7 @@ export async function runLoanLenderRepositoryTestSuite(
               offeredPrincipalAmount: `${(i + 1) * 5000}000000`, // 5k, 10k, 15k USDT
               minLoanPrincipalAmount: '1000000000',
               maxLoanPrincipalAmount: `${(i + 1) * 2500}000000`, // 2.5k, 5k, 7.5k USDT
-              interestRate: 10 + i * 2.5, // 10%, 12.5%, 15%
+              interestRate: 0.1 + i * 0.025, // 10%, 12.5%, 15%
               termInMonthsOptions: [3, 6, 12],
               expirationDate: new Date('2024-02-01T00:00:00Z'),
               createdDate: offerDate,
@@ -503,8 +503,8 @@ export async function runLoanLenderRepositoryTestSuite(
           equal(result.pagination.hasPrev, false);
 
           // Verify offers are sorted by created_date DESC (newest first)
-          equal(result.loanOffers[0].interestRate, 15); // Last created (highest rate)
-          equal(result.loanOffers[2].interestRate, 10); // First created (lowest rate)
+          equal(result.loanOffers[0].interestRate, 0.15); // Last created (highest rate)
+          equal(result.loanOffers[2].interestRate, 0.1); // First created (lowest rate)
 
           // Test pagination
           const page1 = await repo.lenderViewsMyLoanOffers({
@@ -566,7 +566,7 @@ export async function runLoanLenderRepositoryTestSuite(
             offeredPrincipalAmount: '10000000000',
             minLoanPrincipalAmount: '1000000000',
             maxLoanPrincipalAmount: '5000000000',
-            interestRate: 12.0,
+            interestRate: 0.12, // 12%
             termInMonthsOptions: [6],
             expirationDate: new Date('2024-02-01T00:00:00Z'),
             createdDate: new Date('2024-01-01T00:00:00Z'),
@@ -581,7 +581,7 @@ export async function runLoanLenderRepositoryTestSuite(
             offeredPrincipalAmount: '15000000000',
             minLoanPrincipalAmount: '2000000000',
             maxLoanPrincipalAmount: '7500000000',
-            interestRate: 15.0,
+            interestRate: 0.15, // 15%
             termInMonthsOptions: [3, 6],
             expirationDate: new Date('2024-03-01T00:00:00Z'),
             createdDate: new Date('2024-01-02T00:00:00Z'),
@@ -711,7 +711,7 @@ export async function runLoanLenderRepositoryTestSuite(
             offeredPrincipalAmount: '10000000000',
             minLoanPrincipalAmount: '1000000000',
             maxLoanPrincipalAmount: '5000000000',
-            interestRate: 12.5,
+            interestRate: 0.125, // 12.5%
             termInMonthsOptions: [3, 6, 12],
             expirationDate: new Date('2024-02-01T00:00:00Z'),
             createdDate: new Date('2024-01-01T00:00:00Z'),
@@ -741,7 +741,7 @@ export async function runLoanLenderRepositoryTestSuite(
           equal(offerResult.reservedPrincipalAmount, '0'); // calculated field
           equal(offerResult.minLoanPrincipalAmount, '1000000000');
           equal(offerResult.maxLoanPrincipalAmount, '5000000000');
-          equal(offerResult.interestRate, 12.5);
+          equal(offerResult.interestRate, 0.125);
           deepEqual(offerResult.termInMonthsOptions, [3, 6, 12]);
           equal(offerResult.status, 'Funding');
           ok(offerResult.createdDate instanceof Date);

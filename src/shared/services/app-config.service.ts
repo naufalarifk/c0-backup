@@ -88,6 +88,14 @@ export class AppConfigService {
     return value.toString().replaceAll(String.raw`\n`, '\n');
   }
 
+  private getOptionalString(key: string): string | undefined {
+    const value = this.configService.get<string>(key);
+    if (value === undefined || value === '') {
+      return undefined;
+    }
+    return value.toString().replaceAll(String.raw`\n`, '\n');
+  }
+
   get nodeEnv() {
     return this.getString('NODE_ENV', 'production');
   }
@@ -295,6 +303,73 @@ export class AppConfigService {
       epochMs: this.getNumber('INVOICE_ID_EPOCH_MS', Date.UTC(2024, 0, 1)),
       workerId: this.getNumber('INVOICE_ID_WORKER_ID', 0),
     };
+  }
+
+  get indexerConfigs() {
+    return {
+      ethereum: {
+        mainnet: {
+          chainName: 'Ethereum Mainnet',
+          wsUrl: this.getString('ETHEREUM_MAINNET_WS_URL', 'wss://ethereum-rpc.publicnode.com'),
+          nativeTokenId: 'slip44:60',
+          tokenPrefix: 'erc20',
+        },
+        hoodi: {
+          chainName: 'Ethereum Hoodi',
+          wsUrl: this.getString('ETHEREUM_HOODI_WS_URL', 'wss://ethereum-hoodi-rpc.publicnode.com'),
+          nativeTokenId: 'slip44:60',
+          tokenPrefix: 'erc20',
+        },
+        sepolia: {
+          chainName: 'Ethereum Sepolia',
+          wsUrl: this.getString(
+            'ETHEREUM_SEPOLIA_WS_URL',
+            'wss://sepolia.infura.io/ws/v3/YOUR_INFURA_PROJECT_ID',
+          ),
+          nativeTokenId: 'slip44:60',
+          tokenPrefix: 'erc20',
+        },
+        localnet: {
+          chainName: 'Ethereum Localnet',
+          wsUrl: this.getString('ETHEREUM_LOCALNET_WS_URL', 'ws://localhost:8545'),
+          nativeTokenId: 'slip44:60',
+          tokenPrefix: 'erc20',
+        },
+        bscMainnet: {
+          chainName: 'BSC Mainnet',
+          wsUrl: this.getString('BSC_WS_URL', 'wss://bsc-mainnet.infura.io/ws/v3/YOUR_PROJECT_ID'),
+          nativeTokenId: 'slip44:714',
+          tokenPrefix: 'bep20',
+        },
+      },
+      solana: {
+        mainnet: {
+          chainName: 'Solana Mainnet',
+          rpcUrl: this.getString('SOLANA_RPC_URL', 'https://api.mainnet-beta.solana.com'),
+          wsUrl: this.getOptionalString('SOLANA_WS_URL'),
+        },
+      },
+    };
+  }
+
+  get enabledIndexers(): string[] {
+    const enabled = this.getOptionalString('ENABLED_INDEXERS');
+    if (!enabled) {
+      // If not specified, enable all indexers
+      return [
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp', // solana-mainnet
+        'eip155:1', // ethereum-mainnet
+        'eip155:11155111', // ethereum-sepolia and ethereum-localnet
+        'eip155:560048', // ethereum-hoodi
+        'eip155:56', // bsc-mainnet
+        'bip122:000000000019d6689c085ae165831e93', // bitcoin-mainnet
+        'cg:testnet', // cg-testnet
+      ];
+    }
+    return enabled
+      .split(',')
+      .map(key => key.trim())
+      .filter(key => key.length > 0);
   }
 
   private getLocalNetworkIP(): string | null {

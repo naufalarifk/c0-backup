@@ -421,4 +421,209 @@ describe('SettlementWalletService', () => {
       strictEqual(result[2].bip44CoinType, 501, 'Solana should use coin type 501');
     });
   });
+
+  describe('getHotWalletBalance', () => {
+    it('should get actual blockchain balance for hot wallet', async () => {
+      // Setup: Mock wallet with getBalance method
+      const mockWallet: Wallet = {
+        getAddress: mock.fn(async () => '0x1234567890123456789012345678901234567890'),
+        getBalance: mock.fn(async (address: string) => {
+          strictEqual(address, '0x1234567890123456789012345678901234567890');
+          return 10.5; // 10.5 ETH
+        }),
+      } as unknown as Wallet;
+
+      const mockHotWallet: HotWallet = {
+        blockchainKey: 'eip155:1',
+        address: '0x1234567890123456789012345678901234567890',
+        bip44CoinType: 60,
+        wallet: mockWallet,
+      };
+
+      const mockWalletService = {
+        getHotWallet: mock.fn(async () => mockHotWallet),
+      } as unknown as WalletService;
+
+      const service = new SettlementWalletService(mockWalletService);
+
+      // Execute
+      const balance = await service.getHotWalletBalance('eip155:1');
+
+      // Verify
+      strictEqual(balance, '10.5', 'Should return balance as string');
+      strictEqual(
+        (mockWallet.getBalance as MockedFunction<typeof mockWallet.getBalance>).mock.callCount(),
+        1,
+      );
+    });
+
+    it('should return zero balance on error', async () => {
+      // Setup: Wallet that throws error
+      const mockWallet: Wallet = {
+        getAddress: mock.fn(async () => '0x1234567890123456789012345678901234567890'),
+        getBalance: mock.fn(async () => {
+          throw new Error('Network error');
+        }),
+      } as unknown as Wallet;
+
+      const mockHotWallet: HotWallet = {
+        blockchainKey: 'eip155:1',
+        address: '0x1234567890123456789012345678901234567890',
+        bip44CoinType: 60,
+        wallet: mockWallet,
+      };
+
+      const mockWalletService = {
+        getHotWallet: mock.fn(async () => mockHotWallet),
+      } as unknown as WalletService;
+
+      const service = new SettlementWalletService(mockWalletService);
+
+      // Execute
+      const balance = await service.getHotWalletBalance('eip155:1');
+
+      // Verify
+      strictEqual(balance, '0', 'Should return zero on error');
+    });
+  });
+
+  describe('getHotWalletBalances', () => {
+    it('should get balances for multiple blockchains', async () => {
+      // Setup: Multiple wallets with different balances
+      const mockWallets: Record<string, HotWallet> = {
+        'eip155:1': {
+          blockchainKey: 'eip155:1',
+          address: '0x1111111111111111111111111111111111111111',
+          bip44CoinType: 60,
+          wallet: {
+            getBalance: mock.fn(async () => 5.5),
+          } as unknown as Wallet,
+        },
+        'eip155:137': {
+          blockchainKey: 'eip155:137',
+          address: '0x2222222222222222222222222222222222222222',
+          bip44CoinType: 60,
+          wallet: {
+            getBalance: mock.fn(async () => 12.3),
+          } as unknown as Wallet,
+        },
+        'bip122:000000000019d6689c085ae165831e93': {
+          blockchainKey: 'bip122:000000000019d6689c085ae165831e93',
+          address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+          bip44CoinType: 0,
+          wallet: {
+            getBalance: mock.fn(async () => 0.025),
+          } as unknown as Wallet,
+        },
+      };
+
+      const mockWalletService = {
+        getHotWallet: mock.fn(async (key: string) => mockWallets[key]),
+      } as unknown as WalletService;
+
+      const service = new SettlementWalletService(mockWalletService);
+
+      // Execute
+      const balances = await service.getHotWalletBalances([
+        'eip155:1',
+        'eip155:137',
+        'bip122:000000000019d6689c085ae165831e93',
+      ]);
+
+      // Verify
+      strictEqual(balances.length, 3, 'Should return 3 balance entries');
+      strictEqual(balances[0].blockchainKey, 'eip155:1');
+      strictEqual(balances[0].balance, '5.5');
+      strictEqual(balances[0].address, '0x1111111111111111111111111111111111111111');
+
+      strictEqual(balances[1].blockchainKey, 'eip155:137');
+      strictEqual(balances[1].balance, '12.3');
+
+      strictEqual(balances[2].blockchainKey, 'bip122:000000000019d6689c085ae165831e93');
+      strictEqual(balances[2].balance, '0.025');
+    });
+
+    it('should handle partial failures gracefully', async () => {
+      // Setup: One wallet succeeds, one fails
+      const mockWallets: Record<string, HotWallet> = {
+        'eip155:1': {
+          blockchainKey: 'eip155:1',
+          address: '0x1111111111111111111111111111111111111111',
+          bip44CoinType: 60,
+          wallet: {
+            getBalance: mock.fn(async () => 5.5),
+          } as unknown as Wallet,
+        },
+        'eip155:137': {
+          blockchainKey: 'eip155:137',
+          address: '0x2222222222222222222222222222222222222222',
+          bip44CoinType: 60,
+          wallet: {
+            getBalance: mock.fn(async () => {
+              throw new Error('RPC node down');
+            }),
+          } as unknown as Wallet,
+        },
+      };
+
+      const mockWalletService = {
+        getHotWallet: mock.fn(async (key: string) => mockWallets[key]),
+      } as unknown as WalletService;
+
+      const service = new SettlementWalletService(mockWalletService);
+
+      // Execute
+      const balances = await service.getHotWalletBalances(['eip155:1', 'eip155:137']);
+
+      // Verify - should still include both, but failed one has zero balance
+      strictEqual(balances.length, 2, 'Should return 2 entries even with failure');
+      strictEqual(balances[0].balance, '5.5', 'First balance should be correct');
+      strictEqual(balances[1].balance, '0', 'Failed balance should be zero');
+      strictEqual(balances[1].address, '', 'Failed entry should have empty address');
+    });
+
+    it('should return all entries including failures', async () => {
+      // Setup: Mix of successful and failed wallets
+      const mockWallets: Record<string, HotWallet> = {
+        'eip155:1': {
+          blockchainKey: 'eip155:1',
+          address: '0x1111111111111111111111111111111111111111',
+          bip44CoinType: 60,
+          wallet: {
+            getBalance: mock.fn(async () => 5.5),
+          } as unknown as Wallet,
+        },
+        'eip155:137': {
+          blockchainKey: 'eip155:137',
+          address: '0x2222222222222222222222222222222222222222',
+          bip44CoinType: 60,
+          wallet: {
+            getBalance: mock.fn(async () => {
+              throw new Error('Failed');
+            }),
+          } as unknown as Wallet,
+        },
+      };
+
+      const mockWalletService = {
+        getHotWallet: mock.fn(async (key: string) => mockWallets[key]),
+      } as unknown as WalletService;
+
+      const service = new SettlementWalletService(mockWalletService);
+
+      // Execute
+      const balances = await service.getHotWalletBalances(['eip155:1', 'eip155:137']);
+
+      // Verify - returns all entries (including failures with zero balance)
+      strictEqual(balances.length, 2, 'Should return all entries including failures');
+      ok(
+        balances.some(b => b.balance === '5.5'),
+        'Should include successful balance',
+      );
+      ok(
+        balances.some(b => b.balance === '0' && b.address === ''),
+        'Should include failed entry with zero balance',
+      );
+    });
+  });
 });

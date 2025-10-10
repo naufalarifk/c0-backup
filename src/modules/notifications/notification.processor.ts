@@ -6,12 +6,13 @@ import type { NotificationData } from './notification.types';
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { NotificationService } from './notification.service';
 
 @Injectable()
 @Processor('notificationQueue')
 export class NotificationProcessor extends WorkerHost {
-  private readonly logger = new Logger(NotificationProcessor.name);
+  private readonly logger = new TelemetryLogger(NotificationProcessor.name);
 
   constructor(private readonly notificationService: NotificationService) {
     super();

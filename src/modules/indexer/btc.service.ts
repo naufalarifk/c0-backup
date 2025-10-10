@@ -59,7 +59,8 @@ interface BitcoinTransaction {
       hex: string;
       type: string;
       reqSigs?: number;
-      addresses?: string[];
+      addresses?: string[]; // Deprecated in Bitcoin Core 23.0+
+      address?: string; // New field in Bitcoin Core 23.0+
     };
   }>;
   hex: string;

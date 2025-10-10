@@ -5,6 +5,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { assertDefined, assertProp, check, isNumber, isString } from 'typeshaper';
 
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { NotificationChannelEnum } from '../notification.types';
 import {
   NotificationProvider,
@@ -15,7 +16,7 @@ import { NotificationProviderFlag } from '../notification-provider.factory';
 @Injectable()
 @NotificationProviderFlag(NotificationChannelEnum.Database)
 export class DatabaseNotificationProvider extends NotificationProvider {
-  private readonly logger = new Logger(DatabaseNotificationProvider.name);
+  private readonly logger = new TelemetryLogger(DatabaseNotificationProvider.name);
 
   constructor(
     @Inject(CryptogadaiRepository)

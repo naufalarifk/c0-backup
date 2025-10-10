@@ -5,6 +5,8 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
+import { TelemetryLogger } from '../../shared/telemetry.logger';
+
 export interface QueueInvoiceExpirationOptions {
   priority?: number;
   delay?: number;
@@ -17,7 +19,7 @@ export interface QueueInvoiceExpirationOptions {
 
 @Injectable()
 export class InvoiceExpirationQueueService {
-  private readonly logger = new Logger(InvoiceExpirationQueueService.name);
+  private readonly logger = new TelemetryLogger(InvoiceExpirationQueueService.name);
 
   constructor(
     @InjectQueue('invoiceExpirationQueue')

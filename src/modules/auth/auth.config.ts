@@ -1,12 +1,10 @@
 import type { BetterAuthOptions } from 'better-auth';
-import type { AuthModuleOptions } from './auth.module';
-import type { UserSession } from './types';
+import type { AuthConfigProvider, ExtendedAuth, UserSession } from './types';
 
 import { Injectable } from '@nestjs/common';
 
 import { expo } from '@better-auth/expo';
-import { sso } from '@better-auth/sso';
-import { Auth, betterAuth } from 'better-auth';
+import { betterAuth } from 'better-auth';
 import {
   admin,
   customSession,
@@ -28,7 +26,7 @@ import { NotificationQueueService } from '../notifications/notification-queue.se
 import { authAdapter } from './auth.adapter';
 
 @Injectable()
-export class AuthConfig {
+export class AuthConfig implements AuthConfigProvider {
   private readonly logger = new TelemetryLogger(AuthConfig.name);
 
   constructor(
@@ -42,7 +40,7 @@ export class AuthConfig {
    * Creates and returns the Better Auth configuration
    * This method is called by the AuthModule to initialize Better Auth
    */
-  createAuthOptions(): { auth: Auth; options?: AuthModuleOptions } {
+  createAuthConfig() {
     const options: BetterAuthOptions = {
       database: this.database(),
       session: this.session(),
@@ -104,7 +102,11 @@ export class AuthConfig {
     };
 
     return {
-      auth: betterAuth(options) as unknown as Auth,
+      auth: betterAuth(options) as unknown as ExtendedAuth,
+      disableExceptionFilter: false,
+      disableGlobalAuthGuard: false,
+      disableTrustedOriginsCors: false,
+      disableBodyParser: false,
     };
   }
 
@@ -260,9 +262,12 @@ export class AuthConfig {
   }
 
   private advanced(): BetterAuthOptions['advanced'] {
+    const sameSite = this.configService.isProduction ? 'strict' : 'none';
+
     return {
       cookiePrefix: this.configService.authConfig.cookiePrefix,
-      useSecureCookies: this.configService.isProduction,
+      // When sameSite is 'none', secure must be true for browser compatibility
+      useSecureCookies: sameSite === 'none' ? true : this.configService.isProduction,
       disableCSRFCheck: false,
       crossSubDomainCookies: {
         enabled: !this.configService.isProduction,
@@ -270,7 +275,7 @@ export class AuthConfig {
       defaultCookieAttributes: {
         httpOnly: true,
         secure: true,
-        sameSite: this.configService.isProduction ? 'Strict' : 'None',
+        sameSite,
       },
     };
   }

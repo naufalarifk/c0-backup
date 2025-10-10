@@ -33,7 +33,7 @@ interface TransactionAnalysis {
 
 @Injectable()
 export class EthereumService implements OnModuleInit {
-  provider: ethers.WebSocketProvider;
+  provider: ethers.WebSocketProvider | null = null;
 
   // Common ERC-20 function signatures
   private readonly ERC20_TRANSFER_SIGNATURE = '0xa9059cbb'; // transfer(address,uint256)
@@ -45,13 +45,40 @@ export class EthereumService implements OnModuleInit {
     '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
   constructor() {
-    this.provider = new ethers.WebSocketProvider(
-      process.env.ETH_WS_URL || 'wss://mainnet.infura.io/ws/v3/YOUR_PROJECT_ID',
-    );
+    // Only create provider if ETH_WS_URL is properly configured
+    if (process.env.ETH_WS_URL && !process.env.ETH_WS_URL.includes('YOUR_PROJECT_ID')) {
+      try {
+        this.provider = new ethers.WebSocketProvider(process.env.ETH_WS_URL);
+
+        // Add error handler to prevent unhandled errors from crashing the app
+        this.provider.on('error', (error: Error) => {
+          console.error('Ethereum provider error:', error.message);
+        });
+
+        // Access the underlying WebSocket for additional error handling
+        const ws = this.provider.websocket as unknown as {
+          addEventListener: (event: string, listener: (event: unknown) => void) => void;
+        };
+        ws.addEventListener('error', (event: unknown) => {
+          console.error('Ethereum WebSocket error event:', event);
+        });
+        ws.addEventListener('close', () => {
+          console.log('Ethereum WebSocket connection closed');
+        });
+      } catch (error) {
+        console.error('Failed to create Ethereum provider:', error);
+      }
+    }
   }
 
   onModuleInit() {
-    console.log('Ethereum service initialized');
+    if (!this.provider) {
+      console.log(
+        'Ethereum service initialized (no valid ETH_WS_URL configured, provider disabled)',
+      );
+    } else {
+      console.log('Ethereum service initialized with WebSocket provider');
+    }
   }
 
   /**
@@ -59,9 +86,15 @@ export class EthereumService implements OnModuleInit {
    */
   onNewBlock(): Observable<ethers.Block> {
     return new Observable(subscriber => {
+      if (!this.provider) {
+        subscriber.error(new Error('Ethereum provider not initialized'));
+        return;
+      }
+
+      const provider = this.provider;
       const handler = (blockNumber: number) => {
         // Handle the async operation without making the handler async
-        this.provider
+        provider
           .getBlock(blockNumber, true)
           .then(block => {
             if (block) {
@@ -73,14 +106,14 @@ export class EthereumService implements OnModuleInit {
           });
       };
 
-      this.provider.on('block', handler).catch(err => {
+      provider.on('block', handler).catch(err => {
         console.error('Error setting up block listener', err);
         subscriber.error(err);
       });
 
       // Cleanup on unsubscribe
       return () => {
-        this.provider.off('block', handler).catch(err => {
+        provider.off('block', handler).catch(err => {
           console.error('Error removing block listener', err);
         });
       };
@@ -91,6 +124,10 @@ export class EthereumService implements OnModuleInit {
    * Analyze a transaction to detect tokens involved
    */
   async analyzeTransactionForTokens(txHash: string): Promise<TransactionAnalysis> {
+    if (!this.provider) {
+      return { type: 'error', tokens: [], error: 'Ethereum provider not initialized' };
+    }
+
     try {
       const tx = await this.provider.getTransaction(txHash);
       const receipt = await this.provider.getTransactionReceipt(txHash);
@@ -162,6 +199,10 @@ export class EthereumService implements OnModuleInit {
    * Get ERC-20 token information
    */
   async getERC20TokenInfo(contractAddress: string): Promise<EthereumTokenInfo> {
+    if (!this.provider) {
+      return { name: 'Unknown', symbol: 'UNK', decimals: 18 };
+    }
+
     try {
       const contract = new ethers.Contract(
         contractAddress,
@@ -190,6 +231,10 @@ export class EthereumService implements OnModuleInit {
    * Check if an address is a contract
    */
   async isContractAddress(address: string): Promise<boolean> {
+    if (!this.provider) {
+      return false;
+    }
+
     try {
       const code = await this.provider.getCode(address);
       return code !== '0x';

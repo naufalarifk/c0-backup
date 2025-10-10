@@ -18,17 +18,11 @@ export class BscMainnetIndexerListener extends EthereumIndexerListener {
   readonly logger = new TelemetryLogger(BscMainnetIndexerListener.name);
 
   constructor(
-    appConfig: AppConfigService,
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
+    appConfig: AppConfigService,
   ) {
-    super(discovery, redis, invoicePaymentQueue, {
-      chainName: 'BSC Mainnet',
-      wsUrlEnvVar: 'BSC_WS_URL',
-      defaultWsUrl: 'wss://bsc-mainnet.infura.io/ws/v3/YOUR_PROJECT_ID',
-      nativeTokenId: 'slip44:714',
-      tokenPrefix: 'bep20',
-    });
+    super(discovery, redis, invoicePaymentQueue, appConfig.indexerConfigs.ethereum.bscMainnet);
   }
 }

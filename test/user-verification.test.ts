@@ -69,15 +69,18 @@ suite('User Verification API E2E Tests', function () {
     });
 
     // Set admin role using test endpoint
-    const assignAdminRoleResponse = await fetch(`${testSetup.backendUrl}/api/assign-admin-role`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
+    const assignAdminRoleResponse = await fetch(
+      `${testSetup.backendUrl}/api/test/assign-admin-role`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: String(adminUser.id),
+        }),
       },
-      body: JSON.stringify({
-        userId: String(adminUser.id),
-      }),
-    });
+    );
 
     if (!assignAdminRoleResponse.ok) {
       const errorData = await assignAdminRoleResponse.text();
@@ -931,6 +934,7 @@ suite('User Verification API E2E Tests', function () {
         formData.append('businessSubdistrict', 'Senayan');
         formData.append('businessAddress', 'Jl. Asia Afrika No. 8, Komplex Gelora Bung Karno');
         formData.append('businessPostalCode', '10270');
+        formData.append('establishmentNumber', 'AHU-001234567');
         formData.append('directorName', 'Budi Santoso');
         formData.append('directorPosition', 'CEO');
 

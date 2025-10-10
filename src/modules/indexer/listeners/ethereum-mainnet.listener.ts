@@ -18,17 +18,11 @@ export class EthereumMainnetIndexerListener extends EthereumIndexerListener {
   readonly logger = new TelemetryLogger(EthereumMainnetIndexerListener.name);
 
   constructor(
-    appConfig: AppConfigService,
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
+    appConfig: AppConfigService,
   ) {
-    super(discovery, redis, invoicePaymentQueue, {
-      chainName: 'Ethereum Mainnet',
-      wsUrlEnvVar: 'ETHEREUM_MAINNET_WS_URL',
-      defaultWsUrl: 'wss://ethereum-rpc.publicnode.com',
-      nativeTokenId: 'slip44:60',
-      tokenPrefix: 'erc20',
-    });
+    super(discovery, redis, invoicePaymentQueue, appConfig.indexerConfigs.ethereum.mainnet);
   }
 }

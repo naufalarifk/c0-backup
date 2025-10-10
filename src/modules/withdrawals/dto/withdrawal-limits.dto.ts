@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 import { Type } from 'class-transformer';
-import { IsNotEmpty, IsNumber, IsPositive, IsString, Min } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsPositive, IsString, Max, Min } from 'class-validator';
 
 export class WithdrawalLimitsDto {
   @ApiProperty({
@@ -63,12 +63,13 @@ export class WithdrawalFeeDto {
   feeAmount: number;
 
   @ApiProperty({
-    description: 'Fee percentage (0-100)',
-    example: '0.5',
+    description: 'Fee rate as decimal (e.g., 0.005 = 0.5%)',
+    example: 0.005,
   })
   @IsNotEmpty()
-  @IsNumber({}, { message: 'Fee percentage must be a number' })
-  @Min(0, { message: 'Fee percentage cannot be negative' })
+  @IsNumber({}, { message: 'Fee rate must be a number' })
+  @Min(0, { message: 'Fee rate cannot be negative' })
+  @Max(1, { message: 'Fee rate must be between 0 and 1' })
   @Type(() => Number)
   feePercentage: number;
 

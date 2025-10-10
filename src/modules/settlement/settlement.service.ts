@@ -121,21 +121,39 @@ export class SettlementService {
     const results: SettlementResult[] = [];
 
     try {
-      // 1. Get all hot wallet balances for this currency
-      const hotWallets =
+      // 1. Get blockchain keys that should have this currency (from DB to know which blockchains to check)
+      const blockchainKeysFromDb =
         await this.repository.platformGetsHotWalletBalancesForCurrency(currencyTokenId);
 
-      if (hotWallets.length === 0) {
-        this.logger.debug(`No hot wallet balances found for ${currencyTokenId}`);
+      if (blockchainKeysFromDb.length === 0) {
+        this.logger.debug(`No blockchain keys configured for ${currencyTokenId}`);
         return [];
       }
 
-      // 2. Calculate total hot wallet balance
+      const blockchainKeys = blockchainKeysFromDb.map(hw => hw.blockchainKey);
+      this.logger.debug(
+        `Checking ${blockchainKeys.length} blockchains for ${currencyTokenId}: ${blockchainKeys.join(', ')}`,
+      );
+
+      // 2. Get ACTUAL blockchain balances (not from DB)
+      const hotWallets = await this.walletService.getHotWalletBalances(blockchainKeys);
+
+      if (hotWallets.length === 0) {
+        this.logger.debug(`No actual balances found on blockchains for ${currencyTokenId}`);
+        return [];
+      }
+
+      // 3. Calculate total hot wallet balance from actual blockchain data
       const totalHotWallet = hotWallets.reduce((sum, hw) => sum + Number.parseFloat(hw.balance), 0);
 
-      this.logger.log(`Total hot wallet balance: ${totalHotWallet.toFixed(2)} ${currencyTokenId}`);
+      this.logger.log(
+        `Total hot wallet balance (from blockchain): ${totalHotWallet.toFixed(2)} ${currencyTokenId}`,
+      );
+      hotWallets.forEach(hw => {
+        this.logger.debug(`  ${hw.blockchainKey}: ${hw.balance} (${hw.address})`);
+      });
 
-      // 3. Get current Binance balance
+      // 4. Get current Binance balance
       const currentBinance = await this.getBinanceBalance(currencyTokenId);
       const currentBinanceNum = Number.parseFloat(currentBinance);
 
@@ -143,7 +161,7 @@ export class SettlementService {
         `Current Binance balance: ${currentBinanceNum.toFixed(2)} ${currencyTokenId}`,
       );
 
-      // 4. Calculate required settlement amount
+      // 5. Calculate required settlement amount
       const settlementAmount = this.calculateSettlementAmount(
         totalHotWallet.toString(),
         currentBinance,
@@ -160,7 +178,7 @@ export class SettlementService {
         `Settlement needed: ${settlementNum > 0 ? 'Transfer TO' : 'Withdraw FROM'} Binance: ${Math.abs(settlementNum).toFixed(2)} ${currencyTokenId}`,
       );
 
-      // 5. Execute settlement transfers
+      // 6. Execute settlement transfers
       if (settlementNum > 0) {
         // Need to transfer TO Binance - deposit from hot wallets to Binance
         results.push(

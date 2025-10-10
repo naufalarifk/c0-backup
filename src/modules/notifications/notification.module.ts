@@ -8,10 +8,14 @@ import { BeneficiaryVerificationNotificationComposer } from './composers/benefic
 import { EmailVerificationNotificationComposer } from './composers/email-verification-notification.composer';
 import { InvoiceCreatedNotificationComposer } from './composers/invoice-created-notification.composer';
 import { InvoicePaidNotificationComposer } from './composers/invoice-paid-notification.composer';
+import { LoanApplicationCollateralInvoiceFullyPaidNotificationComposer } from './composers/loan-application-collateral-invoice-fully-paid-notification.composer';
+import { LoanApplicationCollateralInvoicePartiallyPaidNotificationComposer } from './composers/loan-application-collateral-invoice-partially-paid-notification.composer';
 import { LoanApplicationMatchedNotificationComposer } from './composers/loan-application-matched-notification.composer';
 import { LoanApplicationPublishedNotificationComposer } from './composers/loan-application-published-notification.composer';
 import { LoanLiquidationNotificationComposer } from './composers/loan-liquidation-notification.composer';
 import { LoanLtvBreachNotificationComposer } from './composers/loan-ltv-breach-notification.composer';
+import { LoanOfferInvoiceFullyPaidNotificationComposer } from './composers/loan-offer-invoice-fully-paid-notification.composer';
+import { LoanOfferInvoicePartiallyPaidNotificationComposer } from './composers/loan-offer-invoice-partially-paid-notification.composer';
 import { LoanOfferMatchedNotificationComposer } from './composers/loan-offer-matched-notification.composer';
 import { LoanOfferPublishedNotificationComposer } from './composers/loan-offer-published-notification.composer';
 import { LoanRepaymentDueNotificationComposer } from './composers/loan-repayment-due-notification.composer';
@@ -69,17 +73,21 @@ import { PushSenderService } from './services/push-sender.service';
     ExpoNotificationProvider,
     DatabaseNotificationProvider,
     RealtimeNotificationProvider, // Redis pub/sub for distributed systems
-    WebSocketNotificationProvider, // Direct WebSocket for local delivery
+    // WebSocketNotificationProvider, // Removed to prevent duplicate notifications - RealtimeNotificationProvider is the proper implementation
 
     // Notification Composers
     BeneficiaryVerificationNotificationComposer,
     EmailVerificationNotificationComposer,
     InvoiceCreatedNotificationComposer,
     InvoicePaidNotificationComposer,
+    LoanApplicationCollateralInvoicePartiallyPaidNotificationComposer,
+    LoanApplicationCollateralInvoiceFullyPaidNotificationComposer,
     LoanApplicationMatchedNotificationComposer,
     LoanApplicationPublishedNotificationComposer,
     LoanLiquidationNotificationComposer,
     LoanLtvBreachNotificationComposer,
+    LoanOfferInvoicePartiallyPaidNotificationComposer,
+    LoanOfferInvoiceFullyPaidNotificationComposer,
     LoanOfferMatchedNotificationComposer,
     LoanOfferPublishedNotificationComposer,
     LoanRepaymentDueNotificationComposer,

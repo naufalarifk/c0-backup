@@ -10,6 +10,7 @@ import {
 import { InvoiceService } from '../../../shared/invoice/invoice.service';
 import { InvoiceError } from '../../../shared/invoice/invoice.types';
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { IndexerEventService } from '../../indexer/indexer-event.service';
 import { LiquidationMode, LoanApplicationStatus, PaginationMetaDto } from '../dto/common.dto';
 import {
@@ -29,7 +30,7 @@ import { LoanCalculationService } from './loan-calculation.service';
 
 @Injectable()
 export class LoanApplicationsService {
-  private readonly logger = new Logger(LoanApplicationsService.name);
+  private readonly logger = new TelemetryLogger(LoanApplicationsService.name);
 
   constructor(
     private readonly cryptogadaiRepository: CryptogadaiRepository,
@@ -128,13 +129,68 @@ export class LoanApplicationsService {
         calculationDate,
       });
 
+      // Calculate additional fields expected by frontend
+      const requiredCollateralAmountHuman = this.loanCalculationService.fromSmallestUnit(
+        calculationResult.requiredCollateralAmount,
+        calculationResult.collateralCurrency.decimals,
+      );
+      const principalAmountHuman = this.loanCalculationService.fromSmallestUnit(
+        calculationResult.principalAmount,
+        calculationResult.principalCurrency.decimals,
+      );
+
+      // Calculate collateral to loan ratio
+      const collateralToLoanRatio =
+        parseFloat(requiredCollateralAmountHuman) / parseFloat(principalAmountHuman);
+
+      // Calculate liquidation price (70% of current exchange rate)
+      const liquidationThreshold = 0.7;
+      const liquidationPrice = (
+        parseFloat(calculationResult.exchangeRate.rate) * liquidationThreshold
+      ).toFixed(2);
+
+      // Calculate estimated interest (example: 7.5% APR for the term)
+      const estimatedInterestRate = 0.075;
+      const termInYears = termInMonths / 12;
+      const estimatedInterestAmount = (
+        parseFloat(principalAmountHuman) *
+        estimatedInterestRate *
+        termInYears
+      ).toFixed(18);
+
+      // Calculate total repayment
+      const totalRepaymentAmount = (
+        parseFloat(principalAmountHuman) + parseFloat(estimatedInterestAmount)
+      ).toFixed(18);
+
+      // Calculate fees
+      const provisionAmount = this.loanCalculationService.fromSmallestUnit(
+        calculationResult.provisionAmount,
+        calculationResult.principalCurrency.decimals,
+      );
+      const liquidationFee = (parseFloat(principalAmountHuman) * 0.02).toFixed(18); // 2% liquidation fee
+      const premiumRisk = (parseFloat(principalAmountHuman) * 0.02).toFixed(18); // 2% premium risk
+
       return {
         success: true,
         data: {
-          requiredCollateralAmount: this.loanCalculationService.fromSmallestUnit(
-            calculationResult.requiredCollateralAmount,
-            calculationResult.collateralCurrency.decimals,
-          ),
+          requiredCollateralAmount: requiredCollateralAmountHuman,
+          collateralToLoanRatio,
+          liquidationPrice,
+          liquidationThreshold,
+          estimatedInterestAmount,
+          totalRepaymentAmount,
+          fees: {
+            liquidationFee,
+            premiumRisk,
+            provision: provisionAmount,
+          },
+          ltv: calculationResult.maxLtvRatio,
+          marketRates: {
+            collateralPrice: calculationResult.exchangeRate.rate,
+            principalPrice: '1.00',
+          },
+          // Legacy fields for backward compatibility
           exchangeRate: calculationResult.exchangeRate.rate,
           collateralCurrency: {
             blockchainKey: calculationResult.collateralCurrency.blockchainKey,
@@ -155,18 +211,9 @@ export class LoanApplicationsService {
           maxLtvRatio: calculationResult.maxLtvRatio,
           safetyBuffer: 10, // Static value for now
           calculationDetails: {
-            baseLoanAmount: this.loanCalculationService.fromSmallestUnit(
-              calculationResult.principalAmount,
-              calculationResult.principalCurrency.decimals,
-            ),
-            baseCollateralValue: this.loanCalculationService.fromSmallestUnit(
-              calculationResult.requiredCollateralAmount,
-              calculationResult.collateralCurrency.decimals,
-            ),
-            withSafetyBuffer: this.loanCalculationService.fromSmallestUnit(
-              calculationResult.requiredCollateralAmount,
-              calculationResult.collateralCurrency.decimals,
-            ),
+            baseLoanAmount: principalAmountHuman,
+            baseCollateralValue: requiredCollateralAmountHuman,
+            withSafetyBuffer: requiredCollateralAmountHuman,
             currentExchangeRate: calculationResult.exchangeRate.rate,
             rateSource: 'platform',
             rateTimestamp: calculationResult.exchangeRate.timestamp.toISOString(),
@@ -880,6 +927,11 @@ export class LoanApplicationsService {
             expiredDate: r.collateralInvoice.expiredDate
               ? String(r.collateralInvoice.expiredDate)
               : undefined,
+            status: (r.collateralInvoice.paidDate
+              ? 'Paid'
+              : r.collateralInvoice.expiredDate
+                ? 'Expired'
+                : 'Pending') as 'Pending' | 'Paid' | 'Expired' | 'Failed',
           }
         : undefined;
 
@@ -941,6 +993,7 @@ export class LoanApplicationsService {
               : '',
             paidDate: undefined,
             expiredDate: undefined,
+            status: 'Pending' as const,
           };
 
       return {
@@ -978,6 +1031,8 @@ export class LoanApplicationsService {
         liquidationMode:
           r.liquidationMode === 'Partial' ? LiquidationMode.PARTIAL : LiquidationMode.FULL,
         minLtvRatio: r.minLtvRatio !== undefined ? Number(r.minLtvRatio) : undefined,
+        matchedLoanOfferId: r.loanOfferId,
+        matchedLtvRatio: r.matchedLtvRatio,
         status: dtoStatus,
         createdDate: r.appliedDate.toISOString
           ? r.appliedDate.toISOString()

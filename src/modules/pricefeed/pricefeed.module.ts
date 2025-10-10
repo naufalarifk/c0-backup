@@ -1,3 +1,4 @@
+import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { DiscoveryModule } from '@nestjs/core';
@@ -12,7 +13,15 @@ import { CoinMarketCapPriceFeedProvider } from './providers/coinmarketcap.provid
 import { RandomPriceFeedProvider } from './providers/random.provider';
 
 @Module({
-  imports: [ConfigModule, DiscoveryModule, ScheduleModule.forRoot(), RepositoryModule],
+  imports: [
+    ConfigModule,
+    DiscoveryModule,
+    ScheduleModule.forRoot(),
+    RepositoryModule,
+    BullModule.registerQueue({
+      name: 'valuationQueue',
+    }),
+  ],
   providers: [
     PricefeedService,
     PriceFeedProviderFactory,

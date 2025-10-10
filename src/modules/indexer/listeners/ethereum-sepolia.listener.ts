@@ -18,17 +18,11 @@ export class EthereumSepoliaIndexerListener extends EthereumIndexerListener {
   readonly logger = new TelemetryLogger(EthereumSepoliaIndexerListener.name);
 
   constructor(
-    appConfig: AppConfigService,
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
+    appConfig: AppConfigService,
   ) {
-    super(discovery, redis, invoicePaymentQueue, {
-      chainName: 'Ethereum Sepolia',
-      wsUrlEnvVar: 'ETHEREUM_SEPOLIA_WS_URL',
-      defaultWsUrl: 'wss://sepolia.infura.io/ws/v3/YOUR_INFURA_PROJECT_ID',
-      nativeTokenId: 'slip44:60',
-      tokenPrefix: 'erc20',
-    });
+    super(discovery, redis, invoicePaymentQueue, appConfig.indexerConfigs.ethereum.sepolia);
   }
 }

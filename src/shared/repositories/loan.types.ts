@@ -190,6 +190,8 @@ export type LenderViewsMyLoanOffersParams = {
 export type LenderViewsMyLoanOffersResult = {
   loanOffers: Array<{
     id: string;
+    lenderUserName?: string;
+    lenderUserType?: string;
     principalCurrency: Currency;
     offeredPrincipalAmount: string;
     availablePrincipalAmount: string;
@@ -222,6 +224,8 @@ export type PlatformListsAvailableLoanOffersResult = {
   loanOffers: Array<{
     id: string;
     lenderUserId: string;
+    lenderUserName?: string;
+    lenderUserType?: string;
     principalCurrency: Currency;
     availablePrincipalAmount: string;
     minLoanPrincipalAmount: string;

@@ -48,7 +48,7 @@ export class ProfileService {
       lastLoginDate: profile.lastLoginDate?.toISOString() || null,
       userType: profile.userType || null,
       kycId: profile.kycId || null,
-      institutionId: profile.institutionUserId || null,
+      institutionId: profile.institutionUserId ? Number(profile.institutionUserId) : null,
       institutionRole: profile.institutionRole || null,
       // Boolean fields
       twoFaEnabled: profile.twoFactorEnabled || false,

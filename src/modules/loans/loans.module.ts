@@ -1,5 +1,5 @@
 import { BullModule } from '@nestjs/bullmq';
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 
 import { SharedModule } from '../../shared/shared.module';
 import { DocumentModule } from '../documents/document.module';
@@ -17,7 +17,7 @@ import { LoansService } from './services/loans.service';
   imports: [
     SharedModule,
     DocumentModule,
-    IndexerModule,
+    forwardRef(() => IndexerModule),
     BullModule.registerQueue({
       name: 'documentQueue',
     }),

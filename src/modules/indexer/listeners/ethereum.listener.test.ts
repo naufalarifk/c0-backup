@@ -6,17 +6,18 @@ import { after, before, describe, it } from 'node:test';
 import { DiscoveryService } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { RedisContainer, StartedRedisContainer } from '@testcontainers/redis';
 import { ethers } from 'ethers';
-import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers';
+import { GenericContainer, StartedTestContainer } from 'testcontainers';
 import { LogWaitStrategy } from 'testcontainers/build/wait-strategies/log-wait-strategy';
-import { assertDefined, assertPropString, isString } from 'typeshaper';
+import { assertDefined, assertPropString } from 'typeshaper';
+import { isAddress, isHash } from 'viem';
 
+import { AppConfigService } from '../../../shared/services/app-config.service';
 import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { InvoicePaymentQueueService } from '../../invoice-payments/invoice-payment.queue.service';
 import { AddressChanged, DetectedTransaction, Listener } from '../indexer-listener.abstract';
-import { EthereumIndexerListener } from './ethereum.listener';
+import { type EthereumIndexerConfig, EthereumIndexerListener } from './ethereum.listener';
 
 /**
  * Test implementation of EthereumIndexerListener for local testing
@@ -28,15 +29,10 @@ class TestEthereumIndexerListener extends EthereumIndexerListener {
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
-    wsUrl: string,
+    appConfig: AppConfigService,
   ) {
-    super(discovery, redis, invoicePaymentQueue, {
-      chainName: 'Test Ethereum',
-      defaultWsUrl: wsUrl,
-      wsUrlEnvVar: 'TEST_ETH_WS_URL',
-      nativeTokenId: 'slip44:60',
-      tokenPrefix: 'erc20',
-    });
+    const configs = appConfig.indexerConfigs.ethereum as Record<string, EthereumIndexerConfig>;
+    super(discovery, redis, invoicePaymentQueue, configs.test);
   }
 
   // Override getBlockchainKey for testing
@@ -53,6 +49,7 @@ describe('EthereumIndexerListener Integration Tests', function () {
   let redisService: RedisService;
   let provider: ethers.WebSocketProvider;
   let detectedTransactions: DetectedTransaction[] = [];
+  let appConfigMock: AppConfigService;
 
   before(
     async function () {
@@ -90,6 +87,26 @@ describe('EthereumIndexerListener Integration Tests', function () {
       const httpProvider = new ethers.JsonRpcProvider(anvilHttpUrl);
       await httpProvider.getNetwork();
       provider = new ethers.WebSocketProvider(anvilWsUrl);
+
+      appConfigMock = {
+        indexerConfigs: {
+          ethereum: {
+            test: {
+              chainName: 'Test Ethereum',
+              wsUrl: anvilWsUrl,
+              nativeTokenId: 'slip44:60',
+              tokenPrefix: 'erc20',
+            },
+          },
+          solana: {
+            mainnet: {
+              chainName: 'Solana Mainnet',
+              rpcUrl: 'http://localhost:0',
+              wsUrl: undefined,
+            },
+          },
+        },
+      } as unknown as AppConfigService;
 
       const mockInvoicePaymentQueue = {
         enqueuePaymentDetection: async (data: unknown) => {
@@ -138,10 +155,15 @@ describe('EthereumIndexerListener Integration Tests', function () {
               discovery: DiscoveryService,
               redis: RedisService,
               queue: InvoicePaymentQueueService,
+              appConfig: AppConfigService,
             ) => {
-              return new TestEthereumIndexerListener(discovery, redis, queue, anvilWsUrl);
+              return new TestEthereumIndexerListener(discovery, redis, queue, appConfig);
             },
-            inject: [DiscoveryService, RedisService, InvoicePaymentQueueService],
+            inject: [DiscoveryService, RedisService, InvoicePaymentQueueService, AppConfigService],
+          },
+          {
+            provide: AppConfigService,
+            useValue: appConfigMock,
           },
           DiscoveryService,
         ],
@@ -181,8 +203,7 @@ describe('EthereumIndexerListener Integration Tests', function () {
         const signer = await provider.getSigner(0);
         const recipientAddress = accounts[1].address;
 
-        console.log(`Sender: ${signer.address}`);
-        console.log(`Recipient: ${recipientAddress}`);
+        ok(isAddress(recipientAddress), 'Recipient should be valid address');
 
         // Start the listener
         await listener.start();
@@ -208,7 +229,7 @@ describe('EthereumIndexerListener Integration Tests', function () {
           value: ethers.parseEther('1.5'),
         });
 
-        console.log(`Transaction sent: ${tx.hash}`);
+        ok(isHash(tx.hash), 'Transaction should have valid hash');
 
         // Wait for transaction to be mined and detected
         await tx.wait();
@@ -226,8 +247,6 @@ describe('EthereumIndexerListener Integration Tests', function () {
         strictEqual(detected.txHash, tx.hash);
         strictEqual(detected.amount, ethers.parseEther('1.5').toString());
         ok(detected.timestamp > 0, 'Should have timestamp');
-
-        console.log('Native ETH transaction detected successfully');
       },
     );
 
@@ -247,7 +266,7 @@ describe('EthereumIndexerListener Integration Tests', function () {
           value: ethers.parseEther('0.5'),
         });
 
-        console.log(`Transaction to non-watched address: ${tx.hash}`);
+        ok(isHash(tx.hash), 'Transaction should have valid hash');
 
         await tx.wait();
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -257,8 +276,6 @@ describe('EthereumIndexerListener Integration Tests', function () {
           0,
           'Should not detect transaction to non-watched address',
         );
-
-        console.log('Correctly ignored non-watched address');
       },
     );
 
@@ -294,14 +311,12 @@ describe('EthereumIndexerListener Integration Tests', function () {
         value: ethers.parseEther('0.3'),
       });
 
-      console.log(`Transaction to removed address: ${tx.hash}`);
+      ok(isHash(tx.hash), 'Transaction should have valid hash');
 
       await tx.wait();
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       strictEqual(detectedTransactions.length, 0, 'Should not detect after removal');
-
-      console.log('Correctly stopped watching after removal');
     });
   });
 
@@ -311,53 +326,211 @@ describe('EthereumIndexerListener Integration Tests', function () {
 
     before(
       async function () {
-        // Deploy a simple ERC20 token contract for testing
+        // Deploy SimpleERC20 contract using source code and Anvil's built-in compiler
         const signer = await provider.getSigner(0);
 
-        // Simple ERC20 contract
+        // SimpleERC20 source code - minimal ERC20 for testing
+        const _sourceCode = `
+          // SPDX-License-Identifier: MIT
+          pragma solidity ^0.8.0;
+
+          contract SimpleERC20 {
+              mapping(address => uint256) public balanceOf;
+              event Transfer(address indexed from, address indexed to, uint256 value);
+
+              constructor() {
+                  balanceOf[msg.sender] = 1000000 * 10**18;
+              }
+
+              function transfer(address to, uint256 amount) external returns (bool) {
+                  require(balanceOf[msg.sender] >= amount, "Insufficient balance");
+                  balanceOf[msg.sender] -= amount;
+                  balanceOf[to] += amount;
+                  emit Transfer(msg.sender, to, amount);
+                  return true;
+              }
+          }
+        `;
+
+        // Properly compiled SimpleERC20 bytecode (even-length hex string)
+        const bytecode =
+          '0x6080604052348015600e575f80fd5b50335f90815260208190526040902069d3c21bcecceda10000009055610252806100375f395ff3fe608060405234801561000f575f80fd5b5060043610610034575f3560e01c806370a0823114610038578063a9059cbb1461006a575b5f80fd5b61005761004636600461019a565b5f6020819052908152604090205481565b6040519081526020015b60405180910390f35b61007d6100783660046101ba565b61008d565b6040519015158152602001610061565b335f908152602081905260408120548211156100e65760405162461bcd60e51b8152602060048201526014602482015273496e73756666696369656e742062616c616e636560601b604482015260640160405180910390fd5b335f90815260208190526040812080548492906101049084906101f6565b90915550506001600160a01b0383165f9081526020819052604081208054849290610130908490610209565b90915550506040518281526001600160a01b0384169033907fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef9060200160405180910390a35060015b92915050565b80356001600160a01b0381168114610195575f80fd5b919050565b5f602082840312156101aa575f80fd5b6101b38261017f565b9392505050565b5f80604083850312156101cb575f80fd5b6101d48361017f565b946020939093013593505050565b634e487b7160e01b5f52601160045260245ffd5b81810381811115610179576101796101e2565b80820180821115610179576101796101e256fea2646970667358221220b9b89ac864154a777a1f44d97c02c495fa343c68f9edb751549ec5532fb50cb464736f6c634300081a0033';
+
         const erc20Abi = [
-          'constructor(string name, string symbol)',
+          'constructor()',
           'function transfer(address to, uint256 amount) returns (bool)',
           'function balanceOf(address account) view returns (uint256)',
           'event Transfer(address indexed from, address indexed to, uint256 value)',
         ];
 
-        const erc20Bytecode =
-          '0x608060405234801561000f575f80fd5b506040516107e43803806107e4833981810160405281019061003191906102e2565b81600390816100409190610586565b5081600490816100509190610586565b5061006333670de0b6b3a7640000610664565b60015f3373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f2081905550505061073a565b5f604051905090565b5f80fd5b5f80fd5b5f80fd5b5f80fd5b5f601f19601f8301169050919050565b7f4e487b71000000000000000000000000000000000000000000000000000000005f52604160045260245ffd5b610101826100bb565b810181811067ffffffffffffffff821117156101205761011f6100cb565b5b80604052505050565b5f6101326100a2565b905061013e82826100f8565b919050565b5f67ffffffffffffffff82111561015d5761015c6100cb565b5b610166826100bb565b9050602081019050919050565b5f5b8381101561019057808201518184015260208101905061017f565b5f8484015250505050565b5f6101ad6101a884610143565b610129565b9050828152602081018484840111156101c9576101c86100b7565b5b6101d4848285610173565b509392505050565b5f82601f8301126101f0576101ef6100b3565b5b815161020084826020860161019b565b91505092915050565b5f805f60608486031215610220576102';
+        // Deploy using ContractFactory
+        const factory = new ethers.ContractFactory(erc20Abi, bytecode, signer);
+        tokenContract = (await factory.deploy()) as ethers.Contract;
+        await tokenContract.waitForDeployment();
 
-        // For testing, we'll use a pre-deployed mock or skip this test
-        // Since deploying contracts in Anvil requires proper bytecode
-        console.log('Skipping ERC20 deployment - would require full contract bytecode');
+        tokenAddress = await tokenContract.getAddress();
+        ok(isAddress(tokenAddress), 'Deployed token should have valid address');
+
+        // Verify deployment
+        const _code = await provider.getCode(tokenAddress);
       },
       { timeout: 15000 },
     );
 
     it(
       'should detect ERC20 token transfer to watched address',
-      { timeout: 10000 },
+      { timeout: 30000 },
       async function () {
-        // This test would require a deployed ERC20 contract
-        // For smoke testing, we'll verify the listener can handle ERC20 token IDs
+        detectedTransactions = [];
+
         const accounts = await provider.listAccounts();
+        const _signer = await provider.getSigner(0);
         const recipientAddress = accounts[4].address;
 
+        ok(isAddress(recipientAddress), 'Recipient should be valid address');
+        ok(isAddress(tokenAddress), 'Token contract should be valid address');
+        ok(tokenContract, 'Token contract should be defined');
+
+        // Add address to watch for this specific ERC20 token
         const addressChange: AddressChanged = {
-          tokenId: 'erc20:0x1234567890123456789012345678901234567890',
+          tokenId: `erc20:${tokenAddress.toLowerCase()}`,
           address: recipientAddress,
           derivedPath: "m/44'/60'/0'/0/4",
         };
 
-        // Verify the listener accepts ERC20 token addresses
-        await listener.onAddressAdded(addressChange);
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await redisService.publish(
+          'indexer:eip155:31337:address:added',
+          JSON.stringify(addressChange),
+        );
 
-        // Clean up
-        await listener.onAddressRemoved(addressChange);
+        // Give it time to set up the listener
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-        console.log('ERC20 address handling verified');
-        ok(true, 'Listener should handle ERC20 token addresses');
+        // Transfer tokens to watched address
+        const transferAmount = ethers.parseEther('100');
+        const tx = await tokenContract.transfer(recipientAddress, transferAmount);
+
+        ok(isHash(tx.hash), 'Transaction should have valid hash');
+
+        // Wait for transaction to be mined and detected
+        await tx.wait();
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Verify detection
+        strictEqual(detectedTransactions.length, 1, 'Should detect one ERC20 transfer');
+
+        const detected = detectedTransactions[0];
+        assertDefined(detected);
+        strictEqual(detected.blockchainKey, 'eip155:31337');
+        strictEqual(detected.tokenId, `erc20:${tokenAddress.toLowerCase()}`);
+        strictEqual(detected.address.toLowerCase(), recipientAddress.toLowerCase());
+        strictEqual(detected.derivedPath, "m/44'/60'/0'/0/4");
+        strictEqual(detected.txHash, tx.hash);
+        strictEqual(detected.amount, transferAmount.toString());
+        ok(detected.timestamp > 0, 'Should have timestamp');
+
+        const balance = await tokenContract.balanceOf(recipientAddress);
+        strictEqual(balance, transferAmount, 'Recipient should have received tokens');
       },
     );
+
+    it(
+      'should not detect ERC20 transfers to non-watched addresses',
+      { timeout: 20000 },
+      async function () {
+        detectedTransactions = [];
+
+        const accounts = await provider.listAccounts();
+        const _signer = await provider.getSigner(0);
+        const recipientAddress = accounts[5].address;
+
+        // Send tokens to non-watched address
+        const transferAmount = ethers.parseEther('50');
+        const tx = await tokenContract.transfer(recipientAddress, transferAmount);
+
+        await tx.wait();
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        strictEqual(
+          detectedTransactions.length,
+          0,
+          'Should not detect ERC20 transfer to non-watched address',
+        );
+
+        // Clean up: remove the watcher from previous test to reset state
+        const prevAddress = accounts[4].address;
+        await redisService.publish(
+          'indexer:eip155:31337:address:removed',
+          JSON.stringify({
+            tokenId: `erc20:${tokenAddress.toLowerCase()}`,
+            address: prevAddress,
+            derivedPath: "m/44'/60'/0'/0/4",
+          }),
+        );
+        await new Promise(resolve => setTimeout(resolve, 500));
+      },
+    );
+
+    it('should handle multiple ERC20 tokens separately', { timeout: 30000 }, async function () {
+      detectedTransactions = [];
+
+      const accounts = await provider.listAccounts();
+      const recipientAddress = accounts[7].address; // Use account 7 to avoid conflicts
+
+      // Add address for native token
+      const nativeAddressChange: AddressChanged = {
+        tokenId: 'slip44:60',
+        address: recipientAddress,
+        derivedPath: "m/44'/60'/0'/0/7",
+      };
+
+      // Add address for ERC20 token
+      const erc20AddressChange: AddressChanged = {
+        tokenId: `erc20:${tokenAddress.toLowerCase()}`,
+        address: recipientAddress,
+        derivedPath: "m/44'/60'/0'/0/7",
+      };
+
+      await redisService.publish(
+        'indexer:eip155:31337:address:added',
+        JSON.stringify(nativeAddressChange),
+      );
+
+      await redisService.publish(
+        'indexer:eip155:31337:address:added',
+        JSON.stringify(erc20AddressChange),
+      );
+
+      // Give more time for both listeners to be fully set up
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      const signer = await provider.getSigner(0);
+
+      // Send both native and ERC20
+      const ethTx = await signer.sendTransaction({
+        to: recipientAddress,
+        value: ethers.parseEther('0.5'),
+      });
+
+      const tokenTx = await tokenContract.transfer(recipientAddress, ethers.parseEther('25'));
+
+      await ethTx.wait();
+      await tokenTx.wait();
+      await new Promise(resolve => setTimeout(resolve, 4000)); // Increased wait time
+
+      strictEqual(detectedTransactions.length, 2, 'Should detect both transactions');
+
+      const nativeDetected = detectedTransactions.find(tx => tx.tokenId === 'slip44:60');
+      const erc20Detected = detectedTransactions.find(
+        tx => tx.tokenId === `erc20:${tokenAddress.toLowerCase()}`,
+      );
+
+      assertDefined(nativeDetected);
+      assertDefined(erc20Detected);
+
+      strictEqual(nativeDetected.amount, ethers.parseEther('0.5').toString());
+      strictEqual(erc20Detected.amount, ethers.parseEther('25').toString());
+    });
   });
 
   describe('Listener Lifecycle', function () {
@@ -416,8 +589,6 @@ describe('EthereumIndexerListener Integration Tests', function () {
 
       strictEqual(tx1Detected.address.toLowerCase(), recipient1.toLowerCase());
       strictEqual(tx2Detected.address.toLowerCase(), recipient2.toLowerCase());
-
-      console.log('Multiple address watching works correctly');
     });
 
     it('should reject invalid Ethereum addresses', { timeout: 5000 }, async function () {

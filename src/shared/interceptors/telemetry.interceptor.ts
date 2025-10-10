@@ -142,30 +142,6 @@ export class TelemetryInterceptor implements NestInterceptor {
     }
   }
 
-  /**
-   * Log response data if in development mode
-   */
-  private logResponseBody(data: unknown, context: Record<string, unknown>) {
-    try {
-      if (data !== undefined && data !== null) {
-        const sanitizedData = this.sanitizeBody(data);
-        if (sanitizedData) {
-          this.#logger.custom('info', 'Response Body', {
-            ...context,
-            body: sanitizedData,
-            type: 'response_body',
-          });
-        }
-      }
-    } catch (error) {
-      this.#logger.custom('warn', 'Failed to log response body', {
-        ...context,
-        error: error instanceof Error ? error.message : String(error),
-        type: 'response_body_error',
-      });
-    }
-  }
-
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
@@ -200,34 +176,6 @@ export class TelemetryInterceptor implements NestInterceptor {
           const duration = Date.now() - startTime;
           const statusCode = response.statusCode;
 
-          // Log request body
-          this.logRequestBody(request, {
-            method,
-            url,
-            route,
-            requestId: request.get('x-request-id') || request.get('request-id') || 'unknown',
-          });
-
-          // Log response body
-          this.logResponseBody(data, {
-            method,
-            url,
-            route,
-            statusCode: statusCode.toString(),
-            requestId: request.get('x-request-id') || request.get('request-id') || 'unknown',
-          });
-
-          // Log HTTP request/response using TelemetryLogger
-          this.#logger.httpRequest(method, url, statusCode, duration, {
-            route,
-            userAgent: request.get('user-agent') || '',
-            userId: (request as { user?: { id?: string } }).user?.id || 'anonymous',
-            contentLength: response.get('Content-Length') || '0',
-            requestId: request.get('x-request-id') || request.get('request-id') || 'unknown',
-            ip: request.ip || request.connection?.remoteAddress || 'unknown',
-            body: data ? '[REDACTED]' : 'no_body',
-          });
-
           // Record metrics
           this.telemetryService?.recordHttpRequest(method, route, statusCode, duration);
 
@@ -246,15 +194,6 @@ export class TelemetryInterceptor implements NestInterceptor {
         error: error => {
           const duration = Date.now() - startTime;
           const statusCode = response.statusCode || 500;
-
-          // Log request body even on error
-          this.logRequestBody(request, {
-            method,
-            url,
-            route,
-            requestId: request.get('x-request-id') || request.get('request-id') || 'unknown',
-            error: 'true',
-          });
 
           // Log HTTP request/response error using TelemetryLogger
           this.#logger.httpRequest(method, url, statusCode, duration, {

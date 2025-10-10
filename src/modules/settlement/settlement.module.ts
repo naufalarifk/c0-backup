@@ -6,9 +6,11 @@ import { RepositoryModule } from '../../shared/repositories/repository.module';
 import { WalletModule } from '../../shared/wallets/wallet.module';
 import { BinanceAssetMapperService } from './binance-asset-mapper.service';
 import { BinanceClientService } from './binance-client.service';
+import { SolService } from './currencies/sol.service';
 import { SettlementWalletService } from './currencies/wallet.service';
 import { SettlementScheduler } from './settlement.scheduler';
 import { SettlementService } from './settlement.service';
+import { SettlementTestController } from './settlement-test.controller';
 
 /**
  * Settlement Worker Module
@@ -49,10 +51,12 @@ import { SettlementService } from './settlement.service';
     WalletModule,
     RepositoryModule, // This depends on SharedModule which includes RedisService
   ],
+  controllers: [SettlementTestController], // Test endpoints for E2E testing
   providers: [
     SettlementService,
     SettlementScheduler,
     SettlementWalletService,
+    SolService, // Solana-specific service for SOL balance queries
     BinanceClientService,
     BinanceAssetMapperService,
   ],

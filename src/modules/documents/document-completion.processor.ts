@@ -4,6 +4,7 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Logger } from '@nestjs/common';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 
 interface DocumentCompletionPayload {
   requestId: string;
@@ -19,7 +20,7 @@ interface DocumentFailurePayload {
 
 @Processor('documentQueue')
 export class DocumentCompletionProcessor extends WorkerHost {
-  private readonly logger = new Logger(DocumentCompletionProcessor.name);
+  private readonly logger = new TelemetryLogger(DocumentCompletionProcessor.name);
 
   constructor(
     @Inject(CryptogadaiRepository)

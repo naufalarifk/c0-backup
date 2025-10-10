@@ -48,14 +48,14 @@ export class CreateLoanOfferDto {
   totalAmount: string;
 
   @ApiProperty({
-    description: 'Annual interest rate (percentage)',
-    example: 12.5,
-    minimum: 0.1,
-    maximum: 50,
+    description: 'Annual interest rate as decimal (e.g., 0.125 = 12.5%)',
+    example: 0.125,
+    minimum: 0.001,
+    maximum: 0.5,
   })
   @IsNumber()
-  @Min(0.1)
-  @Max(50)
+  @Min(0.001)
+  @Max(0.5)
   interestRate: number;
 
   @ApiProperty({

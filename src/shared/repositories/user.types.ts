@@ -310,6 +310,10 @@ export const notificationTypes = [
   'InvoiceExpired',
   'InvoicePartiallyPaid',
   'InvoicePaid',
+  'LoanOfferInvoicePartiallyPaid',
+  'LoanOfferInvoiceFullyPaid',
+  'LoanApplicationCollateralInvoicePartiallyPaid',
+  'LoanApplicationCollateralInvoiceFullyPaid',
   // Loan notifications
   'LoanOfferPublished',
   'LoanApplicationPublished',

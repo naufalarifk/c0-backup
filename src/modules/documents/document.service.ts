@@ -21,6 +21,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { DocumentGenerationStatus, DocumentTypeEnum } from './document.types';
 import { DocumentComposerFactory } from './document-composer.factory';
 import { DocumentEventService } from './document-event.service';
@@ -28,7 +29,7 @@ import { DocumentStorageProviderFactory } from './document-storage-provider.fact
 
 @Injectable()
 export class DocumentService {
-  private readonly logger = new Logger(DocumentService.name);
+  private readonly logger = new TelemetryLogger(DocumentService.name);
 
   constructor(
     private readonly documentComposerFactory: DocumentComposerFactory,

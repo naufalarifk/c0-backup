@@ -24,12 +24,12 @@ import { WalletModule } from './wallets/wallet.module';
 
 const providers: Provider[] = [
   AppConfigService,
+  RedisService,
   CacheService,
   PlatformConfigService,
   EmailService,
   FileValidatorService,
   MailerService,
-  RedisService,
   TelemetryInterceptor,
   TelemetryService,
   CgTestnetBlockchainEventService,

@@ -62,3 +62,27 @@ INSERT INTO price_feeds (blockchain_key, base_currency_token_id, quote_currency_
   -- Mockchain Coin (MCK) against Mockchain Dollar (MUSD)
   ('cg:testnet', 'mock:native', 'mock:usd', 'random')
 ON CONFLICT (blockchain_key, base_currency_token_id, quote_currency_token_id, source) DO NOTHING;
+
+-- Insert initial exchange rates for testnet mock currencies
+-- These are needed for loan application creation to calculate LTV ratios
+DO $$
+DECLARE
+  mock_price_feed_id BIGINT;
+BEGIN
+  -- Get the price feed ID for mock:native to mock:usd
+  SELECT id INTO mock_price_feed_id
+  FROM price_feeds
+  WHERE blockchain_key = 'cg:testnet'
+    AND base_currency_token_id = 'mock:native'
+    AND quote_currency_token_id = 'mock:usd'
+    AND source = 'random';
+
+  -- Only insert if we found the price feed and no rate exists yet
+  IF mock_price_feed_id IS NOT NULL THEN
+    INSERT INTO exchange_rates (price_feed_id, bid_price, ask_price, retrieval_date, source_date)
+    SELECT mock_price_feed_id, 1000000000000000000, 1000000000000000000, NOW(), NOW()
+    WHERE NOT EXISTS (
+      SELECT 1 FROM exchange_rates WHERE price_feed_id = mock_price_feed_id
+    );
+  END IF;
+END $$;

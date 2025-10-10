@@ -16,7 +16,7 @@ generate_random_port() {
 # Function to check if port is open
 check_port() {
     local port=$1
-    if nc -z localhost $port > /dev/null 2>&1; then
+    if nc -z localhost "$port" > /dev/null 2>&1; then
         echo "open"
     else
         echo "closed"
@@ -82,7 +82,7 @@ echo "Starting Redis on port $REDIS_PORT..."
 redis-server --port "$REDIS_PORT" --save "" --appendonly no &
 REDIS_PID=$!
 
-wait_for_service "Redis" "test \"$(check_port $REDIS_PORT)\" = \"open\""
+wait_for_service "Redis" "test \"$(check_port "$REDIS_PORT")\" = \"open\""
 
 echo "Starting Mailpit (SMTP: $MAILPIT_SMTP_PORT, API: $MAILPIT_API_PORT)..."
 mailpit --listen "[::]:$MAILPIT_API_PORT" --smtp "[::]:$MAILPIT_SMTP_PORT" &
@@ -94,9 +94,9 @@ echo "Redis and Mailpit started successfully"
 
 echo "Starting CryptoGadai Backend on port $BACKEND_PORT..."
 
-mkdir -p $WORKING_DIR/.local
+mkdir -p "$WORKING_DIR"/.local
 
-cd $WORKING_DIR
+cd "$WORKING_DIR"
 
 pnpm build
 
@@ -113,8 +113,8 @@ BETTER_AUTH_TELEMETRY="1" \
 BETTER_AUTH_URL="http://localhost:$BACKEND_PORT" \
 CRYPTOGRAPHY_ENGINE="local" \
 DATABASE_URL=":inmemory:" \
-GOOGLE_CLIENT_ID="442461506062-rgpbj94u778lpcfv5hg5rue6fpveddt6.apps.googleusercontent.com" \
-GOOGLE_CLIENT_SECRET="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" \
+GOOGLE_CLIENT_ID="836145162943-d3ooukrbp72q8cvaq9q1blfbm9bqjgoc.apps.googleusercontent.com" \
+GOOGLE_CLIENT_SECRET="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" \
 MAIL_HOST="localhost" \
 MAIL_SMTP_PORT="$MAILPIT_SMTP_PORT" \
 MINIO_ENDPOINT="local" \
@@ -123,7 +123,7 @@ REDIS_HOST="localhost" \
 REDIS_PORT="$REDIS_PORT" \
 THROTTLER_LIMIT="10" \
 THROTTLER_TTL="1m" \
-node dist/main.js api notification > $WORKING_DIR/.local/backend.log 2>&1 &
+node dist/main.js api notification > "$WORKING_DIR"/.local/backend.log 2>&1 &
 BACKEND_PID=$!
 
 wait_for_service "CG Backend" "grep -q 'application successfully started' $WORKING_DIR/.local/backend.log 2>/dev/null"

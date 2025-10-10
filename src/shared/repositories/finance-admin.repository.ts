@@ -4,6 +4,7 @@ import {
   assertPropString,
   check,
   isInstanceOf,
+  isNullable,
   isNumber,
   isString,
 } from 'typeshaper';
@@ -112,9 +113,9 @@ export abstract class FinanceAdminRepository extends FinanceUserRepsitory {
     const countRows = await this.sql`
       SELECT COUNT(*) as total
       FROM withdrawals w
-      JOIN users u ON w.user_id = u.id
-      LEFT JOIN user_profiles up ON u.id = up.user_id
-      LEFT JOIN withdrawal_beneficiaries wb ON w.beneficiary_id = wb.id
+      JOIN beneficiaries b ON w.beneficiary_id = b.id
+      JOIN users u ON b.user_id = u.id
+      LEFT JOIN user_kycs uk ON u.id = uk.user_id AND uk.status = 'Verified'
       WHERE w.status = 'Failed'
         AND (${failureType}::text IS NULL OR w.failure_reason ILIKE '%' || ${failureType} || '%')
         AND (${reviewed}::boolean IS NULL OR
@@ -130,16 +131,15 @@ export abstract class FinanceAdminRepository extends FinanceUserRepsitory {
     const rows = await this.sql`
       SELECT
         w.id,
-        w.user_id,
+        b.user_id,
         u.email as user_email,
         u.name as user_name,
-        up.phone_number as user_phone_number,
-        up.kyc_status as user_kyc_status,
+        u.phone_number as user_phone_number,
+        uk.status as user_kyc_status,
         w.amount,
         w.currency_blockchain_key,
         w.currency_token_id,
-        wb.address as beneficiary_address,
-        wb.label as beneficiary_label,
+        b.address as beneficiary_address,
         w.request_date,
         w.failed_date,
         w.failure_reason,
@@ -153,9 +153,9 @@ export abstract class FinanceAdminRepository extends FinanceUserRepsitory {
              WHEN w.failure_refund_rejected_date IS NOT NULL THEN 'reject'
              ELSE NULL END as review_decision
       FROM withdrawals w
-      JOIN users u ON w.user_id = u.id
-      LEFT JOIN user_profiles up ON u.id = up.user_id
-      LEFT JOIN withdrawal_beneficiaries wb ON w.beneficiary_id = wb.id
+      JOIN beneficiaries b ON w.beneficiary_id = b.id
+      JOIN users u ON b.user_id = u.id
+      LEFT JOIN user_kycs uk ON u.id = uk.user_id AND uk.status = 'Verified'
       WHERE w.status = 'Failed'
         AND (${failureType}::text IS NULL OR w.failure_reason ILIKE '%' || ${failureType} || '%')
         AND (${reviewed}::boolean IS NULL OR
@@ -171,9 +171,9 @@ export abstract class FinanceAdminRepository extends FinanceUserRepsitory {
       assertProp(check(isString, isNumber), row, 'user_id');
       assertPropString(row, 'user_email');
       assertPropString(row, 'user_name');
-      assertPropString(row, 'user_phone_number');
-      assertPropString(row, 'user_kyc_status');
-      assertPropString(row, 'amount');
+      assertProp(check(isNullable, isString), row, 'user_phone_number');
+      assertProp(check(isNullable, isString), row, 'user_kyc_status');
+      assertProp(check(isString, isNumber), row, 'amount');
       assertPropString(row, 'currency_blockchain_key');
       assertPropString(row, 'currency_token_id');
       assertPropString(row, 'beneficiary_address');
@@ -181,12 +181,12 @@ export abstract class FinanceAdminRepository extends FinanceUserRepsitory {
       assertProp(isInstanceOf(Date), row, 'failed_date');
       assertPropString(row, 'failure_reason');
       assertPropString(row, 'status');
-      assertPropString(row, 'transaction_hash');
-      assertPropString(row, 'network_fee');
-      assertPropString(row, 'reviewer_id');
-      assertProp(isInstanceOf(Date), row, 'review_date');
-      assertPropString(row, 'review_decision');
-      assertPropString(row, 'review_reason');
+      assertProp(check(isNullable, isString), row, 'transaction_hash');
+      assertProp(check(isNullable, isString, isNumber), row, 'network_fee');
+      assertProp(check(isNullable, isString, isNumber), row, 'reviewer_id');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'review_date');
+      assertProp(check(isNullable, isString), row, 'review_decision');
+      assertProp(check(isNullable, isString), row, 'review_reason');
 
       return {
         id: String(row.id),
@@ -248,15 +248,15 @@ export abstract class FinanceAdminRepository extends FinanceUserRepsitory {
     const rows = await this.sql`
       SELECT
         w.id,
-        w.user_id,
+        b.user_id,
         u.email as user_email,
         u.name as user_name,
-        up.phone_number as user_phone_number,
-        up.kyc_status as user_kyc_status,
+        u.phone_number as user_phone_number,
+        uk.status as user_kyc_status,
         w.amount,
         w.currency_blockchain_key,
         w.currency_token_id,
-        wb.address as beneficiary_address,
+        b.address as beneficiary_address,
         w.request_date,
         w.failed_date,
         w.failure_reason,
@@ -270,9 +270,9 @@ export abstract class FinanceAdminRepository extends FinanceUserRepsitory {
              WHEN w.failure_refund_rejected_date IS NOT NULL THEN 'reject'
              ELSE NULL END as review_decision
       FROM withdrawals w
-      JOIN users u ON w.user_id = u.id
-      LEFT JOIN user_profiles up ON u.id = up.user_id
-      LEFT JOIN withdrawal_beneficiaries wb ON w.beneficiary_id = wb.id
+      JOIN beneficiaries b ON w.beneficiary_id = b.id
+      JOIN users u ON b.user_id = u.id
+      LEFT JOIN user_kycs uk ON u.id = uk.user_id AND uk.status = 'Verified'
       WHERE w.id = ${withdrawalId}
     `;
 
@@ -285,22 +285,22 @@ export abstract class FinanceAdminRepository extends FinanceUserRepsitory {
     assertProp(check(isString, isNumber), row, 'user_id');
     assertPropString(row, 'user_email');
     assertPropString(row, 'user_name');
-    assertPropString(row, 'user_phone_number');
-    assertPropString(row, 'user_kyc_status');
-    assertPropString(row, 'amount');
+    assertProp(check(isNullable, isString), row, 'user_phone_number');
+    assertProp(check(isNullable, isString), row, 'user_kyc_status');
+    assertProp(check(isString, isNumber), row, 'amount');
     assertPropString(row, 'currency_blockchain_key');
     assertPropString(row, 'currency_token_id');
     assertPropString(row, 'beneficiary_address');
     assertProp(isInstanceOf(Date), row, 'request_date');
     assertProp(isInstanceOf(Date), row, 'failed_date');
     assertPropString(row, 'failure_reason');
-    assertPropString(row, 'network_fee');
+    assertProp(check(isNullable, isString, isNumber), row, 'network_fee');
     assertPropString(row, 'status');
-    assertPropString(row, 'transaction_hash');
-    assertPropString(row, 'reviewer_id');
-    assertPropString(row, 'review_date');
-    assertPropString(row, 'review_decision');
-    assertPropString(row, 'review_reason');
+    assertProp(check(isNullable, isString), row, 'transaction_hash');
+    assertProp(check(isNullable, isString, isNumber), row, 'reviewer_id');
+    assertProp(check(isNullable, isInstanceOf(Date)), row, 'review_date');
+    assertProp(check(isNullable, isString), row, 'review_decision');
+    assertProp(check(isNullable, isString), row, 'review_reason');
 
     const withdrawal = {
       id: String(row.id),

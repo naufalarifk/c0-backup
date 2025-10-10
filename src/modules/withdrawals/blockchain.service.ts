@@ -331,14 +331,14 @@ export class BlockchainService {
         index: 0,
         witnessUtxo: {
           script: bitcoin.payments.p2wpkh({ pubkey: Buffer.alloc(33, 1) }).output!,
-          value: 1000000,
+          value: BigInt(1000000),
         },
       });
     }
     for (let i = 0; i < outputs; i++) {
       txb.addOutput({
         address: bitcoin.payments.p2wpkh({ pubkey: Buffer.alloc(33, 2) }).address!,
-        value: 10000,
+        value: BigInt(10000),
       });
     }
     // Finalize and get virtual size
