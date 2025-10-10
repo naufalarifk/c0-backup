@@ -457,7 +457,7 @@ export interface WithdrawalBlockchain {
 }
 
 export interface WithdrawalBeneficiary {
-  id: string;
+  id: number;
   blockchainKey: string;
   address: string;
   label?: string;
@@ -468,7 +468,7 @@ export interface WithdrawalBeneficiary {
 }
 
 export interface WithdrawalRecord {
-  id: string;
+  id: number;
   currency: WithdrawalCurrency;
   beneficiary: WithdrawalBeneficiary;
   requestAmount: string;
