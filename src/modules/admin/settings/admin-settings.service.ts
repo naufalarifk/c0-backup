@@ -6,6 +6,7 @@ import {
   assertPropNumber,
   assertPropString,
   check,
+  isInstanceOf,
   isNullable,
   isString,
 } from 'typeshaper';
@@ -66,7 +67,7 @@ export class AdminSettingsService {
 
       const config = rows[0] as any; // Type assertion for database result
       assertDefined(config);
-      assertPropString(config, 'effective_date');
+      assertProp(check(isString, isInstanceOf(Date)), config, 'effective_date');
       assertPropNumber(config, 'admin_user_id');
       assertPropNumber(config, 'loan_provision_rate');
       assertPropNumber(config, 'loan_individual_redelivery_fee_rate');
@@ -79,22 +80,28 @@ export class AdminSettingsService {
       assertPropNumber(config, 'loan_liquidation_fee_rate');
 
       // Get admin user name separately
-      let adminUserName: string | undefined;
+      let adminUserName: string | null = null;
       try {
         const adminRows = await this.repo.sql`
           SELECT name FROM users WHERE id = ${config.admin_user_id}
         `;
-        adminUserName = adminRows.length > 0 ? (adminRows[0] as any).name : undefined;
+        adminUserName = adminRows.length > 0 ? (adminRows[0] as any).name : null;
       } catch (error) {
-        // If user lookup fails, adminUserName remains undefined
+        // If user lookup fails, adminUserName remains null
         this.logger.warn('Failed to get admin user name', {
           adminUserId: config.admin_user_id,
           error: error.message,
         });
       }
 
+      // Convert effective_date to ISO string if it's a Date object
+      const effectiveDate =
+        config.effective_date instanceof Date
+          ? config.effective_date.toISOString()
+          : config.effective_date;
+
       return {
-        effectiveDate: config.effective_date,
+        effectiveDate,
         adminUserId: config.admin_user_id,
         adminUserName,
         loanProvisionRate: config.loan_provision_rate,
@@ -132,74 +139,64 @@ export class AdminSettingsService {
     adminUserId: string,
     updateData: PlatformConfigUpdateDto,
   ): Promise<PlatformConfigDto> {
-    try {
-      // Validate LTV ratio constraints
-      if (updateData.loanMinLtvRatio > updateData.loanMaxLtvRatio) {
-        throw new BadRequestException('Minimum LTV ratio cannot be greater than maximum LTV ratio');
-      }
-
-      const now = new Date();
-
-      // Get admin user name
-      const adminRows = await this.repo.sql`
-        SELECT name FROM users WHERE id = ${adminUserId}
-      `;
-      const adminUserName = adminRows.length > 0 ? (adminRows[0] as any).name : undefined;
-
-      // Insert new configuration
-      await this.repo.sql`
-        INSERT INTO platform_configs (
-          effective_date,
-          admin_user_id,
-          loan_provision_rate,
-          loan_individual_redelivery_fee_rate,
-          loan_institution_redelivery_fee_rate,
-          loan_min_ltv_ratio,
-          loan_max_ltv_ratio,
-          loan_repayment_duration_in_days,
-          loan_liquidation_mode,
-          loan_liquidation_premi_rate,
-          loan_liquidation_fee_rate
-        ) VALUES (
-          ${now},
-          ${adminUserId},
-          ${updateData.loanProvisionRate},
-          ${updateData.loanIndividualRedeliveryFeeRate},
-          ${updateData.loanInstitutionRedeliveryFeeRate},
-          ${updateData.loanMinLtvRatio},
-          ${updateData.loanMaxLtvRatio},
-          ${updateData.loanRepaymentDurationInDays},
-          ${updateData.loanLiquidationMode},
-          ${updateData.loanLiquidationPremiRate},
-          ${updateData.loanLiquidationFeeRate}
-        )
-      `;
-
-      this.logger.log('Platform configuration updated', {
-        adminUserId,
-        effectiveDate: now.toISOString(),
-      });
-
-      return {
-        effectiveDate: now.toISOString(),
-        adminUserId: Number(adminUserId),
-        adminUserName,
-        loanProvisionRate: updateData.loanProvisionRate,
-        loanIndividualRedeliveryFeeRate: updateData.loanIndividualRedeliveryFeeRate,
-        loanInstitutionRedeliveryFeeRate: updateData.loanInstitutionRedeliveryFeeRate,
-        loanMinLtvRatio: updateData.loanMinLtvRatio,
-        loanMaxLtvRatio: updateData.loanMaxLtvRatio,
-        loanRepaymentDurationInDays: updateData.loanRepaymentDurationInDays,
-        loanLiquidationMode: updateData.loanLiquidationMode,
-        loanLiquidationPremiRate: updateData.loanLiquidationPremiRate,
-        loanLiquidationFeeRate: updateData.loanLiquidationFeeRate,
-      };
-    } catch (error) {
-      this.logger.error('Failed to update platform configuration', {
-        error: error.message,
-        adminUserId,
-      });
-      throw error;
+    // Validate LTV ratio constraints
+    if (updateData.loanMinLtvRatio > updateData.loanMaxLtvRatio) {
+      throw new BadRequestException('Minimum LTV ratio cannot be greater than maximum LTV ratio');
     }
+
+    const now = new Date();
+
+    // Get admin user name
+    const adminRows = await this.repo.sql`
+      SELECT name FROM users WHERE id = ${adminUserId}
+    `;
+    const adminUserName = adminRows.length > 0 ? (adminRows[0] as any).name : null;
+
+    // Insert new configuration
+    const insertResult = await this.repo.sql`
+      INSERT INTO platform_configs (
+        effective_date,
+        admin_user_id,
+        loan_provision_rate,
+        loan_individual_redelivery_fee_rate,
+        loan_institution_redelivery_fee_rate,
+        loan_min_ltv_ratio,
+        loan_max_ltv_ratio,
+        loan_repayment_duration_in_days,
+        loan_liquidation_mode,
+        loan_liquidation_premi_rate,
+        loan_liquidation_fee_rate
+      ) VALUES (
+        ${now.toISOString()},
+        ${Number(adminUserId)},
+        ${updateData.loanProvisionRate},
+        ${updateData.loanIndividualRedeliveryFeeRate},
+        ${updateData.loanInstitutionRedeliveryFeeRate},
+        ${updateData.loanMinLtvRatio},
+        ${updateData.loanMaxLtvRatio},
+        ${updateData.loanRepaymentDurationInDays},
+        ${updateData.loanLiquidationMode},
+        ${updateData.loanLiquidationPremiRate},
+        ${updateData.loanLiquidationFeeRate}
+      )
+    `;
+
+    // Return the configuration that was just set
+    // Note: We construct the response instead of reading back from DB
+    // to ensure atomic response even if DB persistence is delayed
+    return {
+      effectiveDate: now.toISOString(),
+      adminUserId: Number(adminUserId),
+      adminUserName,
+      loanProvisionRate: updateData.loanProvisionRate,
+      loanIndividualRedeliveryFeeRate: updateData.loanIndividualRedeliveryFeeRate,
+      loanInstitutionRedeliveryFeeRate: updateData.loanInstitutionRedeliveryFeeRate,
+      loanMinLtvRatio: updateData.loanMinLtvRatio,
+      loanMaxLtvRatio: updateData.loanMaxLtvRatio,
+      loanRepaymentDurationInDays: updateData.loanRepaymentDurationInDays,
+      loanLiquidationMode: updateData.loanLiquidationMode,
+      loanLiquidationPremiRate: updateData.loanLiquidationPremiRate,
+      loanLiquidationFeeRate: updateData.loanLiquidationFeeRate,
+    };
   }
 }

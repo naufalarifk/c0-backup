@@ -12,9 +12,11 @@ export interface AccountBalance {
   currencyTokenId: string;
   currencyName: string;
   currencySymbol: string;
+  currencyImage: string;
   currencyDecimals: number;
   balance: string;
   accountType: string;
+  updatedDate?: Date | null;
   valuationAmount?: string | null;
   exchangeRate?: string;
   rateSource?: string;
@@ -50,6 +52,7 @@ export interface AccountMutation {
   invoiceId?: string;
   withdrawalId?: string;
   invoicePaymentId?: string;
+  balanceAfter?: string;
 }
 
 export interface UserViewsAccountTransactionHistoryResult {

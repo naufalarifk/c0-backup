@@ -40,6 +40,7 @@ export class InMemoryCryptogadaiRepository extends CryptogadaiRepository {
       join(__dirname, './postgres/0012-withdrawal.sql'),
       join(__dirname, './postgres/0013-loan-agreement-signatures.sql'),
       join(__dirname, './postgres/0014-push-tokens.sql'),
+      join(__dirname, './postgres/0018-historical-account-balances.sql'),
     ];
 
     // this.#logger(`Found schema files: ${schemaPaths.map(file => file.name).join('\n')}`);

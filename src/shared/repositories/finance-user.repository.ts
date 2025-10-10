@@ -54,9 +54,11 @@ export abstract class FinanceUserRepsitory extends UserRepository {
         a.currency_token_id AS "currencyTokenId",
         a.balance,
         a.account_type AS "accountType",
+        a.updated_date AS "updatedDate",
         c.decimals AS "currencyDecimals",
         c.name AS "currencyName",
         c.symbol AS "currencySymbol",
+        c.image AS "currencyImage",
         er.bid_price AS "exchangeRate",
         er.retrieval_date AS "rateDate",
         pf.source AS "rateSource",
@@ -96,9 +98,11 @@ export abstract class FinanceUserRepsitory extends UserRepository {
       assertPropString(row, 'currencyTokenId');
       assertProp(check(isString, isNumber), row, 'balance');
       assertPropString(row, 'accountType');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'updatedDate');
       assertProp(check(isString, isNumber), row, 'currencyDecimals');
       assertPropString(row, 'currencyName');
       assertPropString(row, 'currencySymbol');
+      assertPropString(row, 'currencyImage');
       assertProp(check(isNullable, isString, isNumber), row, 'exchangeRate');
       assertProp(check(isNullable, isInstanceOf(Date)), row, 'rateDate');
       assertProp(check(isNullable, isString), row, 'rateSource');
@@ -122,6 +126,8 @@ export abstract class FinanceUserRepsitory extends UserRepository {
       setPropValue(row, 'userId', String(row.userId));
       setPropValue(row, 'balance', String(row.balance));
       setPropValue(row, 'currencyDecimals', currencyDecimals);
+      setPropValue(row, 'currencyImage', row.currencyImage);
+      setPropValue(row, 'updatedDate', row.updatedDate);
       setPropValue(row, 'valuationAmount', valuationAmount);
       setPropValue(row, 'exchangeRate', exchangeRate ? String(exchangeRate) : undefined);
       setPropValue(row, 'rateSource', row.rateSource || undefined);
@@ -158,20 +164,26 @@ export abstract class FinanceUserRepsitory extends UserRepository {
 
     const rows = await this.sql`
       SELECT
-        id,
-        account_id AS "accountId",
-        mutation_type AS "mutationType",
-        mutation_date AS "mutationDate",
-        amount,
-        invoice_id AS "invoiceId",
-        withdrawal_id AS "withdrawalId",
-        invoice_payment_id AS "invoicePaymentId"
-      FROM account_mutations
-      WHERE account_id = ${params.accountId}
-        AND (${params.mutationType}::text IS NULL OR mutation_type = ${params.mutationType})
-        AND (${params.fromDate}::timestamp IS NULL OR mutation_date >= ${params.fromDate})
-        AND (${params.toDate}::timestamp IS NULL OR mutation_date <= ${params.toDate})
-      ORDER BY mutation_date DESC
+        am.id,
+        am.account_id AS "accountId",
+        am.mutation_type AS "mutationType",
+        am.mutation_date AS "mutationDate",
+        am.amount,
+        am.invoice_id AS "invoiceId",
+        am.withdrawal_id AS "withdrawalId",
+        am.invoice_payment_id AS "invoicePaymentId",
+        (
+          SELECT COALESCE(SUM(am2.amount), 0)
+          FROM account_mutations am2
+          WHERE am2.account_id = am.account_id
+            AND (am2.mutation_date < am.mutation_date OR (am2.mutation_date = am.mutation_date AND am2.id <= am.id))
+        ) AS "balanceAfter"
+      FROM account_mutations am
+      WHERE am.account_id = ${params.accountId}
+        AND (${params.mutationType}::text IS NULL OR am.mutation_type = ${params.mutationType})
+        AND (${params.fromDate}::timestamp IS NULL OR am.mutation_date >= ${params.fromDate})
+        AND (${params.toDate}::timestamp IS NULL OR am.mutation_date <= ${params.toDate})
+      ORDER BY am.mutation_date DESC
       LIMIT ${limit}
       OFFSET ${offset}
     `;
@@ -186,6 +198,7 @@ export abstract class FinanceUserRepsitory extends UserRepository {
       assertProp(check(isNullable, isString, isNumber), row, 'invoiceId');
       assertProp(check(isNullable, isString, isNumber), row, 'withdrawalId');
       assertProp(check(isNullable, isString, isNumber), row, 'invoicePaymentId');
+      assertProp(check(isString, isNumber), row, 'balanceAfter');
 
       setPropValue(row, 'id', String(row.id));
       setPropValue(row, 'accountId', String(row.accountId));
@@ -197,6 +210,7 @@ export abstract class FinanceUserRepsitory extends UserRepository {
         'invoicePaymentId',
         row.invoicePaymentId ? String(row.invoicePaymentId) : undefined,
       );
+      setPropValue(row, 'balanceAfter', String(row.balanceAfter));
       return row;
     });
 
@@ -904,22 +918,133 @@ export abstract class FinanceUserRepsitory extends UserRepository {
     const balanceResult = await this.userRetrievesAccountBalances({ userId: params.userId });
     const totalPortfolioValue = balanceResult.totalPortfolioValueUsd || '0';
 
-    // Calculate interest growth (simplified - would need historical data)
-    const interestGrowthAmount = '17.98'; // Placeholder - should be calculated from historical data
-    const interestGrowthPercentage = 17.98;
+    // Calculate interest growth from historical data
+    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    let pastValuation = BigInt(0);
+    let interestGrowth = BigInt(0);
+    let interestGrowthAmount = '0.00';
+    let interestGrowthPercentage = 0;
 
-    // Get active loans count (placeholder - would need loan repository integration)
-    const activeLoanCount = 125;
-    const borrowerLoanCount = 5;
-    const lenderLoanCount = 120;
-    const totalCollateralValue = '85432.10';
-    const averageLTV = 0.67;
+    try {
+      const historicalRows = await this.sql`
+        SELECT
+          SUM(hab.valuation_usd) as past_valuation
+        FROM historical_account_balances hab
+        JOIN accounts a ON hab.account_id = a.id
+        WHERE a.user_id = ${params.userId}
+          AND a.account_type = 'User'
+          AND hab.snapshot_date >= ${oneMonthAgo.toISOString()}
+          AND hab.snapshot_date < ${periodStart.toISOString()}
+        ORDER BY hab.snapshot_date DESC
+        LIMIT 1
+      `;
 
-    // Calculate asset breakdown
-    const totalValue = parseFloat(totalPortfolioValue) || 0;
-    const cryptoAssetsValue = totalValue * 0.7;
-    const stablecoinsValue = totalValue * 0.2;
-    const loanCollateralValue = totalValue * 0.1;
+      assertArrayMapOf(historicalRows, function (row) {
+        assertDefined(row);
+        assertProp(check(isNullable, isString, isNumber), row, 'past_valuation');
+        setPropValue(row, 'past_valuation', row.past_valuation ? String(row.past_valuation) : '0');
+        return row;
+      });
+
+      pastValuation =
+        historicalRows.length > 0 ? BigInt(historicalRows[0].past_valuation) : BigInt(0);
+      const currentValuation = BigInt(totalPortfolioValue);
+      interestGrowth =
+        currentValuation > pastValuation ? currentValuation - pastValuation : BigInt(0);
+      interestGrowthAmount = (Number(interestGrowth) / 1e6).toFixed(2); // Convert from smallest unit to USD
+      interestGrowthPercentage =
+        pastValuation > BigInt(0) ? (Number(interestGrowth) / Number(pastValuation)) * 100 : 0;
+    } catch (error) {
+      // Historical balance data might not be available yet - use default values
+    }
+
+    // Calculate asset breakdown from actual account data
+    const totalValue = Number(BigInt(totalPortfolioValue)) / 1e6; // Convert from smallest unit to USD
+
+    // Group accounts by asset type
+    let cryptoAssetsValue = 0;
+    let stablecoinsValue = 0;
+    const loanCollateralValue = 0;
+
+    for (const account of balanceResult.accounts) {
+      const valuationAmount = account.valuationAmount
+        ? Number(BigInt(account.valuationAmount)) / 1e6
+        : 0;
+      const symbol = account.currencySymbol.toUpperCase();
+
+      if (symbol === 'USDC' || symbol === 'USDT' || symbol === 'USD' || symbol === 'DAI') {
+        stablecoinsValue += valuationAmount;
+      } else {
+        cryptoAssetsValue += valuationAmount;
+      }
+    }
+
+    // Get active loans count from loan tables (if they exist)
+    let activeLoanCount = 0;
+    let borrowerLoanCount = 0;
+    let lenderLoanCount = 0;
+    let totalCollateralValue = '0.00';
+    let averageLTV = 0;
+
+    try {
+      const loanCountRows = await this.sql`
+        SELECT
+          COUNT(*) as total_loans,
+          COUNT(*) FILTER (WHERE la.borrower_user_id = ${params.userId}) as borrower_loans,
+          COUNT(*) FILTER (WHERE lo.lender_user_id = ${params.userId}) as lender_loans,
+          COALESCE(SUM(l.collateral_amount) FILTER (WHERE la.borrower_user_id = ${params.userId}), 0) as total_collateral
+        FROM loans l
+        JOIN loan_applications la ON l.loan_application_id = la.id
+        JOIN loan_offers lo ON l.loan_offer_id = lo.id
+        WHERE (la.borrower_user_id = ${params.userId} OR lo.lender_user_id = ${params.userId})
+          AND l.status IN ('Active', 'Originated')
+      `;
+
+      assertArrayMapOf(loanCountRows, function (row) {
+        assertDefined(row);
+        assertProp(check(isString, isNumber), row, 'total_loans');
+        assertProp(check(isString, isNumber), row, 'borrower_loans');
+        assertProp(check(isString, isNumber), row, 'lender_loans');
+        assertProp(check(isString, isNumber), row, 'total_collateral');
+        setPropValue(row, 'total_loans', Number(row.total_loans));
+        setPropValue(row, 'borrower_loans', Number(row.borrower_loans));
+        setPropValue(row, 'lender_loans', Number(row.lender_loans));
+        setPropValue(row, 'total_collateral', String(row.total_collateral));
+        return row;
+      });
+
+      if (loanCountRows.length > 0) {
+        const loanData = loanCountRows[0];
+        activeLoanCount = loanData.total_loans;
+        borrowerLoanCount = loanData.borrower_loans;
+        lenderLoanCount = loanData.lender_loans;
+        totalCollateralValue = (Number(BigInt(loanData.total_collateral)) / 1e18).toFixed(2);
+      }
+
+      // Calculate average LTV
+      const ltvRows = await this.sql`
+        SELECT
+          AVG(l.current_ltv_ratio) as avg_ltv
+        FROM loans l
+        JOIN loan_applications la ON l.loan_application_id = la.id
+        WHERE la.borrower_user_id = ${params.userId}
+          AND l.status IN ('Active', 'Originated')
+          AND l.current_ltv_ratio IS NOT NULL
+      `;
+
+      assertArrayMapOf(ltvRows, function (row) {
+        assertDefined(row);
+        assertProp(check(isNullable, isString, isNumber), row, 'avg_ltv');
+        setPropValue(row, 'avg_ltv', row.avg_ltv ? Number(row.avg_ltv) : 0);
+        return row;
+      });
+
+      if (ltvRows.length > 0 && ltvRows[0].avg_ltv) {
+        averageLTV = Number(ltvRows[0].avg_ltv);
+      }
+    } catch (error) {
+      // Loan tables might not exist or user has no loans - use default values
+    }
 
     return {
       totalPortfolioValue: {
@@ -933,7 +1058,7 @@ export abstract class FinanceUserRepsitory extends UserRepository {
         currency: 'USDT',
         percentage: interestGrowthPercentage,
         isPositive: true,
-        periodLabel: 'USDT',
+        periodLabel: 'Monthly',
       },
       activeLoans: {
         count: activeLoanCount,
@@ -948,20 +1073,23 @@ export abstract class FinanceUserRepsitory extends UserRepository {
         endDate: periodEnd,
       },
       paymentAlerts: {
-        upcomingPayments: [], // Placeholder - would integrate with loan system
+        upcomingPayments: [], // TODO: Integrate with loan payment system
         overduePayments: [],
       },
       assetBreakdown: {
         cryptoAssets: {
-          percentage: 70.0,
+          percentage:
+            totalValue > 0 ? parseFloat(((cryptoAssetsValue / totalValue) * 100).toFixed(2)) : 0,
           value: cryptoAssetsValue.toFixed(2),
         },
         stablecoins: {
-          percentage: 20.0,
+          percentage:
+            totalValue > 0 ? parseFloat(((stablecoinsValue / totalValue) * 100).toFixed(2)) : 0,
           value: stablecoinsValue.toFixed(2),
         },
         loanCollateral: {
-          percentage: 10.0,
+          percentage:
+            totalValue > 0 ? parseFloat(((loanCollateralValue / totalValue) * 100).toFixed(2)) : 0,
           value: loanCollateralValue.toFixed(2),
         },
       },
@@ -972,12 +1100,17 @@ export abstract class FinanceUserRepsitory extends UserRepository {
     params: UserRetrievesPortfolioOverviewParams,
   ): Promise<PortfolioOverviewResult> {
     const balanceResult = await this.userRetrievesAccountBalances({ userId: params.userId });
-    const totalValue = parseFloat(balanceResult.totalPortfolioValueUsd || '0');
+    const totalValueBigInt = BigInt(balanceResult.totalPortfolioValueUsd || '0');
+    const totalValue = Number(totalValueBigInt) / 1e6; // Convert from smallest unit (6 decimals) to USD
 
     // Map accounts to asset allocation
     const assetAllocation: AssetAllocation[] = balanceResult.accounts.map(account => {
-      const balanceValue = parseFloat(account.balance) || 0;
-      const percentage = totalValue > 0 ? (balanceValue / totalValue) * 100 : 0;
+      // Use valuation amount (USD value) instead of raw balance for percentage calculation
+      const valuationAmountBigInt = account.valuationAmount
+        ? BigInt(account.valuationAmount)
+        : BigInt(0);
+      const valuationValue = Number(valuationAmountBigInt) / 1e6; // Convert from smallest unit to USD
+      const percentage = totalValue > 0 ? (valuationValue / totalValue) * 100 : 0;
 
       return {
         currency: {
@@ -1008,17 +1141,73 @@ export abstract class FinanceUserRepsitory extends UserRepository {
         },
         balance: account.balance,
         value: {
-          amount: balanceValue.toFixed(2),
+          amount: valuationValue.toFixed(2),
           currency: 'USD',
         },
         percentage: parseFloat(percentage.toFixed(2)),
       };
     });
 
-    // Performance metrics (placeholder - would need historical data)
-    const dailyChange = totalValue * 0.0206; // +2.06%
-    const weeklyChange = totalValue * -0.0147; // -1.47%
-    const monthlyChange = totalValue * 0.0764; // +7.64%
+    // Performance metrics - calculate from historical data
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // Query historical balances for performance calculation
+    const historicalSnapshots = await this.sql`
+      SELECT
+        DATE_TRUNC('day', snapshot_date) as snapshot_day,
+        SUM(valuation_usd) as total_valuation
+      FROM historical_account_balances hab
+      JOIN accounts a ON hab.account_id = a.id
+      WHERE a.user_id = ${params.userId}
+        AND a.account_type = 'User'
+        AND snapshot_date >= ${oneMonthAgo.toISOString()}
+      GROUP BY DATE_TRUNC('day', snapshot_date)
+      ORDER BY snapshot_day DESC
+    `;
+
+    // Calculate performance changes
+    let dailyChange = 0;
+    let dailyPercentage = 0;
+    let weeklyChange = 0;
+    let weeklyPercentage = 0;
+    let monthlyChange = 0;
+    let monthlyPercentage = 0;
+
+    assertArrayMapOf(historicalSnapshots, function (row) {
+      assertDefined(row);
+      assertProp(isInstanceOf(Date), row, 'snapshot_day');
+      assertProp(check(isString, isNumber, isNullable), row, 'total_valuation');
+      setPropValue(row, 'total_valuation', row.total_valuation ? String(row.total_valuation) : '0');
+      return row;
+    });
+
+    if (historicalSnapshots.length > 0) {
+      // Find snapshots closest to target dates
+      const dailySnapshot = historicalSnapshots.find(s => s.snapshot_day <= oneDayAgo);
+      const weeklySnapshot = historicalSnapshots.find(s => s.snapshot_day <= oneWeekAgo);
+      const monthlySnapshot = historicalSnapshots.find(s => s.snapshot_day <= oneMonthAgo);
+
+      if (dailySnapshot) {
+        const pastValue = Number(BigInt(dailySnapshot.total_valuation)) / 1e6;
+        dailyChange = totalValue - pastValue;
+        dailyPercentage = pastValue > 0 ? (dailyChange / pastValue) * 100 : 0;
+      }
+
+      if (weeklySnapshot) {
+        const pastValue = Number(BigInt(weeklySnapshot.total_valuation)) / 1e6;
+        weeklyChange = totalValue - pastValue;
+        weeklyPercentage = pastValue > 0 ? (weeklyChange / pastValue) * 100 : 0;
+      }
+
+      if (monthlySnapshot) {
+        const pastValue = Number(BigInt(monthlySnapshot.total_valuation)) / 1e6;
+        monthlyChange = totalValue - pastValue;
+        monthlyPercentage = pastValue > 0 ? (monthlyChange / pastValue) * 100 : 0;
+      }
+    }
 
     return {
       totalValue: {
@@ -1055,17 +1244,17 @@ export abstract class FinanceUserRepsitory extends UserRepository {
         daily: {
           amount: dailyChange.toFixed(2),
           currency: 'USD',
-          percentage: 2.06,
+          percentage: parseFloat(dailyPercentage.toFixed(2)),
         },
         weekly: {
           amount: weeklyChange.toFixed(2),
           currency: 'USD',
-          percentage: -1.47,
+          percentage: parseFloat(weeklyPercentage.toFixed(2)),
         },
         monthly: {
           amount: monthlyChange.toFixed(2),
           currency: 'USD',
-          percentage: 7.64,
+          percentage: parseFloat(monthlyPercentage.toFixed(2)),
         },
       },
       lastUpdated: new Date(),
