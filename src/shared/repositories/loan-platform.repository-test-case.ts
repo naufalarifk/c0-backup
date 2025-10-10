@@ -310,7 +310,7 @@ export async function runLoanPlatformRepositoryTestSuite(
               offeredPrincipalAmount: '1000', // 1000 USDT (human-readable format)
               minLoanPrincipalAmount: '100', // 100 USDT (human-readable format)
               maxLoanPrincipalAmount: '500', // 500 USDT (human-readable format)
-              interestRate: 15.5,
+              interestRate: 0.155, // 15.5% in decimal format
               termInMonthsOptions: [3, 6, 12],
               expirationDate,
               createdDate,
@@ -402,7 +402,7 @@ export async function runLoanPlatformRepositoryTestSuite(
               principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
               principalAmount: '10000000000000000000', // 10 USDT in smallest units (18 decimals)
               provisionAmount: '250000000000000000', // 2.5% provision
-              maxInterestRate: 20.0,
+              maxInterestRate: 0.2, // 20% in decimal format
               minLtvRatio: 0.5,
               maxLtvRatio: 0.75,
               termInMonths: 6,
@@ -492,7 +492,7 @@ export async function runLoanPlatformRepositoryTestSuite(
             offeredPrincipalAmount: '1000000000', // 1000 USDT
             minLoanPrincipalAmount: '100000000', // 100 USDT
             maxLoanPrincipalAmount: '500000000', // 500 USDT
-            interestRate: 15.5,
+            interestRate: 0.155, // 15.5% in decimal format
             termInMonthsOptions: [3, 6, 12],
             expirationDate,
             createdDate,
@@ -512,7 +512,7 @@ export async function runLoanPlatformRepositoryTestSuite(
             offeredPrincipalAmount: '2000000000', // 2000 USDT
             minLoanPrincipalAmount: '200000000', // 200 USDT
             maxLoanPrincipalAmount: '1000000000', // 1000 USDT
-            interestRate: 12.0, // Lower interest rate, should appear first
+            interestRate: 0.12, // 12% in decimal format, lower interest rate, should appear first
             termInMonthsOptions: [6, 12],
             expirationDate,
             createdDate,
@@ -545,9 +545,9 @@ export async function runLoanPlatformRepositoryTestSuite(
 
           // Should be ordered by interest rate (lower first)
           equal(result.loanOffers[0].id, loanOffer2.id);
-          equal(result.loanOffers[0].interestRate, 12.0);
+          equal(result.loanOffers[0].interestRate, 0.12);
           equal(result.loanOffers[1].id, loanOffer1.id);
-          equal(result.loanOffers[1].interestRate, 15.5);
+          equal(result.loanOffers[1].interestRate, 0.155);
 
           // Verify currency information
           equal(result.loanOffers[0].principalCurrency.symbol, 'USDC');
@@ -582,7 +582,7 @@ export async function runLoanPlatformRepositoryTestSuite(
             offeredPrincipalAmount: '1000000000', // 1000 USDT
             minLoanPrincipalAmount: '100000000', // 100 USDT
             maxLoanPrincipalAmount: '500000000', // 500 USDT
-            interestRate: 15.5,
+            interestRate: 0.155, // 15.5% in decimal format
             termInMonthsOptions: [3, 6, 12],
             expirationDate,
             createdDate,
@@ -682,7 +682,7 @@ export async function runLoanPlatformRepositoryTestSuite(
           offeredPrincipalAmount: '2000000000000000000', // 2 USDT in smallest units (18 decimals)
           minLoanPrincipalAmount: '100000000000000000', // 0.1 USDT in smallest units
           maxLoanPrincipalAmount: '1500000000000000000', // 1.5 USDT in smallest units (enough for 1 USDT loan application)
-          interestRate: 15.5,
+          interestRate: 0.155, // 15.5% in decimal format
           termInMonthsOptions: [3, 6, 12],
           expirationDate,
           createdDate,
@@ -710,7 +710,7 @@ export async function runLoanPlatformRepositoryTestSuite(
           principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           principalAmount: '1000000000000000000', // 1 USDT in smallest units
           provisionAmount: '25000000000000000', // 2.5% provision
-          maxInterestRate: 20.0,
+          maxInterestRate: 0.2, // 20% in decimal format
           minLtvRatio: 0.5,
           maxLtvRatio: 0.75,
           termInMonths: 6,
@@ -781,7 +781,7 @@ export async function runLoanPlatformRepositoryTestSuite(
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
             principalAmount: '1000000000000000000', // 1 USDT in smallest units
             provisionAmount: '25000000000000000', // 2.5% provision
-            maxInterestRate: 20.0,
+            maxInterestRate: 0.2, // 20% in decimal format
             minLtvRatio: 0.5,
             maxLtvRatio: 0.75,
             termInMonths: 6,
@@ -901,7 +901,7 @@ export async function runLoanPlatformRepositoryTestSuite(
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
             principalAmount: '300000000000000000000', // 300 USDT in smallest units
             provisionAmount: '7500000000000000000', // 2.5% provision
-            maxInterestRate: 20.0,
+            maxInterestRate: 0.2, // 20% in decimal format
             minLtvRatio: 0.5,
             maxLtvRatio: 0.75,
             termInMonths: 6,
@@ -1008,7 +1008,7 @@ export async function runLoanPlatformRepositoryTestSuite(
           offeredPrincipalAmount: '10000000000000000',
           minLoanPrincipalAmount: '1000000000000000',
           maxLoanPrincipalAmount: '5000000000000000',
-          interestRate: 15.5,
+          interestRate: 0.155, // 15.5% in decimal format
           termInMonthsOptions: [3, 6, 12],
           expirationDate: new Date('2024-01-31T23:59:59.999Z'),
           createdDate: new Date('2024-01-01T10:00:00.000Z'),
@@ -1036,7 +1036,7 @@ export async function runLoanPlatformRepositoryTestSuite(
           principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           principalAmount: '1000000000000000', // 1 USDT in smallest units
           provisionAmount: '25000000000000', // 2.5% provision
-          maxInterestRate: 20.0,
+          maxInterestRate: 0.2, // 20% in decimal format
           minLtvRatio: 0.5,
           maxLtvRatio: 0.75,
           termInMonths: 6,

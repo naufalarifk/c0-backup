@@ -8,6 +8,7 @@ import {
   isString,
 } from 'typeshaper';
 
+import { fromLowestDenomination, toLowestDenomination } from '../utils/decimal';
 import { FinanceRepository } from './finance.repository';
 import {
   PlatformFeedsExchangeRateParams,
@@ -18,6 +19,12 @@ import {
   UserViewsExchangeRatesParams,
   UserViewsExchangeRatesResult,
 } from './pricefeed.types';
+
+/**
+ * Exchange rates use a fixed 12-decimal precision for consistent price calculations
+ * across all trading pairs, regardless of the quote currency's native decimals.
+ */
+const EXCHANGE_RATE_DECIMALS = 12;
 
 /**
  * PricefeedRepository <- FinanceRepository <- UserRepository <- BaseRepository
@@ -110,8 +117,8 @@ export abstract class PricefeedRepository extends FinanceRepository {
         return {
           id: String(rate.id),
           priceFeedId: String(rate.price_feed_id),
-          bidPrice: String(rate.bid_price),
-          askPrice: String(rate.ask_price),
+          bidPrice: fromLowestDenomination(String(rate.bid_price), EXCHANGE_RATE_DECIMALS),
+          askPrice: fromLowestDenomination(String(rate.ask_price), EXCHANGE_RATE_DECIMALS),
           retrievalDate: rate.retrieval_date,
           sourceDate: rate.source_date,
           blockchain: rate.blockchain_key,
@@ -128,6 +135,10 @@ export abstract class PricefeedRepository extends FinanceRepository {
   ): Promise<PlatformFeedsExchangeRateResult> {
     const { priceFeedId, bidPrice, askPrice, retrievalDate, sourceDate } = params;
 
+    // Convert prices to smallest unit with 12-decimal precision
+    const bidPriceLowest = toLowestDenomination(bidPrice, EXCHANGE_RATE_DECIMALS);
+    const askPriceLowest = toLowestDenomination(askPrice, EXCHANGE_RATE_DECIMALS);
+
     const tx = await this.beginTransaction();
     try {
       const rows = await this.sql`
@@ -140,8 +151,8 @@ export abstract class PricefeedRepository extends FinanceRepository {
             )
             VALUES (
               ${priceFeedId},
-              ${bidPrice},
-              ${askPrice},
+              ${bidPriceLowest},
+              ${askPriceLowest},
               ${retrievalDate.toISOString()},
               ${sourceDate.toISOString()}
             )
@@ -159,11 +170,12 @@ export abstract class PricefeedRepository extends FinanceRepository {
 
       await tx.commitTransaction();
 
+      // Convert prices back from smallest unit for output
       return {
         id: String(exchangeRate.id),
         priceFeedId: String(exchangeRate.price_feed_id),
-        bidPrice: String(exchangeRate.bid_price),
-        askPrice: String(exchangeRate.ask_price),
+        bidPrice: fromLowestDenomination(String(exchangeRate.bid_price), EXCHANGE_RATE_DECIMALS),
+        askPrice: fromLowestDenomination(String(exchangeRate.ask_price), EXCHANGE_RATE_DECIMALS),
         retrievalDate: exchangeRate.retrieval_date,
         sourceDate: exchangeRate.source_date,
       };
@@ -187,6 +199,7 @@ export abstract class PricefeedRepository extends FinanceRepository {
         await this.sql`
           INSERT INTO price_feeds (blockchain_key, base_currency_token_id, quote_currency_token_id, source)
           VALUES (${pf.blockchainKey}, ${pf.baseCurrencyTokenId}, ${pf.quoteCurrencyTokenId}, ${pf.source})
+          ON CONFLICT (blockchain_key, base_currency_token_id, quote_currency_token_id, source) DO NOTHING
         `;
       }
       await tx.commitTransaction();
@@ -209,9 +222,13 @@ export abstract class PricefeedRepository extends FinanceRepository {
     const tx = await this.beginTransaction();
     try {
       for (const er of params.exchangeRates) {
+        // Convert prices to smallest unit with 12-decimal precision
+        const bidPriceLowest = toLowestDenomination(er.bidPrice, EXCHANGE_RATE_DECIMALS);
+        const askPriceLowest = toLowestDenomination(er.askPrice, EXCHANGE_RATE_DECIMALS);
+
         await this.sql`
           INSERT INTO exchange_rates (price_feed_id, bid_price, ask_price, retrieval_date, source_date)
-          VALUES (${er.priceFeedId}, ${er.bidPrice}, ${er.askPrice}, ${er.retrievalDate}, ${er.sourceDate})
+          VALUES (${er.priceFeedId}, ${bidPriceLowest}, ${askPriceLowest}, ${er.retrievalDate}, ${er.sourceDate})
         `;
       }
       await tx.commitTransaction();
