@@ -6,11 +6,13 @@ import { RepositoryModule } from '../../shared/repositories/repository.module';
 import { WalletModule } from '../../shared/wallets/wallet.module';
 import { BinanceAssetMapperService } from './binance-asset-mapper.service';
 import { BinanceClientService } from './binance-client.service';
+import { BinanceDepositVerificationService } from './binance-deposit-verification.service';
 import { SolService } from './currencies/sol.service';
 import { SettlementWalletService } from './currencies/wallet.service';
 import { SettlementScheduler } from './settlement.scheduler';
 import { SettlementService } from './settlement.service';
 import { SettlementTestController } from './settlement-test.controller';
+import { SettlementTransactionService } from './settlement-transaction.service';
 
 /**
  * Settlement Worker Module
@@ -57,9 +59,18 @@ import { SettlementTestController } from './settlement-test.controller';
     SettlementScheduler,
     SettlementWalletService,
     SolService, // Solana-specific service for SOL balance queries
+    SettlementTransactionService, // Transaction verification service
     BinanceClientService,
+    BinanceDepositVerificationService, // Binance deposit verification service
     BinanceAssetMapperService,
   ],
-  exports: [SettlementService, SettlementScheduler, SettlementWalletService, BinanceClientService],
+  exports: [
+    SettlementService,
+    SettlementScheduler,
+    SettlementWalletService,
+    SettlementTransactionService,
+    BinanceClientService,
+    BinanceDepositVerificationService,
+  ],
 })
 export class SettlementModule {}

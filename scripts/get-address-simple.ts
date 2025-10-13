@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 
 // Import the test setup
-import { setup, cleanup } from '../test/setup/setup';
+import { setup } from '../test/setup/setup';
 
 test('Get Solana Hot Wallet Address', async () => {
     // Start the test server
@@ -51,6 +51,6 @@ test('Get Solana Hot Wallet Address', async () => {
         assert.ok(data.address, 'Should have an address');
     } finally {
         // Cleanup
-        await cleanup();
+        await testSetup.teardown();
     }
 });

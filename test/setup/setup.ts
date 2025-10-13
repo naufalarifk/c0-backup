@@ -155,12 +155,17 @@ export async function setup() {
           'migration',
           'notification',
           'pricefeed',
+          'settlement',
         ],
         {
           cwd: cgBackendPath,
           env: {
             ...process.env,
             NODE_ENV: 'development',
+            // Pass through SOLANA_USE_TESTNET if set
+            ...(process.env.SOLANA_USE_TESTNET && {
+              SOLANA_USE_TESTNET: process.env.SOLANA_USE_TESTNET,
+            }),
             ALLOWED_ORIGINS: `http://localhost,http://localhost:3000,crypto-gadai://`,
             APP_EXPO_URL: `exp://localhost/--`,
             APP_SCHEME: 'crypto-gadai://',
@@ -175,7 +180,20 @@ export async function setup() {
             CRYPTOGRAPHY_ENGINE: 'local',
             WALLET_TEST_MODE: 'true',
             PLATFORM_MASTER_MNEMONIC:
-              'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
+              'increase harsh parrot slight pool police crack wife hill drill swim pool youth artefact ankle',
+            // Use same mnemonic for settlement hot wallet (ensures consistent address)
+            WALLET_MNEMONIC:
+              'increase harsh parrot slight pool police crack wife hill drill swim pool youth artefact ankle',
+            // Use Solana devnet (where we have 5 SOL)
+            SOLANA_USE_DEVNET: 'true',
+            // Binance testnet configuration
+            BINANCE_USE_TESTNET: 'true',
+            BINANCE_API_ENABLED: 'true',
+            BINANCE_TEST_API_KEY:
+              'RgRwzn7IAShdLiS8xbVSnh1naM6y4OKxXuQg47dMhOWDGCtvPtS66FwUmRKscxGb',
+            BINANCE_TEST_API_SECRET:
+              'tbMXRJoTJCMBUd5IdNnpxdOEf2Gasm2fvwieK3zpVi1R14hbQiOauweumtcLUsW1',
+            BINANCE_API_BASE_URL: 'https://testnet.binance.vision',
             DATABASE_URL: ':inmemory:',
             DATABASE_LOGGER: 'false',
             GOOGLE_CLIENT_ID:

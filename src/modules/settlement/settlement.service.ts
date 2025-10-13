@@ -4,6 +4,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { WalletService } from '../../shared/wallets/wallet.service';
 import { BinanceAssetMapperService } from './binance-asset-mapper.service';
 import { BinanceClientService } from './binance-client.service';
 import { SettlementWalletService } from './currencies/wallet.service';
@@ -16,7 +17,8 @@ export class SettlementService {
   constructor(
     private readonly repository: CryptogadaiRepository,
     private readonly configService: ConfigService,
-    private readonly walletService: SettlementWalletService,
+    private readonly settlementWalletService: SettlementWalletService,
+    private readonly walletService: WalletService,
     private readonly binanceClient: BinanceClientService,
     private readonly binanceMapper: BinanceAssetMapperService,
   ) {}
@@ -136,7 +138,7 @@ export class SettlementService {
       );
 
       // 2. Get ACTUAL blockchain balances (not from DB)
-      const hotWallets = await this.walletService.getHotWalletBalances(blockchainKeys);
+      const hotWallets = await this.settlementWalletService.getHotWalletBalances(blockchainKeys);
 
       if (hotWallets.length === 0) {
         this.logger.debug(`No actual balances found on blockchains for ${currencyTokenId}`);

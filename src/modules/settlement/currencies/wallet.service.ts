@@ -6,32 +6,17 @@ import { Injectable, Logger } from '@nestjs/common';
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { WalletService } from '../../../shared/wallets/wallet.service';
 
+/**
+ * Settlement Wallet Service
+ *
+ * Provides balance query methods with logging and error handling for settlement operations.
+ * For direct hot wallet access, inject WalletService directly.
+ */
 @Injectable()
 export class SettlementWalletService {
   private readonly logger = new Logger(SettlementWalletService.name);
 
   constructor(private readonly walletService: WalletService) {}
-
-  /**
-   * Get hot wallet for a specific blockchain
-   * @param blockchainKey - Blockchain key (e.g., 'eip155:1' for Ethereum mainnet)
-   * @returns Hot wallet details including address and wallet instance
-   */
-  async getHotWallet(blockchainKey: string): Promise<HotWallet> {
-    return await this.walletService.getHotWallet(blockchainKey);
-  }
-
-  /**
-   * Get multiple hot wallets for different blockchains
-   * @param blockchainKeys - Array of blockchain keys
-   * @returns Array of hot wallet details
-   */
-  async getHotWallets(blockchainKeys: string[]): Promise<HotWallet[]> {
-    const wallets = await Promise.all(
-      blockchainKeys.map(async key => await this.walletService.getHotWallet(key)),
-    );
-    return wallets;
-  }
 
   /**
    * Get actual blockchain balance for a specific hot wallet
@@ -41,7 +26,7 @@ export class SettlementWalletService {
    */
   async getHotWalletBalance(blockchainKey: string): Promise<string> {
     try {
-      const hotWallet = await this.getHotWallet(blockchainKey);
+      const hotWallet = await this.walletService.getHotWallet(blockchainKey);
       const balance = await hotWallet.wallet.getBalance(hotWallet.address);
       this.logger.debug(
         `Blockchain balance for ${blockchainKey} (${hotWallet.address}): ${balance}`,
@@ -67,7 +52,7 @@ export class SettlementWalletService {
   ): Promise<Array<{ blockchainKey: string; balance: string; address: string }>> {
     const results = await Promise.allSettled(
       blockchainKeys.map(async key => {
-        const hotWallet = await this.getHotWallet(key);
+        const hotWallet = await this.walletService.getHotWallet(key);
         const balance = await hotWallet.wallet.getBalance(hotWallet.address);
         return {
           blockchainKey: key,

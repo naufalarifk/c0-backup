@@ -8,6 +8,7 @@ import { BtcTestnetWalletService } from './blockchains/btc-testnet.blockchain';
 import { CgTestnetBlockchain } from './blockchains/cg-testnet.blockchain';
 import { EthMainnetBlockchain } from './blockchains/eth-mainnet.blockchain';
 import { EthTestnetBlockchain } from './blockchains/eth-testnet.blockchain';
+import { SolDevnetBlockchain } from './blockchains/sol-devnet.blockchain';
 import { SolMainnetBlockchain } from './blockchains/sol-mainnet.blockchain';
 import { SolTestnetBlockchain } from './blockchains/sol-testnet.blockchain';
 import { WalletConfig } from './wallet.config';
@@ -25,6 +26,7 @@ import { WalletService } from './wallet.service';
     BtcTestnetWalletService,
     EthMainnetBlockchain,
     EthTestnetBlockchain,
+    SolDevnetBlockchain,
     SolMainnetBlockchain,
     SolTestnetBlockchain,
     CgTestnetBlockchain,
@@ -38,6 +40,7 @@ import { WalletService } from './wallet.service';
     BtcTestnetWalletService,
     EthMainnetBlockchain,
     EthTestnetBlockchain,
+    SolDevnetBlockchain,
     SolMainnetBlockchain,
     SolTestnetBlockchain,
     CgTestnetBlockchain,
