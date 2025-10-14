@@ -1012,21 +1012,83 @@ export class SettlementService {
   }
 
   /**
-   * Store settlement results in the database for audit trail
+   * Store settlement results in the database for audit trail with full tracking details
    */
   private async storeSettlementResults(results: SettlementResult[]): Promise<void> {
     try {
       for (const result of results) {
-        await this.repository.platformStoresSettlementResult({
+        // Extract currency info from blockchain key
+        // For now, assume native token on the blockchain
+        const currencyBlockchainKey = result.blockchainKey;
+        const currencyTokenId = `${result.blockchainKey}:native`;
+
+        // Try to get actual sender address
+        let senderAddress: string | null = null;
+        try {
+          const hotWallet = await this.walletService.getHotWallet(result.blockchainKey);
+          senderAddress = hotWallet.address;
+        } catch (error) {
+          this.logger.warn(`Could not get sender address for ${result.blockchainKey}`);
+        }
+
+        // Extract recipient and Binance details from verification if available
+        const recipientAddress = 'unknown';
+        const binanceAsset: string | null = null;
+        let binanceNetwork: string | null = null;
+
+        if (result.verificationDetails) {
+          const details = result.verificationDetails as any;
+          // Try to extract from verification details if available
+        }
+
+        // Get Binance network mapping
+        const networkMapping = this.binanceMapper.blockchainKeyToBinanceNetwork(
+          result.blockchainKey,
+        );
+        if (networkMapping) {
+          binanceNetwork = networkMapping;
+        }
+
+        // Store settlement log and get ID
+        const settlementLogId = await this.repository.platformStoresSettlementResult({
           blockchainKey: result.blockchainKey,
+          currencyBlockchainKey,
+          currencyTokenId,
           originalBalance: result.originalBalance,
           settlementAmount: result.settlementAmount,
           remainingBalance: result.remainingBalance,
           transactionHash: result.transactionHash ?? null,
+          senderAddress,
+          recipientAddress,
+          binanceAsset,
+          binanceNetwork,
           success: result.success,
           errorMessage: result.error ?? null,
           settledAt: result.timestamp,
         });
+
+        // Store verification details if available
+        if (result.verified !== undefined && result.verificationDetails) {
+          const details = result.verificationDetails as any;
+
+          await this.repository.platformStoresSettlementVerification({
+            settlementLogId,
+            blockchainConfirmed: details.blockchainConfirmed ?? false,
+            binanceMatched: details.binanceMatched ?? false,
+            amountMatches: details.amountMatches ?? false,
+            txHashMatches: details.txHashMatches ?? false,
+            senderAddressMatches: details.senderAddressMatches ?? false,
+            recipientAddressMatches: details.recipientAddressMatches ?? false,
+            binanceDepositId: null, // Not available in current result structure
+            binanceStatus: details.binanceStatus ?? null,
+            binanceConfirmations: null, // Not available in current result structure
+            binanceInsertTime: null, // Not available in current result structure
+            overallMatched: result.verified,
+            verificationMessage: result.verificationError || 'Verification completed',
+            verificationErrors: details.errors ?? [],
+            verificationAttempt: 1,
+          });
+        }
       }
 
       this.logger.debug(`Stored ${results.length} settlement results in database`);
