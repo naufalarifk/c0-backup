@@ -19,6 +19,11 @@ export interface SettlementResult {
     blockchainConfirmed: boolean;
     binanceMatched: boolean;
     amountMatches: boolean;
+    txHashMatches?: boolean;
+    senderAddressMatches?: boolean;
+    recipientAddressMatches?: boolean;
+    binanceStatus?: 'pending' | 'credited' | 'success';
+    errors?: string[];
   };
 }
 

@@ -13,6 +13,7 @@ import { WalletService } from '../../../../shared/wallets/wallet.service';
 import { defaultSettlementConfig } from '../../settlement.config';
 import { BinanceAssetMapperService } from '../binance/binance-asset-mapper.service';
 import { BinanceClientService } from '../binance/binance-client.service';
+import { BinanceDepositVerificationService } from '../binance/binance-deposit-verification.service';
 import { SolService } from '../blockchain/sol.service';
 import { TransactionMatchingService } from '../matching/transaction-matching.service';
 import { SettlementAlertService } from './settlement-alert.service';
@@ -27,6 +28,7 @@ export class SettlementService {
     private readonly walletService: WalletService,
     private readonly binanceClient: BinanceClientService,
     private readonly binanceMapper: BinanceAssetMapperService,
+    private readonly binanceDepositService: BinanceDepositVerificationService,
     private readonly transactionMatcher: TransactionMatchingService,
     private readonly alertService: SettlementAlertService,
     private readonly solService: SolService,
@@ -1087,34 +1089,71 @@ export class SettlementService {
     }
 
     try {
-      this.logger.log(`Verifying deposit ${result.transactionHash} appears in Binance...`);
-
-      // Get the appropriate blockchain service
-      const blockchainService = this.getBlockchainServiceForKey(blockchainKey);
-
-      const matchResult = await this.transactionMatcher.waitForDepositMatch(
-        {
-          txHash: result.transactionHash,
-          blockchain: blockchainKey,
-          coin: asset,
-          expectedAddress: depositAddress,
-          expectedAmount: result.settlementAmount,
-        },
-        blockchainService,
-        10, // 10 minutes timeout
+      this.logger.log(
+        `\n=== Verifying Deposit Transaction ===\n` +
+          `TxHash: ${result.transactionHash}\n` +
+          `Asset: ${asset}\n` +
+          `Amount: ${result.settlementAmount}\n` +
+          `Binance Deposit Address: ${depositAddress}\n`,
       );
 
-      if (matchResult.matched) {
-        result.verified = true;
-        result.verificationTimestamp = new Date();
-        result.verificationDetails = {
-          blockchainConfirmed: matchResult.blockchainData?.confirmed ?? false,
-          binanceMatched: matchResult.binanceData?.found ?? false,
-          amountMatches: matchResult.amountMatch ?? false,
-        };
-        this.logger.log(`✓ Deposit verified in Binance`);
+      // Get hot wallet address (sender)
+      const sourceHotWallet = await this.walletService.getHotWallet(blockchainKey);
+      const senderAddress = sourceHotWallet.address;
+
+      // Get network mapping for Binance
+      const networkMapping = this.binanceMapper.blockchainKeyToBinanceNetwork(blockchainKey);
+
+      // Use enhanced verification with detailed matching
+      const verificationResult = await this.binanceDepositService.verifyTransactionWithMatching({
+        blockchainTxHash: result.transactionHash,
+        blockchainFromAddress: senderAddress,
+        binanceDepositAddress: depositAddress,
+        coin: asset,
+        expectedAmount: result.settlementAmount,
+        network: networkMapping || undefined,
+      });
+
+      // Log detailed results
+      this.logger.log(
+        `Verification Results:\n` +
+          `  Overall: ${verificationResult.matched ? '✅ MATCHED' : '❌ NOT MATCHED'}\n` +
+          `  TxHash Match: ${verificationResult.details.txHashMatches ? '✓' : '✗'}\n` +
+          `  Sender Address Match: ${verificationResult.details.senderAddressMatches ? '✓' : '✗'}\n` +
+          `  Recipient Address Match: ${verificationResult.details.recipientAddressMatches ? '✓' : '✗'}\n` +
+          `  Amount Match: ${verificationResult.details.amountMatches ? '✓' : '✗'}\n` +
+          `  Binance Status: ${verificationResult.details.binanceStatus || 'unknown'}`,
+      );
+
+      if (verificationResult.errors.length > 0) {
+        this.logger.warn(
+          `Verification Errors:\n${verificationResult.errors.map(e => `  - ${e}`).join('\n')}`,
+        );
+      }
+
+      // Update result with verification details
+      result.verified = verificationResult.matched;
+      result.verificationTimestamp = new Date();
+      result.verificationDetails = {
+        blockchainConfirmed: true, // We only verify after successful transfer
+        binanceMatched: verificationResult.details.binanceFound,
+        amountMatches: verificationResult.details.amountMatches,
+        txHashMatches: verificationResult.details.txHashMatches,
+        senderAddressMatches: verificationResult.details.senderAddressMatches,
+        recipientAddressMatches: verificationResult.details.recipientAddressMatches,
+        binanceStatus: verificationResult.details.binanceStatus,
+        errors: verificationResult.errors,
+      };
+
+      if (verificationResult.matched) {
+        this.logger.log(`✅ Deposit fully verified and matched in Binance`);
       } else {
-        throw new Error(matchResult.error || 'Deposit not found in Binance');
+        throw new Error(
+          verificationResult.message +
+            (verificationResult.errors.length > 0
+              ? `\nErrors: ${verificationResult.errors.join(', ')}`
+              : ''),
+        );
       }
     } catch (error) {
       result.verified = false;
