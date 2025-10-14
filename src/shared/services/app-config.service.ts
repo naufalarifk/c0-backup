@@ -45,9 +45,20 @@ export class AppConfigService {
     return num;
   }
 
-  private getDuration(key: string, format?: Parameters<typeof parse>[1]): number {
+  private getDuration(
+    key: string,
+    defaultValue?: Parameters<typeof parse>[0],
+    format?: Parameters<typeof parse>[1],
+  ): number {
     const value = this.getString(key);
     const duration = parse(value, format);
+
+    if (duration === null && defaultValue) {
+      const parsedDefaultValue = parse(defaultValue, format);
+      if (!parsedDefaultValue) {
+        throw new Error(`Default value for ${key} is invalid: ${defaultValue}`);
+      }
+    }
 
     invariant(
       duration !== null,
@@ -223,7 +234,7 @@ export class AppConfigService {
   get redisConfig(): RedisOptions {
     return {
       host: this.getString('REDIS_HOST', 'localhost'),
-      port: this.getNumber('REDIS_PORT'),
+      port: this.getNumber('REDIS_PORT', 6379),
       password: this.getString('REDIS_PASSWORD', ''),
       db: this.getNumber('REDIS_DB', 0),
       lazyConnect: true,
