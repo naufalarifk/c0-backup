@@ -1420,6 +1420,7 @@ export async function runUserRepositoryTestSuite(
             businessPostalCode: '12345',
             directorName: 'Test Director',
             directorIdCardPath: '/path/director.pdf',
+            ministryApprovalDocumentPath: '/path/ministry.pdf',
             submittedDate: new Date('2024-01-01T00:00:00Z'),
           });
 
@@ -1474,6 +1475,7 @@ export async function runUserRepositoryTestSuite(
             businessPostalCode: '12345',
             directorName: 'Test Director 1',
             directorIdCardPath: '/path/director1.pdf',
+            ministryApprovalDocumentPath: '/path/ministry1.pdf',
             submittedDate: new Date('2024-01-01T00:00:00Z'),
           });
 
@@ -1499,6 +1501,7 @@ export async function runUserRepositoryTestSuite(
               businessPostalCode: '12345',
               directorName: 'Test Director 2',
               directorIdCardPath: '/path/director2.pdf',
+              ministryApprovalDocumentPath: '/path/ministry2.pdf',
               submittedDate: new Date('2024-01-01T00:00:00Z'),
             });
           } catch (error) {
