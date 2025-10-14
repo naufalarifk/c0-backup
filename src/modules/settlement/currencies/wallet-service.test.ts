@@ -22,7 +22,7 @@ import { Connection, Keypair } from '@solana/web3.js';
 import { derivePath } from 'ed25519-hd-key';
 
 import { SolWallet } from '../../../shared/wallets/wallets/sol.wallet';
-import { SettlementWalletService } from './wallet.service';
+import { SettlementWalletService } from '../services/blockchain/wallet.service';
 
 // Disable NestJS logging during tests
 Logger.overrideLogger(false);

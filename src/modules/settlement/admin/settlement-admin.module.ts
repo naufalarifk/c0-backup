@@ -7,8 +7,11 @@ import { SettlementController } from '../controllers/settlement.controller';
 import { SettlementScheduler } from '../schedulers/settlement.scheduler';
 import { BinanceAssetMapperService } from '../services/binance/binance-asset-mapper.service';
 import { BinanceClientService } from '../services/binance/binance-client.service';
-import { SettlementWalletService } from '../services/blockchain/wallet.service';
+import { BinanceDepositVerificationService } from '../services/binance/binance-deposit-verification.service';
+import { SolService } from '../services/blockchain/sol.service';
 import { SettlementService } from '../services/core/settlement.service';
+import { SettlementAlertService } from '../services/core/settlement-alert.service';
+import { TransactionMatchingService } from '../services/matching/transaction-matching.service';
 
 /**
  * Settlement Admin Module
@@ -22,10 +25,13 @@ import { SettlementService } from '../services/core/settlement.service';
   providers: [
     SettlementService,
     SettlementScheduler,
-    SettlementWalletService,
     BinanceClientService,
     BinanceAssetMapperService,
+    BinanceDepositVerificationService,
+    TransactionMatchingService,
+    SettlementAlertService,
+    SolService,
   ],
-  exports: [SettlementService, SettlementScheduler, SettlementWalletService],
+  exports: [SettlementService, SettlementScheduler],
 })
 export class SettlementAdminModule {}

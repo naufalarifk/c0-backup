@@ -15,7 +15,6 @@ import { WalletService } from '../../shared/wallets/wallet.service';
 import { BinanceClientService } from './services/binance/binance-client.service';
 import { BinanceDepositVerificationService } from './services/binance/binance-deposit-verification.service';
 import { SolService } from './services/blockchain/sol.service';
-import { SettlementWalletService } from './services/blockchain/wallet.service';
 import { SettlementService } from './services/core/settlement.service';
 import { SettlementTransactionService } from './services/core/settlement-transaction.service';
 
@@ -25,7 +24,6 @@ import { SettlementTransactionService } from './services/core/settlement-transac
 export class SettlementTestController {
   constructor(
     private readonly settlementService: SettlementService,
-    private readonly settlementWalletService: SettlementWalletService,
     private readonly walletService: WalletService,
     private readonly solService: SolService,
     private readonly binanceClient: BinanceClientService,
@@ -59,12 +57,13 @@ export class SettlementTestController {
   @Get('hot-wallet-balance/:blockchainKey')
   async getHotWalletBalance(@Param('blockchainKey') blockchainKey: string) {
     try {
-      const balance = await this.settlementWalletService.getHotWalletBalance(blockchainKey);
       const hotWallet = await this.walletService.getHotWallet(blockchainKey);
+      const address = await hotWallet.wallet.getAddress();
+      const balance = await hotWallet.wallet.getBalance(address);
       return {
         blockchainKey,
-        balance,
-        address: hotWallet.address,
+        balance: balance.toString(),
+        address,
       };
     } catch (error) {
       return {
@@ -82,7 +81,33 @@ export class SettlementTestController {
   @Post('hot-wallet-balances')
   async getHotWalletBalances(@Body() body: { blockchainKeys: string[] }) {
     try {
-      const balances = await this.settlementWalletService.getHotWalletBalances(body.blockchainKeys);
+      const results = await Promise.allSettled(
+        body.blockchainKeys.map(async blockchainKey => {
+          try {
+            const hotWallet = await this.walletService.getHotWallet(blockchainKey);
+            const address = await hotWallet.wallet.getAddress();
+            const balance = await hotWallet.wallet.getBalance(address);
+            return { blockchainKey, balance: balance.toString(), address };
+          } catch (error) {
+            console.error(`Failed to get balance for ${blockchainKey}:`, error);
+            return null;
+          }
+        }),
+      );
+      const balances = results
+        .filter(
+          (
+            r,
+          ): r is PromiseFulfilledResult<{
+            blockchainKey: string;
+            balance: string;
+            address: string;
+          } | null> => r.status === 'fulfilled',
+        )
+        .map(r => r.value)
+        .filter(
+          (v): v is { blockchainKey: string; balance: string; address: string } => v !== null,
+        );
       return balances;
     } catch (error) {
       return {
@@ -151,9 +176,33 @@ export class SettlementTestController {
   ) {
     try {
       // Get hot wallet balances from blockchain
-      const hotWalletBalances = await this.settlementWalletService.getHotWalletBalances(
-        body.blockchainKeys,
+      const results = await Promise.allSettled(
+        body.blockchainKeys.map(async blockchainKey => {
+          try {
+            const hotWallet = await this.walletService.getHotWallet(blockchainKey);
+            const address = await hotWallet.wallet.getAddress();
+            const balance = await hotWallet.wallet.getBalance(address);
+            return { blockchainKey, balance: balance.toString(), address };
+          } catch (error) {
+            console.error(`Failed to get balance for ${blockchainKey}:`, error);
+            return null;
+          }
+        }),
       );
+      const hotWalletBalances = results
+        .filter(
+          (
+            r,
+          ): r is PromiseFulfilledResult<{
+            blockchainKey: string;
+            balance: string;
+            address: string;
+          } | null> => r.status === 'fulfilled',
+        )
+        .map(r => r.value)
+        .filter(
+          (v): v is { blockchainKey: string; balance: string; address: string } => v !== null,
+        );
 
       // Calculate total
       const totalBalance = hotWalletBalances.reduce((sum, wallet) => {
@@ -555,6 +604,46 @@ export class SettlementTestController {
         signature: body.signature,
         blockchainStatus: status.confirmed ? 'confirmed' : 'pending',
         network: this.solService.getBlockchainKey(),
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Manually trigger settlement process
+   * This will execute settlement for all currencies with balances
+   */
+  @Post('execute-settlement')
+  async executeSettlement() {
+    try {
+      const results = await this.settlementService.executeSettlement();
+
+      const successCount = results.filter(r => r.success).length;
+      const failCount = results.filter(r => !r.success).length;
+
+      return {
+        success: true,
+        message: `Settlement executed: ${successCount} succeeded, ${failCount} failed`,
+        totalResults: results.length,
+        successCount,
+        failCount,
+        results: results.map(r => ({
+          success: r.success,
+          blockchainKey: r.blockchainKey,
+          originalBalance: r.originalBalance,
+          settlementAmount: r.settlementAmount,
+          remainingBalance: r.remainingBalance,
+          transactionHash: r.transactionHash,
+          error: r.error,
+          verified: r.verified,
+          timestamp: r.timestamp,
+        })),
         timestamp: new Date().toISOString(),
       };
     } catch (error) {

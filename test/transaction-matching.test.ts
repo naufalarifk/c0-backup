@@ -15,7 +15,6 @@ import { Connection } from '@solana/web3.js';
 import { BinanceClientService } from '../src/modules/settlement/services/binance/binance-client.service';
 import { BinanceDepositVerificationService } from '../src/modules/settlement/services/binance/binance-deposit-verification.service';
 import { SolService } from '../src/modules/settlement/services/blockchain/sol.service';
-import { SettlementWalletService } from '../src/modules/settlement/services/blockchain/wallet.service';
 import { TransactionMatchingService } from '../src/modules/settlement/services/matching/transaction-matching.service';
 import { WalletFactory } from '../src/shared/wallets/wallet.factory';
 
@@ -38,7 +37,6 @@ describe('TransactionMatchingService - Integration Tests', () => {
   let binanceClient: BinanceClientService;
   let binanceDepositService: BinanceDepositVerificationService;
   let walletFactory: WalletFactory;
-  let walletService: SettlementWalletService;
   let connection: Connection;
 
   before(async () => {
@@ -48,10 +46,29 @@ describe('TransactionMatchingService - Integration Tests', () => {
     binanceClient = new BinanceClientService(configService);
     binanceDepositService = new BinanceDepositVerificationService(binanceClient);
 
-    walletFactory = new WalletFactory(configService);
-    walletService = new SettlementWalletService(walletFactory);
+    // Note: WalletFactory requires DiscoveryService and Reflector from NestJS
+    // For now, we'll create a mock that returns null (tests will skip wallet-dependent operations)
+    const mockDiscoveryService = {
+      getProviders: () => [],
+    };
+    const mockReflector = {
+      get: () => null,
+    };
 
-    solService = new SolService(walletFactory, walletService);
+    walletFactory = new WalletFactory(mockDiscoveryService as any, mockReflector as any);
+    walletFactory.onModuleInit(); // Initialize the factory
+
+    // Mock WalletService for testing
+    const mockWalletService = {
+      getHotWallet: async () => ({
+        address: 'test_address',
+        wallet: {
+          getBalance: async () => '0',
+        },
+      }),
+    } as any;
+
+    solService = new SolService(walletFactory);
 
     transactionMatching = new TransactionMatchingService(binanceClient, binanceDepositService);
 

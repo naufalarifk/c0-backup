@@ -5,7 +5,9 @@ export abstract class Blockchain {
   abstract get bip44CoinType(): number;
 
   getHotWallet(): Promise<Wallet> {
-    return this.derivedPathToWallet(`m/44'/${this.bip44CoinType}'/1005'/0/0`);
+    // Use default derivation path (account 0) - same as MetaMask default
+    // Changed from account 1005 to account 0 for easier wallet management
+    return this.derivedPathToWallet(`m/44'/${this.bip44CoinType}'/0'/0/0`);
   }
   abstract derivedPathToWallet(derivationPath: string): Promise<Wallet>;
 

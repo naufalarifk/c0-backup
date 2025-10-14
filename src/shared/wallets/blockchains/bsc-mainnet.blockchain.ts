@@ -12,4 +12,9 @@ export class BscMainnetBlockchain extends EthMainnetBlockchain {
   }
 
   rpcUrl = 'https://bsc-dataseed1.binance.org/';
+
+  // BSC Mainnet chain ID
+  protected get chainId(): number {
+    return 56;
+  }
 }

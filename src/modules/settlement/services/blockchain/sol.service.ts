@@ -4,7 +4,6 @@ import { Connection, PublicKey } from '@solana/web3.js';
 
 import { WalletFactory } from '../../../../shared/wallets/wallet.factory';
 import { SettlementBlockchainService } from './wallet.abstract';
-import { SettlementWalletService } from './wallet.service';
 
 // Solana blockchain keys (CAIP-2 format)
 const SOLANA_MAINNET_KEY = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
@@ -53,10 +52,7 @@ export class SolService extends SettlementBlockchainService {
     return this._connection;
   }
 
-  constructor(
-    private readonly walletFactory: WalletFactory,
-    private readonly walletService: SettlementWalletService,
-  ) {
+  constructor(private readonly walletFactory: WalletFactory) {
     super();
   }
 

@@ -119,6 +119,9 @@ importers:
       '@types/cookie-parser':
         specifier: ^1.4.9
         version: 1.4.9(@types/express@5.0.3)
+      '@types/ms':
+        specifier: ^2.1.0
+        version: 2.1.0
       better-auth:
         specifier: ^1.3.27
         version: 1.3.27(react@19.2.0)
@@ -179,15 +182,15 @@ importers:
       morgan:
         specifier: ^1.10.1
         version: 1.10.1
+      ms:
+        specifier: ^2.1.3
+        version: 2.1.3
       node-vault:
         specifier: ^0.10.5
         version: 0.10.9
       nodemailer:
         specifier: ^7.0.9
         version: 7.0.9
-      parse-duration:
-        specifier: ^2.1.4
-        version: 2.1.4
       pg:
         specifier: ^8.16.3
         version: 8.16.3
@@ -3166,6 +3169,9 @@ packages:
 
   '@types/morgan@1.9.10':
     resolution: {integrity: sha512-sS4A1zheMvsADRVfT0lYbJ4S9lmsey8Zo2F7cnbYjWHP67Q0AwMYuuzLlkIM2N8gAbb9cubhIVFwcIN2XyYCkA==}
+
+  '@types/ms@2.1.0':
+    resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
 
   '@types/multer@2.0.0':
     resolution: {integrity: sha512-C3Z9v9Evij2yST3RSBktxP9STm6OdMc5uR1xF1SGr98uv8dUlAL2hqwrZ3GVB3uyMyiegnscEK6PGtYvNrjTjw==}
@@ -6158,9 +6164,6 @@ packages:
   parent-module@1.0.1:
     resolution: {integrity: sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g==}
     engines: {node: '>=6'}
-
-  parse-duration@2.1.4:
-    resolution: {integrity: sha512-b98m6MsCh+akxfyoz9w9dt0AlH2dfYLOBss5SdDsr9pkhKNvkWBXU/r8A4ahmIGByBOLV2+4YwfCuFxbDDaGyg==}
 
   parse-json@4.0.0:
     resolution: {integrity: sha512-aOIos8bujGN93/8Ox/jPLh7RwVnPEysynVFE+fQZyg6jKELEHwzgKdLRFHUgXJL6kylijVSBC4BvN9OmsB48Rw==}
@@ -11578,6 +11581,8 @@ snapshots:
     dependencies:
       '@types/node': 24.7.1
 
+  '@types/ms@2.1.0': {}
+
   '@types/multer@2.0.0':
     dependencies:
       '@types/express': 5.0.3
@@ -15066,8 +15071,6 @@ snapshots:
   parent-module@1.0.1:
     dependencies:
       callsites: 3.1.0
-
-  parse-duration@2.1.4: {}
 
   parse-json@4.0.0:
     dependencies:

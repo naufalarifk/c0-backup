@@ -148,14 +148,14 @@ export class BinanceClientService {
     }
 
     try {
-      this.logger.debug(
-        `Fetching deposit address for ${coin} on network ${network || 'default'}...`,
-      );
+      this.logger.log(`Fetching deposit address for ${coin} on network ${network || 'default'}...`);
 
       const params: any = { coin };
       if (network) {
         params.network = network;
       }
+
+      this.logger.log(`Binance API call params:`, params);
 
       const response = await this.client.depositAddress(coin, params);
       const data = response.data;
@@ -167,7 +167,18 @@ export class BinanceClientService {
         network: data.network || network || 'unknown',
       };
     } catch (error) {
-      this.logger.error(`Failed to get deposit address for ${coin}:`, error);
+      // Log detailed error information
+      if (error instanceof Error && 'response' in error) {
+        const axiosError = error as any;
+        this.logger.error(`Failed to get deposit address for ${coin}:`, {
+          status: axiosError.response?.status,
+          statusText: axiosError.response?.statusText,
+          data: axiosError.response?.data,
+          url: axiosError.config?.url,
+        });
+      } else {
+        this.logger.error(`Failed to get deposit address for ${coin}:`, error);
+      }
       throw error;
     }
   }

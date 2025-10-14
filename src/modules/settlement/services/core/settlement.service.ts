@@ -14,7 +14,6 @@ import { defaultSettlementConfig } from '../../settlement.config';
 import { BinanceAssetMapperService } from '../binance/binance-asset-mapper.service';
 import { BinanceClientService } from '../binance/binance-client.service';
 import { SolService } from '../blockchain/sol.service';
-import { SettlementWalletService } from '../blockchain/wallet.service';
 import { TransactionMatchingService } from '../matching/transaction-matching.service';
 import { SettlementAlertService } from './settlement-alert.service';
 
@@ -25,7 +24,6 @@ export class SettlementService {
   constructor(
     private readonly repository: CryptogadaiRepository,
     private readonly configService: ConfigService,
-    private readonly settlementWalletService: SettlementWalletService,
     private readonly walletService: WalletService,
     private readonly binanceClient: BinanceClientService,
     private readonly binanceMapper: BinanceAssetMapperService,
@@ -77,37 +75,126 @@ export class SettlementService {
   }
 
   /**
-   * Calculate required Binance balance based on configured ratio
-   * Formula: binance_target = hot_wallets_total * (ratio / (1 - ratio))
+   * Get actual blockchain balances for all configured hot wallets
+   * Returns native token balances (BNB, ETH, SOL) by querying blockchain directly
+   */
+  private async getActualBlockchainBalances(): Promise<
+    Array<{
+      blockchainKey: string;
+      balance: string;
+      address: string;
+      symbol: string;
+    }>
+  > {
+    this.logger.log('Fetching actual blockchain balances...');
+
+    // Define blockchains to check
+    const blockchains = [
+      { key: 'eip155:56', name: 'BSC Mainnet', symbol: 'BNB' },
+      { key: 'eip155:1', name: 'Ethereum Mainnet', symbol: 'ETH' },
+      { key: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp', name: 'Solana Mainnet', symbol: 'SOL' },
+    ];
+
+    const balances: Array<{
+      blockchainKey: string;
+      balance: string;
+      address: string;
+      symbol: string;
+    }> = [];
+
+    for (const blockchain of blockchains) {
+      try {
+        const hotWallet = await this.walletService.getHotWallet(blockchain.key);
+        const address = hotWallet.address;
+        const balanceNum = await hotWallet.wallet.getBalance(address);
+        const balance = balanceNum.toString();
+
+        this.logger.log(`✓ ${blockchain.name}: ${balance} ${blockchain.symbol} (${address})`);
+
+        // Only include if balance > 0
+        if (parseFloat(balance) > 0) {
+          balances.push({
+            blockchainKey: blockchain.key,
+            balance,
+            address,
+            symbol: blockchain.symbol,
+          });
+        }
+      } catch (error) {
+        this.logger.error(`✗ Failed to get balance for ${blockchain.name}:`, error);
+      }
+    }
+
+    return balances;
+  }
+
+  /**
+   * Calculate required Binance balance based on 1:1 equal distribution
+   * Formula: Each side should have Total / 2
    *
-   * Example with 50% ratio (0.5):
-   * - Hot wallets: 100 USDT
-   * - Binance should have: 100 * (0.5 / 0.5) = 100 USDT
-   * - Total system: 200 USDT (50% in hot wallets, 50% in Binance)
+   * Example:
+   * - Hot wallets: 1 BNB, Binance: 0 BNB
+   * - Total: 1 BNB
+   * - Target: Hot wallets = 0.5 BNB, Binance = 0.5 BNB
+   *
+   * Example 2:
+   * - Hot wallets: 0.5 BNB, Binance: 0.3 BNB
+   * - Total: 0.8 BNB
+   * - Target: Hot wallets = 0.4 BNB, Binance = 0.4 BNB
    */
   calculateRequiredBinanceBalance(hotWalletTotal: string, ratio: number): string {
     const hotWalletNum = Number.parseFloat(hotWalletTotal);
 
-    // If ratio is 50% (0.5), Binance should equal hot wallets
-    // If ratio is 33% (0.33), Binance should have 50% of hot wallets
-    // Formula: binance = hot_wallets * (ratio / (1 - ratio))
+    // For 1:1 distribution, we need to know current Binance balance
+    // But this method only has hotWalletTotal, so we return half of hot wallet
+    // The actual calculation is done in calculateSettlementAmount where we have both values
+
+    // Legacy ratio-based formula (kept for backward compatibility with ratio parameter)
+    // But for 1:1, this will be overridden in calculateSettlementAmount
     const binanceTarget = hotWalletNum * (ratio / (1 - ratio));
 
     return binanceTarget.toString();
   }
 
   /**
-   * Calculate settlement amount needed to reach target ratio
+   * Calculate settlement amount needed for 1:1 equal distribution
    * Returns positive if need to transfer TO Binance, negative if need to withdraw FROM Binance
+   *
+   * Formula:
+   * - Total = hotWalletTotal + currentBinance
+   * - Target for each side = Total / 2
+   * - Settlement amount = targetBinance - currentBinance
+   *
+   * Example 1: Hot wallet = 1 BNB, Binance = 0
+   * - Total = 1 + 0 = 1 BNB
+   * - Target Binance = 1 / 2 = 0.5 BNB
+   * - Settlement = 0.5 - 0 = +0.5 (transfer 0.5 BNB TO Binance)
+   *
+   * Example 2: Hot wallet = 0.3 BNB, Binance = 0.7 BNB
+   * - Total = 0.3 + 0.7 = 1 BNB
+   * - Target Binance = 1 / 2 = 0.5 BNB
+   * - Settlement = 0.5 - 0.7 = -0.2 (withdraw 0.2 BNB FROM Binance)
    */
   calculateSettlementAmount(hotWalletTotal: string, currentBinance: string, ratio: number): string {
-    const targetBinance = this.calculateRequiredBinanceBalance(hotWalletTotal, ratio);
+    const hotWalletNum = Number.parseFloat(hotWalletTotal);
     const currentBinanceNum = Number.parseFloat(currentBinance);
-    const targetBinanceNum = Number.parseFloat(targetBinance);
+
+    // Calculate total across both hot wallets and Binance
+    const total = hotWalletNum + currentBinanceNum;
+
+    // For 1:1 distribution, each side should have exactly half
+    const targetBinance = total / 2;
 
     // Positive = need to transfer TO Binance
     // Negative = need to withdraw FROM Binance
-    const difference = targetBinanceNum - currentBinanceNum;
+    const difference = targetBinance - currentBinanceNum;
+
+    this.logger.debug(
+      `Settlement calculation: Total=${total.toFixed(8)}, ` +
+        `Current: HW=${hotWalletNum.toFixed(8)} + Binance=${currentBinanceNum.toFixed(8)}, ` +
+        `Target: HW=${(total / 2).toFixed(8)} + Binance=${targetBinance.toFixed(8)}, ` +
+        `Settlement=${difference > 0 ? '+' : ''}${difference.toFixed(8)}`,
+    );
 
     return difference.toString();
   }
@@ -129,7 +216,7 @@ export class SettlementService {
       ) / 100;
 
     this.logger.log(`Processing settlement for currency: ${currencyTokenId}`);
-    this.logger.log(`Target ratio: ${(ratio * 100).toFixed(0)}% on Binance`);
+    this.logger.log(`Target distribution: 1:1 (Equal split between Hot Wallets and Binance)`);
 
     const results: SettlementResult[] = [];
 
@@ -149,7 +236,34 @@ export class SettlementService {
       );
 
       // 2. Get ACTUAL blockchain balances (not from DB)
-      const hotWallets = await this.settlementWalletService.getHotWalletBalances(blockchainKeys);
+      const hotWallets = await Promise.allSettled(
+        blockchainKeys.map(async blockchainKey => {
+          try {
+            const hotWallet = await this.walletService.getHotWallet(blockchainKey);
+            const address = await hotWallet.wallet.getAddress();
+            const balance = await hotWallet.wallet.getBalance(address);
+            return { blockchainKey, balance: balance.toString(), address };
+          } catch (error) {
+            this.logger.error(`Failed to get balance for ${blockchainKey}: ${error}`);
+            return null;
+          }
+        }),
+      ).then(results =>
+        results
+          .filter(
+            (
+              r,
+            ): r is PromiseFulfilledResult<{
+              blockchainKey: string;
+              balance: string;
+              address: string;
+            } | null> => r.status === 'fulfilled',
+          )
+          .map(r => r.value)
+          .filter(
+            (v): v is { blockchainKey: string; balance: string; address: string } => v !== null,
+          ),
+      );
 
       if (hotWallets.length === 0) {
         this.logger.debug(`No actual balances found on blockchains for ${currencyTokenId}`);
@@ -373,7 +487,7 @@ export class SettlementService {
   }
 
   /**
-   * Execute settlement for all currencies
+   * Execute settlement for all currencies using ACTUAL blockchain balances
    * Groups by Binance asset (USDT, BTC, etc.) since Binance maintains one balance per asset
    * regardless of which network the tokens are on (ETH, BSC, Polygon, etc.)
    */
@@ -388,37 +502,87 @@ export class SettlementService {
       return [];
     }
 
-    this.logger.log('=== Starting Settlement Process ===');
+    this.logger.log('=== Starting Settlement Process (Using Actual Balances) ===');
 
     try {
-      // Get all unique currencies that have balances in hot wallets
-      const currencies = await this.repository.platformGetsCurrenciesWithBalances();
+      // Get ACTUAL blockchain balances (not from database)
+      const actualBalances = await this.getActualBlockchainBalances();
 
-      if (currencies.length === 0) {
-        this.logger.log('No currencies found to settle');
+      if (actualBalances.length === 0) {
+        this.logger.log('No balances found in hot wallets (checked actual blockchain balances)');
         return [];
       }
 
-      this.logger.log(`Found ${currencies.length} currency token(s) in hot wallets`);
-
-      // Group currencies by Binance asset (USDT, BTC, etc.)
-      const assetGroups = this.groupCurrenciesByAsset(currencies);
-
-      this.logger.log(`Grouped into ${assetGroups.size} Binance asset(s)`);
-
-      const ratio =
-        this.configService.get<number>(
-          'SETTLEMENT_PERCENTAGE',
-          defaultSettlementConfig.targetPercentage,
-        ) / 100;
+      this.logger.log(`Found actual balances in ${actualBalances.length} hot wallet(s)`);
 
       const allResults: SettlementResult[] = [];
 
-      // Process each asset (not each currency token)
-      for (const [asset, tokenIds] of assetGroups) {
-        this.logger.log(`\n--- Settling ${asset} ---`);
-        const results = await this.settleAsset(asset, tokenIds, ratio);
-        allResults.push(...results);
+      // Process each blockchain with balance
+      for (const hotWallet of actualBalances) {
+        this.logger.log(`\n--- Settling ${hotWallet.symbol} on ${hotWallet.blockchainKey} ---`);
+
+        const asset = hotWallet.symbol; // BNB, ETH, SOL
+
+        try {
+          // Get Binance balance for this asset
+          const currentBinanceNum = await this.getBinanceBalance(asset);
+
+          this.logger.log(`Hot Wallet: ${hotWallet.balance} ${asset}`);
+          this.logger.log(`Binance: ${currentBinanceNum} ${asset}`);
+
+          // Calculate settlement amount using 1:1 logic
+          const settlementAmount = this.calculateSettlementAmount(
+            hotWallet.balance,
+            currentBinanceNum.toString(),
+            0.5, // ratio parameter (ignored in 1:1 calculation)
+          );
+
+          const settlementNum = Number.parseFloat(settlementAmount);
+          const minAmount = this.configService.get<number>(
+            'SETTLEMENT_MIN_AMOUNT',
+            0.001, // default min amount
+          );
+
+          if (Math.abs(settlementNum) < minAmount) {
+            this.logger.log(
+              `Settlement not needed (difference ${Math.abs(settlementNum).toFixed(8)} < ${minAmount})`,
+            );
+            continue;
+          }
+
+          this.logger.log(
+            `Settlement needed: ${settlementNum > 0 ? 'Transfer TO' : 'Withdraw FROM'} Binance: ${Math.abs(settlementNum).toFixed(8)} ${asset}`,
+          );
+
+          if (settlementNum > 0) {
+            // Transfer TO Binance
+            // Create a token ID from blockchain and asset
+            const tokenId = `${hotWallet.blockchainKey}:native`;
+
+            // Call depositToBinance with correct parameters
+            const results = await this.depositToBinance(
+              tokenId,
+              [{ blockchainKey: hotWallet.blockchainKey, balance: hotWallet.balance }],
+              Number.parseFloat(hotWallet.balance),
+              settlementNum,
+            );
+            allResults.push(...results);
+          } else {
+            // Withdraw FROM Binance (not implemented yet, log warning)
+            this.logger.warn('Withdraw from Binance not yet implemented in this version');
+          }
+        } catch (error) {
+          this.logger.error(`Failed to settle ${asset}:`, error);
+          allResults.push({
+            success: false,
+            blockchainKey: hotWallet.blockchainKey,
+            originalBalance: hotWallet.balance,
+            settlementAmount: '0',
+            remainingBalance: hotWallet.balance,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            timestamp: new Date(),
+          });
+        }
       }
 
       const successCount = allResults.filter(r => r.success).length;
@@ -615,8 +779,15 @@ export class SettlementService {
       const proportion = hwBalance / totalHotWallet;
       const transferAmount = settlementAmount * proportion;
 
-      if (transferAmount < 0.01) {
-        this.logger.debug(`Skipping ${hw.blockchainKey}: transfer amount too small`);
+      const minTransferAmount = this.configService.get<number>(
+        'SETTLEMENT_MIN_TRANSFER',
+        0.0001, // Lower default for testing with small amounts
+      );
+
+      if (transferAmount < minTransferAmount) {
+        this.logger.warn(
+          `⊘ Skipping ${hw.blockchainKey}: transfer amount ${transferAmount.toFixed(8)} < minimum ${minTransferAmount}`,
+        );
         continue;
       }
 

@@ -8,8 +8,11 @@ import { SettlementScheduler } from './schedulers/settlement.scheduler';
 import { BinanceAssetMapperService } from './services/binance/binance-asset-mapper.service';
 import { BinanceClientService } from './services/binance/binance-client.service';
 import { BinanceDepositVerificationService } from './services/binance/binance-deposit-verification.service';
+import { BinanceSettlementService } from './services/binance/binance-settlement.service';
+import { BinanceWalletDepositService } from './services/binance/binance-wallet-deposit.service';
+import { BscService } from './services/blockchain/bsc.service';
+import { EthService } from './services/blockchain/eth.service';
 import { SolService } from './services/blockchain/sol.service';
-import { SettlementWalletService } from './services/blockchain/wallet.service';
 import { SettlementService } from './services/core/settlement.service';
 import { SettlementAlertService } from './services/core/settlement-alert.service';
 import { SettlementTransactionService } from './services/core/settlement-transaction.service';
@@ -59,22 +62,26 @@ import { SettlementTestController } from './settlement-test.controller';
   providers: [
     SettlementService,
     SettlementScheduler,
-    SettlementWalletService,
     SolService, // Solana-specific service for SOL balance queries
+    EthService, // Ethereum-specific service for ETH balance queries
+    BscService, // Binance Smart Chain-specific service for BNB balance queries
     SettlementTransactionService, // Transaction verification service
     BinanceClientService,
     BinanceDepositVerificationService, // Binance deposit verification service
     BinanceAssetMapperService,
+    BinanceWalletDepositService, // Binance deposit service for wallet transfers
+    BinanceSettlementService, // High-level settlement service
     TransactionMatchingService, // Cross-platform transaction matching service
     SettlementAlertService, // Alert service for verification failures
   ],
   exports: [
     SettlementService,
     SettlementScheduler,
-    SettlementWalletService,
     SettlementTransactionService,
     BinanceClientService,
     BinanceDepositVerificationService,
+    BinanceWalletDepositService,
+    BinanceSettlementService,
     TransactionMatchingService,
   ],
 })
