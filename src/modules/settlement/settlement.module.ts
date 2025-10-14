@@ -4,15 +4,17 @@ import { ScheduleModule } from '@nestjs/schedule';
 
 import { RepositoryModule } from '../../shared/repositories/repository.module';
 import { WalletModule } from '../../shared/wallets/wallet.module';
-import { BinanceAssetMapperService } from './binance-asset-mapper.service';
-import { BinanceClientService } from './binance-client.service';
-import { BinanceDepositVerificationService } from './binance-deposit-verification.service';
-import { SolService } from './currencies/sol.service';
-import { SettlementWalletService } from './currencies/wallet.service';
-import { SettlementScheduler } from './settlement.scheduler';
-import { SettlementService } from './settlement.service';
+import { SettlementScheduler } from './schedulers/settlement.scheduler';
+import { BinanceAssetMapperService } from './services/binance/binance-asset-mapper.service';
+import { BinanceClientService } from './services/binance/binance-client.service';
+import { BinanceDepositVerificationService } from './services/binance/binance-deposit-verification.service';
+import { SolService } from './services/blockchain/sol.service';
+import { SettlementWalletService } from './services/blockchain/wallet.service';
+import { SettlementService } from './services/core/settlement.service';
+import { SettlementAlertService } from './services/core/settlement-alert.service';
+import { SettlementTransactionService } from './services/core/settlement-transaction.service';
+import { TransactionMatchingService } from './services/matching/transaction-matching.service';
 import { SettlementTestController } from './settlement-test.controller';
-import { SettlementTransactionService } from './settlement-transaction.service';
 
 /**
  * Settlement Worker Module
@@ -63,6 +65,8 @@ import { SettlementTransactionService } from './settlement-transaction.service';
     BinanceClientService,
     BinanceDepositVerificationService, // Binance deposit verification service
     BinanceAssetMapperService,
+    TransactionMatchingService, // Cross-platform transaction matching service
+    SettlementAlertService, // Alert service for verification failures
   ],
   exports: [
     SettlementService,
@@ -71,6 +75,7 @@ import { SettlementTransactionService } from './settlement-transaction.service';
     SettlementTransactionService,
     BinanceClientService,
     BinanceDepositVerificationService,
+    TransactionMatchingService,
   ],
 })
 export class SettlementModule {}

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { Connection, PublicKey } from '@solana/web3.js';
 
-import { WalletFactory } from '../../../shared/wallets/wallet.factory';
+import { WalletFactory } from '../../../../shared/wallets/wallet.factory';
 import { SettlementBlockchainService } from './wallet.abstract';
 import { SettlementWalletService } from './wallet.service';
 
@@ -314,6 +314,74 @@ export class SolService extends SettlementBlockchainService {
     } catch (error) {
       errors.push(`Verification failed: ${error.message}`);
       return { verified: false, success: false, errors };
+    }
+  }
+
+  /**
+   * Get comprehensive transaction information for settlement matching
+   * This is a higher-level method that provides all details needed for
+   * cross-platform transaction matching (e.g., Binance vs blockchain).
+   *
+   * @param signature - Transaction signature
+   * @returns Comprehensive transaction info including confirmation, amounts, addresses
+   */
+  async getTransactionForMatching(signature: string): Promise<{
+    found: boolean;
+    confirmed: boolean;
+    success: boolean;
+    amount?: string;
+    from?: string;
+    to?: string;
+    fee?: string;
+    blockTime?: number;
+    slot?: number;
+    confirmations?: number;
+    raw?: any;
+  }> {
+    try {
+      // Get transaction status first
+      const status = await this.getTransactionStatus(signature);
+      const details = await this.getTransactionDetails(signature);
+
+      if (!details || !details.success) {
+        return {
+          found: false,
+          confirmed: false,
+          success: false,
+        };
+      }
+
+      // Extract from/to addresses
+      const from = details.accountKeys?.[0];
+      const to = details.accountKeys?.[1];
+
+      // Calculate transfer amount (from sender's balance change minus fee)
+      let amount: string | undefined;
+      if (details.preBalances && details.postBalances && details.preBalances.length > 0) {
+        const senderBalanceChange = details.preBalances[0] - details.postBalances[0];
+        const transferAmount = senderBalanceChange - (details.fee || 0);
+        amount = (transferAmount / 1e9).toString(); // Convert lamports to SOL
+      }
+
+      return {
+        found: true,
+        confirmed: status.confirmed,
+        success: details.success,
+        amount,
+        from,
+        to,
+        fee: details.fee ? (details.fee / 1e9).toString() : undefined,
+        blockTime: details.blockTime,
+        slot: details.slot,
+        confirmations: status.confirmations ?? undefined,
+        raw: details,
+      };
+    } catch (error) {
+      return {
+        found: false,
+        confirmed: false,
+        success: false,
+      };
     }
   }
 

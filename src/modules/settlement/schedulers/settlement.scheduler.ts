@@ -2,8 +2,8 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 
-import { defaultSettlementConfig } from './settlement.config';
-import { SettlementService } from './settlement.service';
+import { SettlementService } from '../services/core/settlement.service';
+import { defaultSettlementConfig } from '../settlement.config';
 
 /**
  * Settlement Scheduler
@@ -99,6 +99,8 @@ export class SettlementScheduler implements OnModuleInit {
         `Scheduled settlement completed successfully: ${successCount}/${results.length} succeeded, ` +
           `Total transferred: ${totalAmount.toFixed(2)}`,
       );
+
+      // Note: Reconciliation now happens automatically inside executeSettlement()
     } catch (error) {
       this.logger.error('Scheduled settlement failed:', error);
       // Don't throw - we want the scheduler to continue running

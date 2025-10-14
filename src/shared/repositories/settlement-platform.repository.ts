@@ -1,4 +1,4 @@
-import type { BlockchainBalance } from '../../modules/settlement/settlement.types';
+import type { BlockchainBalance } from '../../modules/settlement/types/settlement.types';
 
 import {
   assertArrayMapOf,

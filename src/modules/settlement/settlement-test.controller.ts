@@ -12,12 +12,12 @@ import { ApiTags } from '@nestjs/swagger';
 
 import { Auth } from '../../decorators/auth.decorator';
 import { WalletService } from '../../shared/wallets/wallet.service';
-import { BinanceClientService } from './binance-client.service';
-import { BinanceDepositVerificationService } from './binance-deposit-verification.service';
-import { SolService } from './currencies/sol.service';
-import { SettlementWalletService } from './currencies/wallet.service';
-import { SettlementService } from './settlement.service';
-import { SettlementTransactionService } from './settlement-transaction.service';
+import { BinanceClientService } from './services/binance/binance-client.service';
+import { BinanceDepositVerificationService } from './services/binance/binance-deposit-verification.service';
+import { SolService } from './services/blockchain/sol.service';
+import { SettlementWalletService } from './services/blockchain/wallet.service';
+import { SettlementService } from './services/core/settlement.service';
+import { SettlementTransactionService } from './services/core/settlement-transaction.service';
 
 @Controller('test/settlement')
 @ApiTags('Testing - Settlement')

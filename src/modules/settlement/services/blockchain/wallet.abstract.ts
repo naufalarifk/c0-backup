@@ -91,6 +91,29 @@ export abstract class SettlementBlockchainService {
   }>;
 
   /**
+   * Get comprehensive transaction information for settlement matching
+   * This is a higher-level method that provides all details needed for
+   * cross-platform transaction matching (e.g., Binance vs blockchain).
+   *
+   * @param signature - Transaction signature or hash
+   * @returns Comprehensive transaction info including confirmation, amounts, addresses
+   */
+  abstract getTransactionForMatching(signature: string): Promise<{
+    found: boolean;
+    confirmed: boolean;
+    success: boolean;
+    amount?: string;
+    from?: string;
+    to?: string;
+    fee?: string;
+    blockTime?: number;
+    slot?: number;
+    blockNumber?: number;
+    confirmations?: number;
+    raw?: any;
+  }>;
+
+  /**
    * Wait for transaction confirmation with timeout
    * @param signature - Transaction signature to wait for
    * @param commitment - Confirmation level (blockchain-specific)

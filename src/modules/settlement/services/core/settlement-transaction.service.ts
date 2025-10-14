@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { SolService } from './currencies/sol.service';
+import { SolService } from '../blockchain/sol.service';
 
 export interface TransactionVerificationResult {
   signature: string;

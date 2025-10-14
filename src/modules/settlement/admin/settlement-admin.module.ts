@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
-import { RepositoryModule } from '../../shared/repositories/repository.module';
-import { WalletModule } from '../../shared/wallets/wallet.module';
-import { BinanceAssetMapperService } from './binance-asset-mapper.service';
-import { BinanceClientService } from './binance-client.service';
-import { SettlementWalletService } from './currencies/wallet.service';
-import { SettlementController } from './settlement.controller';
-import { SettlementScheduler } from './settlement.scheduler';
-import { SettlementService } from './settlement.service';
+import { RepositoryModule } from '../../../shared/repositories/repository.module';
+import { WalletModule } from '../../../shared/wallets/wallet.module';
+import { SettlementController } from '../controllers/settlement.controller';
+import { SettlementScheduler } from '../schedulers/settlement.scheduler';
+import { BinanceAssetMapperService } from '../services/binance/binance-asset-mapper.service';
+import { BinanceClientService } from '../services/binance/binance-client.service';
+import { SettlementWalletService } from '../services/blockchain/wallet.service';
+import { SettlementService } from '../services/core/settlement.service';
 
 /**
  * Settlement Admin Module

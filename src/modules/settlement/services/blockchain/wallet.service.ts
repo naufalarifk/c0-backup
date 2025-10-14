@@ -1,10 +1,10 @@
-import type { HotWallet } from '../../../shared/wallets/wallet.service';
-import type { BlockchainBalance } from '../settlement.types';
+import type { HotWallet } from '../../../../shared/wallets/wallet.service';
+import type { BlockchainBalance } from '../../types/settlement.types';
 
 import { Injectable, Logger } from '@nestjs/common';
 
-import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
-import { WalletService } from '../../../shared/wallets/wallet.service';
+import { CryptogadaiRepository } from '../../../../shared/repositories/cryptogadai.repository';
+import { WalletService } from '../../../../shared/wallets/wallet.service';
 
 /**
  * Settlement Wallet Service

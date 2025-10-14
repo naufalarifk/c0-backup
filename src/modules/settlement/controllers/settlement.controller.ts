@@ -1,13 +1,13 @@
-import type { UserSession } from '../auth/types';
-import type { SettlementResult } from './settlement.types';
+import type { UserSession } from '../../auth/types';
+import type { SettlementResult } from '../types/settlement.types';
 
 import { Controller, HttpCode, HttpStatus, Logger, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 
-import { Auth } from '../../decorators/auth.decorator';
-import { Session } from '../auth/auth.decorator';
-import { SettlementScheduler } from './settlement.scheduler';
+import { Auth } from '../../../decorators/auth.decorator';
+import { Session } from '../../auth/auth.decorator';
+import { SettlementScheduler } from '../schedulers/settlement.scheduler';
 
 /*
 @todo

@@ -1,14 +1,22 @@
-import type { BlockchainBalance, SettlementResult } from './settlement.types';
+import type {
+  BlockchainBalance,
+  ReconciliationReport,
+  SettlementResult,
+} from '../../types/settlement.types';
+import type { SettlementBlockchainService } from '../blockchain/wallet.abstract';
 
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
-import { WalletService } from '../../shared/wallets/wallet.service';
-import { BinanceAssetMapperService } from './binance-asset-mapper.service';
-import { BinanceClientService } from './binance-client.service';
-import { SettlementWalletService } from './currencies/wallet.service';
-import { defaultSettlementConfig } from './settlement.config';
+import { CryptogadaiRepository } from '../../../../shared/repositories/cryptogadai.repository';
+import { WalletService } from '../../../../shared/wallets/wallet.service';
+import { defaultSettlementConfig } from '../../settlement.config';
+import { BinanceAssetMapperService } from '../binance/binance-asset-mapper.service';
+import { BinanceClientService } from '../binance/binance-client.service';
+import { SolService } from '../blockchain/sol.service';
+import { SettlementWalletService } from '../blockchain/wallet.service';
+import { TransactionMatchingService } from '../matching/transaction-matching.service';
+import { SettlementAlertService } from './settlement-alert.service';
 
 @Injectable()
 export class SettlementService {
@@ -21,6 +29,9 @@ export class SettlementService {
     private readonly walletService: WalletService,
     private readonly binanceClient: BinanceClientService,
     private readonly binanceMapper: BinanceAssetMapperService,
+    private readonly transactionMatcher: TransactionMatchingService,
+    private readonly alertService: SettlementAlertService,
+    private readonly solService: SolService,
   ) {}
 
   /**
@@ -422,6 +433,13 @@ export class SettlementService {
         await this.storeSettlementResults(allResults);
       }
 
+      // Run immediate reconciliation
+      if (allResults.length > 0) {
+        this.logger.log('\n=== Running Immediate Reconciliation ===');
+        const report = this.generateReconciliationReport(allResults);
+        await this.processReconciliationReport(report);
+      }
+
       return allResults;
     } catch (error) {
       this.logger.error('Settlement process failed:', error);
@@ -510,7 +528,7 @@ export class SettlementService {
           value: transferAmount.toString(),
         });
 
-        results.push({
+        const result: SettlementResult = {
           success: true,
           blockchainKey: hw.blockchainKey,
           originalBalance: hw.balance,
@@ -518,9 +536,14 @@ export class SettlementService {
           remainingBalance: (hwBalance - transferAmount).toString(),
           transactionHash: txResult.txHash,
           timestamp: new Date(),
-        });
+        };
 
         this.logger.log(`✓ Deposit completed (tx: ${txResult.txHash})`);
+
+        // Verify deposit appears in Binance
+        await this.verifyDeposit(result, asset, depositAddress, hw.blockchainKey);
+
+        results.push(result);
       } catch (error) {
         this.logger.error(`Failed to deposit from ${hw.blockchainKey}:`, error);
         results.push({
@@ -694,7 +717,7 @@ export class SettlementService {
           network,
         );
 
-        results.push({
+        const result: SettlementResult = {
           success: true,
           blockchainKey: hw.blockchainKey,
           originalBalance: hw.balance,
@@ -702,9 +725,15 @@ export class SettlementService {
           remainingBalance: (hwBalance + transferAmount).toString(),
           transactionHash: withdrawalResult.id, // Store withdrawal ID as txHash
           timestamp: new Date(),
-        });
+        };
 
         this.logger.log(`✓ Withdrawal initiated (ID: ${withdrawalResult.id})`);
+
+        // Verify withdrawal lands on blockchain
+        const targetHotWalletAddress = targetHotWallet.address;
+        await this.verifyWithdrawal(result, asset, targetHotWalletAddress, hw.blockchainKey);
+
+        results.push(result);
       } catch (error) {
         this.logger.error(`Failed to withdraw to ${hw.blockchainKey}:`, error);
         results.push({
@@ -855,5 +884,228 @@ export class SettlementService {
       this.logger.error('Failed to fetch settlement history:', error);
       return [];
     }
+  }
+
+  /**
+   * Get blockchain service for a specific blockchain key
+   * Maps blockchain keys to their respective settlement services
+   */
+  private getBlockchainServiceForKey(blockchainKey: string): SettlementBlockchainService {
+    // For now, we only support Solana
+    // TODO: Add ETH, BTC services when implemented
+    if (blockchainKey.startsWith('solana:')) {
+      return this.solService;
+    }
+
+    throw new Error(`Unsupported blockchain: ${blockchainKey}`);
+  }
+
+  /**
+   * Verify deposit appears in Binance after blockchain transfer
+   * Uses TransactionMatchingService with timeout
+   */
+  private async verifyDeposit(
+    result: SettlementResult,
+    asset: string,
+    depositAddress: string,
+    blockchainKey: string,
+  ): Promise<void> {
+    if (!result.transactionHash) {
+      this.logger.warn('Cannot verify deposit: no transaction hash');
+      return;
+    }
+
+    try {
+      this.logger.log(`Verifying deposit ${result.transactionHash} appears in Binance...`);
+
+      // Get the appropriate blockchain service
+      const blockchainService = this.getBlockchainServiceForKey(blockchainKey);
+
+      const matchResult = await this.transactionMatcher.waitForDepositMatch(
+        {
+          txHash: result.transactionHash,
+          blockchain: blockchainKey,
+          coin: asset,
+          expectedAddress: depositAddress,
+          expectedAmount: result.settlementAmount,
+        },
+        blockchainService,
+        10, // 10 minutes timeout
+      );
+
+      if (matchResult.matched) {
+        result.verified = true;
+        result.verificationTimestamp = new Date();
+        result.verificationDetails = {
+          blockchainConfirmed: matchResult.blockchainData?.confirmed ?? false,
+          binanceMatched: matchResult.binanceData?.found ?? false,
+          amountMatches: matchResult.amountMatch ?? false,
+        };
+        this.logger.log(`✓ Deposit verified in Binance`);
+      } else {
+        throw new Error(matchResult.error || 'Deposit not found in Binance');
+      }
+    } catch (error) {
+      result.verified = false;
+      result.verificationError = error instanceof Error ? error.message : 'Unknown error';
+      result.verificationTimestamp = new Date();
+
+      this.logger.error(`✗ Deposit verification failed:`, error);
+      await this.alertService.alertVerificationFailure(result, 'deposit');
+    }
+  }
+
+  /**
+   * Verify withdrawal lands on blockchain after Binance transfer
+   * Uses TransactionMatchingService with timeout
+   */
+  private async verifyWithdrawal(
+    result: SettlementResult,
+    asset: string,
+    targetAddress: string,
+    blockchainKey: string,
+  ): Promise<void> {
+    if (!result.transactionHash) {
+      this.logger.warn('Cannot verify withdrawal: no withdrawal ID');
+      return;
+    }
+
+    try {
+      this.logger.log(`Verifying withdrawal ${result.transactionHash} lands on blockchain...`);
+
+      // Get the appropriate blockchain service
+      const blockchainService = this.getBlockchainServiceForKey(blockchainKey);
+
+      const matchResult = await this.transactionMatcher.waitForWithdrawalMatch(
+        {
+          withdrawalId: result.transactionHash,
+          blockchain: blockchainKey,
+          coin: asset,
+          expectedAddress: targetAddress,
+          expectedAmount: result.settlementAmount,
+        },
+        blockchainService,
+        10, // 10 minutes timeout
+      );
+
+      if (matchResult.matched) {
+        result.verified = true;
+        result.verificationTimestamp = new Date();
+        result.verificationDetails = {
+          blockchainConfirmed: matchResult.blockchainData?.confirmed ?? false,
+          binanceMatched: true,
+          amountMatches: matchResult.amountMatch ?? false,
+        };
+        // Update txHash with actual blockchain transaction if available
+        if (matchResult.blockchainData?.found) {
+          // withdrawal ID is not the same as blockchain txHash
+          this.logger.log(`Withdrawal ID: ${result.transactionHash}, blockchain confirmed`);
+        }
+        this.logger.log(`✓ Withdrawal verified on blockchain`);
+      } else {
+        throw new Error(matchResult.error || 'Withdrawal not found on blockchain');
+      }
+    } catch (error) {
+      result.verified = false;
+      result.verificationError = error instanceof Error ? error.message : 'Unknown error';
+      result.verificationTimestamp = new Date();
+
+      this.logger.error(`✗ Withdrawal verification failed:`, error);
+      await this.alertService.alertVerificationFailure(result, 'withdrawal');
+    }
+  }
+
+  /**
+   * Generate reconciliation report from settlement results
+   * Analyzes verification status and counts successes/failures
+   */
+  private generateReconciliationReport(results: SettlementResult[]): ReconciliationReport {
+    const today = new Date().toISOString().split('T')[0];
+
+    const report: ReconciliationReport = {
+      date: today,
+      totalDeposits: 0,
+      verifiedDeposits: 0,
+      failedDeposits: 0,
+      totalWithdrawals: 0,
+      verifiedWithdrawals: 0,
+      failedWithdrawals: 0,
+      discrepancies: [],
+      timestamp: new Date(),
+    };
+
+    // Separate deposits and withdrawals based on txHash length
+    // Deposits: long blockchain txHash (>60 chars)
+    // Withdrawals: short Binance withdrawal ID (<=60 chars)
+    const deposits = results.filter(
+      r => r.success && r.transactionHash && r.transactionHash.length > 60,
+    );
+    const withdrawals = results.filter(
+      r => r.success && r.transactionHash && r.transactionHash.length <= 60,
+    );
+
+    report.totalDeposits = deposits.length;
+    report.totalWithdrawals = withdrawals.length;
+
+    // Analyze deposits
+    for (const deposit of deposits) {
+      if (deposit.verified) {
+        report.verifiedDeposits++;
+      } else {
+        report.failedDeposits++;
+        report.discrepancies.push({
+          transactionHash: deposit.transactionHash!,
+          blockchainKey: deposit.blockchainKey,
+          type: 'deposit',
+          issue: deposit.verificationError || 'Verification failed',
+          details: { deposit },
+          timestamp: new Date(),
+        });
+      }
+    }
+
+    // Analyze withdrawals
+    for (const withdrawal of withdrawals) {
+      if (withdrawal.verified) {
+        report.verifiedWithdrawals++;
+      } else {
+        report.failedWithdrawals++;
+        report.discrepancies.push({
+          transactionHash: withdrawal.transactionHash!,
+          blockchainKey: withdrawal.blockchainKey,
+          type: 'withdrawal',
+          issue: withdrawal.verificationError || 'Verification failed',
+          details: { withdrawal },
+          timestamp: new Date(),
+        });
+      }
+    }
+
+    return report;
+  }
+
+  /**
+   * Process reconciliation report - send alerts and summaries
+   */
+  private async processReconciliationReport(report: ReconciliationReport): Promise<void> {
+    // Log summary
+    this.logger.log(
+      `Reconciliation: ${report.verifiedDeposits}/${report.totalDeposits} deposits verified, ` +
+        `${report.verifiedWithdrawals}/${report.totalWithdrawals} withdrawals verified`,
+    );
+
+    if (report.discrepancies.length > 0) {
+      this.logger.warn(`Found ${report.discrepancies.length} discrepancy(ies)`);
+      await this.alertService.alertReconciliationDiscrepancies(report.discrepancies);
+    }
+
+    // Send daily summary
+    await this.alertService.sendDailySummary(
+      report.date,
+      report.totalDeposits,
+      report.verifiedDeposits,
+      report.totalWithdrawals,
+      report.verifiedWithdrawals,
+    );
   }
 }
