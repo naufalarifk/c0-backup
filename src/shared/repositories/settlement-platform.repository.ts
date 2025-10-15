@@ -105,6 +105,41 @@ export interface SettlementVerificationRecord {
 }
 
 /**
+ * Settlement log with verification details (from view)
+ */
+export interface SettlementLogWithVerification extends SettlementLogRecord {
+  currencySymbol: string | null;
+  currencyDecimals: number | null;
+  verificationId: string | null;
+  overallMatched: boolean | null;
+  txHashMatches: boolean | null;
+  senderAddressMatches: boolean | null;
+  recipientAddressMatches: boolean | null;
+  amountMatches: boolean | null;
+  binanceStatus: string | null;
+  verificationErrors: string[] | null;
+  verificationAttempt: number | null;
+}
+
+/**
+ * Settlement statistics by currency (from view)
+ */
+export interface SettlementStatsByCurrency {
+  currencyBlockchainKey: string;
+  currencyTokenId: string;
+  currencySymbol: string | null;
+  currencyDecimals: number | null;
+  totalSettlements: number;
+  verifiedCount: number;
+  failedCount: number;
+  pendingCount: number;
+  totalAmountSettled: string;
+  totalAmountVerified: string;
+  firstSettlement: Date | null;
+  lastSettlement: Date | null;
+}
+
+/**
  * SettlementPlatformRepository
  *
  * Contains all settlement-related database queries for the platform.
@@ -632,6 +667,174 @@ export abstract class SettlementPlatformRepository extends LoanPlatformRepositor
       verified: row.verified,
       verificationError: row.verification_error ?? null,
       verificationDetails: (row as any).verification_details ?? null,
+    }));
+  }
+
+  /**
+   * Get settlement logs with verification details using the view
+   * Provides comprehensive settlement and verification information
+   *
+   * @param limit Maximum number of records to return (default: 100)
+   * @returns Array of settlement logs with verification details
+   */
+  async platformGetsSettlementLogsWithVerification(
+    limit = 100,
+  ): Promise<SettlementLogWithVerification[]> {
+    const rows = await this.sql`
+      SELECT 
+        id::text,
+        blockchain_key,
+        currency_blockchain_key,
+        currency_token_id,
+        currency_symbol,
+        currency_decimals,
+        original_balance::text,
+        settlement_amount::text,
+        remaining_balance::text,
+        transaction_hash,
+        sender_address,
+        recipient_address,
+        binance_asset,
+        binance_network,
+        status,
+        success,
+        error_message,
+        settled_at,
+        sent_at,
+        verified_at,
+        failed_at,
+        verified,
+        verification_error,
+        verification_details,
+        verification_id::text as verification_id,
+        overall_matched,
+        tx_hash_matches,
+        sender_address_matches,
+        recipient_address_matches,
+        amount_matches,
+        binance_status,
+        verification_errors,
+        verification_attempt
+      FROM settlement_logs_with_verification
+      ORDER BY settled_at DESC
+      LIMIT ${limit}
+    `;
+
+    assertArrayMapOf(rows, row => {
+      assertDefined(row);
+      assertPropString(row, 'id');
+      assertPropString(row, 'blockchain_key');
+      assertPropString(row, 'currency_blockchain_key');
+      assertPropString(row, 'currency_token_id');
+      assertProp(check(isNullable, isString), row, 'currency_symbol');
+      assertPropString(row, 'original_balance');
+      assertPropString(row, 'settlement_amount');
+      assertPropString(row, 'remaining_balance');
+      assertProp(check(isNullable, isString), row, 'transaction_hash');
+      assertProp(check(isNullable, isString), row, 'sender_address');
+      assertPropString(row, 'recipient_address');
+      assertProp(check(isNullable, isString), row, 'binance_asset');
+      assertProp(check(isNullable, isString), row, 'binance_network');
+      assertPropString(row, 'status');
+      assertProp(isBoolean, row, 'success');
+      assertProp(check(isNullable, isString), row, 'error_message');
+      assertPropString(row, 'settled_at');
+      assertProp(check(isNullable, isString), row, 'sent_at');
+      assertProp(check(isNullable, isString), row, 'verified_at');
+      assertProp(check(isNullable, isString), row, 'failed_at');
+      assertProp(isBoolean, row, 'verified');
+      assertProp(check(isNullable, isString), row, 'verification_error');
+      assertProp(check(isNullable, isString), row, 'verification_id');
+      return row;
+    });
+
+    return rows.map(row => ({
+      id: row.id,
+      blockchainKey: row.blockchain_key,
+      currencyBlockchainKey: row.currency_blockchain_key,
+      currencyTokenId: row.currency_token_id,
+      originalBalance: row.original_balance,
+      settlementAmount: row.settlement_amount,
+      remainingBalance: row.remaining_balance,
+      transactionHash: row.transaction_hash ?? null,
+      senderAddress: row.sender_address ?? null,
+      recipientAddress: row.recipient_address,
+      binanceAsset: row.binance_asset ?? null,
+      binanceNetwork: row.binance_network ?? null,
+      status: row.status as 'Pending' | 'Sent' | 'Verified' | 'Failed',
+      success: row.success,
+      errorMessage: row.error_message ?? null,
+      settledAt: new Date(row.settled_at),
+      sentAt: row.sent_at ? new Date(row.sent_at) : null,
+      verifiedAt: row.verified_at ? new Date(row.verified_at) : null,
+      failedAt: row.failed_at ? new Date(row.failed_at) : null,
+      verified: row.verified,
+      verificationError: row.verification_error ?? null,
+      verificationDetails: (row as any).verification_details ?? null,
+      currencySymbol: row.currency_symbol ?? null,
+      currencyDecimals: (row as any).currency_decimals ?? null,
+      verificationId: row.verification_id ?? null,
+      overallMatched: (row as any).overall_matched ?? null,
+      txHashMatches: (row as any).tx_hash_matches ?? null,
+      senderAddressMatches: (row as any).sender_address_matches ?? null,
+      recipientAddressMatches: (row as any).recipient_address_matches ?? null,
+      amountMatches: (row as any).amount_matches ?? null,
+      binanceStatus: (row as any).binance_status ?? null,
+      verificationErrors: (row as any).verification_errors ?? null,
+      verificationAttempt: (row as any).verification_attempt ?? null,
+    }));
+  }
+
+  /**
+   * Get settlement statistics by currency using the view
+   * Provides aggregated settlement metrics per currency
+   *
+   * @returns Array of settlement statistics by currency
+   */
+  async platformGetsSettlementStatsByCurrency(): Promise<SettlementStatsByCurrency[]> {
+    const rows = await this.sql`
+      SELECT 
+        currency_blockchain_key,
+        currency_token_id,
+        currency_symbol,
+        currency_decimals,
+        total_settlements,
+        verified_count,
+        failed_count,
+        pending_count,
+        total_amount_settled::text,
+        total_amount_verified::text,
+        first_settlement,
+        last_settlement
+      FROM settlement_stats_by_currency
+      ORDER BY currency_token_id
+    `;
+
+    assertArrayMapOf(rows, row => {
+      assertDefined(row);
+      assertPropString(row, 'currency_blockchain_key');
+      assertPropString(row, 'currency_token_id');
+      assertProp(check(isNullable, isString), row, 'currency_symbol');
+      assertProp(check(isNullable, isString), row, 'total_amount_settled');
+      assertProp(check(isNullable, isString), row, 'total_amount_verified');
+      assertProp(check(isNullable, isString), row, 'first_settlement');
+      assertProp(check(isNullable, isString), row, 'last_settlement');
+      return row;
+    });
+
+    return rows.map(row => ({
+      currencyBlockchainKey: row.currency_blockchain_key,
+      currencyTokenId: row.currency_token_id,
+      currencySymbol: row.currency_symbol ?? null,
+      currencyDecimals: (row as any).currency_decimals ?? null,
+      totalSettlements: Number((row as any).total_settlements ?? 0),
+      verifiedCount: Number((row as any).verified_count ?? 0),
+      failedCount: Number((row as any).failed_count ?? 0),
+      pendingCount: Number((row as any).pending_count ?? 0),
+      totalAmountSettled: row.total_amount_settled ?? '0',
+      totalAmountVerified: row.total_amount_verified ?? '0',
+      firstSettlement: row.first_settlement ? new Date(row.first_settlement) : null,
+      lastSettlement: row.last_settlement ? new Date(row.last_settlement) : null,
     }));
   }
 }

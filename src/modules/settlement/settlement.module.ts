@@ -11,12 +11,14 @@ import { BinanceDepositVerificationService } from './services/binance/binance-de
 import { BinanceSettlementService } from './services/binance/binance-settlement.service';
 import { BinanceWalletDepositService } from './services/binance/binance-wallet-deposit.service';
 import { BscService } from './services/blockchain/bsc.service';
+import { BtcService } from './services/blockchain/btc.service';
 import { EthService } from './services/blockchain/eth.service';
 import { SolService } from './services/blockchain/sol.service';
 import { SettlementService } from './services/core/settlement.service';
 import { SettlementAlertService } from './services/core/settlement-alert.service';
 import { SettlementTransactionService } from './services/core/settlement-transaction.service';
 import { TransactionMatchingService } from './services/matching/transaction-matching.service';
+import { SettlementDistributionService } from './services/settlement-distribution.service';
 import { SettlementTestController } from './settlement-test.controller';
 
 /**
@@ -62,10 +64,12 @@ import { SettlementTestController } from './settlement-test.controller';
   providers: [
     SettlementService,
     SettlementScheduler,
+    BtcService, // Bitcoin-specific service for BTC balance queries
     SolService, // Solana-specific service for SOL balance queries
     EthService, // Ethereum-specific service for ETH balance queries
     BscService, // Binance Smart Chain-specific service for BNB balance queries
     SettlementTransactionService, // Transaction verification service
+    SettlementDistributionService, // Proportional distribution calculator for multi-source settlements
     BinanceClientService,
     BinanceDepositVerificationService, // Binance deposit verification service
     BinanceAssetMapperService,
@@ -78,6 +82,7 @@ import { SettlementTestController } from './settlement-test.controller';
     SettlementService,
     SettlementScheduler,
     SettlementTransactionService,
+    SettlementDistributionService,
     BinanceClientService,
     BinanceDepositVerificationService,
     BinanceWalletDepositService,
