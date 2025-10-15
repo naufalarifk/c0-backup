@@ -195,7 +195,7 @@ describe('SettlementService - Unit Tests', () => {
         return Promise.resolve([]);
       });
 
-      const query = "SELECT balance FROM accounts WHERE network = 'binance'";
+      const query = "SELECT balance FROM user_accounts WHERE network = 'binance'";
       const result = await mockRepository.sql.unsafe(query);
 
       assert.equal(result.length, 1);
@@ -208,7 +208,7 @@ describe('SettlementService - Unit Tests', () => {
         return Promise.resolve([]);
       });
 
-      const query = "SELECT balance FROM accounts WHERE network = 'binance'";
+      const query = "SELECT balance FROM user_accounts WHERE network = 'binance'";
       const result = await mockRepository.sql.unsafe(query);
 
       assert.equal(result.length, 0);
@@ -375,7 +375,7 @@ describe('SettlementService - Unit Tests', () => {
         return Promise.resolve([{ balance: '0' }]);
       });
 
-      const query = 'SELECT balance FROM accounts';
+      const query = 'SELECT balance FROM user_accounts';
       const result = await mockRepository.sql.unsafe(query);
 
       assert.equal(result.length, 1);
@@ -387,7 +387,7 @@ describe('SettlementService - Unit Tests', () => {
         return Promise.resolve([{ balance: '0.000001' }]);
       });
 
-      const query = 'SELECT balance FROM accounts';
+      const query = 'SELECT balance FROM user_accounts';
       const result = await mockRepository.sql.unsafe(query);
       const balance = Number.parseFloat(result[0].balance);
 
@@ -400,7 +400,7 @@ describe('SettlementService - Unit Tests', () => {
         return Promise.resolve([{ balance: '999999999.99' }]);
       });
 
-      const query = 'SELECT balance FROM accounts';
+      const query = 'SELECT balance FROM user_accounts';
       const result = await mockRepository.sql.unsafe(query);
       const balance = Number.parseFloat(result[0].balance);
 
@@ -413,7 +413,7 @@ describe('SettlementService - Unit Tests', () => {
         return Promise.resolve([]);
       });
 
-      const query = 'SELECT * FROM accounts WHERE balance > 0';
+      const query = 'SELECT * FROM user_accounts WHERE balance > 0';
       const result = await mockRepository.sql.unsafe(query);
 
       assert.equal(result.length, 0);

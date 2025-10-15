@@ -61,7 +61,7 @@ export abstract class FinanceUserRepsitory extends UserRepository {
         er.retrieval_date AS "rateDate",
         pf.source AS "rateSource",
         qc.decimals AS "quoteCurrencyDecimals"
-      FROM accounts a
+      FROM user_accounts a
       JOIN currencies c ON a.currency_blockchain_key = c.blockchain_key
         AND a.currency_token_id = c.token_id
       LEFT JOIN LATERAL (

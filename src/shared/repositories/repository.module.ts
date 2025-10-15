@@ -21,6 +21,7 @@ import { PricefeedRepository } from './pricefeed.repository';
         if (appConfig.databaseUrl === ':inmemory:') {
           const repo = new InMemoryCryptogadaiRepository();
           await repo.connect();
+          await repo.migrate();
           return repo;
         }
 
@@ -40,6 +41,7 @@ import { PricefeedRepository } from './pricefeed.repository';
 
         const repo = new PgRedisCryptogadaiRepository(pool, redis);
         await repo.connect();
+        await repo.migrate();
 
         return repo;
       },

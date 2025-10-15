@@ -123,7 +123,7 @@ export abstract class SettlementPlatformRepository extends LoanPlatformRepositor
         a.currency_blockchain_key as blockchain_key,
         SUM(a.balance)::text as total_balance,
         a.currency_token_id
-      FROM accounts a
+      FROM user_accounts a
       WHERE a.user_id = 1
         AND a.account_type = 'PlatformEscrow'
         AND a.balance > 0
@@ -161,7 +161,7 @@ export abstract class SettlementPlatformRepository extends LoanPlatformRepositor
   async platformGetsTargetNetworkBalance(currencyTokenId: string): Promise<string> {
     const result = await this.sql`
       SELECT SUM(balance)::text as total_balance
-      FROM accounts
+      FROM user_accounts
       WHERE user_id = 1
         AND account_type = 'PlatformEscrow'
         AND currency_blockchain_key = 'eip155:56'
@@ -199,7 +199,7 @@ export abstract class SettlementPlatformRepository extends LoanPlatformRepositor
       SELECT 
         a.currency_blockchain_key as blockchain_key,
         a.balance::text as balance
-      FROM accounts a
+      FROM user_accounts a
       WHERE a.user_id = 1
         AND a.account_type = 'PlatformEscrow'
         AND a.currency_token_id = ${currencyTokenId}
@@ -234,7 +234,7 @@ export abstract class SettlementPlatformRepository extends LoanPlatformRepositor
   async platformGetsCurrenciesWithBalances(): Promise<string[]> {
     const currencies = await this.sql`
       SELECT DISTINCT a.currency_token_id
-      FROM accounts a
+      FROM user_accounts a
       WHERE a.user_id = 1
         AND a.account_type = 'PlatformEscrow'
         AND a.balance > 0
@@ -579,7 +579,7 @@ export abstract class SettlementPlatformRepository extends LoanPlatformRepositor
         verification_details
       FROM settlement_logs
       WHERE status IN ('Pending', 'Sent')
-        AND settled_at > NOW() - INTERVAL '${hours} hours'
+        AND settled_at > NOW() - MAKE_INTERVAL(hours => ${hours})
       ORDER BY settled_at DESC
     `;
 
