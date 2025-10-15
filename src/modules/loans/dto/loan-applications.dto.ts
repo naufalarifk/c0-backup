@@ -226,6 +226,14 @@ export class CreateLoanApplicationDto {
   @Min(0)
   @Max(1)
   minLtvRatio: number;
+
+  @ApiPropertyOptional({
+    description: 'Optional creation date for the loan application (validated in production)',
+    example: '2025-09-11T10:30:00Z',
+  })
+  @IsOptional()
+  @IsDateString()
+  creationDate?: string;
 }
 
 export class UpdateLoanApplicationDto {
@@ -809,4 +817,20 @@ export class LoanApplicationDetailResponseDto {
   })
   @IsEnum(LiquidationMode)
   liquidationMode: LiquidationMode;
+
+  @ApiPropertyOptional({
+    description: 'Matched loan offer identifier',
+    example: 'offer_123',
+  })
+  @IsOptional()
+  @IsString()
+  matchedLoanOfferId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Matched LTV ratio',
+    example: 0.6,
+  })
+  @IsOptional()
+  @IsNumber()
+  matchedLtvRatio?: number;
 }

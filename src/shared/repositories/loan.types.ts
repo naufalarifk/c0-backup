@@ -106,6 +106,7 @@ export type Invoice = {
   createdDate: Date;
   expiryDate: Date;
   paidDate?: Date;
+  walletAddress?: string;
 };
 
 export type LoanOfferStatus = 'Funding' | 'Published' | 'Closed' | 'Expired';
@@ -207,6 +208,7 @@ export type LenderViewsMyLoanOffersResult = {
     publishedDate?: Date;
     closedDate?: Date;
     closureReason?: string;
+    fundingInvoice?: Invoice;
   }>;
   pagination: PaginationMeta;
 };
@@ -234,6 +236,7 @@ export type PlatformListsAvailableLoanOffersResult = {
     termInMonthsOptions: number[];
     expirationDate: Date;
     publishedDate: Date;
+    fundingInvoice?: Invoice;
   }>;
   pagination: PaginationMeta;
 };
@@ -359,6 +362,8 @@ export type BorrowerViewsMyLoanApplicationsResult = {
     matchedLoanOfferId?: string;
     closedDate?: Date;
     closureReason?: string;
+    collateralInvoiceId?: string;
+    collateralWalletAddress?: string;
   }>;
   pagination: PaginationMeta;
 };

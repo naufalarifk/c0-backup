@@ -23,9 +23,6 @@ import { setup } from './setup/setup';
 import { after, before, describe, it, suite } from './setup/test';
 import { createTestUser } from './setup/user';
 
-/**
- * Helper function to establish a WebSocket connection and authenticate
- */
 async function connectWebSocket(params: {
   backendUrl: string;
   accessToken: string;
@@ -244,9 +241,6 @@ async function connectWebSocket(params: {
   return { ws, messages, waitForEvent, close };
 }
 
-/**
- * Helper to wait with timeout
- */
 async function waitWithTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
@@ -266,9 +260,6 @@ async function waitWithTimeout<T>(
   ]);
 }
 
-/**
- * Helper to wait for a specific notification type within notification.created events
- */
 async function waitForNotificationType(
   ws: Awaited<ReturnType<typeof connectWebSocket>>,
   notificationType: string,
@@ -391,6 +382,7 @@ suite('Loan Match with Realtime Events', function () {
     it('user lender creates loan offer', async function () {
       ok(lender, 'Lender must be created first');
 
+      const creationDate = '2025-10-14T10:00:00.000Z';
       const loanOfferData = {
         principalBlockchainKey: 'cg:testnet',
         principalTokenId: 'mock:usd',
@@ -400,6 +392,7 @@ suite('Loan Match with Realtime Events', function () {
         minLoanAmount: '1000.000000000000000000',
         maxLoanAmount: '20000.000000000000000000',
         expirationDate: '2025-12-31T23:59:59Z',
+        creationDate,
       };
 
       const response = await lender.fetch('/api/loan-offers', {
@@ -422,6 +415,8 @@ suite('Loan Match with Realtime Events', function () {
       assertPropString(offer, 'totalAmount');
       assertPropString(offer, 'availableAmount');
       assertProp(v => v === 'Draft' || v === 'PendingFunding', offer, 'status');
+      assertPropString(offer, 'createdDate');
+      strictEqual(offer.createdDate, creationDate, 'Created date should match the provided value');
 
       // Verify funding invoice exists
       assertPropDefined(offer, 'fundingInvoice');
@@ -556,6 +551,7 @@ suite('Loan Match with Realtime Events', function () {
     it('user borrower creates loan application', async function () {
       ok(borrower, 'Borrower must be created first');
 
+      const creationDate = '2025-10-14T11:00:00.000Z';
       const applicationData = {
         collateralBlockchainKey: 'cg:testnet',
         collateralTokenId: 'mock:native',
@@ -564,6 +560,7 @@ suite('Loan Match with Realtime Events', function () {
         termMonths: 6,
         liquidationMode: 'Full',
         minLtvRatio: 0.6,
+        creationDate,
       };
 
       const response = await borrower.fetch('/api/loan-applications', {
@@ -585,6 +582,12 @@ suite('Loan Match with Realtime Events', function () {
       assertPropDefined(application, 'collateralCurrency');
       assertPropString(application, 'principalAmount');
       assertProp(v => v === 'PendingCollateral' || v === 'Draft', application, 'status');
+      assertPropString(application, 'createdDate');
+      strictEqual(
+        application.createdDate,
+        creationDate,
+        'Created date should match the provided value',
+      );
 
       // Verify collateral invoice exists
       assertPropDefined(application, 'collateralInvoice');
@@ -703,7 +706,7 @@ suite('Loan Match with Realtime Events', function () {
         `Expected status to be Matched or Active, got ${application.status}`,
       );
 
-      assertPropString(application, 'matchedLoanOfferId');
+      assertProp(check(isString, isNumber), application, 'matchedLoanOfferId');
       strictEqual(application.matchedLoanOfferId, lenderOfferId);
     });
 

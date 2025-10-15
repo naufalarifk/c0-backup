@@ -52,6 +52,7 @@ paths:
               minLoanAmount: "1000.000000000000000000"
               maxLoanAmount: "10000.000000000000000000"
               expirationDate: "2025-12-31T23:59:59Z"
+              creationDate: "2025-09-11T10:30:00Z"
       responses:
         '201':
           description: Loan offer created successfully
@@ -466,6 +467,7 @@ paths:
               termMonths: 6
               liquidationMode: "Full"
               minLtvRatio: 0.5
+              creationDate: "2025-09-11T10:30:00Z"
             examples:
               eth_collateral_application:
                 summary: Loan application with ETH collateral
@@ -907,6 +909,11 @@ components:
           format: date-time
           description: When this loan offer expires
           example: "2025-12-31T23:59:59Z"
+        creationDate:
+          type: string
+          format: date-time
+          description: Optional creation date for the loan offer (validated in production)
+          example: "2025-09-11T10:30:00Z"
 
     UpdateLoanOfferRequest:
       type: object
@@ -1131,6 +1138,11 @@ components:
           minimum: 0
           maximum: 1
           example: 0.5
+        creationDate:
+          type: string
+          format: date-time
+          description: Optional creation date for the loan application (validated in production)
+          example: "2025-09-11T10:30:00Z"
 
     UpdateLoanApplicationRequest:
       type: object

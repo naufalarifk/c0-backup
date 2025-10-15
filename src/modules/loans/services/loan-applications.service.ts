@@ -170,7 +170,7 @@ export class LoanApplicationsService {
         calculationResult.principalCurrency.decimals,
       );
       const liquidationFee = (parseFloat(principalAmountHuman) * 0.02).toFixed(18); // 2% liquidation fee
-      const premiumRisk = (parseFloat(principalAmountHuman) * 0.02).toFixed(18); // 2% premium risk
+      const premiumRisk = (parseFloat(principalAmountHuman) * 0.02).toFixed(18); // 2%
 
       return {
         success: true,
@@ -285,8 +285,28 @@ export class LoanApplicationsService {
         throw new InterestRateInvalidException(createLoanApplicationDto.maxInterestRate);
       }
 
-      const appliedDate = new Date();
-      const expirationDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+      // Handle creation date: use provided date if specified, otherwise use current date
+      let appliedDate: Date;
+      if (createLoanApplicationDto.creationDate) {
+        appliedDate = new Date(createLoanApplicationDto.creationDate);
+
+        // Validate creation date in production environment
+        if (process.env.NODE_ENV === 'production') {
+          const now = new Date();
+          const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+          const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+
+          if (appliedDate < oneHourAgo || appliedDate > oneHourFromNow) {
+            throw new BadRequestException(
+              'Creation date must be within one hour of current time in production environment',
+            );
+          }
+        }
+      } else {
+        appliedDate = new Date();
+      }
+
+      const expirationDate = new Date(appliedDate.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from applied date
 
       // Get data from repository (no calculations)
       // Default to USDC on BSC for principal currency in production
@@ -469,9 +489,9 @@ export class LoanApplicationsService {
         publishedDate: undefined, // Applications start in draft status
         expiryDate: result.expirationDate.toISOString(),
         collateralInvoice: {
-          id: result.collateralDepositInvoice.id,
+          id: String(result.collateralDepositInvoice.id),
           amount: this.loanCalculationService.fromSmallestUnit(
-            result.collateralDepositAmount,
+            (result as any).collateralDepositAmount,
             result.collateralCurrency.decimals,
           ),
           currency: {
@@ -600,8 +620,11 @@ export class LoanApplicationsService {
           publishedDate: app.publishedDate?.toISOString(),
           expiryDate: app.expirationDate.toISOString(),
           collateralInvoice: {
-            id: `inv_${app.id}`,
-            amount: '0.000000000000000000', // Not available in list view
+            id: (app as any).collateralInvoiceId || `inv_${app.id}`, // Use real invoice ID if available, fallback to generated
+            amount: this.loanCalculationService.fromSmallestUnit(
+              (app as any).collateralDepositAmount,
+              app.collateralCurrency.decimals,
+            ),
             currency: {
               blockchainKey: app.collateralCurrency.blockchainKey,
               tokenId: app.collateralCurrency.tokenId,
@@ -610,7 +633,9 @@ export class LoanApplicationsService {
               decimals: app.collateralCurrency.decimals,
               logoUrl: `https://assets.cryptogadai.com/currencies/${app.collateralCurrency.symbol.toLowerCase()}.png`,
             },
-            walletAddress: 'Available via application details',
+            walletAddress:
+              (app as any).collateralWalletAddress ||
+              'Wallet address available via invoice details', // List view doesn't include wallet address
             expiryDate: app.expirationDate.toISOString(),
           },
         };
@@ -706,7 +731,7 @@ export class LoanApplicationsService {
           publishedDate: app.publishedDate?.toISOString(),
           expiryDate: app.expirationDate.toISOString(),
           collateralInvoice: {
-            id: `inv_${app.id}`, // Generated invoice ID from application ID
+            id: app.collateralInvoiceId || `inv_${app.id}`, // Use real invoice ID if available, fallback to generated
             amount: this.loanCalculationService.fromSmallestUnit(
               app.collateralDepositAmount,
               app.collateralCurrency.decimals,
@@ -719,7 +744,9 @@ export class LoanApplicationsService {
               decimals: app.collateralCurrency.decimals,
               logoUrl: `https://assets.cryptogadai.com/currencies/${app.collateralCurrency.symbol.toLowerCase()}.png`,
             },
-            walletAddress: 'Wallet address available via invoice details', // List view doesn't include wallet address
+            walletAddress:
+              (app as any).collateralWalletAddress ||
+              'Wallet address available via invoice details', // List view doesn't include wallet address
             expiryDate: app.expirationDate.toISOString(),
           },
         };
@@ -849,9 +876,9 @@ export class LoanApplicationsService {
         publishedDate: updatedApplication.publishedDate?.toISOString(),
         expiryDate: updatedApplication.expirationDate.toISOString(),
         collateralInvoice: {
-          id: `inv_${updatedApplication.id}`, // Generated invoice ID from application ID for list view
+          id: (updatedApplication as any).collateralInvoiceId || `inv_${updatedApplication.id}`, // Use real invoice ID if available, fallback to generated
           amount: this.loanCalculationService.fromSmallestUnit(
-            updatedApplication.collateralDepositAmount,
+            (updatedApplication as any).collateralDepositAmount,
             updatedApplication.collateralCurrency.decimals,
           ),
           currency: {
@@ -862,7 +889,9 @@ export class LoanApplicationsService {
             decimals: updatedApplication.collateralCurrency.decimals,
             logoUrl: `https://assets.cryptogadai.com/currencies/${updatedApplication.collateralCurrency.symbol.toLowerCase()}.png`,
           },
-          walletAddress: 'Wallet address available via invoice details', // List view doesn't include wallet address
+          walletAddress:
+            updatedApplication.collateralWalletAddress ||
+            'Wallet address available via invoice details', // List view doesn't include wallet address
           expiryDate: updatedApplication.expirationDate.toISOString(),
         },
       };
@@ -1138,6 +1167,8 @@ export class LoanApplicationsService {
         },
         paymentMethods: [],
         liquidationMode: basic.liquidationMode || LiquidationMode.PARTIAL,
+        matchedLoanOfferId: basic.matchedLoanOfferId,
+        matchedLtvRatio: basic.matchedLtvRatio,
       };
     } catch (error) {
       this.logger.error('Failed to get loan application detail by id', error);

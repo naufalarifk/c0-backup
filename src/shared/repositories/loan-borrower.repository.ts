@@ -564,6 +564,8 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
         assertPropString(row, 'status');
         assertProp(isInstanceOf(Date), row, 'expirationDate');
         assertProp(check(isNullable, isString), row, 'closureReason');
+        assertProp(check(isNullable, isString), row, 'collateralInvoiceId');
+        assertProp(check(isNullable, isString), row, 'collateralWalletAddress');
         return row;
       });
 
@@ -663,12 +665,15 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
             la.matched_date as "matchedDate",
             la.matched_loan_offer_id::text as "matchedLoanOfferId",
             la.closed_date as "closedDate",
-            la.closure_reason as "closureReason"
+            la.closure_reason as "closureReason",
+            i.id::text as "collateralInvoiceId",
+            i.wallet_address as "collateralWalletAddress"
           FROM loan_applications la
           JOIN currencies c1 ON la.principal_currency_blockchain_key = c1.blockchain_key
             AND la.principal_currency_token_id = c1.token_id
           JOIN currencies c2 ON la.collateral_currency_blockchain_key = c2.blockchain_key
             AND la.collateral_currency_token_id = c2.token_id
+          LEFT JOIN invoices i ON i.loan_application_id = la.id AND i.invoice_type = 'LoanCollateral'
           WHERE la.borrower_user_id = ${params.borrowerUserId}
             AND la.status = ${params.status}
           ORDER BY la.applied_date DESC
@@ -708,12 +713,15 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
             la.matched_date as "matchedDate",
             la.matched_loan_offer_id::text as "matchedLoanOfferId",
             la.closed_date as "closedDate",
-            la.closure_reason as "closureReason"
+            la.closure_reason as "closureReason",
+            i.id::text as "collateralInvoiceId",
+            i.wallet_address as "collateralWalletAddress"
           FROM loan_applications la
           JOIN currencies c1 ON la.principal_currency_blockchain_key = c1.blockchain_key
             AND la.principal_currency_token_id = c1.token_id
           JOIN currencies c2 ON la.collateral_currency_blockchain_key = c2.blockchain_key
             AND la.collateral_currency_token_id = c2.token_id
+          LEFT JOIN invoices i ON i.loan_application_id = la.id AND i.invoice_type = 'LoanCollateral'
           WHERE la.borrower_user_id = ${params.borrowerUserId}
           ORDER BY la.applied_date DESC
           LIMIT ${validatedLimit}
@@ -741,6 +749,8 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
       assertProp(check(isNullable, isString), row, 'matchedLoanOfferId');
       assertProp(check(isNullable, isInstanceOf(Date)), row, 'closedDate');
       assertProp(check(isNullable, isString), row, 'closureReason');
+      assertProp(check(isNullable, isString), row, 'collateralInvoiceId');
+      assertProp(check(isNullable, isString), row, 'collateralWalletAddress');
 
       assertProp(isDefined, row, 'principalCurrency');
       assertPropString(row.principalCurrency, 'blockchainKey');
@@ -783,6 +793,8 @@ export abstract class LoanBorrowerRepository extends LoanLenderRepository {
         matchedLoanOfferId: row.matchedLoanOfferId || undefined,
         closedDate: row.closedDate || undefined,
         closureReason: row.closureReason || undefined,
+        collateralInvoiceId: row.collateralInvoiceId || undefined,
+        collateralWalletAddress: row.collateralWalletAddress || undefined,
       };
     });
 

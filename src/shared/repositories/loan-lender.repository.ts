@@ -380,11 +380,19 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
         c.symbol,
         c.name,
         u.name AS lender_user_name,
-        u.user_type AS lender_user_type
+        u.user_type AS lender_user_type,
+        i.id as invoice_id,
+        i.invoiced_amount as invoice_amount,
+        i.wallet_address as invoice_wallet_address,
+        i.due_date as invoice_due_date,
+        i.paid_date as invoice_paid_date,
+        i.expired_date as invoice_expired_date,
+        i.status as invoice_status
       FROM loan_offers lo
       JOIN currencies c ON lo.principal_currency_blockchain_key = c.blockchain_key
         AND lo.principal_currency_token_id = c.token_id
       LEFT JOIN users u ON lo.lender_user_id = u.id
+      LEFT JOIN invoices i ON i.loan_offer_id = lo.id AND i.invoice_type = 'LoanPrincipal'
       WHERE lo.lender_user_id = ${lenderUserId}
         AND (${status}::text IS NULL OR lo.status = ${status})
       ORDER BY lo.created_date DESC
@@ -415,6 +423,32 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
       assertPropString(row, 'name');
       assertPropNullableString(row, 'lender_user_name');
       assertPropNullableString(row, 'lender_user_type');
+      assertProp(check(isNullable, check(isString, isNumber)), row, 'invoice_id');
+      assertProp(check(isNullable, check(isString, isNumber)), row, 'invoice_amount');
+      assertProp(check(isNullable, isString), row, 'invoice_wallet_address');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'invoice_due_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'invoice_paid_date');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'invoice_expired_date');
+      assertProp(check(isNullable, isString), row, 'invoice_status');
+
+      const fundingInvoice = row.invoice_id
+        ? {
+            id: String(row.invoice_id),
+            amount: String(row.invoice_amount),
+            currency: {
+              blockchainKey: row.blockchain_key,
+              tokenId: row.token_id,
+              decimals: Number(row.decimals),
+              symbol: row.symbol,
+              name: row.name,
+            },
+            status: row.invoice_status as 'Pending' | 'Paid' | 'Expired' | 'Cancelled',
+            createdDate: row.created_date,
+            expiryDate: row.invoice_due_date || row.invoice_expired_date || row.expired_date,
+            paidDate: row.invoice_paid_date || undefined,
+            walletAddress: row.invoice_wallet_address || undefined,
+          }
+        : undefined;
 
       return {
         id: String(row.id),
@@ -443,6 +477,7 @@ export abstract class LoanLenderRepository extends LoanTestRepository {
         publishedDate: row.published_date || undefined,
         closedDate: row.closed_date || undefined,
         closureReason: row.closure_reason || undefined,
+        fundingInvoice,
       };
     });
 

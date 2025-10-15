@@ -91,6 +91,14 @@ export class CreateLoanOfferDto {
   })
   @IsDateString()
   expirationDate: string;
+
+  @ApiPropertyOptional({
+    description: 'Optional creation date for the loan offer (validated in production)',
+    example: '2025-09-11T10:30:00Z',
+  })
+  @IsOptional()
+  @IsDateString()
+  creationDate?: string;
 }
 
 export class UpdateLoanOfferDto {

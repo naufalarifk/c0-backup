@@ -1,7 +1,9 @@
-const logs: Array<string> = [];
+let logs: Array<string> = [];
 
-export function getFetchLogs() {
-  return logs;
+export function takeFetchLogs() {
+  const takenLogs = logs;
+  logs = [];
+  return takenLogs;
 }
 
 export async function loggedFetch(input: string | URL | Request, init?: RequestInit | undefined) {
