@@ -17,4 +17,13 @@ export class CgtWallet extends Wallet {
     const hash = createHash('sha256').update(seed).digest('hex');
     return { txHash: `0xmock${hash.slice(0, 58)}` };
   }
+
+  async getBalance(address: string): Promise<number> {
+    // Mock implementation for testnet
+    // In real implementation, this would query the CryptoGadai blockchain
+    const hash = createHash('sha256').update(address).digest('hex');
+    // Generate deterministic mock balance based on address
+    const mockBalance = parseInt(hash.slice(0, 8), 16) % 10000;
+    return mockBalance / 100; // Return value between 0-100
+  }
 }

@@ -8,6 +8,7 @@ export type WalletTransferParams = {
 export abstract class Wallet {
   abstract getAddress(): Promise<string>;
   abstract transfer(params: WalletTransferParams): Promise<{ txHash: string }>;
+  abstract getBalance(address: string): Promise<number>;
 }
 
 export class WalletError extends Error {
