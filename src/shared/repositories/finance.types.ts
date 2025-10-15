@@ -12,9 +12,11 @@ export interface AccountBalance {
   currencyTokenId: string;
   currencyName: string;
   currencySymbol: string;
+  currencyImage: string;
   currencyDecimals: number;
   balance: string;
   accountType: string;
+  updatedDate?: Date | null;
   valuationAmount?: string | null;
   exchangeRate?: string;
   rateSource?: string;
@@ -50,6 +52,7 @@ export interface AccountMutation {
   invoiceId?: string;
   withdrawalId?: string;
   invoicePaymentId?: string;
+  balanceAfter?: string;
 }
 
 export interface UserViewsAccountTransactionHistoryResult {
@@ -312,11 +315,15 @@ export interface UserViewsWithdrawalBeneficiariesParams {
 }
 
 export interface WithdrawalBeneficiaryListItem {
-  id: string;
+  id: number;
   userId: string;
   blockchainKey: string;
   address: string;
-  label?: string;
+  label?: string | null;
+  createdDate: Date;
+  verifiedDate: Date | null;
+  isActive: boolean;
+  blockchain: Blockchain;
 }
 
 export interface UserViewsWithdrawalBeneficiariesResult {
@@ -450,7 +457,7 @@ export interface WithdrawalBlockchain {
 }
 
 export interface WithdrawalBeneficiary {
-  id: string;
+  id: number;
   blockchainKey: string;
   address: string;
   label?: string;
@@ -461,7 +468,7 @@ export interface WithdrawalBeneficiary {
 }
 
 export interface WithdrawalRecord {
-  id: string;
+  id: number;
   currency: WithdrawalCurrency;
   beneficiary: WithdrawalBeneficiary;
   requestAmount: string;

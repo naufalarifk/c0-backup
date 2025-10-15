@@ -10,6 +10,7 @@ export async function setup() {
   const mailpitApiPort = String(30000 + Math.floor(Math.random() * 5000));
   const mailpitApiAddr = `localhost:${mailpitApiPort}`;
   const cgBackendPath = join(__dirname, '../..');
+  let cgBackendLogEnabled = env.CG_BACKEND_LOGS === '1' || env.CG_BACKEND_LOGS === 'true';
 
   const [redis, mailpit] = await Promise.all([
     new Promise<{
@@ -218,7 +219,7 @@ export async function setup() {
       cgBackend.stdout?.pipe(writableString);
       cgBackend.stderr?.pipe(writableString);
       cgBackend.stdout?.on('data', function (data) {
-        if (env.CG_BACKEND_LOGS === '1' || env.CG_BACKEND_LOGS === 'true') {
+        if (cgBackendLogEnabled) {
           console.debug(data?.toString());
         }
         if (data?.toString().includes('application successfully started')) {
@@ -252,7 +253,7 @@ export async function setup() {
         }
       });
       cgBackend.stderr?.on('data', function (data) {
-        if (env.CG_BACKEND_LOGS === '1' || env.CG_BACKEND_LOGS === 'true') {
+        if (cgBackendLogEnabled) {
           console.error(data?.toString());
         }
       });
@@ -280,6 +281,12 @@ export async function setup() {
   return {
     mailpitUrl: `http://${mailpitApiAddr}`,
     backendUrl: `http://${backendAddr}`,
+    enableCgBackendLogs() {
+      cgBackendLogEnabled = true;
+    },
+    disableCgBackendLogs() {
+      cgBackendLogEnabled = false;
+    },
     async teardown() {
       // Teardown in proper order: backend first, then dependencies
       try {

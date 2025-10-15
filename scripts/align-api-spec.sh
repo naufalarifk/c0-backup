@@ -51,7 +51,7 @@ opencode \
 
 # claude \
 #   --dangerously-skip-permissions \
-#   --model claude-sonnet-4-20250514 \
+#   --model claude-sonnet-4-5-20250929 \
 #   --append-system-prompt "Claude shall act Backend Lead Developer, maintaining the API specification to ensure it aligns perfectly with the UI textual descriptions." \
 #   --print \
 #   "$alignment_prompt"

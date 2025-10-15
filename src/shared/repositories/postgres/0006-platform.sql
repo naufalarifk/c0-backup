@@ -22,9 +22,9 @@ INSERT INTO platform_configs (
   loan_min_ltv_ratio, loan_max_ltv_ratio, loan_repayment_duration_in_days,
   loan_liquidation_mode, loan_liquidation_premi_rate, loan_liquidation_fee_rate
 ) VALUES (
-  '2024-01-01T00:00:00Z', 1, 0.03,
+  TIMESTAMP '2024-01-01 00:00:00' AT TIME ZONE 'UTC', 0, 0.03,
   0.10, 0.025, -- 10% individual, 2.5% institution
-  0.60, 0.75, 3, -- 60% LTV when collateral deposit, 75% LTV when loan application fails, 3 days repayment duration
+  0.60, 0.75, 30, -- 60% LTV when collateral deposit, 75% LTV when loan application fails, 30 days repayment duration
   'Partial', 0.02, 0.02 -- Partial liquidation mode, 2% premi, 2% fee
 ) ON CONFLICT (effective_date) DO UPDATE SET
   loan_provision_rate = EXCLUDED.loan_provision_rate,

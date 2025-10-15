@@ -191,6 +191,9 @@ importers:
       nodemailer:
         specifier: ^7.0.9
         version: 7.0.9
+      parse-duration:
+        specifier: ^2.1.4
+        version: 2.1.4
       pg:
         specifier: ^8.16.3
         version: 8.16.3
@@ -6164,6 +6167,9 @@ packages:
   parent-module@1.0.1:
     resolution: {integrity: sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g==}
     engines: {node: '>=6'}
+
+  parse-duration@2.1.4:
+    resolution: {integrity: sha512-b98m6MsCh+akxfyoz9w9dt0AlH2dfYLOBss5SdDsr9pkhKNvkWBXU/r8A4ahmIGByBOLV2+4YwfCuFxbDDaGyg==}
 
   parse-json@4.0.0:
     resolution: {integrity: sha512-aOIos8bujGN93/8Ox/jPLh7RwVnPEysynVFE+fQZyg6jKELEHwzgKdLRFHUgXJL6kylijVSBC4BvN9OmsB48Rw==}
@@ -15071,6 +15077,8 @@ snapshots:
   parent-module@1.0.1:
     dependencies:
       callsites: 3.1.0
+
+  parse-duration@2.1.4: {}
 
   parse-json@4.0.0:
     dependencies:

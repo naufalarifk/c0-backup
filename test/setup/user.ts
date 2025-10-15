@@ -1,9 +1,26 @@
+import type { RealtimeEventType } from '../../src/modules/realtime/realtime.types';
+
 import { ok } from 'node:assert/strict';
+
+import { assertDefined, assertPropDefined, assertPropString } from 'typeshaper';
 
 import { setupBetterAuthClient } from './better-auth';
 import { loggedFetch } from './fetch';
 import { waitForEmailVerification } from './mailpit';
 import { setup } from './setup';
+
+export type RealtimeClient = {
+  waitForEvent: (
+    check: (message: { event: string; data: unknown }) => boolean,
+    options: { timeout: number },
+  ) => Promise<void>;
+  disconnect: () => void;
+};
+
+type ConnectRealtimeClient = (
+  events: Array<RealtimeEventType>,
+  options: { timeout: number },
+) => Promise<RealtimeClient>;
 
 export interface TestUser {
   id: string;
@@ -12,6 +29,7 @@ export interface TestUser {
   name: string;
   authClient: ReturnType<typeof setupBetterAuthClient>['authClient'];
   cookieJar: ReturnType<typeof setupBetterAuthClient>['cookieJar'];
+  connectRealtimeClient: ConnectRealtimeClient;
   fetch: (path: string, init?: RequestInit) => Promise<Response>;
 }
 
@@ -45,15 +63,12 @@ export async function createTestUser(options: TestUserOptions): Promise<TestUser
   const email = providedEmail ?? `test_user_${testId}_${Date.now()}@test.com`;
   const name = providedName ?? `Test User ${testId}`;
 
-  // Setup better auth client
   const betterAuthClient = setupBetterAuthClient(testSetup.backendUrl);
   const { authClient, cookieJar } = betterAuthClient;
 
-  // Create authenticated fetch helper
   const authenticatedFetch = async (path: string, init?: RequestInit): Promise<Response> => {
     const url = `${testSetup.backendUrl}${path}`;
 
-    // Get cookies from cookieJar
     const cookies = await new Promise<string>((resolve, reject) => {
       cookieJar.getCookieString(url, (error, cookieString) => {
         if (error) return reject(error);
@@ -61,20 +76,17 @@ export async function createTestUser(options: TestUserOptions): Promise<TestUser
       });
     });
 
-    // Add cookies to headers
     const headers = new Headers(init?.headers);
     if (cookies) {
       headers.set('Cookie', cookies);
     }
 
-    // Make the request
     const response = await loggedFetch(url, {
       ...init,
       headers,
       credentials: 'include',
     });
 
-    // Store any new cookies
     response.headers.getSetCookie()?.forEach(cookie => {
       cookieJar.setCookieSync(cookie, url, { ignoreError: true });
     });
@@ -82,7 +94,6 @@ export async function createTestUser(options: TestUserOptions): Promise<TestUser
     return response;
   };
 
-  // Sign up the user
   const signUpResult = await authClient.signUp.email({
     email,
     password,
@@ -97,22 +108,17 @@ export async function createTestUser(options: TestUserOptions): Promise<TestUser
   ok(signUpResult.data?.user.id, 'User ID should exist after sign up');
   const userId = signUpResult.data.user.id;
 
-  // Wait for email verification
   await waitForEmailVerification(testSetup.mailpitUrl, email);
 
-  // Sign in the user
   await authClient.signIn.email({ email, password });
 
-  // Set user type if specified
   if (userType) {
     const userTypeResponse = await authenticatedFetch('/api/users/type-selection', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        userType,
-      }),
+      body: JSON.stringify({ userType }),
     });
 
     if (!userTypeResponse.ok) {
@@ -124,7 +130,6 @@ export async function createTestUser(options: TestUserOptions): Promise<TestUser
     ok(userTypeResponse.ok, 'User type selection should be successful');
   }
 
-  // Assign admin role if specified
   if (role === 'admin') {
     const adminRoleResponse = await authenticatedFetch('/api/test/assign-admin-role', {
       method: 'PUT',
@@ -143,6 +148,137 @@ export async function createTestUser(options: TestUserOptions): Promise<TestUser
     await authClient.signIn.email({ email, password });
   }
 
+  const connectRealtimeClient: ConnectRealtimeClient = async function (
+    events,
+    { timeout: realtimeTimeout },
+  ) {
+    const realtimeAuthTokenResp = await authenticatedFetch('/api/realtime-auth-tokens', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const realtimeAuthTokenData = (await realtimeAuthTokenResp.json()) as unknown;
+    assertDefined(realtimeAuthTokenData);
+    assertPropString(realtimeAuthTokenData, 'token');
+    return new Promise<RealtimeClient>(function (resolve, reject) {
+      let authResolvable = true;
+
+      const connectionTimeout = setTimeout(function () {
+        if (authResolvable) {
+          authResolvable = false;
+          ws.removeEventListener('message', authMessageListener);
+          reject(new Error('Timeout waiting for realtime auth confirmation'));
+        }
+        if (ws.readyState !== WebSocket.CLOSED) {
+          ws.close();
+          console.error('WebSocket closed due to RealtimeClient connection timeout');
+        }
+      }, realtimeTimeout);
+
+      const wsUrl = testSetup.backendUrl.replace(/^http/, 'ws');
+      const ws = new WebSocket(`${wsUrl}/api/realtime`);
+
+      ws.addEventListener('open', function () {
+        ws.send(
+          JSON.stringify({
+            event: 'auth',
+            data: {
+              accessToken: realtimeAuthTokenData.token,
+              events,
+            },
+          }),
+        );
+      });
+
+      const authMessageListener = function (event: MessageEvent) {
+        try {
+          const message = JSON.parse(String(event.data)) as unknown;
+          assertDefined(message);
+          assertPropString(message, 'event');
+          assertPropDefined(message, 'data');
+          if (message.event === 'auth.confirmed') {
+            if (authResolvable) {
+              authResolvable = false;
+              clearTimeout(connectionTimeout);
+              ws.removeEventListener('message', authMessageListener);
+              resolve({
+                disconnect() {
+                  ws.close();
+                },
+                async waitForEvent(check, { timeout: waiterTimeout }) {
+                  return new Promise<void>(function (resolve, reject) {
+                    let resolvable = true;
+                    const eventWaiterTimeout = setTimeout(function () {
+                      if (resolvable) {
+                        resolvable = false;
+                        reject(new Error('Timeout waiting for realtime event'));
+                      }
+                      if (ws.readyState !== WebSocket.CLOSED) {
+                        ws.close();
+                        console.error('WebSocket closed due to RealtimeClient event wait timeout');
+                        console.error('Raw data:', event);
+                      }
+                    }, waiterTimeout);
+                    const waitMessageListener = function (event: MessageEvent) {
+                      try {
+                        const message = JSON.parse(String(event.data)) as unknown;
+                        assertDefined(message);
+                        assertPropString(message, 'event');
+                        assertPropDefined(message, 'data');
+                        if (check(message)) {
+                          if (resolvable) {
+                            resolvable = false;
+                            resolve();
+                          }
+                          ws.removeEventListener('message', waitMessageListener);
+                          clearTimeout(eventWaiterTimeout);
+                        }
+                      } catch (error) {
+                        if (resolvable) {
+                          resolvable = false;
+                          reject(new Error(`Failed to parse WebSocket message: ${error}`));
+                        }
+                        if (ws.readyState !== WebSocket.CLOSED) {
+                          ws.close();
+                          console.error('WebSocket closed due to message parsing error', error);
+                          console.error('Raw data:', event);
+                        }
+                      }
+                    };
+                    ws.addEventListener('message', waitMessageListener);
+                  });
+                },
+              });
+            }
+          }
+        } catch (error) {
+          if (authResolvable) {
+            authResolvable = false;
+            clearTimeout(connectionTimeout);
+            ws.removeEventListener('message', authMessageListener);
+            reject(new Error(`Failed to parse WebSocket message: ${error}`));
+          }
+          if (ws.readyState !== WebSocket.CLOSED) {
+            ws.close();
+            console.error('WebSocket closed due to message parsing error', error, event);
+          }
+        }
+      };
+      ws.addEventListener('message', authMessageListener);
+
+      ws.addEventListener('error', function (event) {
+        if (authResolvable) {
+          authResolvable = false;
+          clearTimeout(connectionTimeout);
+          reject(new Error(`WebSocket closed due to RealtimeClient connection error: ${event}`));
+        }
+        if (ws.readyState !== WebSocket.CLOSED) {
+          ws.close();
+          console.error('WebSocket closed due to RealtimeClient connection error', event);
+        }
+      });
+    });
+  };
+
   return {
     id: userId,
     email,
@@ -150,6 +286,7 @@ export async function createTestUser(options: TestUserOptions): Promise<TestUser
     name,
     authClient,
     cookieJar,
+    connectRealtimeClient,
     fetch: authenticatedFetch,
   };
 }

@@ -84,5 +84,6 @@ export class CreateBeneficiaryDto {
   })
   @IsOptional()
   @IsString({ message: 'Callback URL must be a string' })
+  @Transform(({ value }) => value?.trim())
   callbackURL?: string;
 }

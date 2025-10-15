@@ -28,7 +28,7 @@ export const validationOptions: ValidationPipeOptions = {
     const interestRateError = errors.find(error => error.property === 'interestRate');
     if (interestRateError) {
       const value = interestRateError.value;
-      if (typeof value === 'number' && (value < 0.1 || value > 50)) {
+      if (typeof value === 'number' && (value < 0.001 || value > 0.5)) {
         return new InterestRateInvalidException(value);
       }
     }

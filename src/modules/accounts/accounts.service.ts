@@ -45,7 +45,7 @@ export class AccountsService {
           id: Number(account.id),
           currency: this.mapToCurrencyDto(account),
           balance: account.balance,
-          lastUpdated: new Date().toISOString(),
+          lastUpdated: account.updatedDate?.toISOString() || new Date().toISOString(),
         };
 
         // Add valuation data if available
@@ -85,6 +85,15 @@ export class AccountsService {
       const fractionalPart = totalValueBigInt % divisor;
       const totalValueFormatted = `${integerPart}.${fractionalPart.toString().padStart(usdDecimals, '0').slice(0, 2)}`;
 
+      // Find most recent update date from accounts
+      const mostRecentUpdate = result.accounts.reduce(
+        (latest, account) => {
+          if (!account.updatedDate) return latest;
+          return !latest || account.updatedDate > latest ? account.updatedDate : latest;
+        },
+        null as Date | null,
+      );
+
       return {
         success: true,
         data: {
@@ -92,7 +101,7 @@ export class AccountsService {
           totalPortfolioValue: {
             amount: totalValueFormatted,
             currency: 'USD',
-            lastUpdated: new Date().toISOString(),
+            lastUpdated: mostRecentUpdate?.toISOString() || new Date().toISOString(),
           },
         },
       };
@@ -154,9 +163,7 @@ export class AccountsService {
           : mutation.withdrawalId
             ? 'withdrawal'
             : undefined,
-        // balanceAfter is optional and not currently calculated
-        // Future enhancement: Could be calculated by running sum of all mutations up to this point
-        balanceAfter: undefined,
+        balanceAfter: mutation.balanceAfter,
       }));
 
       const totalPages = Math.ceil(result.totalCount / limit);
@@ -195,7 +202,7 @@ export class AccountsService {
       name: account.currencyName,
       symbol: account.currencySymbol,
       decimals: account.currencyDecimals,
-      logoUrl: `https://assets.cryptogadai.com/currencies/${account.currencySymbol.toLowerCase()}.png`,
+      logoUrl: account.currencyImage,
     };
   }
 

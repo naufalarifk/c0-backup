@@ -37,4 +37,4 @@ Focus on the content and functionality rather than the visual design details.
 Write down UI textual description in @$ui_description_path
 "
 
-claude --dangerously-skip-permissions --model claude-sonnet-4-20250514 --print "$translation_prompt"
+claude --dangerously-skip-permissions --model claude-sonnet-4-5-20250929 --print "$translation_prompt"

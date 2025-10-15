@@ -15,6 +15,7 @@ import { IndexerEventService } from '../../indexer/indexer-event.service';
 import { LiquidationMode, LoanApplicationStatus, PaginationMetaDto } from '../dto/common.dto';
 import {
   CreateLoanApplicationDto,
+  LoanApplicationDetailResponseDto,
   LoanApplicationListResponseDto,
   LoanApplicationResponseDto,
   LoanCalculationRequestDto,
@@ -169,7 +170,7 @@ export class LoanApplicationsService {
         calculationResult.principalCurrency.decimals,
       );
       const liquidationFee = (parseFloat(principalAmountHuman) * 0.02).toFixed(18); // 2% liquidation fee
-      const premiumRisk = (parseFloat(principalAmountHuman) * 0.02).toFixed(18); // 2% premium risk
+      const premiumRisk = (parseFloat(principalAmountHuman) * 0.02).toFixed(18); // 2%
 
       return {
         success: true,
@@ -284,8 +285,28 @@ export class LoanApplicationsService {
         throw new InterestRateInvalidException(createLoanApplicationDto.maxInterestRate);
       }
 
-      const appliedDate = new Date();
-      const expirationDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+      // Handle creation date: use provided date if specified, otherwise use current date
+      let appliedDate: Date;
+      if (createLoanApplicationDto.creationDate) {
+        appliedDate = new Date(createLoanApplicationDto.creationDate);
+
+        // Validate creation date in production environment
+        if (process.env.NODE_ENV === 'production') {
+          const now = new Date();
+          const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+          const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+
+          if (appliedDate < oneHourAgo || appliedDate > oneHourFromNow) {
+            throw new BadRequestException(
+              'Creation date must be within one hour of current time in production environment',
+            );
+          }
+        }
+      } else {
+        appliedDate = new Date();
+      }
+
+      const expirationDate = new Date(appliedDate.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from applied date
 
       // Get data from repository (no calculations)
       // Default to USDC on BSC for principal currency in production
@@ -468,9 +489,9 @@ export class LoanApplicationsService {
         publishedDate: undefined, // Applications start in draft status
         expiryDate: result.expirationDate.toISOString(),
         collateralInvoice: {
-          id: result.collateralDepositInvoice.id,
+          id: String(result.collateralDepositInvoice.id),
           amount: this.loanCalculationService.fromSmallestUnit(
-            result.collateralDepositAmount,
+            (result as any).collateralDepositAmount,
             result.collateralCurrency.decimals,
           ),
           currency: {
@@ -599,8 +620,11 @@ export class LoanApplicationsService {
           publishedDate: app.publishedDate?.toISOString(),
           expiryDate: app.expirationDate.toISOString(),
           collateralInvoice: {
-            id: `inv_${app.id}`,
-            amount: '0.000000000000000000', // Not available in list view
+            id: (app as any).collateralInvoiceId || `inv_${app.id}`, // Use real invoice ID if available, fallback to generated
+            amount: this.loanCalculationService.fromSmallestUnit(
+              (app as any).collateralDepositAmount,
+              app.collateralCurrency.decimals,
+            ),
             currency: {
               blockchainKey: app.collateralCurrency.blockchainKey,
               tokenId: app.collateralCurrency.tokenId,
@@ -609,7 +633,9 @@ export class LoanApplicationsService {
               decimals: app.collateralCurrency.decimals,
               logoUrl: `https://assets.cryptogadai.com/currencies/${app.collateralCurrency.symbol.toLowerCase()}.png`,
             },
-            walletAddress: 'Available via application details',
+            walletAddress:
+              (app as any).collateralWalletAddress ||
+              'Wallet address available via invoice details', // List view doesn't include wallet address
             expiryDate: app.expirationDate.toISOString(),
           },
         };
@@ -705,7 +731,7 @@ export class LoanApplicationsService {
           publishedDate: app.publishedDate?.toISOString(),
           expiryDate: app.expirationDate.toISOString(),
           collateralInvoice: {
-            id: `inv_${app.id}`, // Generated invoice ID from application ID
+            id: app.collateralInvoiceId || `inv_${app.id}`, // Use real invoice ID if available, fallback to generated
             amount: this.loanCalculationService.fromSmallestUnit(
               app.collateralDepositAmount,
               app.collateralCurrency.decimals,
@@ -718,7 +744,9 @@ export class LoanApplicationsService {
               decimals: app.collateralCurrency.decimals,
               logoUrl: `https://assets.cryptogadai.com/currencies/${app.collateralCurrency.symbol.toLowerCase()}.png`,
             },
-            walletAddress: 'Wallet address available via invoice details', // List view doesn't include wallet address
+            walletAddress:
+              (app as any).collateralWalletAddress ||
+              'Wallet address available via invoice details', // List view doesn't include wallet address
             expiryDate: app.expirationDate.toISOString(),
           },
         };
@@ -848,9 +876,9 @@ export class LoanApplicationsService {
         publishedDate: updatedApplication.publishedDate?.toISOString(),
         expiryDate: updatedApplication.expirationDate.toISOString(),
         collateralInvoice: {
-          id: `inv_${updatedApplication.id}`, // Generated invoice ID from application ID for list view
+          id: (updatedApplication as any).collateralInvoiceId || `inv_${updatedApplication.id}`, // Use real invoice ID if available, fallback to generated
           amount: this.loanCalculationService.fromSmallestUnit(
-            updatedApplication.collateralDepositAmount,
+            (updatedApplication as any).collateralDepositAmount,
             updatedApplication.collateralCurrency.decimals,
           ),
           currency: {
@@ -861,7 +889,9 @@ export class LoanApplicationsService {
             decimals: updatedApplication.collateralCurrency.decimals,
             logoUrl: `https://assets.cryptogadai.com/currencies/${updatedApplication.collateralCurrency.symbol.toLowerCase()}.png`,
           },
-          walletAddress: 'Wallet address available via invoice details', // List view doesn't include wallet address
+          walletAddress:
+            updatedApplication.collateralWalletAddress ||
+            'Wallet address available via invoice details', // List view doesn't include wallet address
           expiryDate: updatedApplication.expirationDate.toISOString(),
         },
       };
@@ -1049,6 +1079,99 @@ export class LoanApplicationsService {
       };
     } catch (error) {
       this.logger.error('Failed to get loan application by id', error);
+      throw new NotFoundException('Loan application not found');
+    }
+  }
+
+  async getLoanApplicationDetailById(
+    applicationId: string,
+  ): Promise<LoanApplicationDetailResponseDto> {
+    try {
+      const basic = await this.getLoanApplicationById(applicationId);
+      const principalAmt = parseFloat(basic.principalAmount);
+      const interestRate = basic.maxInterestRate || 0.12;
+      const termMonths = basic.termMonths || 3;
+      const interestAmt = (principalAmt * interestRate * termMonths) / 12;
+      const provisionsAmt = principalAmt * 0.03;
+      const totalRepayment = principalAmt + interestAmt + provisionsAmt;
+      const collateralAmt = parseFloat(basic.collateralInvoice.amount);
+      const ltv = (principalAmt / (collateralAmt * 1.0)) * 100;
+      const formatAmount = (amt: number): string => amt.toFixed(18);
+
+      return {
+        id: basic.id,
+        applicationNumber: `LA-${basic.id}`,
+        status: basic.status,
+        // Backward compatibility fields
+        borrowerId: basic.borrowerId,
+        borrower: basic.borrower,
+        collateralCurrency: basic.collateralCurrency,
+        principalCurrency: basic.principalCurrency,
+        principalAmount: basic.principalAmount,
+        maxInterestRate: basic.maxInterestRate,
+        termMonths: basic.termMonths,
+        minLtvRatio: basic.minLtvRatio,
+        expiryDate: basic.expiryDate,
+        publishedDate: basic.publishedDate,
+        createdDate: basic.createdDate,
+        collateralInvoice: basic.collateralInvoice,
+        // Calculated detail fields
+        appliedDate: basic.createdDate,
+        dueDate: new Date(Date.now() + termMonths * 30 * 24 * 60 * 60 * 1000).toISOString(),
+        loanAmount: {
+          amount: basic.principalAmount,
+          currency: basic.principalCurrency?.symbol || 'USDT',
+        },
+        loanBreakdown: {
+          principal: {
+            amount: basic.principalAmount,
+            currency: basic.principalCurrency?.symbol || 'USDT',
+          },
+          interest: {
+            amount: formatAmount(interestAmt),
+            currency: basic.principalCurrency?.symbol || 'USDT',
+            rate: interestRate,
+          },
+          provisions: {
+            amount: formatAmount(provisionsAmt),
+            currency: basic.principalCurrency?.symbol || 'USDT',
+            rate: 0.03,
+          },
+          totalRepayment: {
+            amount: formatAmount(totalRepayment),
+            currency: basic.principalCurrency?.symbol || 'USDT',
+          },
+        },
+        terms: { duration: `${termMonths} Months`, paymentType: 'Full Payment' },
+        collateral: {
+          selectedAsset: basic.collateralCurrency.symbol,
+          requiredAmount: {
+            amount: basic.collateralInvoice.amount,
+            currency: basic.collateralCurrency.symbol,
+          },
+          currentValue: {
+            amount: basic.collateralInvoice.amount,
+            currency: basic.principalCurrency?.symbol || 'USDT',
+          },
+          currentPrice: {
+            amount: '1.000000000000000000',
+            currency: basic.principalCurrency?.symbol || 'USDT',
+          },
+          ltv: Math.round(ltv),
+          liquidationTrigger: `LTV exceeds ${Math.round(ltv)}%`,
+        },
+        riskAssessment: {
+          riskLevel: 'Medium',
+          marginCall: `LTV > ${Math.round(ltv * 0.9)}%`,
+          liquidation: `LTV > ${Math.round(ltv)}%`,
+        },
+        paymentMethods: [],
+        liquidationMode: basic.liquidationMode || LiquidationMode.PARTIAL,
+        matchedLoanOfferId: basic.matchedLoanOfferId,
+        matchedLtvRatio: basic.matchedLtvRatio,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get loan application detail by id', error);
       throw new NotFoundException('Loan application not found');
     }
   }

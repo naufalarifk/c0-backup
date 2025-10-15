@@ -48,6 +48,8 @@ async function createCollateralInvoiceParams(
     collateralInvoiceDate: options.invoiceDate,
     collateralInvoiceDueDate: options.dueDate,
     collateralInvoiceExpiredDate: options.expiredDate ?? options.dueDate,
+    collateralWalletDerivationPath: `m/44'/0'/0'/0/${invoiceId}`,
+    collateralWalletAddress: `test-collateral-address-${invoiceId}`,
   };
 }
 
@@ -62,6 +64,8 @@ async function borrowerCreatesLoanApplicationWithInvoice(
     | 'collateralInvoiceDate'
     | 'collateralInvoiceDueDate'
     | 'collateralInvoiceExpiredDate'
+    | 'collateralWalletDerivationPath'
+    | 'collateralWalletAddress'
   >,
 ) {
   const collateralInvoice = await createCollateralInvoiceParams(repo, {
@@ -212,7 +216,7 @@ export async function runLoanBorrowerRepositoryTestSuite(
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
             principalAmount: '5000000000000000000', // 5 USDC in smallest units
             provisionAmount: '150000000000000000', // 3% provision
-            maxInterestRate: 15.0,
+            maxInterestRate: 0.15,
             minLtvRatio: 0.6,
             maxLtvRatio: 0.75,
             termInMonths: 6,
@@ -221,13 +225,6 @@ export async function runLoanBorrowerRepositoryTestSuite(
             collateralDepositExchangeRateId: exchangeRateId,
             appliedDate,
             expirationDate,
-            collateralInvoiceId: 100,
-            collateralInvoicePrepaidAmount: '0',
-            collateralInvoiceDate: appliedDate,
-            collateralInvoiceDueDate: expirationDate,
-            collateralInvoiceExpiredDate: expirationDate,
-            collateralWalletDerivationPath: "m/44'/0'/0'/0/100",
-            collateralWalletAddress: 'test-collateral-address-100',
           });
 
           equal(result.borrowerUserId, String(borrower.id));
@@ -258,7 +255,7 @@ export async function runLoanBorrowerRepositoryTestSuite(
                 principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
                 principalAmount: '5000000000000000000',
                 provisionAmount: '150000000000000000',
-                maxInterestRate: 15.0,
+                maxInterestRate: 0.15,
                 minLtvRatio: 0.6,
                 maxLtvRatio: 0.75,
                 termInMonths: 6,
@@ -267,13 +264,6 @@ export async function runLoanBorrowerRepositoryTestSuite(
                 collateralDepositExchangeRateId: '1',
                 appliedDate: new Date('2024-01-01T00:00:00Z'),
                 expirationDate: new Date('2024-02-01T00:00:00Z'),
-                collateralInvoiceId: 999,
-                collateralInvoicePrepaidAmount: '0',
-                collateralInvoiceDate: new Date('2024-01-01T00:00:00Z'),
-                collateralInvoiceDueDate: new Date('2024-02-01T00:00:00Z'),
-                collateralInvoiceExpiredDate: new Date('2024-02-01T00:00:00Z'),
-                collateralWalletDerivationPath: "m/44'/0'/0'/0/100",
-                collateralWalletAddress: 'test-collateral-address-100',
               });
             },
             { message: /Currency pair .* does not exist/ },
@@ -338,7 +328,7 @@ export async function runLoanBorrowerRepositoryTestSuite(
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
             principalAmount: '5000000000000000000',
             provisionAmount: '150000000000000000',
-            maxInterestRate: 15.0,
+            maxInterestRate: 0.15,
             minLtvRatio: 0.6,
             maxLtvRatio: 0.75,
             termInMonths: 6,
@@ -347,13 +337,6 @@ export async function runLoanBorrowerRepositoryTestSuite(
             collateralDepositExchangeRateId: exchangeRateId,
             appliedDate: new Date('2024-01-01T00:00:00Z'),
             expirationDate: new Date('2024-02-01T00:00:00Z'),
-            collateralInvoiceId: 101,
-            collateralInvoicePrepaidAmount: '0',
-            collateralInvoiceDate: new Date('2024-01-01T00:00:00Z'),
-            collateralInvoiceDueDate: new Date('2024-02-01T00:00:00Z'),
-            collateralInvoiceExpiredDate: new Date('2024-02-01T00:00:00Z'),
-            collateralWalletDerivationPath: "m/44'/0'/0'/0/101",
-            collateralWalletAddress: 'test-collateral-address-101',
           });
 
           const updateDate = new Date('2024-01-02T00:00:00Z');
@@ -431,7 +414,7 @@ export async function runLoanBorrowerRepositoryTestSuite(
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
             principalAmount: '5000000000000000000',
             provisionAmount: '150000000000000000',
-            maxInterestRate: 15.0,
+            maxInterestRate: 0.15,
             minLtvRatio: 0.6,
             maxLtvRatio: 0.75,
             termInMonths: 6,
@@ -440,13 +423,6 @@ export async function runLoanBorrowerRepositoryTestSuite(
             collateralDepositExchangeRateId: exchangeRateId,
             appliedDate: new Date('2024-01-01T00:00:00Z'),
             expirationDate: new Date('2024-02-01T00:00:00Z'),
-            collateralInvoiceId: 102,
-            collateralInvoicePrepaidAmount: '0',
-            collateralInvoiceDate: new Date('2024-01-01T00:00:00Z'),
-            collateralInvoiceDueDate: new Date('2024-02-01T00:00:00Z'),
-            collateralInvoiceExpiredDate: new Date('2024-02-01T00:00:00Z'),
-            collateralWalletDerivationPath: "m/44'/0'/0'/0/102",
-            collateralWalletAddress: 'test-collateral-address-102',
           });
 
           const application2 = await borrowerCreatesLoanApplicationWithInvoice(repo, {
@@ -457,7 +433,7 @@ export async function runLoanBorrowerRepositoryTestSuite(
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
             principalAmount: '10000000000000000000',
             provisionAmount: '300000000000000000',
-            maxInterestRate: 18.0,
+            maxInterestRate: 0.18,
             minLtvRatio: 0.6,
             maxLtvRatio: 0.75,
             termInMonths: 12,
@@ -466,13 +442,6 @@ export async function runLoanBorrowerRepositoryTestSuite(
             collateralDepositExchangeRateId: exchangeRateId,
             appliedDate: new Date('2024-01-02T00:00:00Z'),
             expirationDate: new Date('2024-02-02T00:00:00Z'),
-            collateralInvoiceId: 103,
-            collateralInvoicePrepaidAmount: '0',
-            collateralInvoiceDate: new Date('2024-01-02T00:00:00Z'),
-            collateralInvoiceDueDate: new Date('2024-02-02T00:00:00Z'),
-            collateralInvoiceExpiredDate: new Date('2024-02-02T00:00:00Z'),
-            collateralWalletDerivationPath: "m/44'/0'/0'/0/103",
-            collateralWalletAddress: 'test-collateral-address-103',
           });
 
           // Get loan applications
@@ -548,7 +517,7 @@ export async function runLoanBorrowerRepositoryTestSuite(
             principalTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
             principalAmount: '5000000000000000000',
             provisionAmount: '150000000000000000',
-            maxInterestRate: 15.0,
+            maxInterestRate: 0.15,
             minLtvRatio: 0.6,
             maxLtvRatio: 0.75,
             termInMonths: 6,
@@ -557,13 +526,6 @@ export async function runLoanBorrowerRepositoryTestSuite(
             collateralDepositExchangeRateId: exchangeRateId,
             appliedDate: new Date('2024-01-01T00:00:00Z'),
             expirationDate: new Date('2024-02-01T00:00:00Z'),
-            collateralInvoiceId: 104,
-            collateralInvoicePrepaidAmount: '0',
-            collateralInvoiceDate: new Date('2024-01-01T00:00:00Z'),
-            collateralInvoiceDueDate: new Date('2024-02-01T00:00:00Z'),
-            collateralInvoiceExpiredDate: new Date('2024-02-01T00:00:00Z'),
-            collateralWalletDerivationPath: "m/44'/0'/0'/0/104",
-            collateralWalletAddress: 'test-collateral-address-104',
           });
 
           // Filter by PendingCollateral status

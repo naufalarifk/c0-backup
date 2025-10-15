@@ -1,13 +1,14 @@
-/** biome-ignore-all lint/suspicious/noExplicitAny: integration */
-import { env } from 'node:process';
+import { env, stdout } from 'node:process';
 
 import { createAuthClient } from 'better-auth/client';
 import { twoFactorClient } from 'better-auth/plugins/two-factor';
+import { loggedFetch } from 'test/setup/fetch.js';
 import { CookieJar, MemoryCookieStore } from 'tough-cookie';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type BetterAuthClient = ReturnType<typeof createAuthClient>;
+
 export function setupBetterAuthClient(backendUrl: string): {
-  authClient: any;
+  authClient: BetterAuthClient;
   cookieJar: CookieJar;
 } {
   const cookieJar = new CookieJar(new MemoryCookieStore(), {
@@ -28,7 +29,7 @@ export function setupBetterAuthClient(backendUrl: string): {
         if (cookie) {
           headers.set('Cookie', cookie);
         }
-        const response = await fetch(input, {
+        const response = await loggedFetch(input, {
           ...init,
           headers,
           credentials: 'include',
@@ -38,22 +39,6 @@ export function setupBetterAuthClient(backendUrl: string): {
           cookieJar.setCookieSync(cookie, response.url, {
             ignoreError: true,
           });
-        });
-        clonedResponse.text().then(function (bodyText) {
-          if (env.AUTH_CLIENT_LOGS === '1' || env.AUTH_CLIENT_LOGS === 'true') {
-            console.debug('[authClientFetch]', init?.method, response.url, {
-              status: response.status,
-              // resHeaders: Array.from(response.headers.entries()).reduce(
-              //   (acc, [key, value]) => {
-              //     acc[key] = value;
-              //     return acc;
-              //   },
-              //   {} as Record<string, string>,
-              // ),
-              reqBody: init?.body,
-              resBody: bodyText,
-            });
-          }
         });
         return response;
       },

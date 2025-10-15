@@ -7,7 +7,7 @@ import { networkInterfaces } from 'node:os';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import ms from 'ms';
+import parse from 'parse-duration';
 import invariant from 'tiny-invariant';
 
 @Injectable()
@@ -45,29 +45,27 @@ export class AppConfigService {
     return num;
   }
 
-  private getDuration(key: string, defaultValue?: string): number {
-    const value = this.configService.get<string>(key);
+  private getDuration(
+    key: string,
+    defaultValue?: Parameters<typeof parse>[0],
+    format?: Parameters<typeof parse>[1],
+  ): number {
+    const value = this.getString(key);
+    const duration = parse(value, format);
 
-    if (!value) {
-      if (defaultValue) {
-        const defaultDuration = ms(defaultValue as any) as unknown as number;
-        invariant(
-          defaultDuration !== undefined && !Number.isNaN(defaultDuration),
-          `Default duration value is invalid: ${defaultValue}`,
-        );
-        return defaultDuration;
+    if (duration === null && defaultValue) {
+      const parsedDefaultValue = parse(defaultValue, format);
+      if (!parsedDefaultValue) {
+        throw new Error(`Default value for ${key} is invalid: ${defaultValue}`);
       }
-      throw new TypeError(`Environment variable ${key} is required but not set`);
     }
-
-    const duration = ms(value as any) as unknown as number;
 
     invariant(
       duration !== undefined && !Number.isNaN(duration),
       `Environment variable ${key} must be a valid duration. Received: ${value}`,
     );
 
-    return duration;
+    return duration ?? 0;
   }
 
   private getBoolean(key: string, defaultValue?: boolean): boolean {
@@ -236,7 +234,7 @@ export class AppConfigService {
   get redisConfig(): RedisOptions {
     return {
       host: this.getString('REDIS_HOST', 'localhost'),
-      port: this.getNumber('REDIS_PORT'),
+      port: this.getNumber('REDIS_PORT', 6379),
       password: this.getString('REDIS_PASSWORD', ''),
       db: this.getNumber('REDIS_DB', 0),
       lazyConnect: true,

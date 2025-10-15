@@ -9,7 +9,7 @@ export function toLowestDenomination(value: string | number, decimals: number): 
 export function fromLowestDenomination(value: string | number, decimals: number): string {
   const bn = new BigNumber(value);
   const divisor = new BigNumber(10).pow(decimals);
-  return bn.div(divisor).toFixed();
+  return bn.div(divisor).toFixed(decimals);
 }
 
 export function getDecimalsForCurrency(tokenId: string): number {

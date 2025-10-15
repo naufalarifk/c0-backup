@@ -39,6 +39,7 @@ interface ListLoansParams {
   page: number;
   limit: number;
   role?: UserRole;
+  loanOfferId?: string;
   status?: LoanStatus;
 }
 
@@ -77,6 +78,7 @@ export class LoansService {
       const result = await this.repository.userViewsLoans({
         userId,
         role,
+        loanOfferId: params.loanOfferId,
         page: params.page,
         limit: params.limit,
         status: this.mapDtoStatusToRepository(params.status),
@@ -84,7 +86,7 @@ export class LoansService {
 
       // Map repository loans to DTO format - need to use Promise.all since calculateProvisionFee is async
       const loans = await Promise.all(
-        result.loans.map(async loan => {
+        result.loans.map(async (loan, index) => {
           // Map repository loan status to DTO status
           let dtoStatus;
           switch (loan.status) {
@@ -107,10 +109,27 @@ export class LoansService {
               dtoStatus = 'ORIGINATED';
           }
 
+          // Generate borrower number (simple sequential number based on position)
+          const borrowerNumber = String(index + 1);
+
+          // Determine repaidDate and liquidationDate based on status
+          let repaidDate: string | undefined;
+          let liquidationDate: string | undefined;
+
+          if (loan.status === 'Repaid' && loan.concludedDate) {
+            repaidDate = loan.concludedDate.toISOString();
+          } else if (
+            (loan.status === 'Liquidated' || loan.status === 'Defaulted') &&
+            loan.concludedDate
+          ) {
+            liquidationDate = loan.concludedDate.toISOString();
+          }
+
           return {
             id: loan.id,
             borrowerId: loan.borrowerUserId,
             lenderId: loan.lenderUserId,
+            loanOfferId: loan.loanOfferId,
             principalCurrency: {
               blockchainKey: loan.principalCurrency.blockchainKey,
               tokenId: loan.principalCurrency.tokenId,
@@ -137,6 +156,9 @@ export class LoansService {
             originationDate: loan.originationDate.toISOString(),
             disbursementDate: loan.disbursementDate?.toISOString(),
             maturityDate: loan.maturityDate.toISOString(),
+            repaidDate,
+            liquidationDate,
+            borrowerNumber,
             loanBreakdown: {
               principalAmount: loan.principalAmount,
               interestAmount: loan.interestAmount,
@@ -203,10 +225,24 @@ export class LoansService {
           dtoStatus = 'ORIGINATED';
       }
 
+      // Determine repaidDate and liquidationDate based on status
+      let repaidDate: string | undefined;
+      let liquidationDate: string | undefined;
+
+      if (result.status === 'Repaid' && result.concludedDate) {
+        repaidDate = result.concludedDate.toISOString();
+      } else if (
+        (result.status === 'Liquidated' || result.status === 'Defaulted') &&
+        result.concludedDate
+      ) {
+        liquidationDate = result.concludedDate.toISOString();
+      }
+
       return {
         id: result.id,
         borrowerId: result.borrowerUserId,
         lenderId: result.lenderUserId,
+        loanOfferId: result.loanOfferId,
         principalCurrency: {
           blockchainKey: result.principalCurrency.blockchainKey,
           tokenId: result.principalCurrency.tokenId,
@@ -233,6 +269,9 @@ export class LoansService {
         originationDate: result.originationDate.toISOString(),
         disbursementDate: result.disbursementDate?.toISOString(),
         maturityDate: result.maturityDate.toISOString(),
+        repaidDate,
+        liquidationDate,
+        borrowerNumber: '1', // For individual loan details, always use 1
         loanBreakdown: {
           principalAmount: result.principalAmount,
           interestAmount: result.interestAmount,

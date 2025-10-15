@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS institution_applications (
 
   -- Ministry of Law and Human Rights Approval (SK Kemenkumham)
   ministry_approval_number VARCHAR(50),
-  ministry_approval_document_path TEXT NOT NULL,
+  ministry_approval_document_path TEXT,
   ministry_approval_date DATE,
 
   -- Company Domicile Certificate (SKDP - Surat Keterangan Domisili Perusahaan) TBD

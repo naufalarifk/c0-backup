@@ -17,6 +17,7 @@ import { Throttle } from '@nestjs/throttler';
 import { Auth } from '../../decorators/auth.decorator';
 import { Session } from '../auth/auth.decorator';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
+import { RequestRefundDto } from './dto/request-refund.dto';
 import {
   WithdrawalCreatedResponseDto,
   WithdrawalRecordDto,
@@ -145,6 +146,7 @@ export class WithdrawalsController {
   }
 
   @Post(':id/refund')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Request withdrawal refund',
     description: 'Request a refund for a failed withdrawal (admin approval required)',
@@ -153,6 +155,10 @@ export class WithdrawalsController {
     name: 'id',
     description: 'Withdrawal ID',
     example: '1234',
+  })
+  @ApiBody({
+    type: RequestRefundDto,
+    description: 'Refund request data',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -167,7 +173,15 @@ export class WithdrawalsController {
     status: HttpStatus.NOT_FOUND,
     description: 'Withdrawal not found or does not belong to user',
   })
-  refund(@Param('id') id: string, @Session() session: UserSession) {
-    return this.withdrawalsService.refund(session.user.id, id);
+  @ApiResponse({
+    status: HttpStatus.UNPROCESSABLE_ENTITY,
+    description: 'Validation error - reason is required',
+  })
+  refund(
+    @Param('id') id: string,
+    @Session() session: UserSession,
+    @Body() requestRefundDto: RequestRefundDto,
+  ) {
+    return this.withdrawalsService.refund(session.user.id, id, requestRefundDto.reason);
   }
 }

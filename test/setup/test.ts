@@ -1,6 +1,6 @@
 import test from 'node:test';
 
-import { getFetchLogs } from 'test/setup/fetch.js';
+import { takeFetchLogs } from 'test/setup/fetch.js';
 
 let earlyExit = false;
 
@@ -35,9 +35,10 @@ export function after(fn: () => Promise<void>) {
     if (typeof fn === 'function') {
       await Promise.resolve(fn());
     }
-    if (earlyExit) {
+    const takenLogs = takeFetchLogs();
+    if (earlyExit && takenLogs.length > 0) {
       console.debug('Recent fetch logs:');
-      for (const log of getFetchLogs().slice(-10)) {
+      for (const log of takenLogs.slice(-10)) {
         console.debug(log);
       }
     }

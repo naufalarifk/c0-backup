@@ -165,7 +165,7 @@ export abstract class LoanUserRepository extends LoanBorrowerRepository {
   }
 
   async userViewsLoans(params: UserViewsLoansParams): Promise<UserViewsLoansResult> {
-    const { userId, role, page = 1, limit = 20, status } = params;
+    const { userId, role, loanOfferId, page = 1, limit = 20, status } = params;
 
     const validatedPage = Math.max(1, page);
     const validatedLimit = Math.min(Math.max(1, limit), 100);
@@ -178,9 +178,10 @@ export abstract class LoanUserRepository extends LoanBorrowerRepository {
       JOIN loan_applications la ON l.loan_application_id = la.id
       JOIN loan_offers lo ON l.loan_offer_id = lo.id
       WHERE (la.borrower_user_id = ${userId} OR lo.lender_user_id = ${userId})
-        AND (${role}::text IS NULL 
+        AND (${role}::text IS NULL
              OR (${role} = 'borrower' AND la.borrower_user_id = ${userId})
              OR (${role} = 'lender' AND lo.lender_user_id = ${userId}))
+        AND (${loanOfferId}::text IS NULL OR l.loan_offer_id = ${loanOfferId})
         AND (${status}::text IS NULL OR l.status = ${status})
     `;
 
@@ -191,7 +192,7 @@ export abstract class LoanUserRepository extends LoanBorrowerRepository {
 
     // Get loans with details
     const loanRows = await this.sql`
-      SELECT 
+      SELECT
         l.id,
         l.loan_offer_id,
         l.loan_application_id,
@@ -228,9 +229,10 @@ export abstract class LoanUserRepository extends LoanBorrowerRepository {
       JOIN currencies cc ON l.collateral_currency_blockchain_key = cc.blockchain_key
         AND l.collateral_currency_token_id = cc.token_id
       WHERE (la.borrower_user_id = ${userId} OR lo.lender_user_id = ${userId})
-        AND (${role}::text IS NULL 
+        AND (${role}::text IS NULL
              OR (${role} = 'borrower' AND la.borrower_user_id = ${userId})
              OR (${role} = 'lender' AND lo.lender_user_id = ${userId}))
+        AND (${loanOfferId}::text IS NULL OR l.loan_offer_id = ${loanOfferId})
         AND (${status}::text IS NULL OR l.status = ${status})
       ORDER BY l.origination_date DESC
       LIMIT ${validatedLimit}

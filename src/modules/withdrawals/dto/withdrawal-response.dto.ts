@@ -99,8 +99,8 @@ export class WithdrawalBlockchainDto {
 }
 
 export class WithdrawalBeneficiaryDto {
-  @ApiProperty({ example: '301' })
-  id: string;
+  @ApiProperty({ example: 301 })
+  id: number;
 
   @ApiProperty({ example: 'eip155:56' })
   blockchainKey: string;
@@ -125,8 +125,8 @@ export class WithdrawalBeneficiaryDto {
 }
 
 export class WithdrawalRecordDto {
-  @ApiProperty({ example: '501' })
-  id: string;
+  @ApiProperty({ example: 501 })
+  id: number;
 
   @ApiProperty({ type: WithdrawalCurrencyDto })
   currency: WithdrawalCurrencyDto;
@@ -254,6 +254,12 @@ export class WithdrawalValidationResponseDto {
 }
 
 export class WithdrawalRefundRequestResponseDto {
+  @ApiProperty({
+    description: 'Success indicator',
+    example: true,
+  })
+  success: boolean;
+
   @ApiProperty({
     description: 'Success message',
     example: 'Refund request submitted successfully. Admin approval required.',

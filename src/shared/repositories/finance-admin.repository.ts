@@ -33,6 +33,7 @@ export abstract class FinanceAdminRepository extends FinanceUserRepsitory {
         UPDATE withdrawals
         SET failure_refund_reviewer_user_id = ${reviewerUserId},
             failure_refund_approved_date = ${approvalDate.toISOString()},
+            failure_refund_requested_date = ${approvalDate.toISOString()},
             status = 'RefundApproved'
         WHERE id = ${withdrawalId} AND status = 'Failed'
         RETURNING id, status, failure_refund_approved_date

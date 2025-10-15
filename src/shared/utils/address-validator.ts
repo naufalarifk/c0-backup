@@ -8,12 +8,13 @@ import { isAddress } from 'viem';
 export class AddressValidator {
   /**
    * Validate Ethereum/EVM addresses (Ethereum, BSC, etc.)
-   * Uses viem's isAddress with built-in checksum validation
+   * Uses viem's isAddress - accepts addresses in any case (lowercase, uppercase, or checksummed)
    */
   static validateEthereumAddress(address: string): boolean {
     try {
-      // isAddress with default strict=true includes checksum validation
-      return isAddress(address);
+      // Normalize to lowercase to bypass checksum validation
+      // This allows users to input addresses in any case
+      return isAddress(address.toLowerCase());
     } catch {
       return false;
     }

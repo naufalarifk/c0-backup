@@ -29,6 +29,7 @@ import { AuthGuard } from '../../auth/auth.guard';
 import { ErrorResponseDto } from '../dto/common.dto';
 import {
   CreateLoanApplicationDto,
+  LoanApplicationDetailResponseDto,
   LoanApplicationListResponseDto,
   LoanApplicationResponseDto,
   LoanCalculationRequestDto,
@@ -289,13 +290,14 @@ export class LoanApplicationsController {
   @Get(':id')
   @ApiOperation({
     summary: 'Get loan application details',
-    description: 'Retrieve detailed information about a specific loan application',
+    description:
+      'Retrieve detailed information about a specific loan application with calculations',
   })
   @ApiParam({ name: 'id', type: String, description: 'Loan application ID' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Loan application details',
-    type: LoanApplicationResponseDto,
+    type: LoanApplicationDetailResponseDto,
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -304,9 +306,9 @@ export class LoanApplicationsController {
   })
   async getLoanApplicationById(
     @Param('id') id: string,
-  ): Promise<{ success: boolean; data: LoanApplicationResponseDto }> {
+  ): Promise<{ success: boolean; data: LoanApplicationDetailResponseDto }> {
     this.logger.log(`Fetching loan application details for id: ${id}`);
-    const application = await this.loanApplicationsService.getLoanApplicationById(id);
+    const application = await this.loanApplicationsService.getLoanApplicationDetailById(id);
     return { success: true, data: application };
   }
 }

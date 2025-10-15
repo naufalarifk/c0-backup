@@ -73,6 +73,13 @@ export class LoanResponseDto {
   lenderId: string;
 
   @ApiProperty({
+    description: 'Loan offer identifier',
+    example: 'loan_offer_12345',
+  })
+  @IsString()
+  loanOfferId: string;
+
+  @ApiProperty({
     description: 'Principal currency details',
     type: CurrencyDto,
   })
@@ -186,6 +193,29 @@ export class LoanResponseDto {
   @IsOptional()
   @IsDateString()
   liquidationDate?: string;
+
+  @ApiProperty({
+    description: 'Borrower number for display purposes',
+    example: '1',
+  })
+  @IsString()
+  borrowerNumber: string;
+
+  @ApiPropertyOptional({
+    description: 'Borrower name',
+    example: 'John Doe',
+  })
+  @IsOptional()
+  @IsString()
+  borrowerName?: string;
+
+  @ApiPropertyOptional({
+    description: 'Borrower profile picture URL',
+    example: 'https://example.com/profile.jpg',
+  })
+  @IsOptional()
+  @IsString()
+  profilePictureUrl?: string;
 
   @ApiPropertyOptional({
     description: 'Repayment invoice details',

@@ -141,7 +141,7 @@ describe('Admin Configuration API', function () {
 
       // Update with valid new values
       const updateData = {
-        loanProvisionRate: 0.04, // 4%
+        loanProvisionRate: 0.5, // 50%
         loanIndividualRedeliveryFeeRate: 0.12, // 12%
         loanInstitutionRedeliveryFeeRate: 0.03, // 3%
         loanMinLtvRatio: 0.65, // 65%
@@ -169,7 +169,7 @@ describe('Admin Configuration API', function () {
       // Verify response structure matches updated settings
       assertPropString(config, 'effectiveDate');
       assertPropNumber(config, 'adminUserId');
-      assertPropDefined(config, 'adminUserName');
+      ok('adminUserName' in config, 'adminUserName should be present');
       assertPropNumber(config, 'loanProvisionRate');
       assertPropNumber(config, 'loanIndividualRedeliveryFeeRate');
       assertPropNumber(config, 'loanInstitutionRedeliveryFeeRate');
@@ -180,6 +180,7 @@ describe('Admin Configuration API', function () {
       assertPropNumber(config, 'loanLiquidationPremiRate');
       assertPropNumber(config, 'loanLiquidationFeeRate');
 
+      // Verify admin user information
       strictEqual(
         config.adminUserId,
         Number(adminUser.id),

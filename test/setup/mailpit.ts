@@ -342,3 +342,90 @@ export async function waitForPasswordResetEmail(mailpitApiUrl: string, receiver:
 
   throw new Error(`Password reset email not found for ${receiver} after ${maxRetries} attempts`);
 }
+
+export async function waitForBeneficiaryVerificationEmail(
+  mailpitApiUrl: string,
+  receiver: string,
+  afterTimestamp?: number,
+) {
+  const maxRetries = 30;
+  const retryDelay = 500;
+  const receiverLower = receiver.toLowerCase();
+  const searchAfter = afterTimestamp || Date.now() - 1000; // Default to 1 second ago
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const listResponse = await fetch(`${mailpitApiUrl}/api/v1/messages`);
+    if (listResponse.status !== 200) {
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+      continue;
+    }
+
+    const listJson = (await listResponse.json()) as unknown;
+    const listData = parseMailpitListResponse(listJson);
+    if (!listData) {
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+      continue;
+    }
+
+    // Find the most recent beneficiary verification email for this receiver AFTER the specified timestamp
+    const candidate = listData.messages
+      .filter(
+        message =>
+          message.To?.some(to => to.Address?.toLowerCase() === receiverLower) &&
+          (message as { Subject?: string }).Subject?.toLowerCase().includes(
+            'verify your withdrawal',
+          ) &&
+          (message.Created ? new Date(message.Created).getTime() >= searchAfter : false),
+      )
+      .sort((a, b) => {
+        const createdA = a.Created ? new Date(a.Created).getTime() : 0;
+        const createdB = b.Created ? new Date(b.Created).getTime() : 0;
+        const timeDiff = createdB - createdA;
+        // If timestamps are the same or very close, use message ID as tiebreaker
+        if (Math.abs(timeDiff) < 100) {
+          return b.ID.localeCompare(a.ID);
+        }
+        return timeDiff;
+      })[0];
+
+    if (candidate) {
+      const fullResponse = await fetch(`${mailpitApiUrl}/api/v1/message/${candidate.ID}`);
+      if (fullResponse.status !== 200) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        continue;
+      }
+
+      const messageJson = (await fullResponse.json()) as unknown;
+      const message = validateMailpitMessage(messageJson);
+      if (message) {
+        const emailText = message.Text ?? 'EMPTY_TEXT_BODY';
+        const emailHtml = message.HTML ?? 'EMPTY_HTML_BODY';
+
+        // Extract verification link from text or HTML
+        const extractedVerificationLink =
+          emailText.match(/https?:\/\/[^\s]+/g)?.[0] ||
+          emailHtml.match(/https?:\/\/[^"'\s>]+/g)?.[0] ||
+          'INVALID';
+
+        ok(
+          extractedVerificationLink !== 'INVALID',
+          `Failed to extract beneficiary verification link from email. Email text: ${emailText}. Email HTML: ${emailHtml}`,
+        );
+
+        return {
+          verificationLink: extractedVerificationLink,
+          emailText,
+          emailHtml,
+        };
+      }
+    }
+
+    if (attempt < maxRetries) {
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
+  }
+
+  throw new Error(
+    `Beneficiary verification email not found for ${receiver} after ${maxRetries} attempts`,
+  );
+}

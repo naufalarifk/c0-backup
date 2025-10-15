@@ -88,7 +88,7 @@ export class WithdrawalsService {
 
     // 5. Beneficiary validation (check ownership)
     const { beneficiaries } = await this.repo.userViewsWithdrawalBeneficiaries({ userId: user.id });
-    const beneficiary = beneficiaries.find(b => b.id === createWithdrawalDto.beneficiaryId);
+    const beneficiary = beneficiaries.find(b => b.id === Number(createWithdrawalDto.beneficiaryId));
     ensureExists(beneficiary, 'Withdrawal address not found. Please add it first');
 
     // 6. Amount limits validation (min/max withdrawal amounts)
@@ -227,7 +227,11 @@ export class WithdrawalsService {
     return withdrawal;
   }
 
-  async refund(userId: string, withdrawalId: string): Promise<WithdrawalRefundRequestResponseDto> {
+  async refund(
+    userId: string,
+    withdrawalId: string,
+    reason: string,
+  ): Promise<WithdrawalRefundRequestResponseDto> {
     // Check if withdrawal exists and belongs to user
     const { withdrawal } = await this.repo.userViewsWithdrawalDetails({
       userId,
@@ -253,6 +257,7 @@ export class WithdrawalsService {
     });
 
     return {
+      success: true,
       message: 'Refund request submitted successfully. Admin approval required.',
       withdrawalId,
       status: 'RefundRequested',
