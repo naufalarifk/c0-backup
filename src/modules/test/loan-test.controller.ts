@@ -22,7 +22,6 @@ import {
 import { Auth } from '../../decorators/auth.decorator';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
-import { LoanMatcherQueueService } from '../loan-matcher/loan-matcher-queue.service';
 import { LoansService } from '../loans/services/loans.service';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
 
@@ -34,7 +33,6 @@ export class LoanTestController {
   constructor(
     private readonly repo: CryptogadaiRepository,
     private readonly loansService: LoansService,
-    private readonly loanMatcherQueue: LoanMatcherQueueService,
     private readonly notificationQueueService: NotificationQueueService,
   ) {}
 
@@ -77,12 +75,9 @@ export class LoanTestController {
       publishedDate: paymentDate,
     });
 
-    try {
-      await this.loanMatcherQueue.queueMatchingForNewOffer(loanOfferId);
-      this.#logger.debug(`Queued loan matching for newly published loan offer ${loanOfferId}`);
-    } catch (error) {
-      this.#logger.warn(`Failed to queue loan matching for offer ${loanOfferId}:`, error);
-    }
+    // Note: Loan matching will be triggered automatically by the hourly cron scheduler
+    // or can be manually triggered via admin API at /admin/loan-matcher/trigger
+    this.#logger.log(`Loan offer ${loanOfferId} published - will be matched by scheduler`);
 
     return {
       success: true,
@@ -230,17 +225,11 @@ export class LoanTestController {
       publishedDate: paymentDate,
     });
 
-    try {
-      await this.loanMatcherQueue.queueMatchingForNewApplication(loanApplicationId);
-      this.#logger.debug(
-        `Queued loan matching for newly published loan application ${loanApplicationId}`,
-      );
-    } catch (error) {
-      this.#logger.warn(
-        `Failed to queue loan matching for application ${loanApplicationId}:`,
-        error,
-      );
-    }
+    // Note: Loan matching will be triggered automatically by the hourly cron scheduler
+    // or can be manually triggered via admin API at /admin/loan-matcher/trigger
+    this.#logger.log(
+      `Loan application ${loanApplicationId} published - will be matched by scheduler`,
+    );
 
     return {
       success: true,
@@ -558,32 +547,23 @@ export class LoanTestController {
 
     const { targetApplicationId, targetOfferId, batchSize = 50 } = body;
 
-    if (targetApplicationId) {
-      await this.loanMatcherQueue.queueMatchingForNewApplication(targetApplicationId);
-      this.#logger.debug(`Queued loan matching for application ${targetApplicationId}`);
-      return {
-        success: true,
-        message: `Queued loan matching for application ${targetApplicationId}`,
-        targetApplicationId,
-      };
-    }
+    // NOTE: This test endpoint is deprecated.
+    // Loan matching is now handled by the cron scheduler (runs hourly)
+    // or can be manually triggered via admin API at /admin/loan-matcher/trigger
+    //
+    // The queue-based approach has been replaced with a scheduler-based approach
+    // for consistency with the settlement module.
 
-    if (targetOfferId) {
-      await this.loanMatcherQueue.queueMatchingForNewOffer(targetOfferId);
-      this.#logger.debug(`Queued loan matching for offer ${targetOfferId}`);
-      return {
-        success: true,
-        message: `Queued loan matching for offer ${targetOfferId}`,
-        targetOfferId,
-      };
-    }
+    this.#logger.log(
+      'Loan matching trigger test endpoint called - matching is now handled by scheduler',
+    );
 
-    await this.loanMatcherQueue.queuePeriodicMatching(batchSize);
-    this.#logger.debug(`Queued periodic loan matching with batch size ${batchSize}`);
     return {
-      success: true,
-      message: `Queued periodic loan matching with batch size ${batchSize}`,
-      batchSize,
+      success: false,
+      message:
+        'This endpoint is deprecated. Use /admin/loan-matcher/trigger for manual matching or wait for the hourly cron job.',
+      note: 'Loan matching runs automatically every hour via cron scheduler',
+      adminEndpoint: '/admin/loan-matcher/trigger',
     };
   }
 }

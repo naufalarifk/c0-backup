@@ -3,7 +3,7 @@ import type {
   CompatibleLoanOffer,
   LenderMatchingCriteria,
   MatchableLoanApplication,
-} from '../loan-matcher.types';
+} from '../types/loan-matcher.types';
 
 import { Injectable, Logger } from '@nestjs/common';
 
@@ -15,7 +15,7 @@ import {
   LoanMatcherStrategy,
   MatcherStrategy,
   MatcherStrategyType,
-} from '../loan-matcher-strategy.abstract';
+} from './loan-matcher-strategy.abstract';
 
 @Injectable()
 @MatcherStrategy(MatcherStrategyType.Enhanced)

@@ -2,12 +2,12 @@ import type {
   BorrowerMatchingCriteria,
   LenderMatchingCriteria,
   MatchableLoanApplication,
-} from '../loan-matcher.types';
+} from '../../types/loan-matcher.types';
 
 import assert from 'node:assert';
 import { after, before, describe, it } from 'node:test';
 
-import { InMemoryCryptogadaiRepository } from '../../../shared/repositories/in-memory-cryptogadai.repository';
+import { InMemoryCryptogadaiRepository } from '../../../../shared/repositories/in-memory-cryptogadai.repository';
 import { EnhancedLoanMatcherStrategy } from './enhanced-loan-matcher.strategy';
 
 /**

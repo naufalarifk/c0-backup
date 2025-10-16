@@ -6,19 +6,19 @@ import type {
   LoanMatchingWorkerData,
   MatchableLoanApplication,
   MatchedLoanPair,
-} from './loan-matcher.types';
+} from '../types/loan-matcher.types';
 
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 
 import { assertDefined, assertProp, check, isNumber, isString } from 'typeshaper';
 
-import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
-import { TelemetryLogger } from '../../shared/telemetry.logger';
-import { LoanCalculationService } from '../loans/services/loan-calculation.service';
-import { LoansService } from '../loans/services/loans.service';
-import { NotificationQueueService } from '../notifications/notification-queue.service';
-import { MatcherStrategyType } from './loan-matcher-strategy.abstract';
-import { LoanMatcherStrategyFactory } from './loan-matcher-strategy.factory';
+import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../../shared/telemetry.logger';
+import { LoanCalculationService } from '../../loans/services/loan-calculation.service';
+import { LoansService } from '../../loans/services/loans.service';
+import { NotificationQueueService } from '../../notifications/notification-queue.service';
+import { MatcherStrategyType } from '../strategies/loan-matcher-strategy.abstract';
+import { LoanMatcherStrategyFactory } from '../strategies/loan-matcher-strategy.factory';
 
 @Injectable()
 export class LoanMatcherService {

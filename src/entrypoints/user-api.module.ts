@@ -9,6 +9,7 @@ import { AuthModule } from '../modules/auth/auth.module';
 import { BeneficiariesModule } from '../modules/beneficiaries/beneficiaries.module';
 import { FinanceConfigModule } from '../modules/finance-config/finance-config.module';
 import { InstitutionsModule } from '../modules/institutions/institutions.module';
+import { LoanMatcherAdminModule } from '../modules/loan-matcher/admin/loan-matcher-admin.module';
 import { LoanMatcherModule } from '../modules/loan-matcher/loan-matcher.module';
 import { LoansModule } from './../modules/loans/loans.module';
 import { NotificationModule } from '../modules/notifications/notification.module';
@@ -51,6 +52,7 @@ import { SharedModule } from '../shared/shared.module';
     SmsModule,
     LoansModule,
     LoanMatcherModule,
+    LoanMatcherAdminModule,
     AdminModule,
     SettlementAdminModule,
     SettlementModule,
