@@ -41,7 +41,7 @@ suite('User Withdrawal Feature', function () {
 
   describe('POST /api/withdrawals', function () {
     let withdrawalUser: TestUser;
-    let beneficiaryId: number;
+    let beneficiaryId: string;
 
     before(async function () {
       withdrawalUser = await createTestUser({
@@ -78,7 +78,7 @@ suite('User Withdrawal Feature', function () {
 
       const beneficiaryData = await beneficiaryResponse.json();
       assertDefined(beneficiaryData);
-      assertPropDefined(beneficiaryData, 'beneficiaryId');
+      assertPropString(beneficiaryData, 'beneficiaryId');
       beneficiaryId = beneficiaryData.beneficiaryId;
 
       // Set up account balance using test endpoint
@@ -226,7 +226,7 @@ suite('User Withdrawal Feature', function () {
 
   describe('GET /api/withdrawals', function () {
     let listWithdrawalUser: TestUser;
-    let listBeneficiaryId: number;
+    let listBeneficiaryId: string;
     const withdrawalIds: number[] = [];
 
     before(async function () {
@@ -264,7 +264,7 @@ suite('User Withdrawal Feature', function () {
 
       const beneficiaryData = await beneficiaryResponse.json();
       assertDefined(beneficiaryData);
-      assertPropDefined(beneficiaryData, 'beneficiaryId');
+      assertPropString(beneficiaryData, 'beneficiaryId');
       listBeneficiaryId = beneficiaryData.beneficiaryId;
 
       // Set up account balance
@@ -303,7 +303,7 @@ suite('User Withdrawal Feature', function () {
 
         const withdrawalData = await withdrawalResponse.json();
         assertDefined(withdrawalData);
-        assertPropDefined(withdrawalData, 'withdrawalId');
+        assertPropNumber(withdrawalData, 'withdrawalId');
         withdrawalIds.push(withdrawalData.withdrawalId);
       }
     });
@@ -447,7 +447,7 @@ suite('User Withdrawal Feature', function () {
 
   describe('GET /api/withdrawals/{withdrawalId}', function () {
     let detailWithdrawalUser: TestUser;
-    let detailBeneficiaryId: number;
+    let detailBeneficiaryId: string;
     let detailWithdrawalId: number;
 
     before(async function () {
@@ -485,7 +485,7 @@ suite('User Withdrawal Feature', function () {
 
       const beneficiaryData = await beneficiaryResponse.json();
       assertDefined(beneficiaryData);
-      assertPropDefined(beneficiaryData, 'beneficiaryId');
+      assertPropString(beneficiaryData, 'beneficiaryId');
       detailBeneficiaryId = beneficiaryData.beneficiaryId;
 
       // Set up account balance
@@ -523,7 +523,7 @@ suite('User Withdrawal Feature', function () {
 
       const withdrawalData = await withdrawalResponse.json();
       assertDefined(withdrawalData);
-      assertPropDefined(withdrawalData, 'withdrawalId');
+      assertPropNumber(withdrawalData, 'withdrawalId');
       detailWithdrawalId = withdrawalData.withdrawalId;
     });
 
@@ -587,7 +587,7 @@ suite('User Withdrawal Feature', function () {
       assertPropDefined(beneficiary, 'isActive');
       assertPropDefined(beneficiary, 'blockchain');
 
-      strictEqual(beneficiary.id, detailBeneficiaryId, 'Beneficiary ID should match');
+      strictEqual(beneficiary.id, Number(detailBeneficiaryId), 'Beneficiary ID should match');
 
       // Verify date is valid
       ok(
@@ -611,7 +611,7 @@ suite('User Withdrawal Feature', function () {
 
   describe('POST /api/withdrawals/{withdrawalId}/refund', function () {
     let refundUser: TestUser;
-    let refundBeneficiaryId: number;
+    let refundBeneficiaryId: string;
     let failedWithdrawalId: number;
 
     before(async function () {
@@ -646,7 +646,7 @@ suite('User Withdrawal Feature', function () {
 
       const beneficiaryData = await beneficiaryResponse.json();
       assertDefined(beneficiaryData);
-      assertPropDefined(beneficiaryData, 'beneficiaryId');
+      assertPropString(beneficiaryData, 'beneficiaryId');
       refundBeneficiaryId = beneficiaryData.beneficiaryId;
 
       // Set up account balance
@@ -681,7 +681,7 @@ suite('User Withdrawal Feature', function () {
 
       const withdrawalData = await withdrawalResponse.json();
       assertDefined(withdrawalData);
-      assertPropDefined(withdrawalData, 'withdrawalId');
+      assertPropNumber(withdrawalData, 'withdrawalId');
       failedWithdrawalId = withdrawalData.withdrawalId;
 
       // Mark withdrawal as failed using admin test endpoint

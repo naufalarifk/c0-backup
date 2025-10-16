@@ -47,23 +47,7 @@ export class AdminTestController {
     };
   }
 
-  @Get('test-admin-view-pending-kycs')
-  async viewPendingKycs() {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Test endpoints are not available in production');
-    }
-
-    const pendingKycs = await this.repo.adminViewsPendingKYCs();
-
-    this.#logger.debug('Pending KYCs:', pendingKycs);
-
-    return {
-      success: true,
-      pendingKycs,
-    };
-  }
-
-  @Post('test-admin-kyc-approve-by-email')
+  @Post('admin-approves-kyc-by-email')
   async approveKycByEmail(@Body() body: { email: string }) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('Test endpoints are not available in production');
@@ -110,7 +94,7 @@ export class AdminTestController {
     };
   }
 
-  @Post('test-admin-kyc-reject-by-email')
+  @Post('admin-rejects-kyc-by-email')
   async rejectKycByEmail(@Body() body: { email: string; reason: string }) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('Test endpoints are not available in production');
@@ -161,7 +145,7 @@ export class AdminTestController {
     };
   }
 
-  @Post('query-institution-application')
+  @Post('institution-applications')
   async queryInstitutionApplication(@Body() body: { email: string }) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('Test endpoints are not available in production');
@@ -191,7 +175,7 @@ export class AdminTestController {
     };
   }
 
-  @Post('test-admin-institution-approve-by-email')
+  @Post('user-approves-institution-by-email')
   async approveInstitutionByEmail(@Body() body: { email: string }) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('Test endpoints are not available in production');
@@ -243,7 +227,7 @@ export class AdminTestController {
     };
   }
 
-  @Post('test-admin-institution-reject-by-email')
+  @Post('user-rejects-institution-by-email')
   async rejectInstitutionByEmail(@Body() body: { email: string; reason: string }) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('Test endpoints are not available in production');

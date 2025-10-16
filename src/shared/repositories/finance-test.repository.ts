@@ -36,7 +36,7 @@ export abstract class FinanceTestRepository extends FinancePlatformRepository {
     const tx = await this.beginTransaction();
     try {
       const rows = await this.sql`
-        INSERT INTO user_accounts (
+        INSERT INTO accounts (
           user_id,
           currency_blockchain_key,
           currency_token_id,

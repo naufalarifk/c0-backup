@@ -167,7 +167,7 @@ export interface UserRegistersWithdrawalBeneficiaryParams {
 }
 
 export interface UserRegistersWithdrawalBeneficiaryResult {
-  id: string;
+  id: number;
   userId: string;
   blockchainKey: string;
   address: string;
@@ -634,6 +634,17 @@ export interface UpdateWithdrawalStatusParams {
 export interface UpdateWithdrawalStatusResult {
   id: string;
   status: string;
+}
+
+export interface PlatformMakesWithdrawalFailureRefundRequestParams {
+  withdrawalId: string;
+  refundRequestDate: Date;
+}
+
+export interface PlatformMakesWithdrawalFailureRefundRequestResult {
+  id: string;
+  status: string;
+  failureRefundRequestedDate: Date;
 }
 
 // Finance Configuration Types

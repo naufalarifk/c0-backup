@@ -79,7 +79,7 @@ export class AccountingTestController {
 		`;
 
     await this.repo.sql`
-			INSERT INTO user_accounts (
+			INSERT INTO accounts (
 				user_id,
 				currency_blockchain_key,
 				currency_token_id,
@@ -216,7 +216,7 @@ export class AccountingTestController {
 			`;
 
       await this.repo.sql`
-				INSERT INTO user_accounts (
+				INSERT INTO accounts (
 					user_id,
 					currency_blockchain_key,
 					currency_token_id,

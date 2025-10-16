@@ -19,6 +19,8 @@ import {
   PlatformConfirmsWithdrawalResult,
   PlatformFailsWithdrawalParams,
   PlatformFailsWithdrawalResult,
+  PlatformMakesWithdrawalFailureRefundRequestParams,
+  PlatformMakesWithdrawalFailureRefundRequestResult,
   PlatformRetrievesProvisionRateResult,
   PlatformSendsWithdrawalParams,
   PlatformSendsWithdrawalResult,
@@ -466,5 +468,43 @@ export abstract class FinancePlatformRepository extends FinanceAdminRepository {
 
     const result = updateRows[0] as { id: string; status: string };
     return { id: result.id, status: result.status };
+  }
+
+  async platformMakesWithdrawalFailureRefundRequest(
+    params: PlatformMakesWithdrawalFailureRefundRequestParams,
+  ): Promise<PlatformMakesWithdrawalFailureRefundRequestResult> {
+    const { withdrawalId, refundRequestDate } = params;
+
+    const tx = await this.beginTransaction();
+    try {
+      const rows = await tx.sql`
+        UPDATE withdrawals
+        SET failure_refund_requested_date = ${refundRequestDate.toISOString()},
+            status = 'RefundRequested'
+        WHERE id = ${withdrawalId} AND status = 'Failed'
+        RETURNING id, status, failure_refund_requested_date
+      `;
+
+      if (rows.length === 0) {
+        throw new Error('Withdrawal not found or cannot request refund');
+      }
+
+      const withdrawal = rows[0];
+      assertDefined(withdrawal, 'Withdrawal not found or update failed');
+      assertProp(check(isString, isNumber), withdrawal, 'id');
+      assertPropString(withdrawal, 'status');
+      assertProp(isInstanceOf(Date), withdrawal, 'failure_refund_requested_date');
+
+      await tx.commitTransaction();
+
+      return {
+        id: String(withdrawal.id),
+        status: withdrawal.status,
+        failureRefundRequestedDate: withdrawal.failure_refund_requested_date,
+      };
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
+    }
   }
 }

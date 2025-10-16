@@ -44,26 +44,26 @@ describe('Loan Match with Realtime Events', function () {
 
   it('match loan offer and loan application', async function () {
     const [lenderRealtimeClient, borrowerRealtimeClient] = await Promise.all([
-      lender.connectRealtimeClient(['notification.created'], { timeout: 20000 }),
-      borrower.connectRealtimeClient(['notification.created'], { timeout: 20000 }),
+      lender.connectRealtimeClient(['notification.created'], { timeout: 10000 }),
+      borrower.connectRealtimeClient(['notification.created'], { timeout: 10000 }),
     ]);
 
     await Promise.all([
-      setupLoanOffer(lender),
-      setupLoanApplication(borrower),
+      setupLoanOffer(testSetup, lender),
+      setupLoanApplication(testSetup, borrower),
       lenderRealtimeClient.waitForEvent(
         function (message) {
           assertPropString(message.data, 'type');
           return message.data.type === 'LoanOfferMatched';
         },
-        { timeout: 15000 },
+        { timeout: 10000 },
       ),
       borrowerRealtimeClient.waitForEvent(
         function (message) {
           assertPropString(message.data, 'type');
           return message.data.type === 'LoanApplicationMatched';
         },
-        { timeout: 15000 },
+        { timeout: 10000 },
       ),
     ]);
 
@@ -93,7 +93,10 @@ describe('Loan Match with Realtime Events', function () {
   });
 });
 
-async function setupLoanOffer(lender: Awaited<ReturnType<typeof createTestUser>>) {
+async function setupLoanOffer(
+  testSetup: Awaited<ReturnType<typeof setup>>,
+  lender: Awaited<ReturnType<typeof createTestUser>>,
+) {
   const loanOfferParams = {
     principalBlockchainKey: 'cg:testnet',
     principalTokenId: 'mock:usd',
@@ -167,7 +170,7 @@ async function setupLoanOffer(lender: Awaited<ReturnType<typeof createTestUser>>
       ['notification.created', 'loan.status.changed', 'loan.offer.updated'],
       { timeout: 10000 },
     ),
-    lender.fetch('/api/currencies').then(r => r.json()),
+    lender.fetch('/api/currencies?type=loan').then(r => r.json()),
   ]);
 
   assertDefined(currenciesData);
@@ -209,14 +212,17 @@ async function setupLoanOffer(lender: Awaited<ReturnType<typeof createTestUser>>
         assertPropString(message.data, 'type');
         return message.data.type === 'LoanOfferPublished';
       },
-      { timeout: 5000 },
+      { timeout: 10000 },
     ),
   ]);
 
   lenderRealtimeClient.disconnect();
 }
 
-async function setupLoanApplication(borrower: Awaited<ReturnType<typeof createTestUser>>) {
+async function setupLoanApplication(
+  testSetup: Awaited<ReturnType<typeof setup>>,
+  borrower: Awaited<ReturnType<typeof createTestUser>>,
+) {
   const loanApplicationParams = {
     collateralBlockchainKey: 'cg:testnet',
     collateralTokenId: 'mock:native',
@@ -289,7 +295,7 @@ async function setupLoanApplication(borrower: Awaited<ReturnType<typeof createTe
     borrower.connectRealtimeClient(['notification.created', 'loan.status.changed'], {
       timeout: 10000,
     }),
-    borrower.fetch('/api/currencies').then(r => r.json()),
+    borrower.fetch('/api/currencies?type=collateral').then(r => r.json()),
   ]);
 
   assertDefined(currenciesData);
@@ -331,7 +337,7 @@ async function setupLoanApplication(borrower: Awaited<ReturnType<typeof createTe
         assertPropString(message.data, 'type');
         return message.data.type === 'LoanApplicationPublished';
       },
-      { timeout: 5000 },
+      { timeout: 10000 },
     ),
   ]);
 

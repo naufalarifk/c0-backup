@@ -63,7 +63,7 @@ export abstract class FinanceUserRepsitory extends UserRepository {
         er.retrieval_date AS "rateDate",
         pf.source AS "rateSource",
         qc.decimals AS "quoteCurrencyDecimals"
-      FROM user_accounts a
+      FROM accounts a
       JOIN currencies c ON a.currency_blockchain_key = c.blockchain_key
         AND a.currency_token_id = c.token_id
       LEFT JOIN LATERAL (
@@ -363,7 +363,7 @@ export abstract class FinanceUserRepsitory extends UserRepository {
         assertPropString(row, 'blockchainKey');
         assertPropString(row, 'address');
 
-        setPropValue(row, 'id', String(row.id));
+        setPropValue(row, 'id', Number(row.id));
         setPropValue(row, 'userId', String(row.userId));
         return row;
       });
@@ -747,9 +747,12 @@ export abstract class FinanceUserRepsitory extends UserRepository {
       SELECT
         w.id,
         w.beneficiary_id AS "beneficiaryId",
-        b.address AS "beneficiaryAddress",
-        b.blockchain_key AS "beneficiaryBlockchainKey",
-        b.user_id AS "beneficiaryUserId",
+  b.address AS "beneficiaryAddress",
+  b.blockchain_key AS "beneficiaryBlockchainKey",
+  b.user_id AS "beneficiaryUserId",
+  b.label AS "beneficiaryLabel",
+  b.created_date AS "beneficiaryCreatedDate",
+  b.verified_date AS "beneficiaryVerifiedDate",
         w.currency_blockchain_key AS "currencyBlockchainKey",
         w.currency_token_id AS "currencyTokenId",
         c.symbol AS "currencySymbol",
@@ -788,6 +791,9 @@ export abstract class FinanceUserRepsitory extends UserRepository {
       assertPropString(row, 'beneficiaryAddress');
       assertPropString(row, 'beneficiaryBlockchainKey');
       assertProp(check(isString, isNumber), row, 'beneficiaryUserId');
+      assertPropNullableString(row, 'beneficiaryLabel');
+      assertProp(isInstanceOf(Date), row, 'beneficiaryCreatedDate');
+      assertProp(check(isNullable, isInstanceOf(Date)), row, 'beneficiaryVerifiedDate');
       assertPropString(row, 'currencyBlockchainKey');
       assertPropString(row, 'currencyTokenId');
       assertPropString(row, 'currencySymbol');
@@ -871,10 +877,10 @@ export abstract class FinanceUserRepsitory extends UserRepository {
           id: Number(row.beneficiaryId),
           blockchainKey: row.beneficiaryBlockchainKey,
           address: row.beneficiaryAddress,
-          label: undefined,
-          createdDate: row.requestDate,
-          verifiedDate: row.requestDate,
-          isActive: true,
+          label: row.beneficiaryLabel || undefined,
+          createdDate: row.beneficiaryCreatedDate,
+          verifiedDate: row.beneficiaryVerifiedDate || undefined,
+          isActive: row.beneficiaryVerifiedDate !== null,
           blockchain: {
             key: row.beneficiaryBlockchainKey,
             name: row.blockchainName || row.beneficiaryBlockchainKey,
