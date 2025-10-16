@@ -1,10 +1,10 @@
-import type { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import type { CryptogadaiRepository } from '../../../../shared/repositories/cryptogadai.repository';
 import type {
   BorrowerMatchingCriteria,
   CompatibleLoanOffer,
   LenderMatchingCriteria,
   MatchableLoanApplication,
-} from './loan-matcher.types';
+} from '../../loan-matcher.types';
 
 import { DiscoveryService } from '@nestjs/core';
 

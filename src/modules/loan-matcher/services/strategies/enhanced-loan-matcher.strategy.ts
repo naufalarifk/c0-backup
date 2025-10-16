@@ -3,19 +3,19 @@ import type {
   CompatibleLoanOffer,
   LenderMatchingCriteria,
   MatchableLoanApplication,
-} from '../loan-matcher.types';
+} from '../../loan-matcher.types';
 
 import { Injectable, Logger } from '@nestjs/common';
 
 import invariant from 'tiny-invariant';
 
-import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
-import { TelemetryLogger } from '../../../shared/telemetry.logger';
+import { CryptogadaiRepository } from '../../../../shared/repositories/cryptogadai.repository';
+import { TelemetryLogger } from '../../../../shared/telemetry.logger';
 import {
   LoanMatcherStrategy,
   MatcherStrategy,
   MatcherStrategyType,
-} from '../loan-matcher-strategy.abstract';
+} from './loan-matcher-strategy.abstract';
 
 @Injectable()
 @MatcherStrategy(MatcherStrategyType.Enhanced)

@@ -12,7 +12,6 @@ import {
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
-import { LoanMatcherQueueService } from '../loan-matcher/loan-matcher-queue.service';
 import { LoanCalculationService } from '../loans/services/loan-calculation.service';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
 
@@ -30,7 +29,6 @@ export class InvoicePaymentService {
   constructor(
     @Inject(CryptogadaiRepository) private readonly repository: CryptogadaiRepository,
     private readonly notificationQueue: NotificationQueueService,
-    private readonly loanMatcherQueue: LoanMatcherQueueService,
     private readonly loanCalculationService: LoanCalculationService,
   ) {}
 
@@ -133,9 +131,9 @@ export class InvoicePaymentService {
 
       this.logger.log(`Queued LoanOfferPublished notification for loan offer ${loanOffer.id}`);
 
-      // Queue loan matching for the newly published offer
-      await this.loanMatcherQueue.queueMatchingForNewOffer(String(loanOffer.id));
-      this.logger.log(`Queued loan matching for newly published loan offer ${loanOffer.id}`);
+      // Note: Loan matching will be triggered automatically by the hourly cron scheduler
+      // or can be manually triggered via admin API at /admin/loan-matcher/trigger
+      this.logger.log(`Loan offer ${loanOffer.id} published - will be matched by scheduler`);
     } catch (error) {
       this.logger.error('Failed to check and notify loan offer published:', error);
       // Don't throw, as this is a notification failure, not a payment processing failure
@@ -211,10 +209,10 @@ export class InvoicePaymentService {
         `Queued LoanApplicationPublished notification for loan application ${loanApplication.id}`,
       );
 
-      // Queue loan matching for the newly published application
-      await this.loanMatcherQueue.queueMatchingForNewApplication(String(loanApplication.id));
+      // Note: Loan matching will be triggered automatically by the hourly cron scheduler
+      // or can be manually triggered via admin API at /admin/loan-matcher/trigger
       this.logger.log(
-        `Queued loan matching for newly published loan application ${loanApplication.id}`,
+        `Loan application ${loanApplication.id} published - will be matched by scheduler`,
       );
     } catch (error) {
       this.logger.error('Failed to check and notify loan application published:', error);

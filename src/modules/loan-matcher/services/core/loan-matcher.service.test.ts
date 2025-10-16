@@ -3,8 +3,11 @@ import { beforeEach, describe, it, mock } from 'node:test';
 
 import { Test, type TestingModule } from '@nestjs/testing';
 
-import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
-import { NotificationQueueService } from '../notifications/notification-queue.service';
+import { CryptogadaiRepository } from '../../../../shared/repositories/cryptogadai.repository';
+import { LoanCalculationService } from '../../../loans/services/loan-calculation.service';
+import { LoansService } from '../../../loans/services/loans.service';
+import { NotificationQueueService } from '../../../notifications/notification-queue.service';
+import { LoanMatcherStrategyFactory } from '../strategies/loan-matcher-strategy.factory';
 import { LoanMatcherService } from './loan-matcher.service';
 
 interface MockRepository {
@@ -54,6 +57,29 @@ describe('LoanMatcherService - Unit Tests', () => {
         {
           provide: NotificationQueueService,
           useValue: mockNotificationQueueService,
+        },
+        {
+          provide: LoanMatcherStrategyFactory,
+          useValue: {
+            getStrategy: mock.fn(() => ({
+              canHandle: () => false,
+              findCompatibleOffers: mock.fn(() => Promise.resolve([])),
+              getDescription: () => 'Mock Strategy',
+            })),
+          },
+        },
+        {
+          provide: LoansService,
+          useValue: {
+            originateLoan: mock.fn(() => Promise.resolve({ loanId: '123' })),
+            disburseLoan: mock.fn(() => Promise.resolve()),
+          },
+        },
+        {
+          provide: LoanCalculationService,
+          useValue: {
+            calculateLoanTerms: mock.fn(() => Promise.resolve({})),
+          },
         },
       ],
     }).compile();
