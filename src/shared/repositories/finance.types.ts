@@ -644,3 +644,21 @@ export interface UserViewsBlockchainsParams {
 export interface UserViewsBlockchainsResult {
   blockchains: Blockchain[];
 }
+
+// Test Balance Adjustment Types
+export interface PlatformAdjustsAccountBalanceForTestingParams {
+  userId: string;
+  currencyBlockchainKey: string;
+  currencyTokenId: string;
+  amount: string;
+  mutationDate?: Date;
+}
+
+export interface PlatformAdjustsAccountBalanceForTestingResult {
+  accountId: string;
+  userId: string;
+  currencyBlockchainKey: string;
+  currencyTokenId: string;
+  balance: string;
+  accountType: string;
+}

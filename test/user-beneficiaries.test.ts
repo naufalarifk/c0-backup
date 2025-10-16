@@ -1,4 +1,4 @@
-import { deepStrictEqual, doesNotReject, ok, rejects, strictEqual } from 'node:assert/strict';
+import { deepStrictEqual, doesNotReject, equal, ok, rejects } from 'node:assert/strict';
 
 import {
   assertArray,
@@ -39,56 +39,375 @@ suite('User Beneficiaries Feature', function () {
     await testSetup.teardown();
   });
 
-  describe('GET /api/beneficiaries', function () {
-    it('should reject if not authenticated', async function () {
-      const response = await fetch(`${testSetup.backendUrl}/api/beneficiaries`);
-      strictEqual(response.status, 401, 'Unauthenticated requests should be rejected');
+  describe('POST /api/beneficiaries', function () {
+    let createBeneficiaryUser: TestUser;
+
+    before(async function () {
+      createBeneficiaryUser = await createTestUser({
+        testId,
+        testSetup,
+        email: `beneficiary_create_${testId}@test.com`,
+        userType: 'Individual',
+      });
+
+      // Mark user as KYC verified for testing
+      const kycResponse = await createBeneficiaryUser.fetch(
+        '/api/test/mark-kyc-verified-by-email',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: createBeneficiaryUser.email,
+          }),
+        },
+      );
+
+      ok(kycResponse.ok, 'KYC verification should succeed');
     });
 
-    it('should return empty array when user has no beneficiaries', async function () {
-      const response = await testUser.fetch('/api/beneficiaries');
-      strictEqual(response.status, 200, 'Should successfully retrieve beneficiaries');
+    it('should reject if not authenticated', async function () {
+      const response = await fetch(`${testSetup.backendUrl}/api/beneficiaries`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blockchainKey: 'eip155:56',
+          address: '0x1234567890123456789012345678901234567890',
+        }),
+      });
+      equal(response.status, 401, 'Unauthenticated requests should be rejected');
+    });
+
+    it('should reject if user KYC is not verified', async function () {
+      const nonKycUser = await createTestUser({
+        testId: `${testId}_non_kyc`,
+        testSetup,
+        email: `non_kyc_${testId}@test.com`,
+        userType: 'Individual',
+      });
+
+      const response = await nonKycUser.fetch('/api/beneficiaries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blockchainKey: 'eip155:56',
+          address: '0x1234567890123456789012345678901234567890',
+        }),
+      });
+
+      equal(response.status, 412, 'Should reject beneficiary creation when KYC is not verified');
+
+      const errorData = await response.json();
+      assertDefined(errorData);
+      assertPropDefined(errorData, 'success');
+      equal(errorData.success, false);
+    });
+
+    it('should create beneficiary successfully', async function () {
+      const response = await createBeneficiaryUser.fetch('/api/beneficiaries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blockchainKey: 'eip155:56',
+          address: '0x1234567890AbcdEF1234567890aBcdef12345678',
+        }),
+      });
+
+      equal(response.status, 201, 'Should send verification email');
 
       const responseData = await response.json();
       assertDefined(responseData);
       assertPropDefined(responseData, 'success');
-      strictEqual(responseData.success, true, 'Response should indicate success');
+      equal(responseData.success, true);
 
       assertPropDefined(responseData, 'data');
       const data = responseData.data;
-      assertPropArray(data, 'beneficiaries');
-      strictEqual(data.beneficiaries.length, 0, 'Should return empty array for new user');
+      assertPropString(data, 'address');
+      assertPropString(data, 'blockchain');
+
+      equal(data.blockchain, 'eip155:56');
+      equal(data.address, '0x1234567890AbcdEF1234567890aBcdef12345678');
     });
 
-    it('should list beneficiaries for authenticated user', async function () {
-      // Create a beneficiary using test endpoint
-      const createBeneficiaryResponse = await testUser.fetch(
+    it('should create beneficiary on Ethereum network', async function () {
+      const response = await createBeneficiaryUser.fetch('/api/beneficiaries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blockchainKey: 'eip155:1',
+          address: '0x8ba1f109551bd432803012645aa136ba40b34567',
+        }),
+      });
+
+      equal(response.status, 201, 'Should send verification email');
+
+      const responseData = await response.json();
+      assertDefined(responseData);
+      assertPropDefined(responseData, 'data');
+      assertPropString(responseData.data, 'blockchain');
+      assertPropString(responseData.data, 'address');
+      equal(responseData.data.blockchain, 'eip155:1');
+    });
+
+    it('should validate required fields', async function () {
+      const validationUser = await createTestUser({
+        testId: `${testId}_validation`,
+        testSetup,
+        email: `validation_${testId}@test.com`,
+        userType: 'Individual',
+      });
+
+      await validationUser.fetch('/api/test/mark-kyc-verified-by-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: validationUser.email }),
+      });
+
+      const response = await validationUser.fetch('/api/beneficiaries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      equal(response.status, 422, 'Should return validation error');
+
+      const errorData = await response.json();
+      assertDefined(errorData);
+      assertPropDefined(errorData, 'success');
+      equal(errorData.success, false);
+    });
+
+    it('should validate blockchainKey format', async function () {
+      const response = await createBeneficiaryUser.fetch('/api/beneficiaries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blockchainKey: 'invalid-blockchain',
+          address: '0x1234567890123456789012345678901234567890',
+        }),
+      });
+
+      equal(response.status, 422, 'Should validate blockchain key format');
+    });
+
+    it('should validate address is not empty', async function () {
+      const response = await createBeneficiaryUser.fetch('/api/beneficiaries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blockchainKey: 'eip155:56',
+          address: '',
+        }),
+      });
+
+      equal(response.status, 422, 'Should reject empty address');
+    });
+
+    it('should prevent duplicate beneficiary addresses', async function () {
+      const duplicateAddress = '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed';
+
+      // Create first beneficiary using test endpoint to ensure it exists in database
+      const firstResponse = await createBeneficiaryUser.fetch(
         '/api/test/create-beneficiary-by-email',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            email: testUser.email,
+            email: createBeneficiaryUser.email,
             blockchainKey: 'eip155:56',
-            address: '0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567',
+            address: duplicateAddress,
           }),
         },
       );
-      ok(createBeneficiaryResponse.ok, 'Beneficiary creation should succeed');
 
-      // List beneficiaries
-      const response = await testUser.fetch('/api/beneficiaries');
-      strictEqual(response.status, 200, 'Should successfully retrieve beneficiaries');
+      ok(firstResponse.ok, 'First beneficiary should be created');
+
+      // Try to create duplicate via normal endpoint
+      const duplicateResponse = await createBeneficiaryUser.fetch('/api/beneficiaries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blockchainKey: 'eip155:56',
+          address: duplicateAddress,
+        }),
+      });
+
+      equal(
+        duplicateResponse.status,
+        409,
+        'Should reject duplicate beneficiary with Conflict status',
+      );
+
+      const errorData = await duplicateResponse.json();
+      assertDefined(errorData);
+      assertPropDefined(errorData, 'success');
+      equal(errorData.success, false);
+    });
+
+    it('should allow same address on different blockchains', async function () {
+      const sameAddress = '0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359';
+
+      // Create on BSC
+      const bscResponse = await createBeneficiaryUser.fetch('/api/beneficiaries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blockchainKey: 'eip155:56',
+          address: sameAddress,
+        }),
+      });
+
+      equal(bscResponse.status, 201, 'BSC beneficiary verification email should be sent');
+
+      // Create same address on Ethereum
+      const ethResponse = await createBeneficiaryUser.fetch('/api/beneficiaries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blockchainKey: 'eip155:1',
+          address: sameAddress,
+        }),
+      });
+
+      equal(ethResponse.status, 201, 'Same address on different blockchain should be allowed');
+    });
+
+    it('should handle blockchain that does not exist', async function () {
+      const response = await createBeneficiaryUser.fetch('/api/beneficiaries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blockchainKey: 'nonexistent:999',
+          address: '0x1234567890123456789012345678901234567890',
+        }),
+      });
+
+      equal(response.status, 422, 'Should reject non-existent blockchain');
+    });
+
+    it('should reject Ethereum zero address', async function () {
+      const response = await createBeneficiaryUser.fetch('/api/beneficiaries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blockchainKey: 'eip155:56',
+          address: '0x0000000000000000000000000000000000000000',
+        }),
+      });
+
+      equal(response.status, 400, 'Should reject zero address');
+
+      const errorData = await response.json();
+      assertDefined(errorData);
+      assertPropDefined(errorData, 'success');
+      equal(errorData.success, false);
+    });
+
+    it('should reject Ethereum burn address', async function () {
+      const response = await createBeneficiaryUser.fetch('/api/beneficiaries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blockchainKey: 'eip155:56',
+          address: '0x000000000000000000000000000000000000dEaD',
+        }),
+      });
+
+      equal(response.status, 400, 'Should reject burn address');
+
+      const errorData = await response.json();
+      assertDefined(errorData);
+      assertPropDefined(errorData, 'success');
+      equal(errorData.success, false);
+    });
+
+    it('should reject Solana burn address', async function () {
+      // NOTE: Current implementation does NOT reject Solana burn addresses
+      // This is a potential security issue that should be addressed
+      // For now, the test reflects the actual API behavior
+      const response = await createBeneficiaryUser.fetch('/api/beneficiaries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blockchainKey: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          address: '11111111111111111111111111111111',
+        }),
+      });
+
+      // Currently accepts Solana burn address (should be 400 when fixed)
+      equal(response.status, 201, 'Currently accepts Solana burn address');
 
       const responseData = await response.json();
       assertDefined(responseData);
       assertPropDefined(responseData, 'success');
-      strictEqual(responseData.success, true);
+      equal(responseData.success, true);
+    });
+
+    it('should set createdDate to current time', async function () {
+      const response = await createBeneficiaryUser.fetch('/api/beneficiaries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blockchainKey: 'eip155:56',
+          address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        }),
+      });
+
+      equal(response.status, 201, 'Should send verification email');
+
+      const responseData = await response.json();
+      assertDefined(responseData);
+      assertPropDefined(responseData, 'success');
+      equal(responseData.success, true);
+    });
+  });
+
+  describe('GET /api/beneficiaries', function () {
+    it('should reject if not authenticated', async function () {
+      const response = await fetch(`${testSetup.backendUrl}/api/beneficiaries`);
+      equal(response.status, 401, 'Unauthenticated requests should be rejected');
+    });
+
+    it('should return empty array when user has no beneficiaries', async function () {
+      const response = await testUser.fetch('/api/beneficiaries');
+      equal(response.status, 200, 'Should successfully retrieve beneficiaries');
+
+      const responseData = await response.json();
+      assertDefined(responseData);
+      assertPropDefined(responseData, 'success');
+      equal(responseData.success, true, 'Response should indicate success');
 
       assertPropDefined(responseData, 'data');
       const data = responseData.data;
       assertPropArray(data, 'beneficiaries');
-      strictEqual(data.beneficiaries.length, 1, 'Should have exactly one beneficiary from setup');
+      equal(data.beneficiaries.length, 0, 'Should return empty array for new user');
+    });
+
+    it('should list beneficiaries for authenticated user', async function () {
+      // Create a beneficiary using test endpoint
+      const createBeneficiaryResp = await testUser.fetch('/api/test/create-beneficiary-by-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: testUser.email,
+          blockchainKey: 'eip155:56',
+          address: '0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567',
+        }),
+      });
+      ok(createBeneficiaryResp.ok, 'Beneficiary creation should succeed');
+
+      // List beneficiaries
+      const response = await testUser.fetch('/api/beneficiaries');
+      equal(response.status, 200, 'Should successfully retrieve beneficiaries');
+
+      const responseData = await response.json();
+      assertDefined(responseData);
+      assertPropDefined(responseData, 'success');
+      equal(responseData.success, true);
+
+      assertPropDefined(responseData, 'data');
+      const data = responseData.data;
+      assertPropArray(data, 'beneficiaries');
+      equal(data.beneficiaries.length, 1, 'Should have exactly one beneficiary from setup');
 
       // Verify beneficiary structure
       const beneficiary = data.beneficiaries[0];
@@ -109,8 +428,8 @@ suite('User Beneficiaries Feature', function () {
       assertPropString(blockchain, 'shortName');
       assertPropString(blockchain, 'image');
 
-      strictEqual(beneficiary.blockchainKey, 'eip155:56', 'Should match created blockchain key');
-      strictEqual(
+      equal(beneficiary.blockchainKey, 'eip155:56', 'Should match created blockchain key');
+      equal(
         beneficiary.address,
         '0x742d35Cc6634C0532925a3b8D5c9B0E1e1234567',
         'Should match created address',
@@ -157,7 +476,7 @@ suite('User Beneficiaries Feature', function () {
 
       // Filter by BSC blockchain
       const response = await filterTestUser.fetch('/api/beneficiaries?blockchainKey=eip155:56');
-      strictEqual(response.status, 200, 'Should successfully filter beneficiaries');
+      equal(response.status, 200, 'Should successfully filter beneficiaries');
 
       const responseData = await response.json();
       assertDefined(responseData);
@@ -165,23 +484,19 @@ suite('User Beneficiaries Feature', function () {
       assertPropArray(responseData.data, 'beneficiaries');
 
       const beneficiaries = responseData.data.beneficiaries;
-      strictEqual(beneficiaries.length, 1, 'Should have exactly one BSC beneficiary from setup');
+      equal(beneficiaries.length, 1, 'Should have exactly one BSC beneficiary from setup');
 
       // Verify all beneficiaries are on BSC
       for (const beneficiary of beneficiaries) {
         assertDefined(beneficiary);
         assertPropString(beneficiary, 'blockchainKey');
-        strictEqual(
-          beneficiary.blockchainKey,
-          'eip155:56',
-          'All beneficiaries should be on BSC network',
-        );
+        equal(beneficiary.blockchainKey, 'eip155:56', 'All beneficiaries should be on BSC network');
       }
     });
 
     it('should include verification status in beneficiary data', async function () {
       const response = await testUser.fetch('/api/beneficiaries');
-      strictEqual(response.status, 200);
+      equal(response.status, 200);
 
       const responseData = await response.json();
       assertDefined(responseData);
@@ -196,343 +511,9 @@ suite('User Beneficiaries Feature', function () {
 
         // isActive should be false if not verified
         if (beneficiary.verifiedDate === null) {
-          strictEqual(beneficiary.isActive, false, 'Unverified beneficiary should not be active');
+          equal(beneficiary.isActive, false, 'Unverified beneficiary should not be active');
         }
       }
-    });
-  });
-
-  describe('POST /api/beneficiaries', function () {
-    let createBeneficiaryUser: TestUser;
-
-    before(async function () {
-      createBeneficiaryUser = await createTestUser({
-        testId,
-        testSetup,
-        email: `beneficiary_create_${testId}@test.com`,
-        userType: 'Individual',
-      });
-
-      // Mark user as KYC verified for testing
-      const kycResponse = await createBeneficiaryUser.fetch(
-        '/api/test/mark-kyc-verified-by-email',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: createBeneficiaryUser.email,
-          }),
-        },
-      );
-
-      ok(kycResponse.ok, 'KYC verification should succeed');
-    });
-
-    it('should reject if not authenticated', async function () {
-      const response = await fetch(`${testSetup.backendUrl}/api/beneficiaries`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          blockchainKey: 'eip155:56',
-          address: '0x1234567890123456789012345678901234567890',
-        }),
-      });
-      strictEqual(response.status, 401, 'Unauthenticated requests should be rejected');
-    });
-
-    it('should reject if user KYC is not verified', async function () {
-      // Create a user without KYC verification
-      const nonKycUser = await createTestUser({
-        testId: `${testId}_non_kyc`,
-        testSetup,
-        email: `non_kyc_${testId}@test.com`,
-        userType: 'Individual',
-      });
-
-      // Attempt to create beneficiary without KYC
-      const response = await nonKycUser.fetch('/api/beneficiaries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          blockchainKey: 'eip155:56',
-          address: '0x1234567890123456789012345678901234567890',
-        }),
-      });
-
-      strictEqual(
-        response.status,
-        412,
-        'Should reject beneficiary creation when KYC is not verified',
-      );
-
-      const errorData = await response.json();
-      assertDefined(errorData);
-      assertPropDefined(errorData, 'success');
-      strictEqual(errorData.success, false);
-    });
-
-    it('should create beneficiary successfully', async function () {
-      const response = await createBeneficiaryUser.fetch('/api/beneficiaries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          blockchainKey: 'eip155:56',
-          address: '0x1234567890AbcdEF1234567890aBcdef12345678',
-        }),
-      });
-
-      strictEqual(response.status, 201, 'Should send verification email');
-
-      const responseData = await response.json();
-      assertDefined(responseData);
-      assertPropDefined(responseData, 'success');
-      strictEqual(responseData.success, true);
-
-      assertPropDefined(responseData, 'data');
-      const data = responseData.data;
-      assertPropString(data, 'address');
-      assertPropString(data, 'blockchain');
-
-      strictEqual(data.blockchain, 'eip155:56');
-      strictEqual(data.address, '0x1234567890AbcdEF1234567890aBcdef12345678');
-    });
-
-    it('should create beneficiary on Ethereum network', async function () {
-      const response = await createBeneficiaryUser.fetch('/api/beneficiaries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          blockchainKey: 'eip155:1',
-          address: '0x8ba1f109551bd432803012645aa136ba40b34567',
-        }),
-      });
-
-      strictEqual(response.status, 201, 'Should send verification email');
-
-      const responseData = await response.json();
-      assertDefined(responseData);
-      assertPropDefined(responseData, 'data');
-      assertPropString(responseData.data, 'blockchain');
-      assertPropString(responseData.data, 'address');
-      strictEqual(responseData.data.blockchain, 'eip155:1');
-    });
-
-    it('should validate required fields', async function () {
-      // Create a separate user to avoid rate limiting
-      const validationUser = await createTestUser({
-        testId: `${testId}_validation`,
-        testSetup,
-        email: `validation_${testId}@test.com`,
-        userType: 'Individual',
-      });
-
-      // Mark user as KYC verified
-      await validationUser.fetch('/api/test/mark-kyc-verified-by-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: validationUser.email }),
-      });
-
-      const response = await validationUser.fetch('/api/beneficiaries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-
-      strictEqual(response.status, 422, 'Should return validation error');
-
-      const errorData = await response.json();
-      assertDefined(errorData);
-      assertPropDefined(errorData, 'success');
-      strictEqual(errorData.success, false);
-    });
-
-    it('should validate blockchainKey format', async function () {
-      const response = await createBeneficiaryUser.fetch('/api/beneficiaries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          blockchainKey: 'invalid-blockchain',
-          address: '0x1234567890123456789012345678901234567890',
-        }),
-      });
-
-      strictEqual(response.status, 422, 'Should validate blockchain key format');
-    });
-
-    it('should validate address is not empty', async function () {
-      const response = await createBeneficiaryUser.fetch('/api/beneficiaries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          blockchainKey: 'eip155:56',
-          address: '',
-        }),
-      });
-
-      strictEqual(response.status, 422, 'Should reject empty address');
-    });
-
-    it('should prevent duplicate beneficiary addresses', async function () {
-      const duplicateAddress = '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed';
-
-      // Create first beneficiary using test endpoint to ensure it exists in database
-      const firstResponse = await createBeneficiaryUser.fetch(
-        '/api/test/create-beneficiary-by-email',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: createBeneficiaryUser.email,
-            blockchainKey: 'eip155:56',
-            address: duplicateAddress,
-          }),
-        },
-      );
-
-      ok(firstResponse.ok, 'First beneficiary should be created');
-
-      // Try to create duplicate via normal endpoint
-      const duplicateResponse = await createBeneficiaryUser.fetch('/api/beneficiaries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          blockchainKey: 'eip155:56',
-          address: duplicateAddress,
-        }),
-      });
-
-      strictEqual(
-        duplicateResponse.status,
-        409,
-        'Should reject duplicate beneficiary with Conflict status',
-      );
-
-      const errorData = await duplicateResponse.json();
-      assertDefined(errorData);
-      assertPropDefined(errorData, 'success');
-      strictEqual(errorData.success, false);
-    });
-
-    it('should allow same address on different blockchains', async function () {
-      const sameAddress = '0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359';
-
-      // Create on BSC
-      const bscResponse = await createBeneficiaryUser.fetch('/api/beneficiaries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          blockchainKey: 'eip155:56',
-          address: sameAddress,
-        }),
-      });
-
-      strictEqual(bscResponse.status, 201, 'BSC beneficiary verification email should be sent');
-
-      // Create same address on Ethereum
-      const ethResponse = await createBeneficiaryUser.fetch('/api/beneficiaries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          blockchainKey: 'eip155:1',
-          address: sameAddress,
-        }),
-      });
-
-      strictEqual(
-        ethResponse.status,
-        201,
-        'Same address on different blockchain should be allowed',
-      );
-    });
-
-    it('should handle blockchain that does not exist', async function () {
-      const response = await createBeneficiaryUser.fetch('/api/beneficiaries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          blockchainKey: 'nonexistent:999',
-          address: '0x1234567890123456789012345678901234567890',
-        }),
-      });
-
-      strictEqual(response.status, 422, 'Should reject non-existent blockchain');
-    });
-
-    it('should reject Ethereum zero address', async function () {
-      const response = await createBeneficiaryUser.fetch('/api/beneficiaries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          blockchainKey: 'eip155:56',
-          address: '0x0000000000000000000000000000000000000000',
-        }),
-      });
-
-      strictEqual(response.status, 400, 'Should reject zero address');
-
-      const errorData = await response.json();
-      assertDefined(errorData);
-      assertPropDefined(errorData, 'success');
-      strictEqual(errorData.success, false);
-    });
-
-    it('should reject Ethereum burn address', async function () {
-      const response = await createBeneficiaryUser.fetch('/api/beneficiaries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          blockchainKey: 'eip155:56',
-          address: '0x000000000000000000000000000000000000dEaD',
-        }),
-      });
-
-      strictEqual(response.status, 400, 'Should reject burn address');
-
-      const errorData = await response.json();
-      assertDefined(errorData);
-      assertPropDefined(errorData, 'success');
-      strictEqual(errorData.success, false);
-    });
-
-    it('should reject Solana burn address', async function () {
-      // NOTE: Current implementation does NOT reject Solana burn addresses
-      // This is a potential security issue that should be addressed
-      // For now, the test reflects the actual API behavior
-      const response = await createBeneficiaryUser.fetch('/api/beneficiaries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          blockchainKey: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-          address: '11111111111111111111111111111111',
-        }),
-      });
-
-      // Currently accepts Solana burn address (should be 400 when fixed)
-      strictEqual(response.status, 201, 'Currently accepts Solana burn address');
-
-      const responseData = await response.json();
-      assertDefined(responseData);
-      assertPropDefined(responseData, 'success');
-      strictEqual(responseData.success, true);
-    });
-
-    it('should set createdDate to current time', async function () {
-      const response = await createBeneficiaryUser.fetch('/api/beneficiaries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          blockchainKey: 'eip155:56',
-          address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-        }),
-      });
-
-      strictEqual(response.status, 201, 'Should send verification email');
-
-      const responseData = await response.json();
-      assertDefined(responseData);
-      assertPropDefined(responseData, 'success');
-      strictEqual(responseData.success, true);
     });
   });
 
@@ -569,12 +550,12 @@ suite('User Beneficiaries Feature', function () {
         }),
       });
 
-      strictEqual(createResponse.status, 201, 'Should send verification email');
+      equal(createResponse.status, 201, 'Should send verification email');
 
       const createData = await createResponse.json();
       assertDefined(createData);
       assertPropDefined(createData, 'success');
-      strictEqual(createData.success, true);
+      equal(createData.success, true);
       assertPropDefined(createData, 'data');
       assertPropString(createData.data, 'address');
       assertPropString(createData.data, 'blockchain');
@@ -607,12 +588,12 @@ suite('User Beneficiaries Feature', function () {
         }),
       });
 
-      strictEqual(createResponse.status, 201);
+      equal(createResponse.status, 201);
 
       const createData = await createResponse.json();
       assertDefined(createData);
       assertPropDefined(createData, 'success');
-      strictEqual(createData.success, true);
+      equal(createData.success, true);
 
       // Get verification email
       const emailData = await waitForBeneficiaryVerificationEmail(
@@ -625,7 +606,7 @@ suite('User Beneficiaries Feature', function () {
         redirect: 'manual',
       });
 
-      strictEqual(
+      equal(
         verifyResponse.status,
         302,
         'Verification should redirect after successful verification',
@@ -642,7 +623,7 @@ suite('User Beneficiaries Feature', function () {
 
       // Verify beneficiary is now active
       const listResponse = await verificationUser.fetch('/api/beneficiaries');
-      strictEqual(listResponse.status, 200);
+      equal(listResponse.status, 200);
 
       const listData = await listResponse.json();
       assertDefined(listData);
@@ -657,7 +638,7 @@ suite('User Beneficiaries Feature', function () {
       assertPropDefined(verifiedBeneficiary, 'isActive');
 
       ok(verifiedBeneficiary.verifiedDate !== null, 'Beneficiary should have verified date');
-      strictEqual(verifiedBeneficiary.isActive, true, 'Verified beneficiary should be active');
+      equal(verifiedBeneficiary.isActive, true, 'Verified beneficiary should be active');
     });
 
     it('should reject verification with invalid token', async function () {
@@ -668,11 +649,7 @@ suite('User Beneficiaries Feature', function () {
         redirect: 'manual',
       });
 
-      strictEqual(
-        verifyResponse.status,
-        302,
-        'Should redirect even with invalid token (error redirect)',
-      );
+      equal(verifyResponse.status, 302, 'Should redirect even with invalid token (error redirect)');
 
       const redirectLocation = verifyResponse.headers.get('location');
       assertDefined(redirectLocation);
@@ -693,12 +670,12 @@ suite('User Beneficiaries Feature', function () {
         }),
       });
 
-      strictEqual(createResponse.status, 201, 'Should send verification email');
+      equal(createResponse.status, 201, 'Should send verification email');
 
       const createData = await createResponse.json();
       assertDefined(createData);
       assertPropDefined(createData, 'success');
-      strictEqual(createData.success, true);
+      equal(createData.success, true);
 
       // Get verification email
       const emailData = await waitForBeneficiaryVerificationEmail(
@@ -711,7 +688,7 @@ suite('User Beneficiaries Feature', function () {
         redirect: 'manual',
       });
 
-      strictEqual(firstVerifyResponse.status, 302, 'First verification should succeed');
+      equal(firstVerifyResponse.status, 302, 'First verification should succeed');
 
       const firstRedirect = firstVerifyResponse.headers.get('location');
       assertDefined(firstRedirect);
@@ -727,7 +704,7 @@ suite('User Beneficiaries Feature', function () {
         redirect: 'manual',
       });
 
-      strictEqual(
+      equal(
         secondVerifyResponse.status,
         302,
         'Second verification should also redirect (already verified case)',
@@ -745,7 +722,7 @@ suite('User Beneficiaries Feature', function () {
 
       // Verify beneficiary is still active
       const listResponse = await verificationUser.fetch('/api/beneficiaries');
-      strictEqual(listResponse.status, 200);
+      equal(listResponse.status, 200);
 
       const listData = await listResponse.json();
       assertDefined(listData);
@@ -758,7 +735,7 @@ suite('User Beneficiaries Feature', function () {
       assertDefined(beneficiary);
       assertPropDefined(beneficiary, 'isActive');
 
-      strictEqual(
+      equal(
         beneficiary.isActive,
         true,
         'Beneficiary should remain active after duplicate verification attempt',
@@ -777,12 +754,12 @@ suite('User Beneficiaries Feature', function () {
         }),
       });
 
-      strictEqual(createResponse.status, 201, 'Should send verification email');
+      equal(createResponse.status, 201, 'Should send verification email');
 
       const createData = await createResponse.json();
       assertDefined(createData);
       assertPropDefined(createData, 'success');
-      strictEqual(createData.success, true);
+      equal(createData.success, true);
 
       // Verify email was sent
       const emailData = await waitForBeneficiaryVerificationEmail(
@@ -798,7 +775,7 @@ suite('User Beneficiaries Feature', function () {
 
       // List beneficiaries - the unverified beneficiary should NOT appear in the list
       const listResponse = await verificationUser.fetch('/api/beneficiaries');
-      strictEqual(listResponse.status, 200);
+      equal(listResponse.status, 200);
 
       const listData = await listResponse.json();
       assertDefined(listData);
@@ -812,7 +789,7 @@ suite('User Beneficiaries Feature', function () {
           b.address.toLowerCase() === '0x32Be343B94f860124dC4fEe278FDCBD38C102D88'.toLowerCase(),
       );
 
-      strictEqual(
+      equal(
         unverifiedBeneficiary,
         undefined,
         'Unverified beneficiary should not appear in the list before email verification',
@@ -836,7 +813,7 @@ suite('User Beneficiaries Feature', function () {
         }),
       });
 
-      strictEqual(createResponse.status, 201, 'Should send verification email');
+      equal(createResponse.status, 201, 'Should send verification email');
 
       // Get verification email sent after beforeCreate timestamp
       const emailData = await waitForBeneficiaryVerificationEmail(
@@ -857,7 +834,7 @@ suite('User Beneficiaries Feature', function () {
         redirect: 'manual',
       });
 
-      strictEqual(verifyResponse.status, 302);
+      equal(verifyResponse.status, 302);
 
       const redirectLocation = verifyResponse.headers.get('location');
       assertDefined(redirectLocation);
@@ -896,7 +873,7 @@ suite('User Beneficiaries Feature', function () {
         body: 'invalid-json',
       });
 
-      strictEqual(response.status, 400, 'Should reject malformed JSON');
+      equal(response.status, 400, 'Should reject malformed JSON');
     });
 
     it('should reject request with missing Content-Type header', async function () {
@@ -926,7 +903,7 @@ suite('User Beneficiaries Feature', function () {
         }),
       });
 
-      strictEqual(response.status, 422, 'Should reject excessively long blockchain key');
+      equal(response.status, 422, 'Should reject excessively long blockchain key');
     });
 
     it('should handle very long address', async function () {
@@ -941,7 +918,7 @@ suite('User Beneficiaries Feature', function () {
         }),
       });
 
-      strictEqual(response.status, 422, 'Should reject excessively long address');
+      equal(response.status, 422, 'Should reject excessively long address');
     });
 
     it('should handle whitespace-only address', async function () {
@@ -954,7 +931,7 @@ suite('User Beneficiaries Feature', function () {
         }),
       });
 
-      strictEqual(response.status, 422, 'Should reject whitespace-only address');
+      equal(response.status, 422, 'Should reject whitespace-only address');
     });
 
     it('should trim whitespace from address', async function () {
@@ -970,15 +947,15 @@ suite('User Beneficiaries Feature', function () {
         }),
       });
 
-      strictEqual(response.status, 201, 'Should accept address with whitespace and trim it');
+      equal(response.status, 201, 'Should accept address with whitespace and trim it');
 
       const responseData = await response.json();
       assertDefined(responseData);
       assertPropDefined(responseData, 'success');
-      strictEqual(responseData.success, true);
+      equal(responseData.success, true);
       assertPropDefined(responseData, 'data');
       assertPropString(responseData.data, 'address');
-      strictEqual(
+      equal(
         responseData.data.address,
         expectedTrimmedAddress,
         'Address should be trimmed to remove leading/trailing whitespace',
@@ -1023,12 +1000,12 @@ suite('User Beneficiaries Feature', function () {
         }),
       });
 
-      strictEqual(createResponse.status, 201, 'Should send verification email');
+      equal(createResponse.status, 201, 'Should send verification email');
 
       const createData = await createResponse.json();
       assertDefined(createData);
       assertPropDefined(createData, 'success');
-      strictEqual(createData.success, true);
+      equal(createData.success, true);
 
       // Verify the beneficiary and check label is preserved
       const emailData = await waitForBeneficiaryVerificationEmail(
@@ -1041,17 +1018,17 @@ suite('User Beneficiaries Feature', function () {
         redirect: 'manual',
       });
 
-      strictEqual(verifyResponse.status, 302, 'Verification should succeed');
+      equal(verifyResponse.status, 302, 'Verification should succeed');
 
       // List beneficiaries and verify label is present
       const listResponse = await labelTestUser.fetch('/api/beneficiaries');
-      strictEqual(listResponse.status, 200);
+      equal(listResponse.status, 200);
 
       const listData = await listResponse.json();
       assertDefined(listData);
       assertPropDefined(listData, 'data');
       assertPropArray(listData.data, 'beneficiaries');
-      strictEqual(listData.data.beneficiaries.length, 1, 'Should have exactly one beneficiary');
+      equal(listData.data.beneficiaries.length, 1, 'Should have exactly one beneficiary');
 
       const beneficiary = listData.data.beneficiaries[0];
       assertDefined(beneficiary);
@@ -1072,12 +1049,12 @@ suite('User Beneficiaries Feature', function () {
         }),
       });
 
-      strictEqual(createResponse.status, 201, 'Should send verification email');
+      equal(createResponse.status, 201, 'Should send verification email');
 
       const createData = await createResponse.json();
       assertDefined(createData);
       assertPropDefined(createData, 'success');
-      strictEqual(createData.success, true);
+      equal(createData.success, true);
 
       // Verify the beneficiary
       const emailData = await waitForBeneficiaryVerificationEmail(
@@ -1090,17 +1067,17 @@ suite('User Beneficiaries Feature', function () {
         redirect: 'manual',
       });
 
-      strictEqual(verifyResponse.status, 302, 'Verification should succeed');
+      equal(verifyResponse.status, 302, 'Verification should succeed');
 
       // List beneficiaries and verify label is null/undefined
       const listResponse = await labelTestUser.fetch('/api/beneficiaries');
-      strictEqual(listResponse.status, 200);
+      equal(listResponse.status, 200);
 
       const listData = await listResponse.json();
       assertDefined(listData);
       assertPropDefined(listData, 'data');
       assertPropArray(listData.data, 'beneficiaries');
-      strictEqual(listData.data.beneficiaries.length, 2, 'Should have exactly two beneficiaries');
+      equal(listData.data.beneficiaries.length, 2, 'Should have exactly two beneficiaries');
 
       const beneficiary = listData.data.beneficiaries.find(
         (b: { address: string }) =>
@@ -1125,12 +1102,12 @@ suite('User Beneficiaries Feature', function () {
         }),
       });
 
-      strictEqual(createResponse.status, 201, 'Should accept label with extra whitespace');
+      equal(createResponse.status, 201, 'Should accept label with extra whitespace');
 
       const createData = await createResponse.json();
       assertDefined(createData);
       assertPropDefined(createData, 'success');
-      strictEqual(createData.success, true);
+      equal(createData.success, true);
     });
   });
 });
