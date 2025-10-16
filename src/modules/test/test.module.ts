@@ -7,6 +7,7 @@ import { NotificationModule } from '../notifications/notification.module';
 import { AccountingTestController } from './accounting-test.controller';
 import { AdminTestController } from './admin-test.controller';
 import { BlockchainTestController } from './blockchain-test.controller';
+import { FinanceTestController } from './finance-test.controller';
 import { LoanTestController } from './loan-test.controller';
 import { PricefeedTestController } from './pricefeed-test.controller';
 import { UserTestController } from './user-test.controller';
@@ -18,6 +19,7 @@ import { WithdrawalTestController } from './withdrawal-test.controller';
     UserTestController,
     AdminTestController,
     AccountingTestController,
+    FinanceTestController,
     LoanTestController,
     PricefeedTestController,
     BlockchainTestController,

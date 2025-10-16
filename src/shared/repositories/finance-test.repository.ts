@@ -14,6 +14,8 @@ import {
   GetRemainingDailyWithdrawalLimitResult,
   GetWithdrawalStatusParams,
   GetWithdrawalStatusResult,
+  PlatformAdjustsAccountBalanceForTestingParams,
+  PlatformAdjustsAccountBalanceForTestingResult,
   PlatformCreatesInvoiceParams,
   PlatformCreatesInvoiceResult,
   PlatformCreatesUserAccountParams,
@@ -326,5 +328,88 @@ export abstract class FinanceTestRepository extends FinancePlatformRepository {
       dailyLimit,
       usedToday,
     };
+  }
+
+  async testAdjustsAccountBalance(
+    params: PlatformAdjustsAccountBalanceForTestingParams,
+  ): Promise<PlatformAdjustsAccountBalanceForTestingResult> {
+    const {
+      userId,
+      currencyBlockchainKey,
+      currencyTokenId,
+      amount,
+      mutationDate = new Date(),
+    } = params;
+
+    const tx = await this.beginTransaction();
+    try {
+      // Ensure account exists
+      await this.sql`
+        INSERT INTO accounts (
+          user_id,
+          currency_blockchain_key,
+          currency_token_id,
+          balance,
+          account_type
+        )
+        VALUES (
+          ${userId},
+          ${currencyBlockchainKey},
+          ${currencyTokenId},
+          0,
+          'User'
+        )
+        ON CONFLICT (user_id, currency_blockchain_key, currency_token_id, account_type)
+        DO NOTHING
+      `;
+
+      // Insert the test balance adjustment mutation
+      await this.sql`
+        INSERT INTO account_mutations (account_id, mutation_type, mutation_date, amount)
+        SELECT
+          a.id,
+          'TestBalanceAdjustment',
+          ${mutationDate.toISOString()},
+          ${amount}
+        FROM accounts a
+        WHERE a.user_id = ${userId}
+          AND a.currency_blockchain_key = ${currencyBlockchainKey}
+          AND a.currency_token_id = ${currencyTokenId}
+          AND a.account_type = 'User'
+      `;
+
+      // Get the updated account information
+      const accountRows = await this.sql`
+        SELECT id, user_id, currency_blockchain_key, currency_token_id, balance, account_type
+        FROM accounts
+        WHERE user_id = ${userId}
+          AND currency_blockchain_key = ${currencyBlockchainKey}
+          AND currency_token_id = ${currencyTokenId}
+          AND account_type = 'User'
+      `;
+
+      const account = accountRows[0];
+      assertDefined(account, 'Account not found after balance adjustment');
+      assertProp(check(isString, isNumber), account, 'id');
+      assertProp(check(isString, isNumber), account, 'user_id');
+      assertPropString(account, 'currency_blockchain_key');
+      assertPropString(account, 'currency_token_id');
+      assertProp(check(isString, isNumber), account, 'balance');
+      assertPropString(account, 'account_type');
+
+      await tx.commitTransaction();
+
+      return {
+        accountId: String(account.id),
+        userId: String(account.user_id),
+        currencyBlockchainKey: account.currency_blockchain_key,
+        currencyTokenId: account.currency_token_id,
+        balance: String(account.balance),
+        accountType: account.account_type,
+      };
+    } catch (error) {
+      await tx.rollbackTransaction();
+      throw error;
+    }
   }
 }

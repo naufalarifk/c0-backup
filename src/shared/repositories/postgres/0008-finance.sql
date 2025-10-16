@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS account_mutations (
     'PlatformFeeCharged', 'PlatformFeeRefunded',
     -- Admin and emergency operations
     'AdminManualAdjustment', 'LiquidationDeficitCover', 'PlatformLoss', 'EmergencyFreeze',
-    'EmergencyUnfreeze', 'ComplianceHold', 'ComplianceRelease'
+    'EmergencyUnfreeze', 'ComplianceHold', 'ComplianceRelease', 'TestBalanceAdjustment'
   )),
   mutation_date TIMESTAMP NOT NULL,
   amount DECIMAL(78, 0) NOT NULL
