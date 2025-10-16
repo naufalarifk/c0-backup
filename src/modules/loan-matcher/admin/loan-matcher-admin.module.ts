@@ -9,9 +9,9 @@ import { LoansModule } from '../../loans/loans.module';
 import { NotificationModule } from '../../notifications/notification.module';
 import { LoanMatcherController } from '../controllers/loan-matcher.controller';
 import { LoanMatcherScheduler } from '../schedulers/loan-matcher.scheduler';
-import { LoanMatcherService } from '../services/core/loan-matcher.service';
-import { EnhancedLoanMatcherStrategy } from '../services/strategies/enhanced-loan-matcher.strategy';
-import { LoanMatcherStrategyFactory } from '../services/strategies/loan-matcher-strategy.factory';
+import { LoanMatcherService } from '../services/loan-matcher.service';
+import { EnhancedLoanMatcherStrategy } from '../strategies/enhanced-loan-matcher.strategy';
+import { LoanMatcherStrategyFactory } from '../strategies/loan-matcher-strategy.factory';
 
 @Module({
   imports: [

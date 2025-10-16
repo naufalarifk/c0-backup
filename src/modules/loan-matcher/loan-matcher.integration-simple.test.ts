@@ -6,8 +6,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { InMemoryCryptogadaiRepository } from '../../shared/repositories/in-memory-cryptogadai.repository';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
-import { BorrowerMatchingCriteria, LenderMatchingCriteria } from './loan-matcher.types';
-import { LoanMatcherService } from './services/core/loan-matcher.service';
+import { LoanMatcherService } from './services/loan-matcher.service';
+import { BorrowerMatchingCriteria, LenderMatchingCriteria } from './types/loan-matcher.types';
 
 /**
  * Real Database Integration Tests for Loan Matcher Service

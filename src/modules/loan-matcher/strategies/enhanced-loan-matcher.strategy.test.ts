@@ -1,11 +1,11 @@
-import type { MatchableLoanApplication } from '../loan-matcher.types';
+import type { MatchableLoanApplication } from '../../types/loan-matcher.types';
 
 import assert from 'node:assert';
 import { describe, it, mock } from 'node:test';
 
-import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
-import { MatcherStrategyType } from '../loan-matcher-strategy.abstract';
+import { CryptogadaiRepository } from '../../../../shared/repositories/cryptogadai.repository';
 import { EnhancedLoanMatcherStrategy } from './enhanced-loan-matcher.strategy';
+import { MatcherStrategyType } from './loan-matcher-strategy.abstract';
 
 describe('EnhancedLoanMatcherStrategy', () => {
   it('should be decorated with Enhanced strategy type', () => {

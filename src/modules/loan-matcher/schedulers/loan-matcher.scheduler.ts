@@ -2,8 +2,8 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 
-import { defaultLoanMatcherConfig } from '../loan-matcher.config';
-import { LoanMatcherService } from '../services/core/loan-matcher.service';
+import { LoanMatcherService } from '../services/loan-matcher.service';
+import { defaultLoanMatcherConfig } from '../types/loan-matcher.config';
 
 /**
  * Loan Matcher Scheduler

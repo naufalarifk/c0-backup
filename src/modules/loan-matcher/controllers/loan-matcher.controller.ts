@@ -1,5 +1,5 @@
 import type { UserSession } from '../../auth/types';
-import type { LoanMatchingWorkerData } from '../loan-matcher.types';
+import type { LoanMatchingWorkerData } from '../types/loan-matcher.types';
 
 import { Body, Controller, HttpCode, HttpStatus, Logger, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';

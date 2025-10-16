@@ -2,16 +2,16 @@ import type {
   BorrowerMatchingCriteria,
   LenderMatchingCriteria,
   LoanMatchingWorkerData,
-} from '../loan-matcher.types';
+} from '../../types/loan-matcher.types';
 
 import assert from 'node:assert';
 import { after, before, describe, it } from 'node:test';
 
-import { InMemoryCryptogadaiRepository } from '../../../shared/repositories/in-memory-cryptogadai.repository';
-import { NotificationQueueService } from '../../notifications/notification-queue.service';
-import { LoanMatcherService } from '../loan-matcher.service';
-import { LoanMatcherStrategyFactory } from '../loan-matcher-strategy.factory';
+import { InMemoryCryptogadaiRepository } from '../../../../shared/repositories/in-memory-cryptogadai.repository';
+import { NotificationQueueService } from '../../../notifications/notification-queue.service';
+import { LoanMatcherService } from '../core/loan-matcher.service';
 import { EnhancedLoanMatcherStrategy } from './enhanced-loan-matcher.strategy';
+import { LoanMatcherStrategyFactory } from './loan-matcher-strategy.factory';
 
 /**
  * End-to-End Integration Test: LoanMatcherService with Enhanced Strategy

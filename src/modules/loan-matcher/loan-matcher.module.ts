@@ -6,11 +6,11 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { SharedModule } from '../../shared/shared.module';
 import { LoansModule } from '../loans/loans.module';
 import { NotificationModule } from '../notifications/notification.module';
-import { LoanMatcherTestController } from './loan-matcher-test.controller';
+import { LoanMatcherTestController } from './controllers/loan-matcher-test.controller';
 import { LoanMatcherScheduler } from './schedulers/loan-matcher.scheduler';
-import { LoanMatcherService } from './services/core/loan-matcher.service';
-import { EnhancedLoanMatcherStrategy } from './services/strategies/enhanced-loan-matcher.strategy';
-import { LoanMatcherStrategyFactory } from './services/strategies/loan-matcher-strategy.factory';
+import { LoanMatcherService } from './services/loan-matcher.service';
+import { EnhancedLoanMatcherStrategy } from './strategies/enhanced-loan-matcher.strategy';
+import { LoanMatcherStrategyFactory } from './strategies/loan-matcher-strategy.factory';
 
 /**
  * LoanMatcherModule
