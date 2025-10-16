@@ -821,7 +821,7 @@ export async function runFinanceRepositoryTestSuite(
         equal(result.beneficiaries.length, 2);
         result.beneficiaries.forEach(beneficiary => {
           equal(beneficiary.userId, userId);
-          equal(typeof beneficiary.id, 'string');
+          equal(typeof beneficiary.id, 'number');
           ok(
             ['eip155:56', 'bip122:000000000019d6689c085ae165831e93'].includes(
               beneficiary.blockchainKey,
@@ -1271,6 +1271,66 @@ export async function runFinanceRepositoryTestSuite(
           ok(error.message.includes('Withdrawal refund approval failed'));
         }
         ok(errorThrown, 'Expected error when approving refund for non-failed withdrawal');
+      });
+
+      it('should make withdrawal failure refund request', async function () {
+        // Create test user whose withdrawal will have a refund request
+        const userCreationResult = await repo.testCreatesUsers({
+          users: [{ email: 'refundrequestuser@test.com', name: 'Refund Request User' }],
+        });
+
+        const userId = userCreationResult.users[0].id;
+
+        // Create user account and add balance first
+        const accountResult = await repo.testCreatesUserAccount({
+          userId,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          accountType: 'User',
+        });
+
+        // Add balance by creating a test mutation
+        await repo.testCreatesAccountMutations({
+          accountId: accountResult.id,
+          mutations: [
+            {
+              mutationType: 'InvoiceReceived',
+              mutationDate: '2024-01-01T09:00:00Z',
+              amount: '1500000',
+            },
+          ],
+        });
+
+        const beneficiaryResult = await repo.userRegistersWithdrawalBeneficiary({
+          userId,
+          blockchainKey: 'eip155:56',
+          address: '0xb234567890123456789012345678901234567829',
+        });
+
+        const withdrawalResult = await repo.userRequestsWithdrawal({
+          beneficiaryId: beneficiaryResult.id,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          amount: '700000',
+          requestDate: new Date('2024-01-01T10:00:00Z'),
+        });
+
+        // Set withdrawal to failed first
+        await repo.platformFailsWithdrawal({
+          withdrawalId: withdrawalResult.id,
+          failedDate: new Date('2024-01-01T11:30:00Z'),
+          failureReason: 'Network timeout',
+        });
+
+        const refundRequestDate = new Date('2024-01-02T09:00:00Z');
+        const result = await repo.platformMakesWithdrawalFailureRefundRequest({
+          withdrawalId: withdrawalResult.id,
+          refundRequestDate,
+        });
+
+        equal(result.id, withdrawalResult.id);
+        equal(result.status, 'RefundRequested');
+        equal(result.failureRefundRequestedDate?.getTime(), refundRequestDate.getTime());
       });
     });
 

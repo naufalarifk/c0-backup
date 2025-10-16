@@ -1,9 +1,3 @@
--- Drop BetterAuth tables if they exist with wrong schema
-DROP TABLE IF EXISTS auth_verifications CASCADE;
-DROP TABLE IF EXISTS auth_providers CASCADE;
-DROP TABLE IF EXISTS two_factor CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
-
 CREATE TABLE IF NOT EXISTS users (
   id BIGSERIAL PRIMARY KEY,
 

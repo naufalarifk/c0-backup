@@ -10,6 +10,8 @@ import type {
 
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 
+import { assertDefined, assertProp, check, isNumber, isString } from 'typeshaper';
+
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { LoanCalculationService } from '../../loans/services/loan-calculation.service';
@@ -308,11 +310,11 @@ export class LoanMatcherService {
       return targetOffer ? [targetOffer] : [];
     }
 
-    console.log(
-      `[DEBUG] Fetching offers for application ${application.id}: ` +
-        `principal ${application.principalBlockchainKey}:${application.principalTokenId} ` +
-        `(collateral ${application.collateralBlockchainKey}:${application.collateralTokenId} is for reference only)`,
-    );
+    // console.log(
+    //   `[DEBUG] Fetching offers for application ${application.id}: ` +
+    //     `principal ${application.principalBlockchainKey}:${application.principalTokenId} ` +
+    //     `(collateral ${application.collateralBlockchainKey}:${application.collateralTokenId} is for reference only)`,
+    // );
 
     const offers = await this.repository.platformListsAvailableLoanOffers({
       principalBlockchainKey: application.principalBlockchainKey,
@@ -320,9 +322,9 @@ export class LoanMatcherService {
       limit: 50, // Get up to 50 potential matches
     });
 
-    console.log(
-      `[DEBUG] Retrieved ${offers.loanOffers.length} offers from repository for application ${application.id}`,
-    );
+    // console.log(
+    //   `[DEBUG] Retrieved ${offers.loanOffers.length} offers from repository for application ${application.id}`,
+    // );
 
     // Pre-filter offers based on enhanced lender criteria if provided
     let candidateOffers = offers.loanOffers;
@@ -443,12 +445,12 @@ export class LoanMatcherService {
       );
     }
 
-    console.log(
-      `[DEBUG] Starting compatibility check for ${candidateOffers.length} candidate offers against application ${application.id}`,
-    );
-    console.log(
-      `[DEBUG] Application details: amount=${application.principalAmount}, term=${application.termInMonths}, maxRate=${application.maxInterestRate}`,
-    );
+    // console.log(
+    //   `[DEBUG] Starting compatibility check for ${candidateOffers.length} candidate offers against application ${application.id}`,
+    // );
+    // console.log(
+    //   `[DEBUG] Application details: amount=${application.principalAmount}, term=${application.termInMonths}, maxRate=${application.maxInterestRate}`,
+    // );
 
     // Filter offers that match the application requirements with enhanced lender rules
     const compatibleOffers = candidateOffers.filter(offer => {
@@ -595,6 +597,25 @@ export class LoanMatcherService {
     collateralAmount: string,
   ): Promise<number> {
     try {
+      // Get collateral currency decimals
+      const currencyResult = await this.repository.sql`
+        SELECT decimals FROM currencies
+        WHERE blockchain_key = ${collateralBlockchainKey}
+          AND token_id = ${collateralTokenId}
+      `;
+
+      if (currencyResult.length === 0) {
+        this.logger.warn(
+          `Collateral currency not found: ${collateralBlockchainKey}:${collateralTokenId}`,
+        );
+        return 0;
+      }
+
+      const currencyRow = currencyResult[0];
+      assertDefined(currencyRow, 'Currency row should be defined');
+      assertProp(check(isString, isNumber), currencyRow, 'decimals');
+      const collateralDecimals = Number(currencyRow.decimals);
+
       // Get the latest exchange rate for the collateral token
       const exchangeRateRows = await this.repository.sql`
         SELECT 
@@ -619,23 +640,22 @@ export class LoanMatcherService {
 
       const exchangeRate = exchangeRateRows[0] as {
         id: number;
-        bid_price: number;
-        ask_price: number;
+        bid_price: number | string;
+        ask_price: number | string;
         source_date: Date;
       };
 
       // Exchange rate is stored in smallest units (e.g., 1000000000000000000 for 1.0 USD)
-      // We need to convert it to decimal form
+      // We need to convert it to decimal form (assuming quote currency has 18 decimals)
       const QUOTE_CURRENCY_DECIMALS = 18;
-      const bidPrice = Number(exchangeRate.bid_price) / Math.pow(10, QUOTE_CURRENCY_DECIMALS);
-      const collateralAmountNum = Number(collateralAmount);
+      const bidPriceNum = Number(exchangeRate.bid_price);
+      const bidPrice = bidPriceNum / Math.pow(10, QUOTE_CURRENCY_DECIMALS);
 
-      // Calculate current collateral value: amount * exchange rate
+      // Collateral amount is also in smallest units, need to convert to decimal form
+      const collateralAmountNum = Number(collateralAmount) / Math.pow(10, collateralDecimals);
+
+      // Calculate current collateral value: amount * exchange rate (both in decimal form)
       const collateralValue = collateralAmountNum * bidPrice;
-
-      this.logger.debug(
-        `Collateral value calculation: ${collateralAmount} * ${bidPrice} = ${collateralValue}`,
-      );
 
       return collateralValue;
     } catch (error) {
@@ -653,20 +673,30 @@ export class LoanMatcherService {
   ): Promise<MatchedLoanPair | null> {
     try {
       // Calculate LTV ratio based on current collateral valuation
-      const collateralValue = await this.calculateCollateralValue(
+      // Returns value in decimal form (e.g., 1.0 for 1 USD)
+      const collateralValueDecimal = await this.calculateCollateralValue(
         application.collateralBlockchainKey,
         application.collateralTokenId,
         application.collateralDepositAmount,
       );
-      const principalAmount = parseFloat(application.principalAmount);
-      const ltvRatio = collateralValue > 0 ? principalAmount / collateralValue : 0;
+
+      // Convert principal amount from smallest units to decimal form
+      const principalAmountNum =
+        Number(application.principalAmount) / Math.pow(10, application.principalCurrency.decimals);
+      const ltvRatio = collateralValueDecimal > 0 ? principalAmountNum / collateralValueDecimal : 0;
+
+      // Convert collateral value from decimal back to smallest units for storage (assuming 18 decimals for quote currency)
+      const QUOTE_CURRENCY_DECIMALS = 18;
+      const collateralValueSmallestUnits = Math.round(
+        collateralValueDecimal * Math.pow(10, QUOTE_CURRENCY_DECIMALS),
+      );
 
       const matchResult = await this.repository.platformMatchesLoanOffers({
         loanApplicationId: application.id,
         loanOfferId: offer.id,
         matchedDate: new Date(),
         matchedLtvRatio: ltvRatio,
-        matchedCollateralValuationAmount: collateralValue.toString(),
+        matchedCollateralValuationAmount: collateralValueSmallestUnits.toString(),
       });
 
       return {

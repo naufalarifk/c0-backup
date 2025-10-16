@@ -74,7 +74,7 @@ export class WithdrawalTestController {
     return {
       success: true,
       message: `Beneficiary created for ${email}`,
-      beneficiaryId: Number(beneficiaryId),
+      beneficiaryId,
       userId: Number(userId),
       address,
       blockchainKey,
@@ -86,7 +86,7 @@ export class WithdrawalTestController {
     @Body()
     body: {
       email: string;
-      beneficiaryId: number;
+      beneficiaryId: string;
       amount: string;
       currencyBlockchainKey?: string;
       currencyTokenId?: string;
@@ -101,7 +101,7 @@ export class WithdrawalTestController {
     if (!email || typeof email !== 'string') {
       throw new BadRequestException('email is required');
     }
-    if (!beneficiaryId || typeof beneficiaryId !== 'number') {
+    if (!beneficiaryId || typeof beneficiaryId !== 'string') {
       throw new BadRequestException('beneficiaryId is required');
     }
     if (!amount || typeof amount !== 'string') {

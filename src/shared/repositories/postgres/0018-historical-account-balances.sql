@@ -11,10 +11,10 @@ CREATE TABLE IF NOT EXISTS historical_account_balances (
   UNIQUE(account_id, snapshot_date)
 );
 
-CREATE INDEX idx_historical_balances_account_date
+CREATE INDEX IF NOT EXISTS idx_historical_balances_account_date
   ON historical_account_balances(account_id, snapshot_date DESC);
 
-CREATE INDEX idx_historical_balances_date
+CREATE INDEX IF NOT EXISTS idx_historical_balances_date
   ON historical_account_balances(snapshot_date DESC);
 
 COMMENT ON TABLE historical_account_balances IS 'Stores daily snapshots of account balances for historical tracking and performance calculations';

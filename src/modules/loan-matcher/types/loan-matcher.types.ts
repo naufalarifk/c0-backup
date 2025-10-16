@@ -89,6 +89,13 @@ export interface MatchableLoanApplication {
   id: string;
   borrowerUserId: string;
   loanOfferId?: string;
+  principalCurrency: {
+    blockchainKey: string;
+    tokenId: string;
+    decimals: number;
+    symbol: string;
+    name: string;
+  };
   principalAmount: string;
   maxInterestRate: number;
   termInMonths: number;

@@ -5,7 +5,11 @@ import { twoFactorClient } from 'better-auth/plugins/two-factor';
 import { loggedFetch } from 'test/setup/fetch.js';
 import { CookieJar, MemoryCookieStore } from 'tough-cookie';
 
-type BetterAuthClient = ReturnType<typeof createAuthClient>;
+type BetterAuthClient = ReturnType<
+  typeof createAuthClient<{
+    plugins: [ReturnType<typeof twoFactorClient>];
+  }>
+>;
 
 export function setupBetterAuthClient(backendUrl: string): {
   authClient: BetterAuthClient;

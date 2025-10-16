@@ -158,7 +158,7 @@ export abstract class SettlementPlatformRepository extends LoanPlatformRepositor
         a.currency_blockchain_key as blockchain_key,
         SUM(a.balance)::text as total_balance,
         a.currency_token_id
-      FROM user_accounts a
+      FROM accounts a
       WHERE a.user_id = 1
         AND a.account_type = 'PlatformEscrow'
         AND a.balance > 0
@@ -196,7 +196,7 @@ export abstract class SettlementPlatformRepository extends LoanPlatformRepositor
   async platformGetsTargetNetworkBalance(currencyTokenId: string): Promise<string> {
     const result = await this.sql`
       SELECT SUM(balance)::text as total_balance
-      FROM user_accounts
+      FROM accounts
       WHERE user_id = 1
         AND account_type = 'PlatformEscrow'
         AND currency_blockchain_key = 'eip155:56'
@@ -234,7 +234,7 @@ export abstract class SettlementPlatformRepository extends LoanPlatformRepositor
       SELECT 
         a.currency_blockchain_key as blockchain_key,
         a.balance::text as balance
-      FROM user_accounts a
+      FROM accounts a
       WHERE a.user_id = 1
         AND a.account_type = 'PlatformEscrow'
         AND a.currency_token_id = ${currencyTokenId}
@@ -269,7 +269,7 @@ export abstract class SettlementPlatformRepository extends LoanPlatformRepositor
   async platformGetsCurrenciesWithBalances(): Promise<string[]> {
     const currencies = await this.sql`
       SELECT DISTINCT a.currency_token_id
-      FROM user_accounts a
+      FROM accounts a
       WHERE a.user_id = 1
         AND a.account_type = 'PlatformEscrow'
         AND a.balance > 0

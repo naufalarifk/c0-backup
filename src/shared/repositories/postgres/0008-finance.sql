@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS currencies (
   PRIMARY KEY (blockchain_key, token_id)
 );
 
-CREATE TABLE IF NOT EXISTS user_accounts (
+CREATE TABLE IF NOT EXISTS accounts (
   id BIGSERIAL PRIMARY KEY,
   user_id BIGINT NOT NULL REFERENCES users (id),
   currency_blockchain_key VARCHAR(64) NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS user_accounts (
 
 CREATE TABLE IF NOT EXISTS account_mutations (
   id BIGSERIAL PRIMARY KEY,
-  account_id BIGINT NOT NULL REFERENCES user_accounts (id),
+  account_id BIGINT NOT NULL REFERENCES accounts (id),
   mutation_type VARCHAR(64) NOT NULL CHECK (mutation_type IN (
     -- Invoice operations
     'InvoicePrepaid', 'InvoiceReceived',
@@ -60,10 +60,6 @@ CREATE TABLE IF NOT EXISTS account_mutations (
   amount DECIMAL(78, 0) NOT NULL
 );
 
-ALTER TABLE user_accounts
-  ALTER COLUMN balance TYPE DECIMAL(78, 0) USING balance::DECIMAL(78, 0),
-  ALTER COLUMN balance SET DEFAULT 0;
-
 -- Drop view before altering columns it depends on
 DROP VIEW IF EXISTS account_mutation_entries CASCADE;
 
@@ -74,27 +70,27 @@ ALTER TABLE account_mutations
 
 CREATE OR REPLACE VIEW account_mutation_entries AS
   SELECT
-    user_accounts.user_id,
-    user_accounts.currency_blockchain_key,
-    user_accounts.currency_token_id,
-    user_accounts.account_type,
+    accounts.user_id,
+    accounts.currency_blockchain_key,
+    accounts.currency_token_id,
+    accounts.account_type,
     account_mutations.mutation_type,
     account_mutations.mutation_date,
     account_mutations.amount
-  FROM user_accounts
-  INNER JOIN account_mutations ON user_accounts.id = account_mutations.account_id;
+  FROM accounts
+  INNER JOIN account_mutations ON accounts.id = account_mutations.account_id;
 
 CREATE OR REPLACE FUNCTION record_account_mutation_entry()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO user_accounts (user_id, currency_blockchain_key, currency_token_id, account_type)
+  INSERT INTO accounts (user_id, currency_blockchain_key, currency_token_id, account_type)
   VALUES (NEW.user_id, NEW.currency_blockchain_key, NEW.currency_token_id, NEW.account_type)
   ON CONFLICT (user_id, currency_blockchain_key, currency_token_id, account_type) DO NOTHING;
 
   INSERT INTO account_mutations (account_id, mutation_type, mutation_date, amount)
   VALUES (
     (
-      SELECT id FROM user_accounts
+      SELECT id FROM accounts
       WHERE user_id = NEW.user_id
         AND currency_blockchain_key = NEW.currency_blockchain_key
         AND currency_token_id = NEW.currency_token_id
@@ -139,7 +135,7 @@ DECLARE
   current_balance NUMERIC;
 BEGIN
   SELECT balance INTO current_balance
-  FROM user_accounts
+  FROM accounts
   WHERE id = NEW.account_id;
 
   new_balance := current_balance + NEW.amount;
@@ -149,7 +145,7 @@ BEGIN
       NEW.mutation_type, current_balance, NEW.amount, new_balance;
   END IF;
 
-  UPDATE user_accounts
+  UPDATE accounts
   SET balance = new_balance
   WHERE id = NEW.account_id;
 
@@ -214,7 +210,7 @@ ON CONFLICT (blockchain_key, token_id) DO UPDATE SET
   min_withdrawal_amount = EXCLUDED.min_withdrawal_amount;
 
 -- user_id 1 is the platform account, they are responsible for recording escrow, fee, etc.
-INSERT INTO user_accounts (user_id, currency_blockchain_key, currency_token_id, balance, account_type) VALUES
+INSERT INTO accounts (user_id, currency_blockchain_key, currency_token_id, balance, account_type) VALUES
   (1, 'bip122:000000000019d6689c085ae165831e93', 'slip44:0', 0, 'PlatformEscrow'),
   (1, 'eip155:1', 'slip44:60', 0, 'PlatformEscrow'),
   (1, 'eip155:56', 'slip44:714', 0, 'PlatformEscrow'),
@@ -259,7 +255,7 @@ ON CONFLICT (blockchain_key, token_id) DO UPDATE SET
   min_withdrawal_amount = EXCLUDED.min_withdrawal_amount;
 
 -- Platform accounts for testnets/devnets (user_id = 1)
-INSERT INTO user_accounts (user_id, currency_blockchain_key, currency_token_id, balance, account_type) VALUES
+INSERT INTO accounts (user_id, currency_blockchain_key, currency_token_id, balance, account_type) VALUES
   (1, 'bip122:000000000933ea01ad0ee984209779ba', 'slip44:0', 0, 'PlatformEscrow'),
   (1, 'eip155:11155111', 'slip44:60', 0, 'PlatformEscrow'),
   (1, 'eip155:560048', 'slip44:60', 0, 'PlatformEscrow'),

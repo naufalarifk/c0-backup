@@ -619,7 +619,9 @@ suite('User Beneficiaries Feature', function () {
 
       // Extract beneficiaryId from redirect URL
       const urlParams = new URLSearchParams(redirectLocation.split('?')[1]);
-      const beneficiaryId = Number(urlParams.get('beneficiaryId'));
+      const beneficiaryIdParam = urlParams.get('beneficiaryId');
+      assertDefined(beneficiaryIdParam);
+      const beneficiaryId = Number(beneficiaryIdParam);
 
       // Verify beneficiary is now active
       const listResponse = await verificationUser.fetch('/api/beneficiaries');
@@ -697,7 +699,9 @@ suite('User Beneficiaries Feature', function () {
 
       // Extract beneficiaryId from redirect URL
       const urlParams = new URLSearchParams(firstRedirect.split('?')[1]);
-      const beneficiaryId = Number(urlParams.get('beneficiaryId'));
+      const beneficiaryIdParam = urlParams.get('beneficiaryId');
+      assertDefined(beneficiaryIdParam);
+      const beneficiaryId = Number(beneficiaryIdParam);
 
       // Try to verify again with the same token
       const secondVerifyResponse = await fetch(emailData.verificationLink, {

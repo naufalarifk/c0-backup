@@ -6,7 +6,6 @@ import { ConfigService } from '@nestjs/config';
 
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
-import { toLowestDenomination } from '../../shared/utils/decimal';
 import { defaultPricefeedConfig } from './pricefeed.config';
 import { PriceFeedProviderFactory } from './pricefeed-provider.factory';
 import { assertPriceFeedSource, type PriceFeedRequest } from './pricefeed-provider.types';
@@ -62,19 +61,12 @@ export class PricefeedService {
               ),
             ]);
 
-            const bidPriceLowest = toLowestDenomination(
-              priceData.bidPrice,
-              priceFeed.quoteCurrencyDecimals,
-            );
-            const askPriceLowest = toLowestDenomination(
-              priceData.askPrice,
-              priceFeed.quoteCurrencyDecimals,
-            );
-
+            // Price data from provider is in decimal form
+            // The repository's platformFeedsExchangeRate will convert to smallest units with 12 decimals
             const result = await this.repository.platformFeedsExchangeRate({
               priceFeedId: priceFeed.id,
-              bidPrice: bidPriceLowest,
-              askPrice: askPriceLowest,
+              bidPrice: priceData.bidPrice,
+              askPrice: priceData.askPrice,
               retrievalDate: priceData.retrievalDate,
               sourceDate: priceData.sourceDate,
             });
@@ -96,7 +88,7 @@ export class PricefeedService {
               sourceDate: result.sourceDate,
             });
           } catch (error) {
-            this.logger.error(`Failed to fetch price for feed ${priceFeed.id}:`, error);
+            // this.logger.error(`Failed to fetch price for feed ${priceFeed.id}:`, error);
           }
         }),
       );

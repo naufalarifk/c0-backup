@@ -60,10 +60,10 @@ export class EthereumService implements OnModuleInit {
           addEventListener: (event: string, listener: (event: unknown) => void) => void;
         };
         ws.addEventListener('error', (event: unknown) => {
-          console.error('Ethereum WebSocket error event:', event);
+          // console.error('Ethereum WebSocket error event:', event);
         });
         ws.addEventListener('close', () => {
-          console.log('Ethereum WebSocket connection closed');
+          // console.log('Ethereum WebSocket connection closed');
         });
       } catch (error) {
         console.error('Failed to create Ethereum provider:', error);

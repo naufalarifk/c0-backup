@@ -74,11 +74,11 @@ export abstract class EthereumIndexerListener extends IndexerListener {
     };
 
     ws.addEventListener('error', (event: unknown) => {
-      this.logger.error(`${this.#chainName} WebSocket error`, event);
+      // this.logger.error(`${this.#chainName} WebSocket error`, event);
     });
 
     ws.addEventListener('close', () => {
-      this.logger.log(`${this.#chainName} WebSocket connection closed`);
+      // this.logger.log(`${this.#chainName} WebSocket connection closed`);
     });
   }
 

@@ -127,7 +127,7 @@ export class AccountsService {
       // Validate account ownership if userId is provided
       if (userId) {
         const accountCheck = await this.repository.sql`
-          SELECT user_id FROM user_accounts WHERE id = ${accountId}
+          SELECT user_id FROM accounts WHERE id = ${accountId}
         `;
         if (accountCheck.length === 0) {
           throw new NotFoundException('Account not found');
