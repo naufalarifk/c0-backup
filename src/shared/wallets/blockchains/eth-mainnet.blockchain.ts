@@ -18,9 +18,15 @@ export class EthMainnetBlockchain extends Blockchain {
   rpcUrl = 'https://eth.llamarpc.com';
   #provider?: ethers.JsonRpcProvider;
 
+  // Override this in subclasses for different networks
+  protected get chainId(): number {
+    return 1; // Ethereum mainnet
+  }
+
   protected get provider(): ethers.JsonRpcProvider {
     if (!this.#provider) {
-      this.#provider = new ethers.JsonRpcProvider(this.rpcUrl);
+      // Create provider with explicit chain ID for proper transaction signing
+      this.#provider = new ethers.JsonRpcProvider(this.rpcUrl, this.chainId);
     }
     return this.#provider;
   }

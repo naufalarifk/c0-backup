@@ -44,7 +44,7 @@ describe('EthereumService Integration Tests', () => {
     test('should connect to Ethereum network', async () => {
       // Test basic connection
       try {
-        const network = await service.provider.getNetwork();
+        const network = await service.provider?.getNetwork();
         assert.ok(network, 'Should connect to network');
         assert.ok(network.chainId, 'Should have chain ID');
         console.log(`Connected to network: ${network.name} (chainId: ${network.chainId})`);
@@ -144,14 +144,14 @@ describe('EthereumService Integration Tests', () => {
 
     test('should handle current block information', async () => {
       try {
-        const blockNumber = await service.provider.getBlockNumber();
+        const blockNumber = await service.provider?.getBlockNumber();
         console.log(`Current block number: ${blockNumber}`);
 
         assert.ok(typeof blockNumber === 'number', 'Block number should be a number');
         assert.ok(blockNumber > 0, 'Block number should be positive');
 
         // Get block details
-        const block = await service.provider.getBlock(blockNumber);
+        const block = await service.provider?.getBlock(blockNumber);
         assert.ok(block, 'Should get block details');
         assert.ok(block.hash, 'Block should have hash');
         assert.ok(block.timestamp, 'Block should have timestamp');
@@ -167,11 +167,11 @@ describe('EthereumService Integration Tests', () => {
 
     test('should handle network fees', async () => {
       try {
-        const feeData = await service.provider.getFeeData();
+        const feeData = await service.provider?.getFeeData();
         console.log('Current fee data:', {
-          gasPrice: feeData.gasPrice?.toString(),
-          maxFeePerGas: feeData.maxFeePerGas?.toString(),
-          maxPriorityFeePerGas: feeData.maxPriorityFeePerGas?.toString(),
+          gasPrice: feeData?.gasPrice?.toString(),
+          maxFeePerGas: feeData?.maxFeePerGas?.toString(),
+          maxPriorityFeePerGas: feeData?.maxPriorityFeePerGas?.toString(),
         });
 
         assert.ok(feeData, 'Should get fee data');

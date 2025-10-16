@@ -24,15 +24,20 @@ export class EthWallet extends Wallet {
       const privateKeyHex = Buffer.from(this.privateKey).toString('hex');
       const wallet = new ethers.Wallet(privateKeyHex, this.provider);
 
+      // Get network info for chain ID
+      const network = await this.provider.getNetwork();
+      const chainId = Number(network.chainId);
+
       // Get gas price
       const feeData = await this.provider.getFeeData();
 
-      // Build transaction
+      // Build transaction with explicit chain ID
       const transaction: TransactionRequest = {
         to: params.to,
         value: ethers.parseEther(params.value),
         gasLimit: BigInt(21000),
         gasPrice: feeData.gasPrice || BigInt(20000000000), // 20 gwei fallback
+        chainId, // Explicitly set chain ID
       };
 
       // Sign transaction
@@ -49,6 +54,19 @@ export class EthWallet extends Wallet {
       invariant(
         false,
         `Transfer failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
+
+  async getBalance(address: string): Promise<number> {
+    try {
+      const balance = await this.provider.getBalance(address);
+      // Convert from wei to ETH
+      return parseFloat(ethers.formatEther(balance));
+    } catch (error) {
+      invariant(
+        false,
+        `Get balance failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
   }

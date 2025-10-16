@@ -27,7 +27,7 @@ export function authAdapter({ userRepo, debugLogs }: AuthAdapterOptions) {
       supportsJSON: true,
       supportsDates: true,
       supportsBooleans: true,
-      supportsNumericIds: false,
+      supportsNumericIds: true,
     },
     adapter: () => ({
       create({ model, data, select, ...others }) {

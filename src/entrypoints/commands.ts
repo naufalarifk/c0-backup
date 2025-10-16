@@ -17,6 +17,8 @@ import { LoanMatcherModule } from '../modules/loan-matcher/loan-matcher.module';
 import { NotificationModule } from '../modules/notifications/notification.module';
 import { PricefeedModule } from '../modules/pricefeed/pricefeed.module';
 import { PricefeedScheduler } from '../modules/pricefeed/pricefeed.scheduler';
+import { SettlementScheduler } from '../modules/settlement/schedulers/settlement.scheduler';
+import { SettlementModule } from '../modules/settlement/settlement.module';
 import { ValuationModule } from '../modules/valuation/valuation.module';
 import { ValuationProcessor } from '../modules/valuation/valuation.processor';
 import { WalletBalanceCollectorModule } from '../modules/wallet-balance-collector/wallet-balance-collector.module';
@@ -36,6 +38,7 @@ export type CommandKey =
   | 'migration'
   | 'notification'
   | 'pricefeed'
+  | 'settlement'
   | 'valuation'
   | 'wallet-balance-collector'
   | 'withdrawals';
@@ -89,6 +92,20 @@ export const COMMAND_DEFINITIONS: Record<CommandKey, CommandDefinition> = {
       return {
         cleanup: () => {
           logger.log('Price feed worker shutting down');
+        },
+      };
+    },
+  },
+  settlement: {
+    imports: [SettlementModule],
+    providers: [SettlementScheduler],
+    async bootstrap() {
+      const logger = new TelemetryLogger('SettlementWorker');
+      logger.log('Settlement worker started successfully');
+      logger.log('Scheduled to run daily at midnight (00:00 UTC)');
+      return {
+        cleanup: () => {
+          logger.log('Settlement worker shutting down');
         },
       };
     },

@@ -15,6 +15,8 @@ import { NotificationModule } from '../modules/notifications/notification.module
 import { NotificationsModule } from '../modules/notifications/notifications.module';
 import { PortfolioModule } from '../modules/portfolio/portfolio.module';
 import { RealtimeModule } from '../modules/realtime/realtime.module';
+import { SettlementAdminModule } from '../modules/settlement/admin/settlement-admin.module';
+import { SettlementModule } from '../modules/settlement/settlement.module';
 import { SmsModule } from '../modules/sms/sms.module';
 import { TestModule } from '../modules/test/test.module';
 import { UsersModule } from '../modules/users/users.module';
@@ -50,6 +52,8 @@ import { SharedModule } from '../shared/shared.module';
     LoansModule,
     LoanMatcherModule,
     AdminModule,
+    SettlementAdminModule,
+    SettlementModule,
     TestModule,
   ],
   providers: [

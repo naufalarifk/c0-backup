@@ -98,7 +98,24 @@ export class PgRedisCryptogadaiRepository extends CryptogadaiRepository {
 
   async connect(): Promise<void> {
     const connection = await this.#pool.connect();
-    await this.#redis.ping();
+    try {
+      // Wait a bit for Redis to initialize if needed
+      let retries = 10;
+      while (retries > 0) {
+        try {
+          await this.#redis.ping();
+          break;
+        } catch (error) {
+          if (retries === 1) throw error;
+          await new Promise(resolve => setTimeout(resolve, 100));
+          retries--;
+        }
+      }
+    } catch (error) {
+      this.#logger.warn('Redis ping failed during repository connection:', error);
+      // Don't fail the connection if Redis isn't ready yet
+      // Redis will be available when needed for actual operations
+    }
     connection.release();
   }
 

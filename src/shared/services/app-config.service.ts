@@ -61,11 +61,11 @@ export class AppConfigService {
     }
 
     invariant(
-      duration !== null,
+      duration !== undefined && !Number.isNaN(duration),
       `Environment variable ${key} must be a valid duration. Received: ${value}`,
     );
 
-    return duration;
+    return duration ?? 0;
   }
 
   private getBoolean(key: string, defaultValue?: boolean): boolean {

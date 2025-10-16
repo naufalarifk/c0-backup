@@ -67,6 +67,20 @@ export abstract class SolWallet extends Wallet {
     }
   }
 
+  async getBalance(address: string): Promise<number> {
+    try {
+      const publicKey = new PublicKey(address);
+      const balanceLamports = await this.connection.getBalance(publicKey);
+      // Convert from lamports to SOL
+      return balanceLamports / LAMPORTS_PER_SOL;
+    } catch (error) {
+      invariant(
+        false,
+        `Get balance failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
+
   private createKeypair(): Keypair {
     // Solana expects a 64-byte secret key, but HDKey provides 32 bytes
     // For Solana, we use the 32-byte private key as seed to generate the keypair
