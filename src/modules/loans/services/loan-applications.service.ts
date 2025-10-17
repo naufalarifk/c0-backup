@@ -10,6 +10,7 @@ import {
 import { InvoiceService } from '../../../shared/invoice/invoice.service';
 import { InvoiceError } from '../../../shared/invoice/invoice.types';
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { AppConfigService } from '../../../shared/services/app-config.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { IndexerEventService } from '../../indexer/indexer-event.service';
 import { LiquidationMode, LoanApplicationStatus, PaginationMetaDto } from '../dto/common.dto';
@@ -34,6 +35,7 @@ export class LoanApplicationsService {
   private readonly logger = new TelemetryLogger(LoanApplicationsService.name);
 
   constructor(
+    private readonly appConfigService: AppConfigService,
     private readonly cryptogadaiRepository: CryptogadaiRepository,
     private readonly indexerEventService: IndexerEventService,
     private readonly invoiceService: InvoiceService,
@@ -68,41 +70,30 @@ export class LoanApplicationsService {
 
       const calculationDate = new Date();
 
-      // Get data from repository (no calculations)
-      // Default to USDC on BSC for principal currency in production
-      // Use mock:usd on cg:testnet for development/test environments
-      const isTestEnv = process.env.NODE_ENV !== 'production';
-      const DEFAULT_PRINCIPAL_BLOCKCHAIN_KEY = isTestEnv ? 'cg:testnet' : 'eip155:56';
-      const DEFAULT_PRINCIPAL_TOKEN_ID = isTestEnv
-        ? 'mock:usd'
-        : 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d';
-
       const currencies = await this.cryptogadaiRepository.borrowerGetsCurrencyPair({
         collateralBlockchainKey: calculationRequest.collateralBlockchainKey,
         collateralTokenId: calculationRequest.collateralTokenId,
-        principalBlockchainKey: DEFAULT_PRINCIPAL_BLOCKCHAIN_KEY,
-        principalTokenId: DEFAULT_PRINCIPAL_TOKEN_ID,
+        principalBlockchainKey: 'crosschain',
+        principalTokenId: 'iso4217:usd',
       });
 
       const platformConfig = await this.cryptogadaiRepository.borrowerGetsPlatformConfig({
         effectiveDate: calculationDate,
       });
 
-      let exchangeRate;
-      try {
-        exchangeRate = await this.cryptogadaiRepository.borrowerGetsExchangeRate({
+      const exchangeRate = await this.cryptogadaiRepository
+        .borrowerGetsExchangeRate({
           collateralBlockchainKey: calculationRequest.collateralBlockchainKey,
           collateralTokenId: calculationRequest.collateralTokenId,
-        });
-      } catch (error) {
-        if (error.message?.includes('Exchange rate not found')) {
-          throw new BadRequestException(
-            `Exchange rate not available for ${currencies.collateralCurrency.symbol}. Please try again later.`,
-          );
-        } else {
+        })
+        .catch(function (error) {
+          if (error.message?.includes('Exchange rate not found')) {
+            throw new BadRequestException(
+              `Exchange rate not available for ${currencies.collateralCurrency.symbol}. Please try again later.`,
+            );
+          }
           throw error;
-        }
-      }
+        });
 
       // Convert principal amount to smallest units for calculation service
       const principalAmountInSmallestUnits = this.loanCalculationService.toSmallestUnit(
@@ -290,8 +281,8 @@ export class LoanApplicationsService {
       if (createLoanApplicationDto.creationDate) {
         appliedDate = new Date(createLoanApplicationDto.creationDate);
 
-        // Validate creation date in production environment
-        if (process.env.NODE_ENV === 'production') {
+        // Need to skip the validation for creating test scenarios
+        if (this.appConfigService.isProduction) {
           const now = new Date();
           const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
           const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
@@ -308,41 +299,30 @@ export class LoanApplicationsService {
 
       const expirationDate = new Date(appliedDate.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from applied date
 
-      // Get data from repository (no calculations)
-      // Default to USDC on BSC for principal currency in production
-      // Use mock:usd on cg:testnet for development/test environments
-      const isTestEnv = process.env.NODE_ENV !== 'production';
-      const DEFAULT_PRINCIPAL_BLOCKCHAIN_KEY = isTestEnv ? 'cg:testnet' : 'eip155:56';
-      const DEFAULT_PRINCIPAL_TOKEN_ID = isTestEnv
-        ? 'mock:usd'
-        : 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d';
-
       const currencies = await this.cryptogadaiRepository.borrowerGetsCurrencyPair({
         collateralBlockchainKey: createLoanApplicationDto.collateralBlockchainKey,
         collateralTokenId: createLoanApplicationDto.collateralTokenId,
-        principalBlockchainKey: DEFAULT_PRINCIPAL_BLOCKCHAIN_KEY,
-        principalTokenId: DEFAULT_PRINCIPAL_TOKEN_ID,
+        principalBlockchainKey: 'crosschain',
+        principalTokenId: 'iso4217:usd',
       });
 
       const platformConfig = await this.cryptogadaiRepository.borrowerGetsPlatformConfig({
         effectiveDate: appliedDate,
       });
 
-      let exchangeRate;
-      try {
-        exchangeRate = await this.cryptogadaiRepository.borrowerGetsExchangeRate({
+      const exchangeRate = await this.cryptogadaiRepository
+        .borrowerGetsExchangeRate({
           collateralBlockchainKey: createLoanApplicationDto.collateralBlockchainKey,
           collateralTokenId: createLoanApplicationDto.collateralTokenId,
-        });
-      } catch (error) {
-        if (error.message?.includes('Exchange rate not found')) {
-          throw new BadRequestException(
-            `Exchange rate not available for ${currencies.collateralCurrency.symbol}. Please try again later.`,
-          );
-        } else {
+        })
+        .catch(function (error) {
+          if (error.message?.includes('Exchange rate not found')) {
+            throw new BadRequestException(
+              `Exchange rate not available for ${currencies.collateralCurrency.symbol}. Please try again later.`,
+            );
+          }
           throw error;
-        }
-      }
+        });
 
       // Convert principal amount to smallest units for calculation service
       const principalAmountInSmallestUnits = this.loanCalculationService.toSmallestUnit(
@@ -369,9 +349,8 @@ export class LoanApplicationsService {
         appliedDate,
       });
 
-      let invoiceDraft;
-      try {
-        invoiceDraft = await this.invoiceService.prepareInvoice({
+      const invoiceDraft = await this.invoiceService
+        .prepareInvoice({
           userId: borrowerId,
           currencyBlockchainKey: createLoanApplicationDto.collateralBlockchainKey,
           currencyTokenId: createLoanApplicationDto.collateralTokenId,
@@ -383,23 +362,23 @@ export class LoanApplicationsService {
           invoiceDate: appliedDate,
           dueDate: expirationDate,
           expiredDate: expirationDate,
+        })
+        .catch(function (error) {
+          if (error instanceof InvoiceError) {
+            throw new BadRequestException(error.message);
+          }
+          const message = error instanceof Error ? error.message : String(error);
+          if (
+            message.includes('Wallet service not found') ||
+            message.includes('Unsupported blockchain key')
+          ) {
+            throw new CurrencyNotSupportedException(
+              createLoanApplicationDto.collateralBlockchainKey,
+              createLoanApplicationDto.collateralTokenId,
+            );
+          }
+          throw error;
         });
-      } catch (error) {
-        if (error instanceof InvoiceError) {
-          throw new BadRequestException(error.message);
-        }
-        const message = error instanceof Error ? error.message : String(error);
-        if (
-          message.includes('Wallet service not found') ||
-          message.includes('Unsupported blockchain key')
-        ) {
-          throw new CurrencyNotSupportedException(
-            createLoanApplicationDto.collateralBlockchainKey,
-            createLoanApplicationDto.collateralTokenId,
-          );
-        }
-        throw error;
-      }
 
       const walletAddress = invoiceDraft.walletAddress;
       if (!walletAddress) {
@@ -411,8 +390,8 @@ export class LoanApplicationsService {
         borrowerUserId: borrowerId,
         collateralBlockchainKey: createLoanApplicationDto.collateralBlockchainKey,
         collateralTokenId: createLoanApplicationDto.collateralTokenId,
-        principalBlockchainKey: DEFAULT_PRINCIPAL_BLOCKCHAIN_KEY,
-        principalTokenId: DEFAULT_PRINCIPAL_TOKEN_ID,
+        principalBlockchainKey: 'crosschain',
+        principalTokenId: 'iso4217:usd',
         principalAmount: principalAmountInSmallestUnits,
         provisionAmount: calculationResult.provisionAmount,
         maxInterestRate: createLoanApplicationDto.maxInterestRate,

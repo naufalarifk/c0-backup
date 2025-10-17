@@ -93,7 +93,7 @@ export class AuthConfig implements AuthConfigProvider {
           trustedProviders: ['google'],
         },
       },
-      trustedOrigins: this.configService.appConfig.allowedOrigins,
+      trustedOrigins: this.configService.app.allowedOrigins,
       rateLimit: this.rateLimit(),
       onAPIError: {
         throw: true,
@@ -170,8 +170,8 @@ export class AuthConfig implements AuthConfigProvider {
         const callbackURL = parsed.searchParams.get('callbackURL');
 
         const deepLink = isDev
-          ? `${this.configService.appConfig.expoUrl}${callbackURL}?token=${token}`
-          : `${this.configService.appConfig.scheme}${callbackURL}?token=${token}`;
+          ? `${this.configService.app.expoUrl}${callbackURL}?token=${token}`
+          : `${this.configService.app.scheme}${callbackURL}?token=${token}`;
 
         const notificationData: EmailPasswordResetNotificationData = {
           type: 'PasswordResetRequested',
@@ -197,7 +197,7 @@ export class AuthConfig implements AuthConfigProvider {
   private plugins(): BetterAuthOptions['plugins'] {
     return [
       twoFactor({
-        issuer: this.configService.appConfig.name,
+        issuer: this.configService.app.name,
       }),
       phoneNumber({
         sendOTP: async ({ phoneNumber, code }) => {

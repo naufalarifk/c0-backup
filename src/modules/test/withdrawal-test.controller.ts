@@ -4,6 +4,7 @@ import { assertDefined, assertProp, check, isNumber, isString } from 'typeshaper
 
 import { Auth } from '../../decorators/auth.decorator';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { AppConfigService } from '../../shared/services/app-config.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
 
 @Controller('test')
@@ -11,14 +12,17 @@ import { TelemetryLogger } from '../../shared/telemetry.logger';
 export class WithdrawalTestController {
   #logger = new TelemetryLogger(WithdrawalTestController.name);
 
-  constructor(private readonly repo: CryptogadaiRepository) {}
+  constructor(
+    private readonly appConfig: AppConfigService,
+    private readonly repo: CryptogadaiRepository,
+  ) {}
 
   @Post('create-beneficiary-by-email')
   async createBeneficiaryByEmail(
     @Body()
     body: { email: string; blockchainKey: string; address: string },
   ) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 
@@ -92,7 +96,7 @@ export class WithdrawalTestController {
       currencyTokenId?: string;
     },
   ) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 
@@ -187,7 +191,7 @@ export class WithdrawalTestController {
     @Body()
     body: { withdrawalId: number; failureReason?: string },
   ) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 

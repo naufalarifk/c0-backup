@@ -1,14 +1,13 @@
 import { Injectable } from '@nestjs/common';
 
-import { Blockchain } from '../blockchain.abstract';
+import { Blockchain, BlockchainAbstract } from '../blockchain.abstract';
 import { Wallet, WalletError } from '../wallet.abstract';
 import { WalletConfig } from '../wallet.config';
-import { WalletProvider } from '../wallet.factory';
 import { CgtWallet } from '../wallets/cgt.wallet';
 
 @Injectable()
-@WalletProvider('cg:testnet')
-export class CgTestnetBlockchain extends Blockchain {
+@Blockchain('cg:testnet')
+export class CgTestnetBlockchain extends BlockchainAbstract {
   constructor(private readonly walletConfig: WalletConfig) {
     super();
   }

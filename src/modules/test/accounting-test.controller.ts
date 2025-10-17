@@ -4,6 +4,7 @@ import { assertDefined, assertProp, check, isNumber, isString } from 'typeshaper
 
 import { Auth } from '../../decorators/auth.decorator';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { AppConfigService } from '../../shared/services/app-config.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
 
 @Controller('test')
@@ -11,7 +12,10 @@ import { TelemetryLogger } from '../../shared/telemetry.logger';
 export class AccountingTestController {
   #logger = new TelemetryLogger(AccountingTestController.name);
 
-  constructor(private readonly repo: CryptogadaiRepository) {}
+  constructor(
+    private readonly appConfig: AppConfigService,
+    private readonly repo: CryptogadaiRepository,
+  ) {}
 
   @Post('setup-account-balance-by-email')
   async setupAccountBalanceByEmail(
@@ -23,7 +27,7 @@ export class AccountingTestController {
       balance: string;
     },
   ) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 
@@ -147,7 +151,7 @@ export class AccountingTestController {
       }>;
     },
   ) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 

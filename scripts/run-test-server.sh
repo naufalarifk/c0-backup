@@ -101,9 +101,9 @@ cd "$WORKING_DIR"
 pnpm build
 
 NODE_ENV=development \
-ALLOWED_ORIGINS="http://$EXPO_WEB_ADDR,crypto-gadai://*" \
+ALLOWED_ORIGINS="http://$EXPO_WEB_ADDR,cryptogadai://*" \
 APP_EXPO_URL="exp://$EXPO_WEB_ADDR/--" \
-APP_SCHEME="crypto-gadai://" \
+APP_SCHEME="cryptogadai://" \
 BETTER_AUTH_COOKIE_PREFIX="cg" \
 BETTER_AUTH_EXPIRATION_TIME="3600" \
 BETTER_AUTH_MAXIMUM_SESSIONS="3" \

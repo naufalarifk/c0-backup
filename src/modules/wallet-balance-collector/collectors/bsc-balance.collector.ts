@@ -15,6 +15,7 @@ export class BSCBalanceCollector extends EVMBalanceCollector {
   protected override readonly logger = new TelemetryLogger(BSCBalanceCollector.name);
 
   protected override getRpcUrl(): string {
-    return process.env.BSC_RPC_URL || 'https://bsc-dataseed.binance.org';
+    /** @TODO support round-robin rpc client mechanism */
+    return this.appConfig.blockchains[BlockchainNetworkEnum.BSCMainnet].rpcUrls[0];
   }
 }

@@ -334,7 +334,7 @@ suite('Guest Password Reset UI Flow', function () {
         email: mobileEmail,
         password: originalPassword,
         name: mobileEmail,
-        callbackURL: 'crypto-gadai://email-sign-up-callback',
+        callbackURL: 'cryptogadai://email-sign-up-callback',
       });
 
       await waitForEmailVerification(testSetup.mailpitUrl, mobileEmail);

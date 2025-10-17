@@ -99,7 +99,7 @@ export class UserRegisteredNotificationComposer extends NotificationComposer<Use
 
             <div class="action-buttons">
                 <div class="button-group">
-                    <a href="${this.appConfig.appConfig.scheme}dashboard" class="btn btn-app">
+                    <a href="${this.appConfig.app.scheme}dashboard" class="btn btn-app">
                         📱 Open in App
                     </a>
                     <a href="/dashboard" class="btn btn-web">
@@ -112,7 +112,7 @@ export class UserRegisteredNotificationComposer extends NotificationComposer<Use
                 <p><strong>Links not working?</strong> Copy and paste these links:</p>
                 <div class="link-options">
                     <div class="link-option">
-                        <strong>App:</strong> <code><a href="${this.appConfig.appConfig.scheme}dashboard" target="_blank" rel="noopener noreferrer">${this.appConfig.appConfig.scheme}dashboard</a></code>
+                        <strong>App:</strong> <code><a href="${this.appConfig.app.scheme}dashboard" target="_blank" rel="noopener noreferrer">${this.appConfig.app.scheme}dashboard</a></code>
                     </div>
                     <div class="link-option">
                         <strong>Web:</strong> <code><a href="/dashboard" target="_blank" rel="noopener noreferrer">/dashboard</a></code>
@@ -388,7 +388,7 @@ You can now:
 
 To access your dashboard, choose your preferred option:
 
-📱 Open in App: ${this.appConfig.appConfig.scheme}dashboard
+📱 Open in App: ${this.appConfig.app.scheme}dashboard
 🌐 Open in Browser: /dashboard
 
 Security Note: If you didn't create this account, please contact our support team immediately.

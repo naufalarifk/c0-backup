@@ -19,6 +19,7 @@ import { type BootstrapResult, COMMAND_DEFINITIONS, type CommandKey } from './en
 import { AppConfigService } from './shared/services/app-config.service';
 import { SharedModule } from './shared/shared.module';
 import { TelemetryLogger } from './shared/telemetry.logger';
+import { unknownErrorToString } from './shared/utils';
 
 const [, , ...rawCommands] = argv;
 
@@ -181,10 +182,7 @@ async function bootstrap() {
   registerSignalHandlers(app, cleanupHandlers);
 }
 
-bootstrap().catch(error => {
-  bootstrapLogger.error('Failed to bootstrap application', error);
-  process.exit(1);
-});
+bootstrap();
 
 function registerCleanup(
   cleanupHandlers: Array<() => Promise<void> | void>,

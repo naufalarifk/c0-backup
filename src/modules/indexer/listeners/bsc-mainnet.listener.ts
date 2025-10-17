@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DiscoveryService } from '@nestjs/core';
 
+import { BSC_MAINNET_KEY } from '../../../shared/constants/blockchain';
 import { AppConfigService } from '../../../shared/services/app-config.service';
 import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
@@ -13,7 +14,7 @@ import { EthereumIndexerListener } from './ethereum.listener';
  * Monitors native BNB and BEP-20 token transactions on BSC mainnet (chain ID: eip155:56).
  */
 @Injectable()
-@Listener('eip155:56')
+@Listener(BSC_MAINNET_KEY)
 export class BscMainnetIndexerListener extends EthereumIndexerListener {
   readonly logger = new TelemetryLogger(BscMainnetIndexerListener.name);
 
@@ -23,6 +24,13 @@ export class BscMainnetIndexerListener extends EthereumIndexerListener {
     invoicePaymentQueue: InvoicePaymentQueueService,
     appConfig: AppConfigService,
   ) {
-    super(discovery, redis, invoicePaymentQueue, appConfig.indexerConfigs.ethereum.bscMainnet);
+    const rpcUrl = appConfig.blockchains[BSC_MAINNET_KEY].rpcUrls[0];
+    const wsUrl = rpcUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+    super(discovery, redis, invoicePaymentQueue, {
+      chainName: 'BSC Mainnet',
+      nativeTokenId: 'slip44:714',
+      tokenPrefix: 'bep20',
+      wsUrl,
+    });
   }
 }

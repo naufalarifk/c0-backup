@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 
 import { Connection, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
+import { AppConfigService } from '../../../shared/services/app-config.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { WalletFactory } from '../../../shared/wallets/wallet.factory';
 import { BlockchainNetworkEnum } from '../balance-collection.types';
@@ -28,13 +29,16 @@ export class SolanaBalanceCollector extends BalanceCollector {
   private _connection?: Connection;
   protected get connection(): Connection {
     if (!this._connection) {
-      const rpcUrl = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
+      const rpcUrl = this.appConfig.blockchains[BlockchainNetworkEnum.SolanaMainnet].rpcUrls[0];
       this._connection = new Connection(rpcUrl);
     }
     return this._connection;
   }
 
-  constructor(private readonly walletFactory: WalletFactory) {
+  constructor(
+    private readonly appConfig: AppConfigService,
+    private readonly walletFactory: WalletFactory,
+  ) {
     super();
   }
 

@@ -7,7 +7,6 @@ import { BalanceCollectorFactory } from './balance-collector.factory';
 import { BitcoinBalanceCollector } from './collectors/bitcoin-balance.collector';
 import { BSCBalanceCollector } from './collectors/bsc-balance.collector';
 import { EVMBalanceCollector } from './collectors/evm-balance.collector';
-import { SepoliaBalanceCollector } from './collectors/sepolia-balance.collector';
 import { SolanaBalanceCollector } from './collectors/solana-balance.collector';
 import { WalletBalanceCollectorQueueService } from './wallet-balance-collector.queue.service';
 import { WalletBalanceCollectorService } from './wallet-balance-collector.service';
@@ -37,7 +36,6 @@ import { WalletBalanceCollectorService } from './wallet-balance-collector.servic
     // Blockchain-specific collectors
     EVMBalanceCollector,
     BSCBalanceCollector,
-    SepoliaBalanceCollector,
     SolanaBalanceCollector,
     BitcoinBalanceCollector,
   ],

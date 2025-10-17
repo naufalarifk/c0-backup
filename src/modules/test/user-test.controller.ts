@@ -2,6 +2,7 @@ import { Body, Controller, Get, Post } from '@nestjs/common';
 
 import { Auth } from '../../decorators/auth.decorator';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { AppConfigService } from '../../shared/services/app-config.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
 
 @Controller('test')
@@ -9,7 +10,10 @@ import { TelemetryLogger } from '../../shared/telemetry.logger';
 export class UserTestController {
   #logger = new TelemetryLogger(UserTestController.name);
 
-  constructor(private readonly repo: CryptogadaiRepository) {}
+  constructor(
+    private readonly appConfig: AppConfigService,
+    private readonly repo: CryptogadaiRepository,
+  ) {}
 
   @Get('test')
   getTest() {
@@ -31,7 +35,7 @@ export class UserTestController {
   async createTestUsers(
     @Body() body: { users: Array<{ email: string; name: string; role?: string }> },
   ) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 

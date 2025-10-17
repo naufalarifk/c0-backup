@@ -1,10 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
-import { HDKey } from '@scure/bip32';
-import { mnemonicToSeed } from '@scure/bip39';
-
-import { CryptographyService } from '../cryptography/cryptography.service';
-import { AppConfigService } from '../services/app-config.service';
+import { BlockchainKey } from '../constants/blockchain';
 import { Wallet } from './wallet.abstract';
 import { WalletFactory } from './wallet.factory';
 
@@ -16,9 +12,15 @@ export interface HotWallet {
 }
 
 @Injectable()
+/**
+ * @deprecated use WalletFactory instead
+ */
 export class WalletService {
   constructor(private readonly walletFactory: WalletFactory) {}
 
+  /**
+   * @deprecated use WalletFactory -> getBlockchain(blockchainKey).createInvoiceWallet(invoiceId) instead
+   */
   async deriveInvoiceWallet(
     blockchainKey: string,
     invoiceId: number,
@@ -39,6 +41,9 @@ export class WalletService {
     return { wallet, address, derivationPath };
   }
 
+  /**
+   * @deprecated use WalletFactory -> getBlockchain(blockchainKey).getHotWallet() instead
+   */
   async getHotWallet(blockchainKey: string): Promise<HotWallet> {
     const blockchain = this.walletFactory.getBlockchain(blockchainKey);
     if (!blockchain) {

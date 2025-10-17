@@ -58,7 +58,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     const { handshakeTimeoutMs, maxSubscriptionsPerConnection } = appConfigService.realtimeConfig;
     this.handshakeTimeoutMs = handshakeTimeoutMs;
     this.maxSubscriptions = maxSubscriptionsPerConnection;
-    this.allowedOrigins = appConfigService.appConfig.allowedOrigins;
+    this.allowedOrigins = appConfigService.app.allowedOrigins;
   }
 
   handleConnection(client: GatewayWebSocket, request: IncomingMessage): void {

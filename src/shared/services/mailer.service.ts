@@ -12,7 +12,7 @@ export class MailerService {
   constructor(private readonly configService: AppConfigService) {
     const { host, port, user, pass, secure, ignoreTLS, requireTLS, from } =
       this.configService.emailConfig;
-    this.defaultFrom = `${this.configService.appConfig.name} <${from}>`;
+    this.defaultFrom = `${this.configService.app.name} <${from}>`;
     this.transporter = nodemailer.createTransport({
       host,
       port,

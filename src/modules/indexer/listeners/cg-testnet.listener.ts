@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DiscoveryService } from '@nestjs/core';
 
+import { CG_TESTNET_KEY } from '../../../shared/constants/blockchain';
 import {
   CgTestnetBlockchainEventService,
   type CgTestnetBlockchainPaymentEvent,
@@ -11,7 +12,7 @@ import { InvoicePaymentQueueService } from '../../invoice-payments/invoice-payme
 import { AddressChanged, IndexerListener, Listener } from '../indexer-listener.abstract';
 
 @Injectable()
-@Listener('cg:testnet')
+@Listener(CG_TESTNET_KEY)
 export class CgTestnetIndexerListener extends IndexerListener {
   readonly logger = new TelemetryLogger(CgTestnetIndexerListener.name);
   #watchersByToken = new Map<string, Map<string, AddressChanged>>();

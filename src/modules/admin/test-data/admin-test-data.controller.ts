@@ -4,6 +4,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { IsDateString, IsNumber, IsString } from 'class-validator';
 
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { AppConfigService } from '../../../shared/services/app-config.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 
 class SeedExchangeRateDto {
@@ -34,7 +35,10 @@ class SeedExchangeRateDto {
 export class AdminTestDataController {
   private readonly logger = new TelemetryLogger(AdminTestDataController.name);
 
-  constructor(private readonly repository: CryptogadaiRepository) {}
+  constructor(
+    private readonly appConfig: AppConfigService,
+    private readonly repository: CryptogadaiRepository,
+  ) {}
 
   @Post('seed-exchange-rate')
   @ApiOperation({
@@ -42,8 +46,7 @@ export class AdminTestDataController {
     description: 'This endpoint is only available in test environments to seed exchange rate data',
   })
   async seedExchangeRate(@Body() dto: SeedExchangeRateDto) {
-    // Only allow this in test environment
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test data seeding not allowed in production');
     }
 

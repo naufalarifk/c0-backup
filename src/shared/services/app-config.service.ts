@@ -10,6 +10,18 @@ import { ConfigService } from '@nestjs/config';
 import parse from 'parse-duration';
 import invariant from 'tiny-invariant';
 
+import {
+  BITCOIN_MAINNET_KEY,
+  BITCOIN_TESTNET_KEY,
+  BSC_MAINNET_KEY,
+  BSC_TESTNET_KEY,
+  ETHEREUM_HOODI_KEY,
+  ETHEREUM_LOCALNET_KEY,
+  ETHEREUM_MAINNET_KEY,
+  SOLANA_DEVNET_KEY,
+  SOLANA_MAINNET_KEY,
+} from '../constants/blockchain';
+
 @Injectable()
 export class AppConfigService {
   constructor(@Inject(ConfigService) private configService: ConfigService) {}
@@ -24,87 +36,6 @@ export class AppConfigService {
 
   get isTest(): boolean {
     return this.nodeEnv === 'test';
-  }
-
-  private getNumber(key: string, defaultValue?: number): number {
-    const value = this.configService.get<string>(key);
-
-    if (value === undefined) {
-      if (defaultValue !== undefined) {
-        return defaultValue;
-      }
-      throw new TypeError(`Environment variable ${key} doesn't exist`);
-    }
-
-    const num = Number(value);
-
-    if (Number.isNaN(num)) {
-      throw new TypeError(`Environment variable ${key} must be a number. Received: ${value}`);
-    }
-
-    return num;
-  }
-
-  private getDuration(
-    key: string,
-    defaultValue?: Parameters<typeof parse>[0],
-    format?: Parameters<typeof parse>[1],
-  ): number {
-    const value = this.getString(key);
-    const duration = parse(value, format);
-
-    if (duration === null && defaultValue) {
-      const parsedDefaultValue = parse(defaultValue, format);
-      if (!parsedDefaultValue) {
-        throw new Error(`Default value for ${key} is invalid: ${defaultValue}`);
-      }
-    }
-
-    invariant(
-      duration !== undefined && !Number.isNaN(duration),
-      `Environment variable ${key} must be a valid duration. Received: ${value}`,
-    );
-
-    return duration ?? 0;
-  }
-
-  private getBoolean(key: string, defaultValue?: boolean): boolean {
-    const value = this.configService.get<string>(key);
-
-    if (value === undefined) {
-      if (defaultValue !== undefined) {
-        return defaultValue;
-      }
-      throw new Error(`Environment variable ${key} doesn't exist`);
-    }
-
-    try {
-      return Boolean(JSON.parse(value));
-    } catch {
-      throw new Error(`Environment variable ${key} must be a boolean. Received: ${value}`);
-    }
-  }
-
-  private getString(key: string, defaultValue?: string): string {
-    const value = this.configService.get<string>(key);
-
-    if (value === undefined) {
-      if (defaultValue !== undefined) {
-        return defaultValue;
-      }
-
-      throw new Error(`${key} environment variable doesn't exist`);
-    }
-
-    return value.toString().replaceAll(String.raw`\n`, '\n');
-  }
-
-  private getOptionalString(key: string): string | undefined {
-    const value = this.configService.get<string>(key);
-    if (value === undefined || value === '') {
-      return undefined;
-    }
-    return value.toString().replaceAll(String.raw`\n`, '\n');
   }
 
   get nodeEnv() {
@@ -143,6 +74,44 @@ export class AppConfigService {
     };
   }
 
+  get blockchains() {
+    return {
+      [BITCOIN_MAINNET_KEY]: {
+        rpcUrls: this.getArray('BITCOIN_MAINNET_RPC_URLS', ['http://localhost:8332']),
+      },
+      [BITCOIN_TESTNET_KEY]: {
+        rpcUrls: this.getArray('BITCOIN_TESTNET_RPC_URLS', ['http://localhost:18332']),
+      },
+      [ETHEREUM_MAINNET_KEY]: {
+        rpcUrls: this.getArray('ETHEREUM_MAINNET_RPC_URLS', [
+          'https://ethereum-rpc.publicnode.com',
+        ]),
+      },
+      [ETHEREUM_LOCALNET_KEY]: {
+        rpcUrls: this.getArray('ETHEREUM_LOCALNET_RPC_URLS', ['http://localhost:8545']),
+      },
+      [ETHEREUM_HOODI_KEY]: {
+        rpcUrls: this.getArray('ETHEREUM_HOODI_RPC_URLS', [
+          'https://ethereum-hoodi-rpc.publicnode.com',
+        ]),
+      },
+      [BSC_MAINNET_KEY]: {
+        rpcUrls: this.getArray('BSC_MAINNET_RPC_URLS', ['https://bsc-dataseed.binance.org/']),
+      },
+      [BSC_TESTNET_KEY]: {
+        rpcUrls: this.getArray('BSC_TESTNET_RPC_URLS', [
+          'https://data-seed-prebsc-1-s1.binance.org:8545/',
+        ]),
+      },
+      [SOLANA_MAINNET_KEY]: {
+        rpcUrls: this.getArray('SOLANA_MAINNET_RPC_URLS', ['https://api.mainnet-beta.solana.com']),
+      },
+      [SOLANA_DEVNET_KEY]: {
+        rpcUrls: this.getArray('SOLANA_DEVNET_RPC_URLS', ['https://api.devnet.solana.com']),
+      },
+    };
+  }
+
   get databaseUrl() {
     return this.getString('DATABASE_URL', ':inmemory:');
   }
@@ -174,28 +143,18 @@ export class AppConfigService {
       google: {
         prompt: 'select_account consent',
         accessType: 'offline',
-        clientId: this.getString('GOOGLE_CLIENT_ID'),
-        clientSecret: this.getString('GOOGLE_CLIENT_SECRET'),
+        clientId: this.getString('GOOGLE_CLIENT_ID', 'test_client_id'),
+        clientSecret: this.getString('GOOGLE_CLIENT_SECRET', 'test_client_secret'),
       },
     };
   }
 
   get twilioConfig() {
-    // In test environment, provide valid format test credentials
-    if (!this.isProduction) {
-      return {
-        accountSid: this.getString('TWILIO_ACCOUNT_SID', 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'),
-        authToken: this.getString('TWILIO_AUTH_TOKEN', 'test_auth_token'),
-        verifySid: this.getString('TWILIO_VERIFY_SID', 'VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'),
-        phoneNumber: this.getString('TWILIO_PHONE_NUMBER', '+1234567890'),
-      };
-    }
-
     return {
-      accountSid: this.getString('TWILIO_ACCOUNT_SID'),
-      authToken: this.getString('TWILIO_AUTH_TOKEN'),
-      verifySid: this.getString('TWILIO_VERIFY_SID'),
-      phoneNumber: this.getString('TWILIO_PHONE_NUMBER'),
+      accountSid: this.getString('TWILIO_ACCOUNT_SID', 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'),
+      authToken: this.getString('TWILIO_AUTH_TOKEN', 'test_auth_token'),
+      verifySid: this.getString('TWILIO_VERIFY_SID', 'VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'),
+      phoneNumber: this.getString('TWILIO_PHONE_NUMBER', '+1234567890'),
     };
   }
 
@@ -260,13 +219,14 @@ export class AppConfigService {
     };
   }
 
-  get appConfig() {
+  get app() {
+    const port = this.getNumber('PORT', 3000);
     return {
-      port: this.getString('PORT', '3000'),
+      port: port,
       name: this.getString('APP_NAME', 'Cryptogadai'),
-      scheme: this.getString('APP_SCHEME', 'crypto-gadai://'),
+      scheme: this.getString('APP_SCHEME', 'cryptogadai://'),
       expoUrl: this.getString('APP_EXPO_URL', 'exp://192.168.0.111:8081/--'),
-      allowedOrigins: this.getString('ALLOWED_ORIGINS')
+      allowedOrigins: this.getString('ALLOWED_ORIGINS', `http://localhost:${port}`)
         .split(',')
         .map(origin => origin.trim()),
     };
@@ -284,22 +244,6 @@ export class AppConfigService {
     };
   }
 
-  private get(key: string): string {
-    const value = this.configService.get<string>(key);
-
-    invariant(value != null, `Environment variable ${key} is not set`);
-
-    return value;
-  }
-
-  private getDefaultAuthUrl(): string {
-    const ip = this.getLocalNetworkIP();
-    if (typeof ip === 'string') {
-      return `http://${ip}:${this.appConfig.port}`;
-    }
-    return 'http://localhost:3000';
-  }
-
   get walletConfig() {
     return {
       platformMasterMnemonic: this.getString('PLATFORM_MASTER_MNEMONIC', ''),
@@ -313,53 +257,6 @@ export class AppConfigService {
     return {
       epochMs: this.getNumber('INVOICE_ID_EPOCH_MS', Date.UTC(2024, 0, 1)),
       workerId: this.getNumber('INVOICE_ID_WORKER_ID', 0),
-    };
-  }
-
-  get indexerConfigs() {
-    return {
-      ethereum: {
-        mainnet: {
-          chainName: 'Ethereum Mainnet',
-          wsUrl: this.getString('ETHEREUM_MAINNET_WS_URL', 'wss://ethereum-rpc.publicnode.com'),
-          nativeTokenId: 'slip44:60',
-          tokenPrefix: 'erc20',
-        },
-        hoodi: {
-          chainName: 'Ethereum Hoodi',
-          wsUrl: this.getString('ETHEREUM_HOODI_WS_URL', 'wss://ethereum-hoodi-rpc.publicnode.com'),
-          nativeTokenId: 'slip44:60',
-          tokenPrefix: 'erc20',
-        },
-        sepolia: {
-          chainName: 'Ethereum Sepolia',
-          wsUrl: this.getString(
-            'ETHEREUM_SEPOLIA_WS_URL',
-            'wss://sepolia.infura.io/ws/v3/YOUR_INFURA_PROJECT_ID',
-          ),
-          nativeTokenId: 'slip44:60',
-          tokenPrefix: 'erc20',
-        },
-        localnet: {
-          chainName: 'Ethereum Localnet',
-          wsUrl: this.getString('ETHEREUM_LOCALNET_WS_URL', 'ws://localhost:8545'),
-          nativeTokenId: 'slip44:60',
-          tokenPrefix: 'erc20',
-        },
-        bscMainnet: {
-          chainName: 'BSC Mainnet',
-          wsUrl: this.getString('BSC_WS_URL', 'wss://bsc-mainnet.infura.io/ws/v3/YOUR_PROJECT_ID'),
-          nativeTokenId: 'slip44:714',
-          tokenPrefix: 'bep20',
-        },
-      },
-      solana: {
-        mainnet: {
-          chainName: 'Solana Mainnet',
-          rpcUrl: this.getString('SOLANA_RPC_URL', 'https://api.mainnet-beta.solana.com'),
-          wsUrl: this.getOptionalString('SOLANA_WS_URL'),
-        },
-      },
     };
   }
 
@@ -383,6 +280,92 @@ export class AppConfigService {
       .filter(key => key.length > 0);
   }
 
+  private getNumber(key: string, defaultValue?: number): number {
+    const value = this.configService.get<string>(key);
+
+    if (value === undefined) {
+      if (defaultValue !== undefined) {
+        return defaultValue;
+      }
+      throw new TypeError(`Environment variable ${key} doesn't exist`);
+    }
+
+    const num = Number(value);
+
+    if (Number.isNaN(num)) {
+      throw new TypeError(`Environment variable ${key} must be a number. Received: ${value}`);
+    }
+
+    return num;
+  }
+
+  private getDuration(
+    key: string,
+    defaultValue?: Parameters<typeof parse>[0],
+    format?: Parameters<typeof parse>[1],
+  ): number {
+    const value = this.getString(key, defaultValue);
+    const duration = parse(value, format);
+
+    if (duration === null && defaultValue) {
+      const parsedDefaultValue = parse(defaultValue, format);
+      if (!parsedDefaultValue) {
+        throw new Error(`Default value for ${key} is invalid: ${defaultValue}`);
+      }
+    }
+
+    invariant(
+      duration !== undefined && !Number.isNaN(duration),
+      `Environment variable ${key} must be a valid duration. Received: ${value}`,
+    );
+
+    return duration ?? 0;
+  }
+
+  private getBoolean(key: string, defaultValue?: boolean): boolean {
+    const value = this.configService.get<string>(key);
+
+    if (value === undefined) {
+      if (defaultValue !== undefined) {
+        return defaultValue;
+      }
+      throw new Error(`Environment variable ${key} doesn't exist`);
+    }
+
+    try {
+      return Boolean(JSON.parse(value));
+    } catch {
+      throw new Error(`Environment variable ${key} must be a boolean. Received: ${value}`);
+    }
+  }
+
+  private getString(key: string, defaultValue?: string): string {
+    const value = this.configService.get<string>(key);
+
+    if (value === undefined) {
+      if (defaultValue !== undefined) {
+        return defaultValue;
+      }
+
+      throw new Error(`${key} environment variable doesn't exist`);
+    }
+
+    return value.toString().replaceAll(String.raw`\n`, '\n');
+  }
+
+  private getArray(key: string, defaultValue?: string[]): string[] {
+    const value = this.getString(key, defaultValue?.join(','));
+    return value.split(',').map(item => item.trim());
+  }
+
+  private getOptionalString(key: string): string | undefined {
+    const value = this.configService.get<string>(key);
+    if (value === undefined || value === '') {
+      return undefined;
+    }
+    return value.toString().replaceAll(String.raw`\n`, '\n');
+  }
+
   private getLocalNetworkIP(): string | null {
     const interfaces = networkInterfaces();
     for (const name of Object.keys(interfaces)) {
@@ -393,5 +376,21 @@ export class AppConfigService {
       }
     }
     return null;
+  }
+
+  private get(key: string): string {
+    const value = this.configService.get<string>(key);
+
+    invariant(value != null, `Environment variable ${key} is not set`);
+
+    return value;
+  }
+
+  private getDefaultAuthUrl(): string {
+    const ip = this.getLocalNetworkIP();
+    if (typeof ip === 'string') {
+      return `http://${ip}:${this.app.port}`;
+    }
+    return 'http://localhost:3000';
   }
 }

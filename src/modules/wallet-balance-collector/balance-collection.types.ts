@@ -1,9 +1,15 @@
+import {
+  BITCOIN_MAINNET_KEY,
+  BSC_MAINNET_KEY,
+  ETHEREUM_MAINNET_KEY,
+  SOLANA_MAINNET_KEY,
+} from '../../shared/constants/blockchain';
+
 export const BlockchainNetworkEnum = {
-  EthereumMainnet: 'eip155:1' as const,
-  BSCMainnet: 'eip155:56' as const,
-  EthereumSepolia: 'eip155:11155111' as const,
-  SolanaMainnet: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as const,
-  BitcoinMainnet: 'bip122:000000000019d6689c085ae165831e93' as const,
+  EthereumMainnet: ETHEREUM_MAINNET_KEY,
+  BSCMainnet: BSC_MAINNET_KEY,
+  SolanaMainnet: SOLANA_MAINNET_KEY,
+  BitcoinMainnet: BITCOIN_MAINNET_KEY,
 } as const;
 
 // Allow any string for BlockchainNetwork to support dynamic blockchain keys

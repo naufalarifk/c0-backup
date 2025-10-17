@@ -8,6 +8,7 @@ import { Injectable } from '@nestjs/common';
 
 import { ethers } from 'ethers';
 
+import { AppConfigService } from '../../../shared/services/app-config.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { WalletFactory } from '../../../shared/wallets/wallet.factory';
 import { BlockchainNetworkEnum, getBlockchainType } from '../balance-collection.types';
@@ -26,7 +27,10 @@ export class EVMBalanceCollector extends BalanceCollector {
   // Gas reserve: 21000 gas * 20 gwei
   protected readonly GAS_RESERVE = BigInt(21000) * BigInt(20000000000);
 
-  constructor(private readonly walletFactory: WalletFactory) {
+  constructor(
+    readonly appConfig: AppConfigService,
+    private readonly walletFactory: WalletFactory,
+  ) {
     super();
   }
 
@@ -152,7 +156,6 @@ export class EVMBalanceCollector extends BalanceCollector {
   }
 
   protected getRpcUrl(): string {
-    // Default to Ethereum mainnet
-    return process.env.ETHEREUM_RPC_URL || 'https://eth.llamarpc.com';
+    return this.appConfig.blockchains[BlockchainNetworkEnum.EthereumMainnet].rpcUrls[0];
   }
 }

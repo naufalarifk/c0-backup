@@ -4,9 +4,8 @@ import { HDKey } from '@scure/bip32';
 import { Connection } from '@solana/web3.js';
 
 import { TelemetryLogger } from '../../telemetry.logger';
-import { Blockchain } from '../blockchain.abstract';
+import { Blockchain, BlockchainAbstract } from '../blockchain.abstract';
 import { WalletConfig } from '../wallet.config';
-import { WalletProvider } from '../wallet.factory';
 import { SolWallet } from '../wallets/sol.wallet';
 
 class SolanaMainnetWallet extends SolWallet {
@@ -19,8 +18,8 @@ class SolanaMainnetWallet extends SolWallet {
 }
 
 @Injectable()
-@WalletProvider('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp')
-export class SolMainnetBlockchain extends Blockchain {
+@Blockchain('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp')
+export class SolMainnetBlockchain extends BlockchainAbstract {
   constructor(private readonly walletConfig: WalletConfig) {
     super();
   }

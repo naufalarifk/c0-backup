@@ -1,7 +1,12 @@
+import { DiscoveryService } from '@nestjs/core';
+
+import { BlockchainKey } from '../constants/blockchain';
 import { TelemetryLogger } from '../telemetry.logger';
 import { Wallet, WalletError } from './wallet.abstract';
 
-export abstract class Blockchain {
+export const Blockchain = DiscoveryService.createDecorator<BlockchainKey>();
+
+export abstract class BlockchainAbstract {
   abstract get bip44CoinType(): number;
 
   getHotWallet(): Promise<Wallet> {

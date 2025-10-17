@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build && rsync ./src/shared/repositories/postgres ./dist/shared/repositories/postgres --recursive --include='*.sql' --exclude='*'",
+    "build": "nest build",
     "start": "nest start -- api notification pricefeed settlement invoice-expiration indexer wallet-balance-collector",
     "start:api": "nest start -- api",
     "start:notification": "nest start -- notification",

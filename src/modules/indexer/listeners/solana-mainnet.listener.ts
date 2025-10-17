@@ -4,6 +4,7 @@ import { DiscoveryService } from '@nestjs/core';
 import { AccountLayout } from '@solana/spl-token';
 import { Connection, PublicKey } from '@solana/web3.js';
 
+import { SOLANA_MAINNET_KEY } from '../../../shared/constants/blockchain';
 import { AppConfigService } from '../../../shared/services/app-config.service';
 import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
@@ -30,14 +31,13 @@ export type SolanaIndexerConfig = {
 };
 
 @Injectable()
-@Listener('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp')
+@Listener(SOLANA_MAINNET_KEY)
 export class SolanaMainnetIndexerListener extends IndexerListener {
   readonly logger = new TelemetryLogger(SolanaMainnetIndexerListener.name);
   #watchersByToken = new Map<string, Map<string, AddressChanged>>();
   #activeStrategies = new Set<string>();
   #activeSubscriptions = new Map<string, number>();
   #connection: Connection;
-  #chainName: string;
 
   constructor(
     discovery: DiscoveryService,
@@ -46,17 +46,13 @@ export class SolanaMainnetIndexerListener extends IndexerListener {
     private appConfig: AppConfigService,
   ) {
     super(discovery, redis, invoicePaymentQueue);
-
-    const config = appConfig.indexerConfigs.solana.mainnet;
-    this.#chainName = config.chainName;
   }
 
   async start() {
     await super.start();
 
-    const config = this.appConfig.indexerConfigs.solana.mainnet;
-    const rpcUrl = config.rpcUrl;
-    const wsUrl = config.wsUrl;
+    const rpcUrl = this.appConfig.blockchains[SOLANA_MAINNET_KEY].rpcUrls[0];
+    const wsUrl = rpcUrl.replace('https://', 'wss://').replace('http://', 'ws://');
 
     this.#connection = new Connection(rpcUrl, {
       commitment: 'confirmed',
@@ -110,7 +106,7 @@ export class SolanaMainnetIndexerListener extends IndexerListener {
     const isFirstAddress = !this.#activeStrategies.has(strategy.tokenKey);
     if (isFirstAddress) {
       this.#activeStrategies.add(strategy.tokenKey);
-      this.logger.log(`Starting ${this.#chainName} indexer strategy`, {
+      this.logger.log(`Starting ${this.constructor.name} indexer strategy`, {
         mode: strategy.mode,
         tokenId: strategy.tokenId,
       });
@@ -170,7 +166,7 @@ export class SolanaMainnetIndexerListener extends IndexerListener {
       this.#activeStrategies.delete(strategy.tokenKey);
 
       this.logger.log(
-        `No more wallets tracked for ${this.#chainName} token, stopped strategy runner`,
+        `No more wallets tracked for ${this.constructor.name} token, stopped strategy runner`,
         {
           tokenId: strategy.tokenId,
         },
@@ -237,7 +233,7 @@ export class SolanaMainnetIndexerListener extends IndexerListener {
             if (newBalance > previousBalance) {
               const amount = (newBalance - previousBalance).toString();
 
-              this.logger.log(`Detected native ${this.#chainName} transaction`, {
+              this.logger.log(`Detected native ${this.constructor.name} transaction`, {
                 address: watcher.address,
                 amount: (newBalance - previousBalance) / 1e9,
                 slot: context.slot,
@@ -265,7 +261,7 @@ export class SolanaMainnetIndexerListener extends IndexerListener {
 
       this.#activeSubscriptions.set(`${strategy.tokenKey}:${watchKey}`, subscriptionId);
 
-      this.logger.log(`Native ${this.#chainName} listener started for address`, {
+      this.logger.log(`Native ${this.constructor.name} listener started for address`, {
         address: watcher.address,
       });
     } catch (error) {

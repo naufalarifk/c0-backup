@@ -10,32 +10,15 @@ import { GenericContainer, StartedTestContainer } from 'testcontainers';
 import { LogWaitStrategy } from 'testcontainers/build/wait-strategies/log-wait-strategy';
 import { assertDefined, assertPropString, hasProp, isDefined } from 'typeshaper';
 
+import { AppConfigService } from '../../../shared/services/app-config.service';
 import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { InvoicePaymentQueueService } from '../../invoice-payments/invoice-payment.queue.service';
-import { BitcoinService } from '../btc.service';
 import { AddressChanged, DetectedTransaction } from '../indexer-listener.abstract';
 import { BitcoinMainnetIndexerListener } from './bitcoin-mainnet.listener';
 
 /**
- * Test implementation of Bitcoin service for local regtest testing
- */
-class TestBitcoinService extends BitcoinService {
-  constructor(rpcUrlOverride: string) {
-    super();
-    (this as any).rpcUrl = rpcUrlOverride;
-    (this as any).rpcUser = 'bitcoinrpc';
-    (this as any).rpcPassword = 'testpassword123';
-  }
-
-  // Skip the module init health check during testing
-  onModuleInit() {
-    // Do nothing
-  }
-}
-
-/**
- * Test implementation of BitcoinMainnetIndexerListener for local testing
+ * Test implementation of BitcoinMainnetIndexerListener for local regtest testing
  */
 class TestBitcoinIndexerListener extends BitcoinMainnetIndexerListener {
   readonly logger = new TelemetryLogger('TestBitcoinIndexerListener');
@@ -44,10 +27,14 @@ class TestBitcoinIndexerListener extends BitcoinMainnetIndexerListener {
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
-    btcService: BitcoinService,
+    appConfig: AppConfigService,
+    rpcUrlOverride: string,
   ) {
-    // Use 2 second polling interval for testing
-    super(discovery, redis, invoicePaymentQueue, btcService, 2000);
+    super(discovery, redis, invoicePaymentQueue, appConfig);
+    // Override the RPC configuration for testing
+    this['#rpcUrl'] = rpcUrlOverride;
+    this['#rpcUser'] = 'bitcoinrpc';
+    this['#rpcPassword'] = 'testpassword123';
   }
 
   // Override getBlockchainKey for testing
@@ -62,7 +49,6 @@ describe('BitcoinIndexerListener Integration Tests', function () {
   let module: TestingModule;
   let listener: TestBitcoinIndexerListener;
   let redisService: RedisService;
-  let _btcService: TestBitcoinService;
   let detectedTransactions: DetectedTransaction[] = [];
   let bitcoinRpcUrl: string;
 
@@ -144,6 +130,14 @@ describe('BitcoinIndexerListener Integration Tests', function () {
         },
       };
 
+      const mockAppConfigService = {
+        bitcoinRpcConfig: {
+          rpcUrl: bitcoinRpcUrl,
+          rpcUser: 'bitcoinrpc',
+          rpcPassword: 'testpassword123',
+        },
+      };
+
       module = await Test.createTestingModule({
         providers: [
           {
@@ -163,10 +157,8 @@ describe('BitcoinIndexerListener Integration Tests', function () {
             useValue: mockInvoicePaymentQueue,
           },
           {
-            provide: BitcoinService,
-            useFactory: () => {
-              return new TestBitcoinService(bitcoinRpcUrl);
-            },
+            provide: AppConfigService,
+            useValue: mockAppConfigService,
           },
           {
             provide: TestBitcoinIndexerListener,
@@ -174,11 +166,17 @@ describe('BitcoinIndexerListener Integration Tests', function () {
               discovery: DiscoveryService,
               redis: RedisService,
               queue: InvoicePaymentQueueService,
-              btc: BitcoinService,
+              appConfig: AppConfigService,
             ) => {
-              return new TestBitcoinIndexerListener(discovery, redis, queue, btc);
+              return new TestBitcoinIndexerListener(
+                discovery,
+                redis,
+                queue,
+                appConfig,
+                bitcoinRpcUrl,
+              );
             },
-            inject: [DiscoveryService, RedisService, InvoicePaymentQueueService, BitcoinService],
+            inject: [DiscoveryService, RedisService, InvoicePaymentQueueService, AppConfigService],
           },
           DiscoveryService,
         ],
@@ -186,7 +184,6 @@ describe('BitcoinIndexerListener Integration Tests', function () {
 
       redisService = module.get<RedisService>(RedisService);
       listener = module.get<TestBitcoinIndexerListener>(TestBitcoinIndexerListener);
-      _btcService = module.get<BitcoinService>(BitcoinService) as TestBitcoinService;
 
       await module.init();
     },

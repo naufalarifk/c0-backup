@@ -21,6 +21,7 @@ import {
 
 import { Auth } from '../../decorators/auth.decorator';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { AppConfigService } from '../../shared/services/app-config.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { LoansService } from '../loans/services/loans.service';
 import { NotificationQueueService } from '../notifications/notification-queue.service';
@@ -31,6 +32,7 @@ export class LoanTestController {
   #logger = new TelemetryLogger(LoanTestController.name);
 
   constructor(
+    private readonly appConfig: AppConfigService,
     private readonly repo: CryptogadaiRepository,
     private readonly loansService: LoansService,
     private readonly notificationQueueService: NotificationQueueService,
@@ -47,7 +49,7 @@ export class LoanTestController {
       invoiceId?: string;
     },
   ) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 
@@ -92,7 +94,7 @@ export class LoanTestController {
 
   @Post('loan-offers/:loanOfferId/normalize-amounts')
   async normalizeLoanOfferAmounts(@Param('loanOfferId') loanOfferId: string) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 
@@ -110,7 +112,7 @@ export class LoanTestController {
 
   @Get('loan-offers/:loanOfferId')
   async getLoanOfferStatus(@Param('loanOfferId') loanOfferId: string) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 
@@ -169,7 +171,7 @@ export class LoanTestController {
 
   @Post('loan-applications/:loanApplicationId/normalize-amounts')
   async normalizeLoanApplicationAmounts(@Param('loanApplicationId') loanApplicationId: string) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 
@@ -196,7 +198,7 @@ export class LoanTestController {
       invoiceId?: string;
     },
   ) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 
@@ -244,7 +246,7 @@ export class LoanTestController {
 
   @Get('loan-applications/:loanApplicationId')
   async getLoanApplicationStatus(@Param('loanApplicationId') loanApplicationId: string) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 
@@ -331,7 +333,7 @@ export class LoanTestController {
       maturityDate?: string;
     },
   ) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 
@@ -484,7 +486,7 @@ export class LoanTestController {
 
   @Get('loans/:loanId/documents')
   async getLoanDocuments(@Param('loanId') loanId: string) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 
@@ -541,7 +543,7 @@ export class LoanTestController {
     @Body()
     body: { targetApplicationId?: string; targetOfferId?: string; batchSize?: number },
   ) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 

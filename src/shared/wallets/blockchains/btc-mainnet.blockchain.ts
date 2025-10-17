@@ -1,14 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
-import { HDKey } from '@scure/bip32';
 import * as bitcoin from 'bitcoinjs-lib';
 import invariant from 'tiny-invariant';
 
-import { TelemetryLogger } from '../../telemetry.logger';
-import { Blockchain } from '../blockchain.abstract';
+import { Blockchain, BlockchainAbstract } from '../blockchain.abstract';
 import { Wallet } from '../wallet.abstract';
 import { WalletConfig } from '../wallet.config';
-import { WalletProvider } from '../wallet.factory';
 import { BitcoinRpcClient, BtcWallet } from '../wallets/btc.wallet';
 
 export class BaseBitcoinRpcClient implements BitcoinRpcClient {
@@ -147,8 +144,8 @@ class BtcMainnetWallet extends BtcWallet {
 }
 
 @Injectable()
-@WalletProvider('bip122:000000000019d6689c085ae165831e93')
-export class BtcMainnetBlockchain extends Blockchain {
+@Blockchain('bip122:000000000019d6689c085ae165831e93')
+export class BtcMainnetBlockchain extends BlockchainAbstract {
   protected network = bitcoin.networks.bitcoin;
 
   constructor(private readonly walletConfig: WalletConfig) {

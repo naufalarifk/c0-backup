@@ -22,7 +22,7 @@ export class EmailService {
   constructor(private readonly configService: AppConfigService) {
     const { apiKey, from, host, port, user, pass, secure, ignoreTLS } =
       this.configService.emailConfig;
-    this.defaultFrom = `${this.configService.appConfig.name} <${from}>`;
+    this.defaultFrom = `${this.configService.app.name} <${from}>`;
 
     // Use SMTP in test environment
     this.useSmtp = this.configService.emailConfig.useSmtp;

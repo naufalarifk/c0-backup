@@ -1,40 +1,25 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { DiscoveryService, Reflector } from '@nestjs/core';
 
-import { Blockchain } from './blockchain.abstract';
-
-const BLOCKCHAIN_KEY = 'BLOCKCHAIN_KEY';
-export const WalletProvider = (key: string) => Reflect.metadata(BLOCKCHAIN_KEY, key);
+import { BlockchainKey } from '../constants/blockchain';
+import { Blockchain, BlockchainAbstract } from './blockchain.abstract';
 
 @Injectable()
-export class WalletFactory implements OnModuleInit {
-  private services = new Map<string, Blockchain>();
+export class WalletFactory {
+  constructor(private readonly discovery: DiscoveryService) {}
 
-  constructor(
-    private readonly discovery: DiscoveryService,
-    private readonly reflector: Reflector,
-  ) {}
-
-  onModuleInit() {
+  getBlockchain(blockchainKey: string): BlockchainAbstract {
     const providers = this.discovery.getProviders();
-
-    for (const provider of providers) {
-      const { instance } = provider;
-      if (!instance) continue;
-
-      const blockchainKey = this.reflector.get<string>(BLOCKCHAIN_KEY, instance.constructor);
-
-      if (blockchainKey && 'derivedPathToWallet' in instance) {
-        this.services.set(blockchainKey, instance as Blockchain);
-      }
+    const blockchains = providers
+      .filter(provider => {
+        return this.discovery.getMetadataByDecorator(Blockchain, provider) === blockchainKey;
+      })
+      .map(provider => provider.instance)
+      .filter((instance): instance is BlockchainAbstract => instance instanceof BlockchainAbstract);
+    const blockchain = blockchains[0];
+    if (!blockchain) {
+      throw new Error(`Unsupported blockchain key: ${blockchainKey}`);
     }
-
-    console.log(`WalletFactory initialized with:`, [...this.services.keys()]);
-  }
-
-  getBlockchain(blockchainKey: string): Blockchain {
-    const service = this.services.get(blockchainKey);
-    if (!service) throw new Error(`Wallet service not found: ${blockchainKey}`);
-    return service;
+    return blockchain;
   }
 }

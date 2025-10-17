@@ -88,7 +88,7 @@ export async function bootstrapUserApi(app: NestExpressApplication) {
     app.enableShutdownHooks();
   }
 
-  const port = configService.appConfig.port;
+  const port = configService.app.port;
   await app.listen(port, async () => {
     logger.log(`Server is listening at ${await app.getUrl()}`);
     logger.log(`Current environment is: ${configService.nodeEnv}`);

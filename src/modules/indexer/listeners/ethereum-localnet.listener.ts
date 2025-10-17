@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DiscoveryService } from '@nestjs/core';
 
+import { ETHEREUM_LOCALNET_KEY } from '../../../shared/constants/blockchain';
 import { AppConfigService } from '../../../shared/services/app-config.service';
 import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
@@ -13,7 +14,7 @@ import { EthereumIndexerListener } from './ethereum.listener';
  * Monitors native ETH and ERC-20 token transactions on Ethereum Localnet (chain ID: eip155:11155111).
  */
 @Injectable()
-@Listener('eip155:11155111')
+@Listener(ETHEREUM_LOCALNET_KEY)
 export class EthereumLocalnetIndexerListener extends EthereumIndexerListener {
   readonly logger = new TelemetryLogger(EthereumLocalnetIndexerListener.name);
 
@@ -23,6 +24,13 @@ export class EthereumLocalnetIndexerListener extends EthereumIndexerListener {
     invoicePaymentQueue: InvoicePaymentQueueService,
     appConfig: AppConfigService,
   ) {
-    super(discovery, redis, invoicePaymentQueue, appConfig.indexerConfigs.ethereum.localnet);
+    super(discovery, redis, invoicePaymentQueue, {
+      chainName: 'Ethereum Localnet',
+      nativeTokenId: 'slip44:60',
+      tokenPrefix: 'erc20',
+      wsUrl: appConfig.blockchains[ETHEREUM_LOCALNET_KEY].rpcUrls[0]
+        .replace('https://', 'wss://')
+        .replace('http://', 'ws://'),
+    });
   }
 }

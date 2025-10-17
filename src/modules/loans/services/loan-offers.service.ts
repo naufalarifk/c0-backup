@@ -10,6 +10,7 @@ import { assertDefined, assertPropNumber } from 'typeshaper';
 import { InvoiceService } from '../../../shared/invoice/invoice.service';
 import { InvoiceError } from '../../../shared/invoice/invoice.types';
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { AppConfigService } from '../../../shared/services/app-config.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { IndexerEventService } from '../../indexer/indexer-event.service';
 import { LenderType, LoanOfferStatus, PaginationMetaDto } from '../dto/common.dto';
@@ -45,9 +46,10 @@ export class LoanOffersService {
   private readonly logger = new TelemetryLogger(LoanOffersService.name);
 
   constructor(
-    private readonly indexerEventService: IndexerEventService,
-    private readonly invoiceService: InvoiceService,
-    private readonly loanCalculationService: LoanCalculationService,
+    private readonly appConfig: AppConfigService,
+    private readonly indexerEvent: IndexerEventService,
+    private readonly invoice: InvoiceService,
+    private readonly loanCalculation: LoanCalculationService,
     private readonly repository: CryptogadaiRepository,
   ) {}
 
@@ -87,7 +89,7 @@ export class LoanOffersService {
         const providedDate = new Date(createLoanOfferDto.creationDate);
 
         // In production, validate the creation date
-        if (process.env.NODE_ENV === 'production') {
+        if (this.appConfig.isProduction) {
           const now = new Date();
           const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
           const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
@@ -127,14 +129,14 @@ export class LoanOffersService {
       assertPropNumber(principalCurrency, 'decimals');
 
       // Convert totalAmount from human-readable to smallest unit
-      const totalAmountSmallestUnit = this.loanCalculationService.toSmallestUnit(
+      const totalAmountSmallestUnit = this.loanCalculation.toSmallestUnit(
         createLoanOfferDto.totalAmount,
         principalCurrency.decimals,
       );
 
       let invoiceDraft;
       try {
-        invoiceDraft = await this.invoiceService.prepareInvoice({
+        invoiceDraft = await this.invoice.prepareInvoice({
           userId: lenderId,
           currencyBlockchainKey: createLoanOfferDto.principalBlockchainKey,
           currencyTokenId: createLoanOfferDto.principalTokenId,
@@ -163,11 +165,11 @@ export class LoanOffersService {
       }
 
       // Convert min/max loan amounts to smallest unit
-      const minLoanAmountSmallestUnit = this.loanCalculationService.toSmallestUnit(
+      const minLoanAmountSmallestUnit = this.loanCalculation.toSmallestUnit(
         createLoanOfferDto.minLoanAmount || '1000',
         principalCurrency.decimals,
       );
-      const maxLoanAmountSmallestUnit = this.loanCalculationService.toSmallestUnit(
+      const maxLoanAmountSmallestUnit = this.loanCalculation.toSmallestUnit(
         createLoanOfferDto.maxLoanAmount || createLoanOfferDto.totalAmount,
         principalCurrency.decimals,
       );
@@ -194,7 +196,7 @@ export class LoanOffersService {
         fundingWalletAddress: invoiceDraft.walletAddress,
       });
 
-      this.indexerEventService.addWallet(
+      this.indexerEvent.addWallet(
         createLoanOfferDto.principalBlockchainKey,
         createLoanOfferDto.principalTokenId,
         invoiceDraft.walletAddress,
@@ -222,11 +224,11 @@ export class LoanOffersService {
           decimals: result.principalCurrency.decimals,
           logoUrl: `https://assets.cryptogadai.com/currencies/${result.principalCurrency.symbol.toLowerCase()}.png`,
         },
-        totalAmount: this.loanCalculationService.fromSmallestUnit(
+        totalAmount: this.loanCalculation.fromSmallestUnit(
           result.offeredPrincipalAmount,
           result.principalCurrency.decimals,
         ),
-        availableAmount: this.loanCalculationService.fromSmallestUnit(
+        availableAmount: this.loanCalculation.fromSmallestUnit(
           result.availablePrincipalAmount,
           result.principalCurrency.decimals,
         ),
@@ -238,7 +240,7 @@ export class LoanOffersService {
         publishedDate: undefined,
         fundingInvoice: {
           id: String(invoiceDraft.invoiceId),
-          amount: this.loanCalculationService.fromSmallestUnit(
+          amount: this.loanCalculation.fromSmallestUnit(
             result.fundingInvoice.amount,
             result.principalCurrency.decimals,
           ),
@@ -317,11 +319,11 @@ export class LoanOffersService {
           decimals: offer.principalCurrency.decimals,
           logoUrl: `https://assets.cryptogadai.com/currencies/${offer.principalCurrency.symbol.toLowerCase()}.png`,
         },
-        totalAmount: this.loanCalculationService.fromSmallestUnit(
+        totalAmount: this.loanCalculation.fromSmallestUnit(
           offer.availablePrincipalAmount,
           offer.principalCurrency.decimals,
         ),
-        availableAmount: this.loanCalculationService.fromSmallestUnit(
+        availableAmount: this.loanCalculation.fromSmallestUnit(
           offer.availablePrincipalAmount,
           offer.principalCurrency.decimals,
         ),
@@ -333,7 +335,7 @@ export class LoanOffersService {
         publishedDate: offer.publishedDate.toISOString(),
         fundingInvoice: {
           id: `inv_${offer.id}`,
-          amount: this.loanCalculationService.fromSmallestUnit(
+          amount: this.loanCalculation.fromSmallestUnit(
             offer.availablePrincipalAmount,
             offer.principalCurrency.decimals,
           ),
@@ -568,7 +570,7 @@ export class LoanOffersService {
       const fundingInvoiceDto = resultAny.fundingInvoice
         ? {
             id: String(resultAny.fundingInvoice.id),
-            amount: this.loanCalculationService.fromSmallestUnit(
+            amount: this.loanCalculation.fromSmallestUnit(
               String(resultAny.fundingInvoice.amount),
               resultAny.principalCurrency.decimals,
             ),
@@ -636,15 +638,15 @@ export class LoanOffersService {
           decimals: resultAny.principalCurrency.decimals,
           logoUrl: `https://assets.cryptogadai.com/currencies/${resultAny.principalCurrency.symbol.toLowerCase()}.png`,
         },
-        totalAmount: this.loanCalculationService.fromSmallestUnit(
+        totalAmount: this.loanCalculation.fromSmallestUnit(
           resultAny.offeredPrincipalAmount,
           resultAny.principalCurrency.decimals,
         ),
-        availableAmount: this.loanCalculationService.fromSmallestUnit(
+        availableAmount: this.loanCalculation.fromSmallestUnit(
           resultAny.availablePrincipalAmount,
           resultAny.principalCurrency.decimals,
         ),
-        disbursedAmount: this.loanCalculationService.fromSmallestUnit(
+        disbursedAmount: this.loanCalculation.fromSmallestUnit(
           String(resultAny.disbursedPrincipalAmount || '0'),
           resultAny.principalCurrency.decimals,
         ),

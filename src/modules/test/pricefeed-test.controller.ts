@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Post } from '@nestjs/common';
 
 import { Auth } from '../../decorators/auth.decorator';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { AppConfigService } from '../../shared/services/app-config.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
 
 @Controller('test')
@@ -9,7 +10,10 @@ import { TelemetryLogger } from '../../shared/telemetry.logger';
 export class PricefeedTestController {
   #logger = new TelemetryLogger(PricefeedTestController.name);
 
-  constructor(private readonly repo: CryptogadaiRepository) {}
+  constructor(
+    private readonly appConfig: AppConfigService,
+    private readonly repo: CryptogadaiRepository,
+  ) {}
 
   @Post('setup-price-feed')
   async setupPriceFeed(
@@ -24,7 +28,7 @@ export class PricefeedTestController {
       sourceDate?: string;
     },
   ) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 
@@ -79,7 +83,7 @@ export class PricefeedTestController {
     @Body()
     body: { blockchainKey: string; collateralTokenId: string },
   ) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 

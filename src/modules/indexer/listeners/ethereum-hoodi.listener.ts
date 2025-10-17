@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DiscoveryService } from '@nestjs/core';
 
+import { ETHEREUM_HOODI_KEY } from '../../../shared/constants/blockchain';
 import { AppConfigService } from '../../../shared/services/app-config.service';
 import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
@@ -13,7 +14,7 @@ import { EthereumIndexerListener } from './ethereum.listener';
  * Monitors native ETH and ERC-20 token transactions on Ethereum Hoodi testnet (chain ID: eip155:560048).
  */
 @Injectable()
-@Listener('eip155:560048')
+@Listener(ETHEREUM_HOODI_KEY)
 export class EthereumHoodiIndexerListener extends EthereumIndexerListener {
   readonly logger = new TelemetryLogger(EthereumHoodiIndexerListener.name);
 
@@ -23,6 +24,13 @@ export class EthereumHoodiIndexerListener extends EthereumIndexerListener {
     invoicePaymentQueue: InvoicePaymentQueueService,
     appConfig: AppConfigService,
   ) {
-    super(discovery, redis, invoicePaymentQueue, appConfig.indexerConfigs.ethereum.hoodi);
+    super(discovery, redis, invoicePaymentQueue, {
+      chainName: 'Ethereum Hoodi',
+      nativeTokenId: 'slip44:60',
+      tokenPrefix: 'erc20',
+      wsUrl: appConfig.blockchains[ETHEREUM_HOODI_KEY].rpcUrls[0]
+        .replace('https://', 'wss://')
+        .replace('http://', 'ws://'),
+    });
   }
 }

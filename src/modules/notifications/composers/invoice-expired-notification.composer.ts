@@ -8,6 +8,7 @@ import { Injectable } from '@nestjs/common';
 
 import { assertDefined, assertPropString } from 'typeshaper';
 
+import { AppConfigService } from '../../../shared/services/app-config.service';
 import { NotificationChannelEnum } from '../notification.types';
 import { Composer, NotificationComposer } from '../notification-composer.abstract';
 
@@ -40,6 +41,10 @@ function assertInvoiceExpiredNotificationData(
 @Injectable()
 @Composer('InvoiceExpired')
 export class InvoiceExpiredNotificationComposer extends NotificationComposer<InvoiceExpiredNotificationData> {
+  constructor(private readonly appConfig: AppConfigService) {
+    super();
+  }
+
   async composePayloads(data: unknown): Promise<AnyNotificationPayload[]> {
     assertInvoiceExpiredNotificationData(data);
 
@@ -80,7 +85,7 @@ export class InvoiceExpiredNotificationComposer extends NotificationComposer<Inv
           </div>
           
           <div style="border-top: 1px solid #dee2e6; padding-top: 20px; margin-top: 30px; color: #6c757d; font-size: 12px;">
-            <p>This is an automated notification from ${process.env.APP_NAME || 'CryptoGadai'}.</p>
+            <p>This is an automated notification from ${this.appConfig.app.name || 'CryptoGadai'}.</p>
             <p>Please do not reply to this email.</p>
           </div>
         </div>
@@ -106,7 +111,7 @@ export class InvoiceExpiredNotificationComposer extends NotificationComposer<Inv
         If you believe this is an error, please contact our support team immediately.
         
         ---
-        This is an automated notification from ${process.env.APP_NAME || 'CryptoGadai'}.
+        This is an automated notification from ${this.appConfig.app.name || 'CryptoGadai'}.
         Please do not reply to this email.
       `,
     };

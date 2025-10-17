@@ -4,6 +4,7 @@ import { assertDefined, assertProp, check, isNumber, isString } from 'typeshaper
 
 import { Auth } from '../../decorators/auth.decorator';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { AppConfigService } from '../../shared/services/app-config.service';
 import { CgTestnetBlockchainEventService } from '../../shared/services/cg-testnet-blockchain-event.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
 
@@ -13,6 +14,7 @@ export class BlockchainTestController {
   #logger = new TelemetryLogger(BlockchainTestController.name);
 
   constructor(
+    private readonly appConfig: AppConfigService,
     private readonly repo: CryptogadaiRepository,
     private readonly testBlockchainEvents: CgTestnetBlockchainEventService,
   ) {}
@@ -30,7 +32,7 @@ export class BlockchainTestController {
       timestamp?: string | number;
     },
   ) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 

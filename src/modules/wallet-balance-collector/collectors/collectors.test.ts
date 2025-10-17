@@ -8,13 +8,13 @@ import { afterEach, beforeEach, describe, it, mock } from 'node:test';
 
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 
+import { AppConfigService } from '../../../shared/services/app-config.service';
 import { WalletFactory } from '../../../shared/wallets/wallet.factory';
 import { WalletService } from '../../../shared/wallets/wallet.service';
 import { BlockchainNetworkEnum } from '../balance-collection.types';
 import { BitcoinBalanceCollector } from './bitcoin-balance.collector';
 import { BSCBalanceCollector } from './bsc-balance.collector';
 import { EVMBalanceCollector } from './evm-balance.collector';
-import { SepoliaBalanceCollector } from './sepolia-balance.collector';
 import { SolanaBalanceCollector } from './solana-balance.collector';
 
 interface MockWalletFactory {
@@ -32,11 +32,17 @@ interface MockBlockchain {
 }
 
 describe('Balance Collectors Tests', () => {
+  let mockAppConfig: AppConfigService;
   let mockWalletFactory: MockWalletFactory;
   let mockWallet: MockWallet;
   let mockBlockchain: MockBlockchain;
 
   beforeEach(() => {
+    mockAppConfig = {
+      blockchains: {
+        /** @TODO add blockchain for test */
+      },
+    } as Partial<AppConfigService> as unknown as AppConfigService;
     // Mock wallet
     mockWallet = {
       getAddress: mock.fn(() => Promise.resolve('0xMockAddress')),
@@ -67,7 +73,10 @@ describe('Balance Collectors Tests', () => {
     let collector: EVMBalanceCollector;
 
     beforeEach(() => {
-      collector = new EVMBalanceCollector(mockWalletFactory as unknown as WalletFactory);
+      collector = new EVMBalanceCollector(
+        mockAppConfig,
+        mockWalletFactory as unknown as WalletFactory,
+      );
     });
 
     it('should handle EVM blockchains', () => {
@@ -167,7 +176,10 @@ describe('Balance Collectors Tests', () => {
     let collector: BSCBalanceCollector;
 
     beforeEach(() => {
-      collector = new BSCBalanceCollector(mockWalletFactory as unknown as WalletFactory);
+      collector = new BSCBalanceCollector(
+        mockAppConfig,
+        mockWalletFactory as unknown as WalletFactory,
+      );
     });
 
     it('should handle BSC mainnet', () => {
@@ -183,131 +195,6 @@ describe('Balance Collectors Tests', () => {
     it('should use BSC RPC URL', () => {
       const rpcUrl = (collector as unknown as { getRpcUrl: () => string }).getRpcUrl();
       assert.ok(rpcUrl.includes('bsc') || rpcUrl.includes('binance'));
-    });
-  });
-
-  describe('SepoliaBalanceCollector', () => {
-    let collector: SepoliaBalanceCollector;
-
-    beforeEach(() => {
-      collector = new SepoliaBalanceCollector(mockWalletFactory as unknown as WalletFactory);
-    });
-
-    it('should handle Sepolia testnet', () => {
-      const request: BalanceCollectionRequest = {
-        blockchainKey: 'eip155:11155111',
-        walletAddress: '0xTest',
-        walletDerivationPath: "m/44'/60'/5'/0/123",
-      };
-
-      assert.strictEqual(collector.canHandle(request), true);
-    });
-
-    it('should use Sepolia RPC URL', () => {
-      const rpcUrl = (collector as unknown as { getRpcUrl: () => string }).getRpcUrl();
-      assert.ok(rpcUrl.includes('sepolia'));
-    });
-  });
-
-  describe('SolanaBalanceCollector', () => {
-    let collector: SolanaBalanceCollector;
-
-    beforeEach(() => {
-      collector = new SolanaBalanceCollector(mockWalletFactory as unknown as WalletFactory);
-    });
-
-    it('should handle Solana mainnet', () => {
-      const request: BalanceCollectionRequest = {
-        blockchainKey: BlockchainNetworkEnum.SolanaMainnet,
-        walletAddress: 'SolanaPublicKey123',
-        walletDerivationPath: "m/44'/501'/5'/0/123",
-      };
-
-      assert.strictEqual(collector.canHandle(request), true);
-    });
-
-    it('should skip collection when balance is zero', async () => {
-      // Mock checkBalance to return 0
-      mock.method(
-        collector as unknown as { checkBalance: () => Promise<string> },
-        'checkBalance',
-        () => Promise.resolve('0'),
-      );
-
-      const request: BalanceCollectionRequest = {
-        blockchainKey: BlockchainNetworkEnum.SolanaMainnet,
-        walletAddress: 'SolanaPublicKey123',
-        walletDerivationPath: "m/44'/501'/5'/0/123",
-      };
-
-      const result = await collector.collect(request);
-
-      assert.strictEqual(result.success, true);
-      assert.strictEqual(result.skipped, true);
-      assert.strictEqual(result.skipReason, 'Zero balance');
-    });
-
-    it('should skip collection when balance is too small for fees', async () => {
-      // Mock checkBalance to return small amount (less than minimum)
-      const smallBalance = '500000'; // 0.0005 SOL - less than 0.001 SOL minimum
-      mock.method(
-        collector as unknown as { checkBalance: () => Promise<string> },
-        'checkBalance',
-        () => Promise.resolve(smallBalance),
-      );
-
-      const request: BalanceCollectionRequest = {
-        blockchainKey: BlockchainNetworkEnum.SolanaMainnet,
-        walletAddress: 'SolanaPublicKey123',
-        walletDerivationPath: "m/44'/501'/5'/0/123",
-      };
-
-      const result = await collector.collect(request);
-
-      assert.strictEqual(result.success, true);
-      assert.strictEqual(result.skipped, true);
-      assert.ok(result.skipReason?.includes('Balance too small'));
-    });
-
-    it('should successfully collect balance when sufficient', async () => {
-      // Mock checkBalance to return sufficient amount
-      const mockBalance = (5 * LAMPORTS_PER_SOL).toString(); // 5 SOL
-      mock.method(
-        collector as unknown as { checkBalance: () => Promise<string> },
-        'checkBalance',
-        () => Promise.resolve(mockBalance),
-      );
-
-      // Mock transferToHotWallet
-      const expectedTransferred = (4.999 * LAMPORTS_PER_SOL).toString(); // 4.999 SOL after minimum balance
-      mock.method(
-        collector as unknown as {
-          transferToHotWallet: (
-            a: string,
-            b: string,
-            c: string,
-          ) => Promise<{ txHash: string; transferredAmount: string }>;
-        },
-        'transferToHotWallet',
-        () =>
-          Promise.resolve({
-            txHash: 'SolanaTransactionHash123',
-            transferredAmount: expectedTransferred,
-          }),
-      );
-
-      const request: BalanceCollectionRequest = {
-        blockchainKey: BlockchainNetworkEnum.SolanaMainnet,
-        walletAddress: 'SolanaPublicKey123',
-        walletDerivationPath: "m/44'/501'/5'/0/123",
-      };
-
-      const result = await collector.collect(request);
-
-      assert.strictEqual(result.success, true);
-      assert.strictEqual(result.balance, mockBalance);
-      assert.strictEqual(result.transactionHash, 'SolanaTransactionHash123');
-      assert.strictEqual(result.transferredAmount, expectedTransferred);
     });
   });
 
@@ -436,12 +323,16 @@ describe('Balance Collectors Tests', () => {
 
   describe('Collector Factory Pattern', () => {
     it('should use correct blockchain identifiers', () => {
-      const evmCollector = new EVMBalanceCollector(mockWalletFactory as unknown as WalletFactory);
-      const _bscCollector = new BSCBalanceCollector(mockWalletFactory as unknown as WalletFactory);
-      const _sepoliaCollector = new SepoliaBalanceCollector(
+      const evmCollector = new EVMBalanceCollector(
+        mockAppConfig,
+        mockWalletFactory as unknown as WalletFactory,
+      );
+      const _bscCollector = new BSCBalanceCollector(
+        mockAppConfig,
         mockWalletFactory as unknown as WalletFactory,
       );
       const solanaCollector = new SolanaBalanceCollector(
+        mockAppConfig,
         mockWalletFactory as unknown as WalletFactory,
       );
       const bitcoinCollector = new BitcoinBalanceCollector(

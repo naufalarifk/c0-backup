@@ -29,10 +29,14 @@ class TestEthereumIndexerListener extends EthereumIndexerListener {
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
-    appConfig: AppConfigService,
+    wsUrl: string,
   ) {
-    const configs = appConfig.indexerConfigs.ethereum as Record<string, EthereumIndexerConfig>;
-    super(discovery, redis, invoicePaymentQueue, configs.test);
+    super(discovery, redis, invoicePaymentQueue, {
+      chainName: 'Test Ethereum',
+      nativeTokenId: 'slip44:60',
+      tokenPrefix: 'erc20',
+      wsUrl,
+    });
   }
 
   // Override getBlockchainKey for testing
@@ -155,9 +159,8 @@ describe('EthereumIndexerListener Integration Tests', function () {
               discovery: DiscoveryService,
               redis: RedisService,
               queue: InvoicePaymentQueueService,
-              appConfig: AppConfigService,
             ) => {
-              return new TestEthereumIndexerListener(discovery, redis, queue, appConfig);
+              return new TestEthereumIndexerListener(discovery, redis, queue, `${anvilWsUrl}`);
             },
             inject: [DiscoveryService, RedisService, InvoicePaymentQueueService, AppConfigService],
           },

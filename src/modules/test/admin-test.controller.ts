@@ -12,6 +12,7 @@ import { assertDefined, assertProp, check, isNumber, isString } from 'typeshaper
 
 import { Auth } from '../../decorators/auth.decorator';
 import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
+import { AppConfigService } from '../../shared/services/app-config.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
 
 @Controller('test')
@@ -19,11 +20,14 @@ import { TelemetryLogger } from '../../shared/telemetry.logger';
 export class AdminTestController {
   #logger = new TelemetryLogger(AdminTestController.name);
 
-  constructor(private readonly repo: CryptogadaiRepository) {}
+  constructor(
+    private readonly appConfig: AppConfigService,
+    private readonly repo: CryptogadaiRepository,
+  ) {}
 
   @Put('assign-admin-role')
   async assignAdminRole(@Body() body: { userId: string }) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 
@@ -49,7 +53,7 @@ export class AdminTestController {
 
   @Post('admin-approves-kyc-by-email')
   async approveKycByEmail(@Body() body: { email: string }) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 
@@ -96,7 +100,7 @@ export class AdminTestController {
 
   @Post('admin-rejects-kyc-by-email')
   async rejectKycByEmail(@Body() body: { email: string; reason: string }) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 
@@ -147,7 +151,7 @@ export class AdminTestController {
 
   @Post('institution-applications')
   async queryInstitutionApplication(@Body() body: { email: string }) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 
@@ -177,7 +181,7 @@ export class AdminTestController {
 
   @Post('user-approves-institution-by-email')
   async approveInstitutionByEmail(@Body() body: { email: string }) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 
@@ -229,7 +233,7 @@ export class AdminTestController {
 
   @Post('user-rejects-institution-by-email')
   async rejectInstitutionByEmail(@Body() body: { email: string; reason: string }) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 
@@ -287,7 +291,7 @@ export class AdminTestController {
 
   @Post('mark-kyc-verified-by-email')
   async markKycVerifiedByEmail(@Body() body: { email: string }) {
-    if (process.env.NODE_ENV === 'production') {
+    if (this.appConfig.isProduction) {
       throw new Error('Test endpoints are not available in production');
     }
 

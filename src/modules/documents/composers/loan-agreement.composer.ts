@@ -1,7 +1,8 @@
 import type { GeneratedDocument, LoanAgreementData } from '../document.types';
 
-import { promises as fs } from 'fs';
-import * as path from 'path';
+import { mkdir, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import { Injectable, Logger } from '@nestjs/common';
 
@@ -20,16 +21,16 @@ export class LoanAgreementComposer extends DocumentComposerAbstract<LoanAgreemen
 
     const documentId = uuidv4();
     const fileName = `loan-agreement-${data.loanId}-${documentId}`;
-    const outputDir = process.env.DOCUMENT_OUTPUT_DIR || '/tmp/claude/documents';
-    const filePath = path.join(outputDir, fileName);
+    const outputDir = join(tmpdir(), 'cg-documents');
+    const filePath = join(outputDir, fileName);
 
     // Ensure output directory exists
-    await fs.mkdir(outputDir, { recursive: true });
+    await mkdir(outputDir, { recursive: true });
 
     const content = await this.generateDocumentContent(data);
 
-    await fs.writeFile(filePath, content);
-    const stats = await fs.stat(filePath);
+    await writeFile(filePath, content);
+    const stats = await stat(filePath);
 
     return {
       id: documentId,

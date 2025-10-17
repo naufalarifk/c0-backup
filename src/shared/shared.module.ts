@@ -43,7 +43,6 @@ const providers: Provider[] = [
       if (appConfigService.minioConfig.endpoint === 'local') {
         return new MinioMockService(appConfigService);
       }
-
       return new MinioService(appConfigService);
     },
   },

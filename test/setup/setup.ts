@@ -167,9 +167,9 @@ export async function setup() {
             ...(process.env.SOLANA_USE_TESTNET && {
               SOLANA_USE_TESTNET: process.env.SOLANA_USE_TESTNET,
             }),
-            ALLOWED_ORIGINS: `http://localhost,http://localhost:3000,crypto-gadai://`,
+            ALLOWED_ORIGINS: `http://localhost,http://localhost:3000,cryptogadai://`,
             APP_EXPO_URL: `exp://localhost/--`,
-            APP_SCHEME: 'crypto-gadai://',
+            APP_SCHEME: 'cryptogadai://',
             BETTER_AUTH_COOKIE_PREFIX: 'cg',
             BETTER_AUTH_EXPIRATION_TIME: '3600',
             BETTER_AUTH_MAXIMUM_SESSIONS: '3',
