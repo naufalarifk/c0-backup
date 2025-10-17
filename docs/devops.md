@@ -16,9 +16,19 @@ PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-poli
 UBUNTU_CODENAME=jammy
 ```
 
-Your task is to deploy CryptoGadai backend services using systemd. Expected services to be deployed are:
+You are responsible for managing bellow services running on the server via systemd units:
 - postgresql (database)
 - redis (caching and message broker)
 - minio (object storage service)
 - cg-backend (main backend service)
 - traefik (reverse proxy and SSL termination)
+
+## cg-backend
+
+The `cg-backend` deployment flow is as bellow:
+- `pnpm build` the project locally on host machine
+- `rsync` the build files in `dist`, `package.json`, and `pnpm-lock.yaml` to server at `/opt/cg-backend`
+- `pnpm install` on server at `/opt/cg-backend` to install production dependencies
+- (optionally) update environment variables in `/etc/systemd/system/cg-backend.service`
+- (optionally) reload systemd daemon via `systemctl daemon-reload`
+- `systemctl restart cg-backend` to restart the service
