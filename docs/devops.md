@@ -22,6 +22,7 @@ You are responsible for managing bellow services running on the server via syste
 - minio (object storage service)
 - cg-backend (main backend service)
 - traefik (reverse proxy and SSL termination)
+- nginx (web server for static files)
 - ghost (blog CMS)
 
 ## cg-backend
@@ -50,3 +51,23 @@ To manage the ghost service:
 
 To update ghost:
 - Update via `ghost update` in the site directory, or manage via web interface.
+
+## cg-admin
+
+The `cg-admin` deployment is a Vue.js frontend application served as static files.
+
+- The application code is deployed to `/opt/cg-admin`
+- Uses npm for package management
+- Served via nginx on port 8081
+- Routed through Traefik at `https://cg-admin.kairospro.io`
+
+The `cg-admin` deployment flow is as below:
+- the deployment code is based on current local code base
+- sync the local code base to server at `/opt/cg-admin` via `rsync`. Complete command: `env -C $CG_ADMIN_DIR rsync -avz --delete --exclude-from=.gitignore --exclude .git/ --exclude node_modules/ --exclude *.log --exclude .vscode/ --exclude .local/ -e "ssh -i $HOME/.ssh/id_ed25519 -p 22 -o StrictHostKeyChecking=yes -o ConnectTimeout=30 -o ServerAliveInterval=60" ./ root@174.138.16.211:/opt/cg-admin/`
+- make sure the app dependencies on server are up to date by running: `ssh root@174.138.16.211 'env -C /opt/cg-admin npm install'`
+- rebuild the app `ssh root@174.138.16.211 'env -C /opt/cg-admin npm run build'`
+- reload nginx `ssh root@174.138.16.211 'systemctl reload nginx'`
+
+To manage the nginx service:
+- `systemctl status nginx`
+- `systemctl reload nginx`

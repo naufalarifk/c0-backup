@@ -10,10 +10,10 @@ x-backend-env: &backend-env
     exp://192.168.0.106:8081,\
     exp://192.168.0.108:8081,\
     exp://192.168.0.103:8081,\
-    ${PROTOCOL:-https}://${API_DOMAIN:-cg-api.fh47.my.id}"
+    ${PROTOCOL:-https}://${API_DOMAIN:-cg-api.kairospro.io}"
 
   BETTER_AUTH_SECRET: P1skQoJiT7jnNDHuw06kkbTougc3jvTt
-  BETTER_AUTH_URL: ${PROTOCOL:-https}://${API_DOMAIN:-cg-api.fh47.my.id}
+  BETTER_AUTH_URL: ${PROTOCOL:-https}://${API_DOMAIN:-cg-api.kairospro.io}
   BETTER_AUTH_COOKIE_PREFIX: cg
   BETTER_AUTH_MAXIMUM_SESSIONS: 3
   BETTER_AUTH_TELEMETRY: 1
@@ -104,7 +104,7 @@ services:
       - cg-public-network
     labels:
       - traefik.enable=true
-      - traefik.http.routers.cg-traefik-dashboard.rule=Host(`${TRAEFIK_DOMAIN:-cg-traefik.fh47.my.id}`)
+      - traefik.http.routers.cg-traefik-dashboard.rule=Host(`${TRAEFIK_DOMAIN:-cg-traefik.kairospro.io}`)
       - traefik.http.routers.cg-traefik-dashboard.service=api@internal
       # Conditional SSL labels: use websecure + cert resolver by default; when
       # SSL_DISABLED is set fall back to plain web entrypoint.
@@ -147,7 +147,7 @@ services:
       - cg-public-network
     labels:
       - traefik.enable=true
-      - traefik.http.routers.cg-api.rule=Host(`${API_DOMAIN:-cg-api.fh47.my.id}`)
+      - traefik.http.routers.cg-api.rule=Host(`${API_DOMAIN:-cg-api.kairospro.io}`)
       - traefik.http.services.cg-api.loadbalancer.server.port=3100
       - traefik.http.services.cg-api.loadbalancer.healthcheck.path=/api/health
       - traefik.http.services.cg-api.loadbalancer.healthcheck.interval=5s
@@ -237,13 +237,13 @@ services:
       - cg-public-network
     labels:
       - traefik.enable=true
-      - traefik.http.routers.cg-minio-api.rule=Host(`${MINIO_API_DOMAIN:-cg-minio-api.fh47.my.id}`)
+      - traefik.http.routers.cg-minio-api.rule=Host(`${MINIO_API_DOMAIN:-cg-minio-api.kairospro.io}`)
       - traefik.http.services.cg-minio-api.loadbalancer.server.port=9000
       # Conditional SSL labels for API
       - ${SSL_DISABLED:-traefik.http.routers.cg-minio-api.entrypoints=websecure}
       - ${SSL_DISABLED:-traefik.http.routers.cg-minio-api.tls.certresolver=cgresolver}
       - ${SSL_DISABLED:+traefik.http.routers.cg-minio-api.entrypoints=web}
-      - traefik.http.routers.cg-minio-console.rule=Host(`${MINIO_CONSOLE_DOMAIN:-cg-minio.fh47.my.id}`)
+      - traefik.http.routers.cg-minio-console.rule=Host(`${MINIO_CONSOLE_DOMAIN:-cg-minio.kairospro.io}`)
       - traefik.http.services.cg-minio-console.loadbalancer.server.port=9001
       # Conditional SSL labels for Console
       - ${SSL_DISABLED:-traefik.http.routers.cg-minio-console.entrypoints=websecure}
@@ -262,7 +262,7 @@ services:
       timeout: 10s
       retries: 20
     environment:
-      url: ${PROTOCOL:-https}://${GHOST_DOMAIN:-cg-blog.fh47.my.id}
+      url: ${PROTOCOL:-https}://${GHOST_DOMAIN:-cg-blog.kairospro.io}
       NODE_ENV: development
       database__client: sqlite3
       database__connection__filename: /var/lib/ghost/content/data/ghost.db
@@ -275,7 +275,7 @@ services:
       - cg-public-network
     labels:
       - traefik.enable=true
-      - traefik.http.routers.cg-ghost.rule=Host(`${GHOST_DOMAIN:-cg-blog.fh47.my.id}`)
+      - traefik.http.routers.cg-ghost.rule=Host(`${GHOST_DOMAIN:-cg-blog.kairospro.io}`)
       - traefik.http.services.cg-ghost.loadbalancer.server.port=2368
       # Conditional SSL labels: enable TLS by default, fallback to web when
       - ${SSL_DISABLED:-traefik.http.routers.cg-ghost.entrypoints=websecure}
@@ -302,7 +302,7 @@ services:
       - cg-public-network
     labels:
       - traefik.enable=true
-      - traefik.http.routers.cg-mailpit.rule=Host(`${MAILPIT_DOMAIN:-cg-mail.fh47.my.id}`)
+      - traefik.http.routers.cg-mailpit.rule=Host(`${MAILPIT_DOMAIN:-cg-mail.kairospro.io}`)
       - traefik.http.services.cg-mailpit.loadbalancer.server.port=8025
       # Conditional SSL labels: enable TLS by default, fallback to web when
       - ${SSL_DISABLED:-traefik.http.routers.cg-mailpit.entrypoints=websecure}
@@ -371,7 +371,7 @@ services:
       - cg-public-network
     labels:
       - traefik.enable=true
-      - traefik.http.routers.cg-jaeger.rule=Host(`${JAEGER_DOMAIN:-cg-jaeger.fh47.my.id}`)
+      - traefik.http.routers.cg-jaeger.rule=Host(`${JAEGER_DOMAIN:-cg-jaeger.kairospro.io}`)
       - traefik.http.services.cg-jaeger.loadbalancer.server.port=16686
       # Conditional SSL labels: enable TLS by default, fallback to web when
       - ${SSL_DISABLED:-traefik.http.routers.cg-jaeger.entrypoints=websecure}
@@ -399,7 +399,7 @@ services:
       - cg-public-network
     labels:
       - traefik.enable=true
-      - traefik.http.routers.cg-prometheus.rule=Host(`${PROMETHEUS_DOMAIN:-cg-prometheus.fh47.my.id}`)
+      - traefik.http.routers.cg-prometheus.rule=Host(`${PROMETHEUS_DOMAIN:-cg-prometheus.kairospro.io}`)
       - traefik.http.services.cg-prometheus.loadbalancer.server.port=9090
       # Conditional SSL labels: enable TLS by default, fallback to web when
       - ${SSL_DISABLED:-traefik.http.routers.cg-prometheus.entrypoints=websecure}
@@ -432,7 +432,7 @@ services:
       - cg-public-network
     labels:
       - traefik.enable=true
-      - traefik.http.routers.cg-loki.rule=Host(`${LOKI_DOMAIN:-cg-loki.fh47.my.id}`)
+      - traefik.http.routers.cg-loki.rule=Host(`${LOKI_DOMAIN:-cg-loki.kairospro.io}`)
       - traefik.http.services.cg-loki.loadbalancer.server.port=3100
       # Conditional SSL labels: enable TLS by default, fallback to web when
       - ${SSL_DISABLED:-traefik.http.routers.cg-loki.entrypoints=websecure}
@@ -465,7 +465,7 @@ services:
       - cg-public-network
     labels:
       - traefik.enable=true
-      - traefik.http.routers.cg-grafana.rule=Host(`${GRAFANA_DOMAIN:-cg-grafana.fh47.my.id}`)
+      - traefik.http.routers.cg-grafana.rule=Host(`${GRAFANA_DOMAIN:-cg-grafana.kairospro.io}`)
       - traefik.http.services.cg-grafana.loadbalancer.server.port=3000
       # Conditional SSL labels: enable TLS by default, fallback to web when
       - ${SSL_DISABLED:-traefik.http.routers.cg-grafana.entrypoints=websecure}
