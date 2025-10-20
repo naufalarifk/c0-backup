@@ -99,7 +99,16 @@ export class AuthModule extends ConfigurableModuleClass implements NestModule, O
       .getInstance<Application>()
       // little hack to ignore any global prefix
       // for now i'll just not support a global prefix
-      .use(`${basePath}/*path`, (req, res) => {
+      .use(`${basePath}/*path`, (req, res, next) => {
+        // Skip BetterAuth handler for custom NestJS controller routes
+        // Use originalUrl or baseUrl to get the full path including mount point
+        const fullPath = req.originalUrl || req.url || '';
+
+        // Allow NestJS controllers to handle specific routes
+        if (fullPath.startsWith('/api/auth/google/')) {
+          return next();
+        }
+
         return handler(req, res);
       });
     this.logger.log(`AuthModule initialized BetterAuth on '${basePath}/*'`);
