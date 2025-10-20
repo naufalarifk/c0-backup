@@ -118,23 +118,7 @@ This module focus on managing data access and storage through a structured repos
   }
   ```
 
+## Repository Test Guidelines
 
-Your task is to continue the refactor of @src/shared/repositories/user-platform.repository.ts
-
-Current structure:
-- method with single argument with defined type
-- params mostly destructured
-- SQL query resulting in snake_case structure
-- type assertion for resulting query
-- mapping to return type structure
-
-Desired structure:
-- method with single argument with defined type
-- params used directly instead of destructuring
-- SQL query resulting in return type structure with proper aliasing
-- type assertion for resulting query using type using typeshaper
-- return resulting query directly without mapping if possible. This part will be challenging removing mapping entirely is hard due to SQL result structure is hard to align with return type structure. So just try to minimize mapping as much as possible.
-
-The target of the refactor is to make the code more compact and efficient while maintaining clarity and type safety.
-
-Verify the refactor by running test `node --import tsx --test ./src/shared/repositories/user.repository.test.ts` and type check `npx --package typescript tsc --noEmit`
+- Repository test is implemented in `*.repository-test-suite.ts` files that will be executed by corresponding `*.repository.test.ts` files.
+- Run test by command `node --import tsx --test $RELATIVE_PATH_TO_TEST_FILE`. For example: `node --import tsx --test ./src/shared/repositories/user.repository.test.ts`

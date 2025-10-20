@@ -54,7 +54,6 @@ export abstract class FinanceUserRepsitory extends UserRepository {
         a.currency_token_id AS "currencyTokenId",
         a.balance,
         a.account_type AS "accountType",
-        a.updated_date AS "updatedDate",
         c.decimals AS "currencyDecimals",
         c.name AS "currencyName",
         c.symbol AS "currencySymbol",
@@ -98,7 +97,6 @@ export abstract class FinanceUserRepsitory extends UserRepository {
       assertPropString(row, 'currencyTokenId');
       assertProp(check(isString, isNumber), row, 'balance');
       assertPropString(row, 'accountType');
-      assertProp(check(isNullable, isInstanceOf(Date)), row, 'updatedDate');
       assertProp(check(isString, isNumber), row, 'currencyDecimals');
       assertPropString(row, 'currencyName');
       assertPropString(row, 'currencySymbol');
@@ -127,7 +125,7 @@ export abstract class FinanceUserRepsitory extends UserRepository {
       setPropValue(row, 'balance', String(row.balance));
       setPropValue(row, 'currencyDecimals', currencyDecimals);
       setPropValue(row, 'currencyImage', row.currencyImage);
-      setPropValue(row, 'updatedDate', row.updatedDate);
+      setPropValue(row, 'updatedDate', undefined);
       setPropValue(row, 'valuationAmount', valuationAmount);
       setPropValue(row, 'exchangeRate', exchangeRate ? String(exchangeRate) : undefined);
       setPropValue(row, 'rateSource', row.rateSource || undefined);

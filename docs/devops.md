@@ -22,6 +22,7 @@ You are responsible for managing bellow services running on the server via syste
 - minio (object storage service)
 - cg-backend (main backend service)
 - traefik (reverse proxy and SSL termination)
+- ghost (blog CMS)
 
 ## cg-backend
 
@@ -33,3 +34,19 @@ The `cg-backend` deployment flow is as bellow:
 - (optionally) make sure the environment variables are set properly in `/etc/systemd/system/cg-backend.service`
 - (optionally) reload systemd daemon after updating cg-backend systemd unit via `ssh root@174.138.16.211 'systemctl daemon-reload'`
 - restart the service `ssh root@174.138.16.211 'systemctl restart cg-backend'`
+
+## ghost
+
+The `ghost` deployment is a blog CMS running on the server.
+
+- The ghost instance is installed at `/opt/ghost/site`
+- Uses SQLite database at `/opt/ghost/site/content/data/ghost.db`
+- Runs as systemd unit `ghost-cg-blog.service`
+- Served via Traefik at `https://cg-blog.kairospro.io`
+
+To manage the ghost service:
+- `systemctl status ghost-cg-blog`
+- `systemctl restart ghost-cg-blog`
+
+To update ghost:
+- Update via `ghost update` in the site directory, or manage via web interface.

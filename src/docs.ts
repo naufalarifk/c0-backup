@@ -83,7 +83,7 @@ export default async function docs(app: NestExpressApplication, url: string) {
 
   // Main API documentation (all modules)
   const mainConfig = new DocumentBuilder()
-    .setTitle('Gadain Financial API')
+    .setTitle('CryptoGadai Financial API')
     .setDescription('Comprehensive loan management platform')
     .setVersion(process.env.API_VERSION || '1.0')
     .addServer(url)
@@ -97,7 +97,7 @@ export default async function docs(app: NestExpressApplication, url: string) {
       displayRequestDuration: true,
       filter: true,
     },
-    customSiteTitle: 'Crypto Gadai API Documentation',
+    customSiteTitle: 'CryptoGadai API Documentation',
   });
   logger.log('Docs swagger: /docs/swagger');
 

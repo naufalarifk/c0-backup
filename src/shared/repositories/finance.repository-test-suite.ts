@@ -792,7 +792,7 @@ export async function runFinanceRepositoryTestSuite(
         equal(result.userId, userId);
         equal(result.blockchainKey, 'eip155:56');
         equal(result.address, address);
-        equal(typeof result.id, 'string');
+        equal(typeof result.id, 'number');
       });
 
       it('should view user withdrawal beneficiaries', async function () {
@@ -872,14 +872,14 @@ export async function runFinanceRepositoryTestSuite(
 
         const requestDate = new Date('2024-01-01T03:00:00Z');
         const result = await repo.userRequestsWithdrawal({
-          beneficiaryId: beneficiaryResult.id,
+          beneficiaryId: String(beneficiaryResult.id),
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           amount: '500000',
           requestDate,
         });
 
-        equal(result.beneficiaryId, beneficiaryResult.id);
+        equal(result.beneficiaryId, String(beneficiaryResult.id));
         equal(result.amount, '500000');
         equal(result.requestAmount, '500000');
         equal(result.status, 'Requested');
@@ -922,7 +922,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         const withdrawalResult = await repo.userRequestsWithdrawal({
-          beneficiaryId: beneficiaryResult.id,
+          beneficiaryId: String(beneficiaryResult.id),
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           amount: '1000000',
@@ -984,7 +984,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         const withdrawalResult = await repo.userRequestsWithdrawal({
-          beneficiaryId: beneficiaryResult.id,
+          beneficiaryId: String(beneficiaryResult.id),
           currencyBlockchainKey: 'bip122:000000000019d6689c085ae165831e93',
           currencyTokenId: 'slip44:0',
           amount: '10000000', // 0.1 BTC in satoshis
@@ -1045,7 +1045,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         const withdrawalResult = await repo.userRequestsWithdrawal({
-          beneficiaryId: beneficiaryResult.id,
+          beneficiaryId: String(beneficiaryResult.id),
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           amount: '2000000',
@@ -1119,7 +1119,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         const withdrawalResult = await repo.userRequestsWithdrawal({
-          beneficiaryId: beneficiaryResult.id,
+          beneficiaryId: String(beneficiaryResult.id),
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           amount: '1500000',
@@ -1184,7 +1184,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         const withdrawalResult = await repo.userRequestsWithdrawal({
-          beneficiaryId: beneficiaryResult.id,
+          beneficiaryId: String(beneficiaryResult.id),
           currencyBlockchainKey: 'bip122:000000000019d6689c085ae165831e93',
           currencyTokenId: 'slip44:0',
           amount: '20000000', // 0.2 BTC in satoshis
@@ -1251,7 +1251,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         const withdrawalResult = await repo.userRequestsWithdrawal({
-          beneficiaryId: beneficiaryResult.id,
+          beneficiaryId: String(beneficiaryResult.id),
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           amount: '800000',
@@ -1308,7 +1308,7 @@ export async function runFinanceRepositoryTestSuite(
         });
 
         const withdrawalResult = await repo.userRequestsWithdrawal({
-          beneficiaryId: beneficiaryResult.id,
+          beneficiaryId: String(beneficiaryResult.id),
           currencyBlockchainKey: 'eip155:56',
           currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
           amount: '700000',
@@ -1331,6 +1331,93 @@ export async function runFinanceRepositoryTestSuite(
         equal(result.id, withdrawalResult.id);
         equal(result.status, 'RefundRequested');
         equal(result.failureRefundRequestedDate?.getTime(), refundRequestDate.getTime());
+      });
+    });
+
+    describe('Portfolio Analytics', function () {
+      it('should retrieve portfolio analytics for user with accounts', async function () {
+        // Create test user with accounts
+        const userCreationResult = await repo.testCreatesUsers({
+          users: [{ email: 'portfoliouser@test.com', name: 'Portfolio User' }],
+        });
+
+        const userId = userCreationResult.users[0].id;
+
+        // Create multiple accounts with balances
+        const usdcAccount = await repo.testCreatesUserAccount({
+          userId,
+          currencyBlockchainKey: 'eip155:56',
+          currencyTokenId: 'erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+          accountType: 'User',
+        });
+
+        await repo.testCreatesAccountMutations({
+          accountId: usdcAccount.id,
+          mutations: [
+            {
+              mutationType: 'InvoiceReceived',
+              mutationDate: '2024-01-01T09:00:00Z',
+              amount: '1000000000000000000000', // 1000 USDC in smallest unit
+            },
+          ],
+        });
+
+        // Retrieve portfolio analytics
+        const result = await repo.userRetrievesPortfolioAnalytics({ userId });
+
+        // Verify the structure
+        ok(result.totalPortfolioValue, 'Should have total portfolio value');
+        ok(result.totalPortfolioValue.amount, 'Should have portfolio value amount');
+        equal(result.totalPortfolioValue.currency, 'USDT');
+        equal(result.totalPortfolioValue.isLocked, true);
+        ok(result.totalPortfolioValue.lastUpdated instanceof Date);
+
+        ok(result.interestGrowth, 'Should have interest growth');
+        ok(result.interestGrowth.amount, 'Should have interest growth amount');
+        equal(result.interestGrowth.currency, 'USDT');
+        equal(typeof result.interestGrowth.percentage, 'number');
+        equal(typeof result.interestGrowth.isPositive, 'boolean');
+        equal(result.interestGrowth.periodLabel, 'Monthly');
+
+        ok(result.activeLoans, 'Should have active loans info');
+        equal(typeof result.activeLoans.count, 'number');
+        equal(typeof result.activeLoans.borrowerLoans, 'number');
+        equal(typeof result.activeLoans.lenderLoans, 'number');
+        ok(result.activeLoans.totalCollateralValue, 'Should have collateral value');
+        equal(typeof result.activeLoans.averageLTV, 'number');
+
+        ok(result.portfolioPeriod, 'Should have portfolio period');
+        ok(result.portfolioPeriod.displayMonth, 'Should have display month');
+        ok(result.portfolioPeriod.startDate instanceof Date);
+        ok(result.portfolioPeriod.endDate instanceof Date);
+
+        ok(result.paymentAlerts, 'Should have payment alerts');
+        ok(Array.isArray(result.paymentAlerts.upcomingPayments));
+        ok(Array.isArray(result.paymentAlerts.overduePayments));
+
+        ok(result.assetBreakdown, 'Should have asset breakdown');
+        ok(result.assetBreakdown.cryptoAssets, 'Should have crypto assets breakdown');
+        ok(result.assetBreakdown.stablecoins, 'Should have stablecoins breakdown');
+        ok(result.assetBreakdown.loanCollateral, 'Should have loan collateral breakdown');
+      });
+
+      it('should retrieve portfolio analytics for user with no accounts', async function () {
+        // Create test user without accounts
+        const userCreationResult = await repo.testCreatesUsers({
+          users: [{ email: 'emptyportfoliouser@test.com', name: 'Empty Portfolio User' }],
+        });
+
+        const userId = userCreationResult.users[0].id;
+
+        // Retrieve portfolio analytics (should not throw error)
+        const result = await repo.userRetrievesPortfolioAnalytics({ userId });
+
+        // Verify the structure with zero values
+        ok(result.totalPortfolioValue, 'Should have total portfolio value');
+        equal(result.totalPortfolioValue.amount, '0');
+        ok(result.interestGrowth, 'Should have interest growth');
+        ok(result.activeLoans, 'Should have active loans info');
+        equal(result.activeLoans.count, 0);
       });
     });
 
