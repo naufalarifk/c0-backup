@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 
 import { SharedModule } from '../../shared/shared.module';
-import { AuthModule } from '../auth/auth.module';
 import {
   BlockchainController,
   CurrencyController,
@@ -10,7 +9,7 @@ import {
 import { FinanceConfigService } from './finance-config.service';
 
 @Module({
-  imports: [AuthModule, SharedModule],
+  imports: [SharedModule],
   controllers: [BlockchainController, CurrencyController, ExchangeRateController],
   providers: [FinanceConfigService],
   exports: [FinanceConfigService],
