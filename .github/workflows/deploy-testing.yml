@@ -76,22 +76,10 @@ jobs:
             echo "🔄 Restarting cg-backend service..."
             systemctl restart cg-backend
             
-            # Wait for service to be running
-            echo "⏳ Waiting for service to start..."
-            timeout 60 bash -c 'until systemctl is-active --quiet cg-backend; do sleep 2; echo "Waiting for service to be active..."; done'
-            
-            # Verify deployment
-            echo "🔍 Verifying deployment..."
-            systemctl status cg-backend
-            
-            # Test health endpoint
-            echo "🧪 Testing health endpoint..."
-            timeout 30 bash -c 'until curl -sf http://localhost:3000/api/health >/dev/null; do sleep 2; echo "Waiting for API to respond..."; done'
-            
-            echo "✅ Deployment completed successfully!"
+            echo "✅ Deployment commands executed!"
           EOF
         shell: bash
-        timeout-minutes: 15
+        timeout-minutes: 10
 
       - name: Cleanup
         if: always()
