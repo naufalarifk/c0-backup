@@ -26,9 +26,10 @@ You are responsible for managing bellow services running on the server via syste
 ## cg-backend
 
 The `cg-backend` deployment flow is as bellow:
-- `pnpm build` the project locally on host machine
-- `rsync` the build files in `dist`, `package.json`, and `pnpm-lock.yaml` to server at `/opt/cg-backend`
-- `pnpm install` on server at `/opt/cg-backend` to install production dependencies
-- (optionally) update environment variables in `/etc/systemd/system/cg-backend.service`
-- (optionally) reload systemd daemon via `systemctl daemon-reload`
-- `systemctl restart cg-backend` to restart the service
+- the deployment code are based on current local code base
+- sync the local code base to server at `/opt/cg-backend` via `rsync`. Complete command: `rsync -avz --delete --exclude-from=.gitignore --exclude .git/ --exclude node_modules/ --exclude .env* --exclude *.log --exclude .vscode/ --exclude .local/ -e "ssh -i $HOME/.ssh/id_ed25519 -p 22 -o StrictHostKeyChecking=yes -o ConnectTimeout=30 -o ServerAliveInterval=60" ./ root@174.138.16.211:/opt/cg-backend/`
+- make sure the app dependecy on server is up to date by running: `ssh root@174.138.16.211 'env -C /opt/cg-backend pnpm install --frozen-lockfile --ignore-scripts'`
+- rebuild the app `ssh root@174.138.16.211 'env -C /opt/cg-backend pnpm run build'`
+- (optionally) make sure the environment variables are set properly in `/etc/systemd/system/cg-backend.service`
+- (optionally) reload systemd daemon after updating cg-backend systemd unit via `ssh root@174.138.16.211 'systemctl daemon-reload'`
+- restart the service `ssh root@174.138.16.211 'systemctl restart cg-backend'`
