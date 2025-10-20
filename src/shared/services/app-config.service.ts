@@ -149,6 +149,16 @@ export class AppConfigService {
     };
   }
 
+  get googleClientIds() {
+    return {
+      webClientId: this.getString(
+        'GOOGLE_WEB_CLIENT_ID',
+        this.getString('GOOGLE_CLIENT_ID', 'test_client_id'),
+      ),
+      androidClientId: this.getString('GOOGLE_ANDROID_CLIENT_ID', ''),
+    };
+  }
+
   get twilioConfig() {
     return {
       accountSid: this.getString('TWILIO_ACCOUNT_SID', 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'),

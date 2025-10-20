@@ -89,6 +89,7 @@
     "ethers": "^6.15.0",
     "expo-server-sdk": "^4.0.0",
     "express": "^5.1.0",
+    "google-auth-library": "^10.4.1",
     "helmet": "^8.1.0",
     "ioredis": "^5.8.1",
     "jose": "^6.1.0",

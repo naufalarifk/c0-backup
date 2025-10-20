@@ -28,6 +28,8 @@ import {
 } from './auth.module-definition';
 import { AuthService } from './auth.service';
 import { AUTH_MODULE_OPTIONS } from './auth.symbols';
+import { GoogleNativeAuthController } from './controllers/google-native-auth.controller';
+import { GoogleTokenVerifierService } from './services/google-token-verifier.service';
 
 const HOOKS = [
   { metadataKey: BeforeHook.KEY, hookType: 'before' as const },
@@ -40,8 +42,9 @@ const HOOKS = [
  */
 @Module({
   imports: [DiscoveryModule],
-  providers: [AuthService],
-  exports: [AuthService],
+  providers: [AuthService, GoogleTokenVerifierService],
+  exports: [AuthService, GoogleTokenVerifierService],
+  controllers: [GoogleNativeAuthController],
 })
 export class AuthModule extends ConfigurableModuleClass implements NestModule, OnModuleInit {
   private readonly logger = new TelemetryLogger(AuthModule.name);
