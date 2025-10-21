@@ -28,6 +28,7 @@ import {
 const data: unknown = fetchDataFromSomewhere();
 
 // Assert that data is defined (not null or undefined)
+// assertDefined is mandatory, without assertDefined or assertPropDefined, any other assertion will fail if data is null or undefined
 assertDefined(data);
 // Assert that data is an array
 assertArrayMapOf(data, function (item) {

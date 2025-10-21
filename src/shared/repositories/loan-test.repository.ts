@@ -582,9 +582,7 @@ export abstract class LoanTestRepository extends PricefeedRepository {
           principal_amount = ${normalizedPrincipal.toString()},
           provision_amount = ${normalizedProvision.toString()},
           collateral_deposit_amount = ${normalizedCollateral.toString()},
-          collateral_prepaid_amount = ${
-            normalizedCollateralPrepaid === null ? null : normalizedCollateralPrepaid.toString()
-          }
+          collateral_prepaid_amount = ${normalizedCollateralPrepaid === null ? null : normalizedCollateralPrepaid.toString()}
         WHERE id = ${loanApplicationId}
       `;
 

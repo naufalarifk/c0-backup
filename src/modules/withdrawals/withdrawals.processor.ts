@@ -498,7 +498,9 @@ export class WithdrawalsProcessor extends WorkerHost {
       const currentFeeEstimate = await this.blockchainService.estimateNetworkFee(
         params.currencyBlockchainKey,
         params.currencyTokenId,
-        { priority: 'standard' },
+        {
+          priority: 'standard',
+        },
       );
 
       const estimatedFee = parseFloat(params.estimatedFee);

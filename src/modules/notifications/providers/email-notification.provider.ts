@@ -2,7 +2,7 @@ import type { AnyNotificationPayload, EmailNotificationPayload } from '../notifi
 
 import { Injectable, Logger } from '@nestjs/common';
 
-import { EmailService } from '../../../shared/services/email.service';
+import { EmailService } from '../../../shared/services/email.abstract';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { NotificationChannelEnum } from '../notification.types';
 import { NotificationProvider } from '../notification-provider.abstract';

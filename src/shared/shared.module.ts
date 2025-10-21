@@ -10,7 +10,7 @@ import { RepositoryModule } from './repositories/repository.module';
 import { AppConfigService } from './services/app-config.service';
 import { CacheService } from './services/cache.service';
 import { CgTestnetBlockchainEventService } from './services/cg-testnet-blockchain-event.service';
-import { EmailService } from './services/email.service';
+import { EmailService } from './services/email.abstract';
 import { FileValidatorService } from './services/file-validator.service';
 import { MailerService } from './services/mailer.service';
 import { MinioService } from './services/minio.service';
@@ -18,6 +18,8 @@ import { MinioMockController } from './services/minio-mock.controller';
 import { MinioMockService } from './services/minio-mock.service';
 import { PlatformConfigService } from './services/platform-config.service';
 import { RedisService } from './services/redis.service';
+import { ResendEmailService } from './services/resend-email.service';
+import { SmtpEmailService } from './services/smtp-email.service';
 import { TelemetryService } from './services/telemetry.service';
 import { TwilioService } from './services/twilio.service';
 import { WalletModule } from './wallets/wallet.module';
@@ -27,7 +29,6 @@ const providers: Provider[] = [
   RedisService,
   CacheService,
   PlatformConfigService,
-  EmailService,
   FileValidatorService,
   MailerService,
   TelemetryInterceptor,
@@ -36,6 +37,16 @@ const providers: Provider[] = [
   TwilioService,
   InvoiceIdGenerator,
   InvoiceService,
+  {
+    provide: EmailService,
+    inject: [AppConfigService],
+    useFactory(appConfigService: AppConfigService) {
+      if (appConfigService.emailConfig.useSmtp) {
+        return new SmtpEmailService(appConfigService);
+      }
+      return new ResendEmailService(appConfigService);
+    },
+  },
   {
     provide: MinioService,
     inject: [AppConfigService],

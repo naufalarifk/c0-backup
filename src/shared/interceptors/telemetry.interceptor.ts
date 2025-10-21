@@ -7,7 +7,6 @@ import { Injectable } from '@nestjs/common';
 import { SpanKind, SpanStatusCode } from '@opentelemetry/api';
 import { tap } from 'rxjs/operators';
 
-import { AppConfigService } from '../services/app-config.service';
 import { TelemetryService } from '../services/telemetry.service';
 import { TelemetryLogger } from '../telemetry.logger';
 
@@ -26,8 +25,7 @@ export class TelemetryInterceptor implements NestInterceptor {
     const url = request.url;
     const route = request.route?.path || url;
 
-    // Start a span for this request
-    const span = this.telemetryService?.startSpan(`${method} ${route}`, {
+    const span = this.telemetryService.startSpan(`${method} ${route}`, {
       kind: SpanKind.SERVER,
       attributes: {
         'http.method': method,
@@ -40,37 +38,32 @@ export class TelemetryInterceptor implements NestInterceptor {
       },
     });
 
-    // Add a start event and increment a business operation metric for this handler
-    this.telemetryService?.addSpanEvent('handler.start', { method, route });
-    this.telemetryService?.recordBusinessOperation(`${method} ${route}`, true, { route });
+    this.telemetryService.addSpanEvent('handler.start', { method, route });
+    this.telemetryService.recordBusinessOperation(`${method} ${route}`, true, { route });
 
-    // Ensure downstream code executes with this span as the active span so child spans correlate
     const pipeline$ = next.handle().pipe(
       tap({
         next: data => {
           const duration = Date.now() - startTime;
           const statusCode = response.statusCode;
 
-          // Record metrics
-          this.telemetryService?.recordHttpRequest(method, route, statusCode, duration);
+          this.telemetryService.recordHttpRequest(method, route, statusCode, duration);
 
-          // Update span
-          span?.setAttributes({
+          span.setAttributes({
             'http.status_code': statusCode,
             ...(response.get('Content-Length')
               ? { 'http.response.size': parseInt(response.get('Content-Length') ?? '0', 10) }
               : {}),
           });
 
-          span?.setStatus({ code: SpanStatusCode.OK });
-          this.telemetryService?.addSpanEvent('handler.end', { duration });
-          span?.end();
+          span.setStatus({ code: SpanStatusCode.OK });
+          this.telemetryService.addSpanEvent('handler.end', { duration });
+          span.end();
         },
         error: error => {
           const duration = Date.now() - startTime;
           const statusCode = response.statusCode || 500;
 
-          // Log HTTP request/response error using TelemetryLogger
           this.#logger.httpRequest(method, url, statusCode, duration, {
             route,
             userAgent: request.get('user-agent') || '',
@@ -80,9 +73,8 @@ export class TelemetryInterceptor implements NestInterceptor {
             ip: request.ip || request.connection?.remoteAddress || 'unknown',
           });
 
-          // Record metrics
-          this.telemetryService?.recordHttpRequest(method, route, statusCode, duration);
-          this.telemetryService?.recordError(
+          this.telemetryService.recordHttpRequest(method, route, statusCode, duration);
+          this.telemetryService.recordError(
             error.name || error.constructor?.name || 'Error',
             'http',
             {
@@ -93,27 +85,26 @@ export class TelemetryInterceptor implements NestInterceptor {
           );
 
           // Update span
-          span?.setAttributes({
+          span.setAttributes({
             'http.status_code': statusCode,
             error: true,
           });
 
-          span?.setStatus({
+          span.setStatus({
             code: SpanStatusCode.ERROR,
             message: error?.message,
           });
 
-          span?.recordException(error);
-          this.telemetryService?.addSpanEvent('handler.error', {
+          span.recordException(error);
+          this.telemetryService.addSpanEvent('handler.error', {
             message: error?.message,
             duration,
           });
-          span?.end();
+          span.end();
         },
       }),
     );
 
-    // If telemetryService is available, run the pipeline within trace context. Otherwise, return the pipeline directly.
     if (this.telemetryService && typeof this.telemetryService.withTraceContext === 'function') {
       return this.telemetryService.withTraceContext(span, () => pipeline$);
     }

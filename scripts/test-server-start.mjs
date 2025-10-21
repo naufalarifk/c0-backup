@@ -4,11 +4,21 @@
 import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeFileSync, existsSync, createWriteStream, mkdirSync, openSync } from 'node:fs';
 import { GenericContainer } from 'testcontainers';
 import { LogWaitStrategy } from 'testcontainers/build/wait-strategies/log-wait-strategy.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Disable TestContainers reaper to keep containers running after process exits
+process.env.TESTCONTAINERS_RYUK_DISABLED = 'true';
+
+const pidFile = join(__dirname, '..', '.local', 'test-server.json');
+
+if (existsSync(pidFile)) {
+  throw new Error('Test server already running. Use test-server-stop.mjs to stop it first.');
+}
 
 const postgresPort = 10000 + Math.floor(Math.random() * 10001);
 const redisPort = 10000 + Math.floor(Math.random() * 10001);
@@ -53,7 +63,11 @@ const [
     .start(),
 ]);
 
-const cgBackend = spawn('node', [join(__dirname, '../dist/main.js'), 'api', 'migration', 'indexer', 'document'], {
+mkdirSync(join(__dirname, '..', '.local'), { recursive: true });
+const stdoutFd = openSync(join(__dirname, '..', '.local', 'test-server.stdout.log'), 'w');
+const stderrFd = openSync(join(__dirname, '..', '.local', 'test-server.stderr.log'), 'w');
+
+const backend = spawn('node', [join(__dirname, '../dist/main.js'), 'api', 'migration', 'indexer', 'document'], {
   cwd: join(__dirname, '..'),
   env: {
     NODE_ENV: 'production',
@@ -65,23 +79,19 @@ const cgBackend = spawn('node', [join(__dirname, '../dist/main.js'), 'api', 'mig
     MINIO_ROOT_PASSWORD: 'rootuser',
     ENABLED_INDEXERS: 'cg:testnet',
   },
+  detached: true,
+  stdio: ['ignore', stdoutFd, stderrFd],
 });
 
-console.info('Starting cg-backend for tests...');
+backend.unref();
 
-cgBackend.stdout.pipe(process.stdout);
-cgBackend.stderr.pipe(process.stderr);
+writeFileSync(pidFile, JSON.stringify({
+  pid: backend.pid,
+  containers: [
+    { id: postgresContainer.getId(), port: postgresPort, type: 'postgres' },
+    { id: redisContainer.getId(), port: redisPort, type: 'redis' },
+    { id: minioContainer.getId(), port: minioPort, type: 'minio' }
+  ]
+}));
 
-process.on('SIGINT', async function () {
-  console.log('Shutting down service...');
-  cgBackend.kill('SIGTERM');
-  await new Promise(function (resolve) {
-    cgBackend.on('exit', resolve);
-  });
-  await Promise.all([
-    postgresContainer.stop(),
-    redisContainer.stop(),
-    minioContainer.stop(),
-  ]);
-  process.exit(0);
-});
+console.info('Test server started with PID:', backend.pid);

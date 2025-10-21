@@ -96,21 +96,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy() {
     try {
-      if (this.redis) {
-        await this.redis.quit();
-        this.logger.log('Redis connection closed gracefully');
-      }
-      if (this.subClient) {
-        try {
-          await this.subClient.quit();
-          this.logger.log('Redis subscriber connection closed gracefully');
-        } catch (err) {
-          this.logger.error('Error closing Redis subscriber connection:', err);
-        }
-      }
-    } catch (error) {
-      this.logger.error('Error closing Redis connection:', error);
+      await Promise.all([this.redis?.quit(), this.subClient?.quit()]);
+    } catch {
+      // Ignore errors on shutdown
     }
+    this.logger.log('Redis connections closed');
   }
 
   async get(key: string): Promise<string | null> {

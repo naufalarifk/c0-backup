@@ -610,16 +610,10 @@ export class LoansService {
           },
           nextSteps: [
             `Collateral will be liquidated on the market`,
-            `Loan repayment (${this.loanCalculationService.fromSmallestUnit(
-              loanAmounts.repaymentAmount,
-              18,
-            )}) will be processed`,
+            `Loan repayment (${this.loanCalculationService.fromSmallestUnit(loanAmounts.repaymentAmount, 18)}) will be processed`,
             `Early liquidation fee (1%) will be deducted`,
             isBreakeven
-              ? `Estimated surplus (${this.loanCalculationService.fromSmallestUnit(
-                  estimatedSurplus,
-                  18,
-                )}) will be credited to your account in USDT`
+              ? `Estimated surplus (${this.loanCalculationService.fromSmallestUnit(estimatedSurplus, 18)}) will be credited to your account in USDT`
               : 'Any deficit will be absorbed by platform insurance fund',
             'You will receive email confirmation when complete',
           ],

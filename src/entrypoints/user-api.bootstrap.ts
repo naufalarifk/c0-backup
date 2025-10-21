@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import Stream from 'node:stream';
 
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -7,9 +8,8 @@ import { WsAdapter } from '@nestjs/platform-ws';
 
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
-import { Request } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
-import morgan from 'morgan';
 
 import docs from '../docs';
 import { GlobalExceptionFilter } from '../filters';
@@ -42,29 +42,73 @@ export async function bootstrapUserApi(app: NestExpressApplication) {
   app.use(compression());
   app.use(cookieParser());
 
-  app.use((req: Request, res, next) => {
+  app.use(function (req: Request, res: Response, next: NextFunction) {
     const requestId = req.get('x-request-id') || req.get('request-id') || randomUUID();
     req.headers['x-request-id'] = requestId;
     res.set('x-request-id', requestId);
     next();
   });
 
-  app.use(
-    morgan(
-      ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :req[x-request-id] - :response-time ms',
-      {
-        stream: {
-          write(message: string) {
-            logger.log(message.trim());
-          },
-        },
-        skip(req: Request) {
-          const url = req.originalUrl || req.url || '';
-          return /^(\/api)?\/health(\/|$)/.test(url);
-        },
-      },
-    ),
-  );
+  app.use(function (req: Request, res: Response, next: NextFunction) {
+    let responseBody = '';
+
+    const originalWrite = res.write;
+
+    res.write = function (chunk: any, ...args: any[]): boolean {
+      if (chunk) {
+        if (typeof chunk === 'object' && !(chunk instanceof Buffer)) {
+          try {
+            responseBody += JSON.stringify(chunk);
+          } catch {
+            responseBody += '[Unserializable Object]';
+          }
+        } else {
+          responseBody += chunk.toString();
+        }
+      }
+      return originalWrite.apply(this, [chunk, ...args]);
+    };
+
+    const originalSend = res.send;
+    res.send = function (body?: any): Response {
+      if (body instanceof Stream) {
+        // If the body is a stream, we won't log its content
+        responseBody = '[Stream]';
+      } else if (typeof body === 'object') {
+        try {
+          responseBody = JSON.stringify(body);
+        } catch {
+          responseBody = '[Unserializable Object]';
+        }
+      } else {
+        responseBody = String(body);
+      }
+      return originalSend.call(this, body);
+    };
+
+    const originalEnd = res.end;
+    res.end = function (chunk?: any, ...args: any[]): Response {
+      if (chunk) {
+        if (typeof chunk === 'object' && !(chunk instanceof Buffer)) {
+          try {
+            responseBody += JSON.stringify(chunk);
+          } catch {
+            responseBody += '[Unserializable Object]';
+          }
+        } else {
+          responseBody += chunk.toString();
+        }
+      }
+      return originalEnd.apply(this, [chunk, ...args]);
+    };
+
+    res.addListener('finish', function () {
+      logger.log(`${req.headers['x-request-id']} ${req.method} ${req.originalUrl}`);
+      logger.log(`${req.headers['x-request-id']} ${res.statusCode} ${responseBody}`);
+    });
+
+    next();
+  });
 
   app.setGlobalPrefix('api');
   app.enableVersioning();
@@ -89,7 +133,7 @@ export async function bootstrapUserApi(app: NestExpressApplication) {
   }
 
   const port = configService.app.port;
-  await app.listen(port, async () => {
+  await app.listen(port, async function () {
     logger.log(`Server is listening at ${await app.getUrl()}`);
     logger.log(`Current environment is: ${configService.nodeEnv}`);
   });

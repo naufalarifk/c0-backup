@@ -5,8 +5,12 @@ import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from
 import { ValidationError } from 'class-validator';
 import { Request, Response } from 'express';
 
+import { TelemetryLogger } from '../shared/telemetry.logger';
+
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
+  #logger = new TelemetryLogger('GlobalExceptionFilter');
+
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const req = ctx.getRequest<Request>();
@@ -14,6 +18,29 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let payload: unknown = 'Internal server error';
+
+    if (exception instanceof HttpException) {
+      status = exception.getStatus();
+    }
+
+    // Log exception details using TelemetryLogger
+    const method = req.method;
+    const url = req.url;
+    const exceptionName =
+      exception instanceof Error ? exception.constructor.name : 'UnknownException';
+    const exceptionMessage = exception instanceof Error ? exception.message : String(exception);
+
+    // Only log non-401/403 exceptions as errors, log auth failures as info
+    if (status === HttpStatus.UNAUTHORIZED || status === HttpStatus.FORBIDDEN) {
+      this.#logger.log(`${method} ${url} → ${status} ${exceptionName}: ${exceptionMessage}`);
+    } else if (status >= 500) {
+      this.#logger.error(
+        `${method} ${url} → ${status} ${exceptionName}: ${exceptionMessage}`,
+        exception instanceof Error ? exception.stack : undefined,
+      );
+    } else {
+      this.#logger.warn(`${method} ${url} → ${status} ${exceptionName}: ${exceptionMessage}`);
+    }
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
