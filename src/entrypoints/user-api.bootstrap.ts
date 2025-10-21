@@ -57,7 +57,7 @@ export async function bootstrapUserApi(app: NestExpressApplication) {
       if (chunk) {
         if (Buffer.isBuffer(chunk)) {
           chunks.push(chunk);
-        } else if (typeof chunk === 'string') {
+        } else {
           chunks.push(Buffer.from(chunk));
         }
       }
@@ -69,7 +69,7 @@ export async function bootstrapUserApi(app: NestExpressApplication) {
       if (chunk) {
         if (Buffer.isBuffer(chunk)) {
           chunks.push(chunk);
-        } else if (typeof chunk === 'string') {
+        } else {
           chunks.push(Buffer.from(chunk));
         }
       }
