@@ -609,6 +609,30 @@ describe('Finance Accounting API (e2e)', () => {
       );
     });
 
+    it('should correctly query historical balances with GROUP BY for interest growth calculation', async () => {
+      const response = await testUser.fetch('/api/portfolio/analytics');
+
+      strictEqual(response.status, 200, 'Should return 200 OK without SQL errors');
+
+      const responseBody: unknown = await response.json();
+      assertDefined(responseBody);
+      assertPropDefined(responseBody, 'success');
+      assertPropDefined(responseBody, 'data');
+
+      const portfolioData = responseBody.data;
+      assertDefined(portfolioData);
+      assertPropDefined(portfolioData, 'interestGrowth');
+
+      const interestGrowth = portfolioData.interestGrowth;
+      assertDefined(interestGrowth, 'Should have interestGrowth despite historical query');
+      assertPropString(interestGrowth, 'amount');
+      assertPropString(interestGrowth, 'currency');
+      assertPropNumber(interestGrowth, 'percentage');
+      assertPropString(interestGrowth, 'periodLabel');
+
+      ok(interestGrowth.periodLabel === 'Monthly', 'Interest growth period should be Monthly');
+    });
+
     it('should require authentication', async () => {
       const response = await fetch(`${testSetup.backendUrl}/api/portfolio/analytics`);
       strictEqual(response.status, 401, 'Should return 401 Unauthorized');

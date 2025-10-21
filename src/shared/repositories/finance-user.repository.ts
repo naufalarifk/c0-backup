@@ -971,7 +971,8 @@ export abstract class FinanceUserRepsitory extends UserRepository {
           AND a.account_type = 'User'
           AND hab.snapshot_date >= ${oneMonthAgo.toISOString()}
           AND hab.snapshot_date < ${periodStart.toISOString()}
-        ORDER BY hab.snapshot_date DESC
+        GROUP BY DATE_TRUNC('day', hab.snapshot_date)
+        ORDER BY DATE_TRUNC('day', hab.snapshot_date) DESC
         LIMIT 1
       `;
 
