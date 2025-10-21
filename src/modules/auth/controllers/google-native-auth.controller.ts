@@ -21,6 +21,10 @@ import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { Public } from '../auth.decorator';
 import { AuthService } from '../auth.service';
 import { GoogleNativeSignInDto } from '../dto/google-native-sign-in.dto';
+import {
+  GoogleNativeLinkResponseDto,
+  GoogleNativeSignInResponseDto,
+} from '../dto/google-native-sign-in-response.dto';
 import { GoogleTokenVerifierService } from '../services/google-token-verifier.service';
 
 @ApiTags('Authentication - Native Google')
@@ -41,13 +45,17 @@ export class GoogleNativeAuthController {
     summary: 'Native Google Sign-In',
     description: 'Authenticate using Google ID token from native mobile SDK',
   })
-  @ApiResponse({ status: 200, description: 'Successfully authenticated' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully authenticated',
+    type: GoogleNativeSignInResponseDto,
+  })
   @ApiResponse({ status: 401, description: 'Invalid or expired token' })
   async nativeSignIn(
     @Body() dto: GoogleNativeSignInDto,
     @Req() req: Request,
-    @Res() res: Response,
-  ) {
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<GoogleNativeSignInResponseDto> {
     try {
       // Verify the ID token with Google
       const payload = await this.googleVerifier.verifyIdToken(dto.idToken);
@@ -135,19 +143,23 @@ export class GoogleNativeAuthController {
       // Get user details
       const user = await this.repo.betterAuthFindOneUser([{ field: 'id', value: userId }]);
 
-      return res.json({
+      const userEmail = (user?.email as string | undefined) || userInfo.email;
+      const userName = (user?.name as string | undefined) || userInfo.name;
+      const userImage = (user?.image as string | undefined) || userInfo.picture;
+
+      return {
         user: {
           id: userId,
-          email: user?.email || userInfo.email,
-          name: user?.name || userInfo.name,
-          image: user?.image || userInfo.picture,
+          email: userEmail,
+          name: userName,
+          image: userImage,
           emailVerified: true,
         },
         session: {
           token: sessionToken,
           expiresAt: expiresAt.toISOString(),
         },
-      });
+      };
     } catch (error) {
       this.logger.error('Native Google sign-in failed', { error });
       throw error;
@@ -161,14 +173,18 @@ export class GoogleNativeAuthController {
     summary: 'Link Google Account (Native)',
     description: 'Link Google account to existing user using ID token from native SDK',
   })
-  @ApiResponse({ status: 200, description: 'Successfully linked account' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully linked account',
+    type: GoogleNativeLinkResponseDto,
+  })
   @ApiResponse({ status: 401, description: 'Invalid token or authentication required' })
   @ApiResponse({ status: 400, description: 'Email mismatch or account already linked' })
   async nativeLinkAccount(
     @Body() dto: GoogleNativeSignInDto,
     @Req() req: Request,
-    @Res() res: Response,
-  ) {
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<GoogleNativeLinkResponseDto> {
     try {
       // Verify the ID token
       const payload = await this.googleVerifier.verifyIdToken(dto.idToken);
@@ -212,10 +228,10 @@ export class GoogleNativeAuthController {
       if (existingAccount && String(existingAccount.userId) === userId) {
         // Already linked
         this.logger.log('Google account already linked', { userId });
-        return res.json({
+        return {
           success: true,
           message: 'Google account is already linked to your account',
-        });
+        };
       }
 
       // Link the account
@@ -227,10 +243,10 @@ export class GoogleNativeAuthController {
 
       this.logger.log('Linked Google account', { userId });
 
-      return res.json({
+      return {
         success: true,
         message: 'Google account linked successfully',
-      });
+      };
     } catch (error) {
       this.logger.error('Native Google account linking failed', { error });
       throw error;
