@@ -50,59 +50,56 @@ export async function bootstrapUserApi(app: NestExpressApplication) {
   });
 
   app.use(function (req: Request, res: Response, next: NextFunction) {
-    let responseBody = '';
+    const chunks: Buffer[] = [];
 
     const originalWrite = res.write;
-
     res.write = function (chunk: any, ...args: any[]): boolean {
       if (chunk) {
-        if (typeof chunk === 'object' && !(chunk instanceof Buffer)) {
-          try {
-            responseBody += JSON.stringify(chunk);
-          } catch {
-            responseBody += '[Unserializable Object]';
-          }
-        } else {
-          responseBody += chunk.toString();
+        if (Buffer.isBuffer(chunk)) {
+          chunks.push(chunk);
+        } else if (typeof chunk === 'string') {
+          chunks.push(Buffer.from(chunk));
         }
       }
       return originalWrite.apply(this, [chunk, ...args]);
     };
 
-    const originalSend = res.send;
-    res.send = function (body?: any): Response {
-      if (body instanceof Stream) {
-        // If the body is a stream, we won't log its content
-        responseBody = '[Stream]';
-      } else if (typeof body === 'object') {
-        try {
-          responseBody = JSON.stringify(body);
-        } catch {
-          responseBody = '[Unserializable Object]';
-        }
-      } else {
-        responseBody = String(body);
-      }
-      return originalSend.call(this, body);
-    };
-
     const originalEnd = res.end;
     res.end = function (chunk?: any, ...args: any[]): Response {
       if (chunk) {
-        if (typeof chunk === 'object' && !(chunk instanceof Buffer)) {
-          try {
-            responseBody += JSON.stringify(chunk);
-          } catch {
-            responseBody += '[Unserializable Object]';
-          }
-        } else {
-          responseBody += chunk.toString();
+        if (Buffer.isBuffer(chunk)) {
+          chunks.push(chunk);
+        } else if (typeof chunk === 'string') {
+          chunks.push(Buffer.from(chunk));
         }
       }
       return originalEnd.apply(this, [chunk, ...args]);
     };
 
     res.addListener('finish', function () {
+      let responseBody = '[Empty]';
+
+      if (chunks.length > 0) {
+        const buffer = Buffer.concat(chunks);
+        const contentType = res.getHeader('content-type');
+
+        if (
+          contentType &&
+          typeof contentType === 'string' &&
+          contentType.includes('application/octet-stream')
+        ) {
+          responseBody = `[Binary Data: ${buffer.length} bytes]`;
+        } else if (buffer.length > 10000) {
+          responseBody = `[Large Response: ${buffer.length} bytes]`;
+        } else {
+          try {
+            responseBody = buffer.toString('utf8');
+          } catch {
+            responseBody = `[Binary Data: ${buffer.length} bytes]`;
+          }
+        }
+      }
+
       logger.log(`${req.headers['x-request-id']} ${req.method} ${req.originalUrl}`);
       logger.log(`${req.headers['x-request-id']} ${res.statusCode} ${responseBody}`);
     });
