@@ -17,6 +17,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import { v7 as uuidv7 } from 'uuid';
 
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
+import { AppConfigService } from '../../../shared/services/app-config.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { Public } from '../auth.decorator';
 import { AuthService } from '../auth.service';
@@ -36,6 +37,7 @@ export class GoogleNativeAuthController {
     private readonly googleVerifier: GoogleTokenVerifierService,
     private readonly authService: AuthService,
     private readonly repo: CryptogadaiRepository,
+    private readonly configService: AppConfigService,
   ) {}
 
   @Public()
@@ -131,7 +133,8 @@ export class GoogleNativeAuthController {
       this.logger.log('Session created successfully', { userId });
 
       // Set session cookie manually
-      const cookieName = 'better-auth.session_token';
+      const cookiePrefix = this.configService.authConfig.cookiePrefix;
+      const cookieName = `${cookiePrefix}.session_token`;
       res.cookie(cookieName, sessionToken, {
         httpOnly: true,
         secure: true,
