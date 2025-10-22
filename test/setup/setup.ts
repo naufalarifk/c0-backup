@@ -170,7 +170,7 @@ export async function setup() {
             ALLOWED_ORIGINS: `http://localhost,http://localhost:3000,cryptogadai://`,
             APP_EXPO_URL: `exp://localhost/--`,
             APP_SCHEME: 'cryptogadai://',
-            BETTER_AUTH_COOKIE_PREFIX: 'cg',
+            BETTER_AUTH_COOKIE_PREFIX: 'cryptogadai',
             BETTER_AUTH_EXPIRATION_TIME: '3600',
             BETTER_AUTH_MAXIMUM_SESSIONS: '3',
             BETTER_AUTH_SECRET: 'P1skQoJiT7jnNDHuw06kkbTougc3jvTt',

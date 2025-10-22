@@ -221,7 +221,7 @@ export class AppConfigService {
       secret: this.getString('BETTER_AUTH_SECRET', 'your-secret'),
       url: betterAuthUrl === 'local' ? betterAuthDefaultUrl : betterAuthUrl,
       expirationTime: this.getNumber('BETTER_AUTH_EXPIRATION_TIME', 3600),
-      cookiePrefix: this.getString('BETTER_AUTH_COOKIE_PREFIX', 'cg'),
+      cookiePrefix: this.getString('BETTER_AUTH_COOKIE_PREFIX', 'cryptogadai'),
       maximumSessions: this.getNumber('BETTER_AUTH_MAXIMUM_SESSIONS', 3),
       sessionMaxAge: this.getNumber('SESSION_MAX_AGE', 604_800), // 7 days
       sessionUpdateAge: this.getNumber('SESSION_UPDATE_AGE', 86_400), // 1 day

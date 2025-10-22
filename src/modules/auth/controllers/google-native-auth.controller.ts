@@ -13,7 +13,6 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
-import { fromNodeHeaders } from 'better-auth/node';
 import { v7 as uuidv7 } from 'uuid';
 
 import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
@@ -119,33 +118,21 @@ export class GoogleNativeAuthController {
       const now = new Date();
       const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-      const session = await this.repo.betterAuthCreateSession({
-        id: uuidv7(),
-        token: sessionToken,
-        userId,
-        createdAt: now,
-        updatedAt: now,
-        expiresAt,
-        ipAddress: req.ip || req.socket.remoteAddress || '',
-        userAgent: req.headers['user-agent'] || '',
+      const signInSocialResult = await this.authService.api.signInSocial({
+        body: {
+          provider: 'google',
+          idToken: {
+            token: dto.idToken,
+          },
+        },
+        returnHeaders: true,
       });
 
-      this.logger.log('Session created successfully', { userId });
+      for (const setCookieValue of signInSocialResult.headers.getSetCookie() || []) {
+        res.appendHeader('Set-Cookie', setCookieValue);
+      }
 
-      // Set session cookie manually
-      const cookiePrefix = this.configService.authConfig.cookiePrefix;
-      const cookieName = `${cookiePrefix}.session_token`;
-      res.cookie(cookieName, sessionToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'none',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        path: '/',
-      });
-
-      // Get user details
       const user = await this.repo.betterAuthFindOneUser([{ field: 'id', value: userId }]);
-
       const userEmail = (user?.email as string | undefined) || userInfo.email;
       const userName = (user?.name as string | undefined) || userInfo.name;
       const userImage = (user?.image as string | undefined) || userInfo.picture;
