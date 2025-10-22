@@ -100,10 +100,10 @@ export async function bootstrapUserApi(app: NestExpressApplication) {
         }
       }
 
-      // logger.log(`${req.headers['x-request-id']} ${req.method} ${req.originalUrl}`);
-      // logger.log(`${req.headers['x-request-id']} ${res.statusCode}`);
+      logger.log(`${req.headers['x-request-id']} ${req.method} ${req.originalUrl}`);
+      logger.log(`${req.headers['x-request-id']} ${res.statusCode}`);
       // logger.log(`${req.headers['x-request-id']} ${JSON.stringify({ ...req.headers })}`);
-      // logger.log(`${req.headers['x-request-id']} ${responseBody}`);
+      logger.log(`${req.headers['x-request-id']} ${responseBody}`);
     });
 
     next();

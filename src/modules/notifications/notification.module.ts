@@ -25,6 +25,7 @@ import { PasswordResetCompletedNotificationComposer } from './composers/password
 import { PasswordResetNotificationComposer } from './composers/password-reset-notification.composer';
 import { PhoneNumberVerificationNotificationComposer } from './composers/phone-number-verification-notification.composer';
 import { SuspiciousLoginAttemptNotificationComposer } from './composers/suspicious-login-attempt-notification.composer';
+import { TestNotificationComposer } from './composers/test-notification.composer';
 import { TwoFactorEnabledNotificationComposer } from './composers/two-factor-enabled-notification.composer';
 import { UserKycRejectedNotificationComposer } from './composers/user-kyc-rejected-notification.composer';
 import { UserKycVerifiedNotificationComposer } from './composers/user-kyc-verified-notification.composer';
@@ -96,6 +97,7 @@ import { PushSenderService } from './services/push-sender.service';
     PasswordResetNotificationComposer,
     PasswordResetCompletedNotificationComposer,
     SuspiciousLoginAttemptNotificationComposer,
+    TestNotificationComposer,
     TwoFactorEnabledNotificationComposer,
     UserRegisteredNotificationComposer,
     UserKycVerifiedNotificationComposer,

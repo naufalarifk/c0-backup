@@ -197,9 +197,13 @@ export async function setup() {
             BINANCE_API_BASE_URL: 'https://testnet.binance.vision',
             DATABASE_URL: ':inmemory:',
             DATABASE_LOGGER: 'false',
+            GOOGLE_ANDROID_CLIENT_ID:
+              '654052858535-3arajfrdraabpeo30f4ep6lkk63g31vr.apps.googleusercontent.com',
+            GOOGLE_CLIENT_SECRET: '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',
             GOOGLE_CLIENT_ID:
-              '442461506062-rgpbj94u778lpcfv5hg5rue6fpveddt6.apps.googleusercontent.com',
-            GOOGLE_CLIENT_SECRET: 'GOCSPX - KKQN9TreMghyANcTCd9Vq4u3cILe',
+              '654052858535-utonbmelme03f9tsfha5u9b17ljujrl2.apps.googleusercontent.com',
+            GOOGLE_WEB_CLIENT_ID:
+              '654052858535-utonbmelme03f9tsfha5u9b17ljujrl2.apps.googleusercontent.com',
             MAIL_HOST: 'localhost',
             MAIL_SMTP_PORT: mailpitSmtpPort,
             MINIO_ENDPOINT: 'local',

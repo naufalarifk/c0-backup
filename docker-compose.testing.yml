@@ -30,8 +30,10 @@ x-backend-env: &backend-env
   MINIO_ROOT_USER: minioadmin
   MINIO_ROOT_PASSWORD: minioadmin123
   MINIO_USE_SSL: false
-  GOOGLE_CLIENT_SECRET: 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
-  GOOGLE_CLIENT_ID: 836145162943-d3ooukrbp72q8cvaq9q1blfbm9bqjgoc.apps.googleusercontent.com
+  GOOGLE_ANDROID_CLIENT_ID: 654052858535-3arajfrdraabpeo30f4ep6lkk63g31vr.apps.googleusercontent.com
+  GOOGLE_CLIENT_SECRET: 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
+  GOOGLE_CLIENT_ID: 654052858535-utonbmelme03f9tsfha5u9b17ljujrl2.apps.googleusercontent.com
+  GOOGLE_WEB_CLIENT_ID: 654052858535-utonbmelme03f9tsfha5u9b17ljujrl2.apps.googleusercontent.com
   THROTTLER_TTL: 1m
   THROTTLER_LIMIT: 10
   NODE_OPTIONS: "--import ./dist/telemetry.js"

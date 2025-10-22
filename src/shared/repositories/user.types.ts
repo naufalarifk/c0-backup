@@ -355,6 +355,8 @@ export const notificationTypes = [
   // System notifications
   'PlatformMaintenanceNotice',
   'SecurityAlert',
+  // Test notifications
+  'TestNotification',
 ] as const;
 
 // Notification management types
