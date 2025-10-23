@@ -30,7 +30,7 @@ export class PricefeedScheduler implements OnModuleInit {
     // Run async without blocking module initialization
     // Errors in price feed fetching should not prevent app startup
     this.pricefeedService
-      .fetchAndStorePrices()
+      .fetchPrices()
       .then(() => {
         this.logger.log('Initial price feed fetch completed successfully');
       })
@@ -54,7 +54,7 @@ export class PricefeedScheduler implements OnModuleInit {
     this.logger.log('Starting scheduled price feed fetch');
 
     try {
-      await this.pricefeedService.fetchAndStorePrices();
+      await this.pricefeedService.fetchPrices();
       this.logger.log('Scheduled price feed fetch completed successfully');
     } catch (error) {
       this.logger.error('Scheduled price feed fetch failed:', error);

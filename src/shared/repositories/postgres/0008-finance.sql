@@ -200,6 +200,10 @@ INSERT INTO currencies (
   -- Generic Solana, this currency refers to solana generic SOL.
   ('crosschain', 'slip44:501', 'Solana', 'SOL', 9, 'https://cryptologos.cc/logos/solana-sol-logo.png',
    '0', '0', 0, 0, 0, 0, '0')
+
+  -- USDC Solana Devnet (principal only)
+  ('solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1', 'spl:CGUsdwgPH4mMEQoA3ZMi2C2aiJywFb3x5SrMFt2F9dj4', 'USD Coin', 'USDC', 6, 'https://bafkreibml7m7nffhrjirkqtev7yihxt57ftljzabx3fws3ccbdqt4e22pi.ipfs.dweb.link/',
+   '100000000', '100000000000', 0, 0, 0, 0, '0') -- Min 100 USDC for loans
 ON CONFLICT (blockchain_key, token_id) DO UPDATE SET
   min_loan_principal_amount = EXCLUDED.min_loan_principal_amount,
   max_loan_principal_amount = EXCLUDED.max_loan_principal_amount,

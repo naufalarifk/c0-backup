@@ -8,7 +8,11 @@ import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.rep
 import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { defaultPricefeedConfig } from './pricefeed.config';
 import { PriceFeedProviderFactory } from './pricefeed-provider.factory';
-import { assertPriceFeedSource, type PriceFeedRequest } from './pricefeed-provider.types';
+import {
+  assertPriceFeedSource,
+  type PriceFeedRequest,
+  type PriceFeedStoreEvent,
+} from './pricefeed-provider.types';
 
 @Injectable()
 export class PricefeedService {
@@ -18,11 +22,14 @@ export class PricefeedService {
     private readonly repository: CryptogadaiRepository,
     private readonly providerFactory: PriceFeedProviderFactory,
     private readonly configService: ConfigService,
-    @InjectQueue('valuationQueue')
-    private readonly valuationQueue: Queue,
+    @InjectQueue('pricefeedQueue')
+    private readonly pricefeedQueue: Queue,
   ) {}
 
-  async fetchAndStorePrices(): Promise<void> {
+  /**
+   * Fetches prices from providers and dispatches them to the pricefeed queue for storage
+   */
+  async fetchPrices(): Promise<void> {
     this.logger.log('Starting price feed fetch cycle');
 
     try {
@@ -61,31 +68,20 @@ export class PricefeedService {
               ),
             ]);
 
-            // Price data from provider is in decimal form
-            // The repository's platformFeedsExchangeRate will convert to smallest units with 12 decimals
-            const result = await this.repository.platformFeedsExchangeRate({
+            this.logger.debug(
+              `Successfully fetched price for ${priceFeed.baseCurrencyTokenId}/${priceFeed.quoteCurrencyTokenId} from ${priceFeed.source}`,
+            );
+
+            // Dispatch to pricefeed queue for storage
+            await this.dispatchPriceFeedStoreEvent({
               priceFeedId: priceFeed.id,
+              blockchainKey: priceFeed.blockchainKey,
+              baseCurrencyTokenId: priceFeed.baseCurrencyTokenId,
+              quoteCurrencyTokenId: priceFeed.quoteCurrencyTokenId,
               bidPrice: priceData.bidPrice,
               askPrice: priceData.askPrice,
               retrievalDate: priceData.retrievalDate,
               sourceDate: priceData.sourceDate,
-            });
-
-            this.logger.debug(
-              `Successfully fetched and stored price for ${priceFeed.baseCurrencyTokenId}/${priceFeed.quoteCurrencyTokenId} from ${priceFeed.source}`,
-            );
-
-            // Emit exchange rate updated event to valuation queue
-            await this.emitExchangeRateUpdatedEvent({
-              exchangeRateId: result.id,
-              priceFeedId: result.priceFeedId,
-              blockchainKey: priceFeed.blockchainKey,
-              baseCurrencyTokenId: priceFeed.baseCurrencyTokenId,
-              quoteCurrencyTokenId: priceFeed.quoteCurrencyTokenId,
-              bidPrice: result.bidPrice,
-              askPrice: result.askPrice,
-              retrievalDate: result.retrievalDate,
-              sourceDate: result.sourceDate,
             });
           } catch (error) {
             // this.logger.error(`Failed to fetch price for feed ${priceFeed.id}:`, error);
@@ -104,22 +100,13 @@ export class PricefeedService {
   }
 
   /**
-   * Emits exchange rate updated event to valuation queue for loan valuation processing
+   * Dispatches a price feed store event to the pricefeed queue
+   * This can be called by the scheduler or by an admin endpoint to manually set prices
    */
-  private async emitExchangeRateUpdatedEvent(event: {
-    exchangeRateId: string;
-    priceFeedId: string;
-    blockchainKey: string;
-    baseCurrencyTokenId: string;
-    quoteCurrencyTokenId: string;
-    bidPrice: string;
-    askPrice: string;
-    retrievalDate: Date;
-    sourceDate: Date;
-  }): Promise<void> {
+  async dispatchPriceFeedStoreEvent(event: PriceFeedStoreEvent): Promise<void> {
     try {
-      await this.valuationQueue.add('exchangeRateUpdated', event, {
-        priority: 2,
+      await this.pricefeedQueue.add('storePriceFeed', event, {
+        priority: 1,
         attempts: 3,
         backoff: {
           type: 'exponential',
@@ -128,13 +115,13 @@ export class PricefeedService {
       });
 
       this.logger.debug(
-        `Emitted exchange rate update event for ${event.baseCurrencyTokenId}/${event.quoteCurrencyTokenId}`,
+        `Dispatched price feed store event for ${event.baseCurrencyTokenId}/${event.quoteCurrencyTokenId}`,
       );
     } catch (error) {
       this.logger.error(
-        `Failed to emit exchange rate update event: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to dispatch price feed store event: ${error instanceof Error ? error.message : String(error)}`,
       );
-      // Don't throw - we don't want to fail price feed updates if event emission fails
+      throw error;
     }
   }
 }

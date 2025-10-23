@@ -5,6 +5,7 @@ import { DiscoveryModule } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 
 import { RepositoryModule } from '../../shared/repositories/repository.module';
+import { PricefeedProcessor } from './pricefeed.processor';
 import { PricefeedService } from './pricefeed.service';
 import { PriceFeedProviderFactory } from './pricefeed-provider.factory';
 import { BinancePriceFeedProvider } from './providers/binance.provider';
@@ -19,11 +20,15 @@ import { RandomPriceFeedProvider } from './providers/random.provider';
     ScheduleModule.forRoot(),
     RepositoryModule,
     BullModule.registerQueue({
+      name: 'pricefeedQueue',
+    }),
+    BullModule.registerQueue({
       name: 'valuationQueue',
     }),
   ],
   providers: [
     PricefeedService,
+    PricefeedProcessor,
     PriceFeedProviderFactory,
 
     BinancePriceFeedProvider,

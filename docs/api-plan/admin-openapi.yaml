@@ -598,6 +598,55 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  # Exchange Rate Management
+  /api/admin/exchange-rates/feed:
+    post:
+      tags:
+        - Exchange Rate Management
+      summary: Manually feed exchange rate
+      description: |
+        Allows admin to manually input exchange rate data. The data will be dispatched to the pricefeed queue for processing by the PricefeedProcessor, which will store it and emit events for valuation processing.
+
+        **Features:**
+        - Manual override of exchange rates for specific price feeds
+        - Automatic processing through existing pricefeed pipeline
+        - Triggers loan valuation updates when rates change
+        - Full audit trail of manual rate inputs
+      operationId: feedExchangeRate
+      requestBody:
+        required: true
+        description: Exchange rate data to feed
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManualExchangeRateFeed'
+      responses:
+        '200':
+          description: Exchange rate feed dispatched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeRateFeedResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminRequired'
+        '404':
+          description: Price feed not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  code: "PRICE_FEED_NOT_FOUND"
+                  message: "Price feed with the specified ID was not found"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   # Withdrawal Management - RF-046 (Basic withdrawal management only)
   /api/admin/withdrawals:
     get:
@@ -1662,6 +1711,77 @@ components:
           minimum: 0
           maximum: 1
           description: LTV liquidation threshold (decimal, e.g. 0.85 = 85%)
+
+    ManualExchangeRateFeed:
+      type: object
+      required:
+        - priceFeedId
+        - bidPrice
+        - askPrice
+      properties:
+        priceFeedId:
+          type: string
+          description: Price feed ID for which to set the exchange rate
+          example: "1"
+        bidPrice:
+          type: string
+          description: Bid price (decimal string, e.g., "0.000012345678")
+          pattern: '^[0-9]+(\\.[0-9]+)?$'
+          example: "0.000012345678"
+        askPrice:
+          type: string
+          description: Ask price (decimal string, e.g., "0.000012345679")
+          pattern: '^[0-9]+(\\.[0-9]+)?$'
+          example: "0.000012345679"
+        sourceDate:
+          type: string
+          format: date-time
+          description: Source date of the exchange rate (ISO 8601 format)
+          example: "2024-01-15T10:30:00Z"
+        retrievalDate:
+          type: string
+          format: date-time
+          description: Retrieval date of the exchange rate (ISO 8601 format)
+          example: "2024-01-15T10:30:00Z"
+
+    ExchangeRateFeedResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "Exchange rate feed dispatched successfully"
+            priceFeedId:
+              type: string
+              example: "1"
+            blockchainKey:
+              type: string
+              example: "eip155:1"
+            baseCurrencyTokenId:
+              type: string
+              example: "slip44:60"
+            quoteCurrencyTokenId:
+              type: string
+              example: "slip44:825"
+            bidPrice:
+              type: string
+              example: "0.000012345678"
+            askPrice:
+              type: string
+              example: "0.000012345679"
+            sourceDate:
+              type: string
+              format: date-time
+              example: "2024-01-15T10:30:00Z"
+            retrievalDate:
+              type: string
+              format: date-time
+              example: "2024-01-15T10:30:00Z"
 
     PaginationMeta:
       type: object

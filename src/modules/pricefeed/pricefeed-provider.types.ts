@@ -24,3 +24,18 @@ export function assertPriceFeedSource(value: string): asserts value is PriceFeed
     throw new Error(`Invalid price feed source: ${value}`);
   }
 }
+
+/**
+ * Event payload for storing price feed data
+ * This is dispatched to the pricefeedQueue for processing
+ */
+export type PriceFeedStoreEvent = {
+  priceFeedId: string;
+  blockchainKey: string;
+  baseCurrencyTokenId: string;
+  quoteCurrencyTokenId: string;
+  bidPrice: string; // Decimal string
+  askPrice: string; // Decimal string
+  retrievalDate: Date;
+  sourceDate: Date;
+};

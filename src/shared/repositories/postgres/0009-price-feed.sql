@@ -29,30 +29,35 @@ CREATE TABLE IF NOT EXISTS exchange_rates (
 -- These are the markets used by loan applications for LTV calculations
 INSERT INTO price_feeds (blockchain_key, base_currency_token_id, quote_currency_token_id, source) VALUES
   -- Cross-chain Bitcoin (BTC) price feeds against USD Token (for loans)
+  ('crosschain', 'slip44:0', 'iso4217:usd', 'admin'),
   ('crosschain', 'slip44:0', 'iso4217:usd', 'binance'),
   ('crosschain', 'slip44:0', 'iso4217:usd', 'coingecko'),
   ('crosschain', 'slip44:0', 'iso4217:usd', 'coinmarketcap'),
   ('crosschain', 'slip44:0', 'iso4217:usd', 'random'),
 
   -- Cross-chain Ethereum (ETH) price feeds against USD Token (for loans)
+  ('crosschain', 'slip44:60', 'iso4217:usd', 'admin'),
   ('crosschain', 'slip44:60', 'iso4217:usd', 'binance'),
   ('crosschain', 'slip44:60', 'iso4217:usd', 'coingecko'),
   ('crosschain', 'slip44:60', 'iso4217:usd', 'coinmarketcap'),
   ('crosschain', 'slip44:60', 'iso4217:usd', 'random'),
 
   -- Cross-chain BNB price feeds against USD Token (for loans)
+  ('crosschain', 'slip44:714', 'iso4217:usd', 'admin'),
   ('crosschain', 'slip44:714', 'iso4217:usd', 'binance'),
   ('crosschain', 'slip44:714', 'iso4217:usd', 'coingecko'),
   ('crosschain', 'slip44:714', 'iso4217:usd', 'coinmarketcap'),
   ('crosschain', 'slip44:714', 'iso4217:usd', 'random'),
 
   -- Cross-chain Solana (SOL) price feeds against USD Token (for loans)
+  ('crosschain', 'slip44:501', 'iso4217:usd', 'admin'),
   ('crosschain', 'slip44:501', 'iso4217:usd', 'binance'),
   ('crosschain', 'slip44:501', 'iso4217:usd', 'coingecko'),
   ('crosschain', 'slip44:501', 'iso4217:usd', 'coinmarketcap'),
   ('crosschain', 'slip44:501', 'iso4217:usd', 'random'),
 
   -- Cross-chain USDC against USD Token for conversion
+  ('crosschain', 'iso4217:usd', 'iso4217:usd', 'admin'),
   ('crosschain', 'iso4217:usd', 'iso4217:usd', 'binance'),
   ('crosschain', 'iso4217:usd', 'iso4217:usd', 'coingecko'),
   ('crosschain', 'iso4217:usd', 'iso4217:usd', 'coinmarketcap'),
