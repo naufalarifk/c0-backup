@@ -199,14 +199,13 @@ INSERT INTO currencies (
    '0', '0', 0, 0, 0, 0, '0'),
   -- Generic Solana, this currency refers to solana generic SOL.
   ('crosschain', 'slip44:501', 'Solana', 'SOL', 9, 'https://cryptologos.cc/logos/solana-sol-logo.png',
-   '0', '0', 0, 0, 0, 0, '0')
-
+   '0', '0', 0, 0, 0, 0, '0'),
   -- USDC Solana Devnet (principal only)
   ('solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1', 'spl:CGUsdwgPH4mMEQoA3ZMi2C2aiJywFb3x5SrMFt2F9dj4', 'USD Coin', 'USDC', 6, 'https://bafkreibml7m7nffhrjirkqtev7yihxt57ftljzabx3fws3ccbdqt4e22pi.ipfs.dweb.link/',
-   '100000000', '100000000000', 0, 0, 0, 0, '0') -- Min 100 USDC for loans
+   '100000000', '100000000000', 0, 0, 0, 0, '0'), -- Min 100 USDC for loans
   -- USDC Ethereum Hoodi (principal only)
   ('eip155:560048', 'erc20:0x4100A04de3A0719aDC921Fa1faEe58Dd0F43F361', 'USD Coin', 'USDC', 6, 'https://bafkreibml7m7nffhrjirkqtev7yihxt57ftljzabx3fws3ccbdqt4e22pi.ipfs.dweb.link/',
-   '100000000', '100000000000', 0, 0, 0, 0, '0') -- Min 100 USDC for loans
+   '100000000', '100000000000', 0, 0, 0, 0, '0'), -- Min 100 USDC for loans
   -- USDC BSC Testnet (principal only)
   ('eip155:97', 'erc20:0x4100A04de3A0719aDC921Fa1faEe58Dd0F43F361', 'USD Coin', 'USDC', 6, 'https://bafkreibml7m7nffhrjirkqtev7yihxt57ftljzabx3fws3ccbdqt4e22pi.ipfs.dweb.link/',
    '100000000', '100000000000', 0, 0, 0, 0, '0') -- Min 100 USDC for loans
