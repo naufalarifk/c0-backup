@@ -6,6 +6,7 @@ import { BscMainnetBlockchain } from './blockchains/bsc-mainnet.blockchain';
 import { BtcMainnetBlockchain } from './blockchains/btc-mainnet.blockchain';
 import { BtcTestnetWalletService } from './blockchains/btc-testnet.blockchain';
 import { CgTestnetBlockchain } from './blockchains/cg-testnet.blockchain';
+import { EthHoodiBlockchain } from './blockchains/eth-hoodi.blockchain.js';
 import { EthMainnetBlockchain } from './blockchains/eth-mainnet.blockchain';
 import { SolDevnetBlockchain } from './blockchains/sol-devnet.blockchain';
 import { SolMainnetBlockchain } from './blockchains/sol-mainnet.blockchain';
@@ -19,25 +20,31 @@ import { WalletService } from './wallet.service';
     WalletConfig,
     WalletFactory,
     WalletService,
+    BtcTestnetWalletService,
+
+    // Blockchains
     BscMainnetBlockchain,
     BtcMainnetBlockchain,
-    BtcTestnetWalletService,
+    CgTestnetBlockchain,
+    EthHoodiBlockchain,
     EthMainnetBlockchain,
     SolDevnetBlockchain,
     SolMainnetBlockchain,
-    CgTestnetBlockchain,
   ],
   exports: [
     WalletConfig,
     WalletFactory,
     WalletService,
+    BtcTestnetWalletService,
+
+    // Blockchains
     BscMainnetBlockchain,
     BtcMainnetBlockchain,
-    BtcTestnetWalletService,
+    CgTestnetBlockchain,
+    EthHoodiBlockchain,
     EthMainnetBlockchain,
     SolDevnetBlockchain,
     SolMainnetBlockchain,
-    CgTestnetBlockchain,
   ],
 })
 export class WalletModule {}
