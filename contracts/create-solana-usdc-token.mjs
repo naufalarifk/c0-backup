@@ -7,9 +7,9 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID, AuthorityType, createAssociatedTokenAccoun
 import { Connection, Keypair, sendAndConfirmTransaction, Transaction, LAMPORTS_PER_SOL, SystemProgram } from '@solana/web3.js';
 // import { createKuboRPCClient } from 'kubo-rpc-client';
 
-import { packCreateMetadataAccountV3Instruction } from './tools/solana-metaplex.js';
+import { packCreateMetadataAccountV3Instruction } from './tools/solana-metaplex.mjs';
 
-/** @typedef {import('./tools/solana-metaplex.js').CreateMetadataV3AccountParams} CreateMetadataAccountParams */
+/** @typedef {import('./tools/solana-metaplex.mjs').CreateMetadataV3AccountParams} CreateMetadataAccountParams */
 
 const __dirname = new URL('.', import.meta.url).pathname;
 
