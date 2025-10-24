@@ -5,12 +5,13 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createPublicClient, createWalletClient, encodeFunctionData, encodePacked, http, isHex, parseAbi } from 'viem';
+import { createPublicClient, createWalletClient, encodeFunctionData, encodePacked, http, isHex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { bscTestnet } from 'viem/chains';
+import { hoodi } from 'viem/chains';
 
 import { ethSendRawTransaction } from './tools/eth-rpc.mjs';
 import { compileSolidity } from './tools/eth-solc.mjs';
+import { parseAbi } from 'viem';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -22,12 +23,12 @@ if (!isHex(accountPrivateKey)) throw new Error('Invalid private key in wallet fi
 const C4628350Adf29Aa47fb6572E703371Ce65138048 = privateKeyToAccount(accountPrivateKey);
 
 const publicClient = createPublicClient({
-  chain: bscTestnet,
+  chain: hoodi,
   transport: http(),
 });
 
 const ownerClient = createWalletClient({
-  chain: bscTestnet,
+  chain: hoodi,
   transport: http(),
   account: C4628350Adf29Aa47fb6572E703371Ce65138048,
 });

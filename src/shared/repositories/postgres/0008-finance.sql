@@ -204,10 +204,10 @@ INSERT INTO currencies (
   ('solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1', 'spl:CGUsdwgPH4mMEQoA3ZMi2C2aiJywFb3x5SrMFt2F9dj4', 'USD Coin', 'USDC', 6, 'https://bafkreibml7m7nffhrjirkqtev7yihxt57ftljzabx3fws3ccbdqt4e22pi.ipfs.dweb.link/',
    '100000000', '100000000000', 0, 0, 0, 0, '0'), -- Min 100 USDC for loans
   -- USDC Ethereum Hoodi (principal only)
-  ('eip155:560048', 'erc20:0x4100A04de3A0719aDC921Fa1faEe58Dd0F43F361', 'USD Coin', 'USDC', 6, 'https://bafkreibml7m7nffhrjirkqtev7yihxt57ftljzabx3fws3ccbdqt4e22pi.ipfs.dweb.link/',
+  ('eip155:560048', 'erc20:0xC51A8BFa4E9b5508B235014Cfe21Bf9232F6Ae9B', 'USD Coin', 'USDC', 6, 'https://bafkreibml7m7nffhrjirkqtev7yihxt57ftljzabx3fws3ccbdqt4e22pi.ipfs.dweb.link/',
    '100000000', '100000000000', 0, 0, 0, 0, '0'), -- Min 100 USDC for loans
   -- USDC BSC Testnet (principal only)
-  ('eip155:97', 'erc20:0x4100A04de3A0719aDC921Fa1faEe58Dd0F43F361', 'USD Coin', 'USDC', 6, 'https://bafkreibml7m7nffhrjirkqtev7yihxt57ftljzabx3fws3ccbdqt4e22pi.ipfs.dweb.link/',
+  ('eip155:97', 'erc20:0xC51A8BFa4E9b5508B235014Cfe21Bf9232F6Ae9B', 'USD Coin', 'USDC', 6, 'https://bafkreibml7m7nffhrjirkqtev7yihxt57ftljzabx3fws3ccbdqt4e22pi.ipfs.dweb.link/',
    '100000000', '100000000000', 0, 0, 0, 0, '0') -- Min 100 USDC for loans
 ON CONFLICT (blockchain_key, token_id) DO UPDATE SET
   min_loan_principal_amount = EXCLUDED.min_loan_principal_amount,
