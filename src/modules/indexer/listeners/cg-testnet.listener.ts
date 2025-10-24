@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DiscoveryService } from '@nestjs/core';
 
 import { CG_TESTNET_KEY } from '../../../shared/constants/blockchain';
+import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import {
   CgTestnetBlockchainEventService,
   type CgTestnetBlockchainPaymentEvent,
@@ -22,9 +23,10 @@ export class CgTestnetIndexerListener extends IndexerListener {
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
+    repository: CryptogadaiRepository,
     private readonly testBlockchainEvents: CgTestnetBlockchainEventService,
   ) {
-    super(discovery, redis, invoicePaymentQueue);
+    super(discovery, redis, invoicePaymentQueue, repository);
   }
 
   async start() {

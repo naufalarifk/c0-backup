@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DiscoveryService } from '@nestjs/core';
 
 import { BITCOIN_MAINNET_KEY } from '../../../shared/constants/blockchain';
+import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../../shared/services/app-config.service';
 import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
@@ -71,9 +72,10 @@ export class BitcoinMainnetIndexerListener extends IndexerListener {
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
+    repository: CryptogadaiRepository,
     private readonly appConfig: AppConfigService,
   ) {
-    super(discovery, redis, invoicePaymentQueue);
+    super(discovery, redis, invoicePaymentQueue, repository);
     const bitcoinConfig = this.appConfig.blockchains[BITCOIN_MAINNET_KEY];
     this.#rpcUrl = bitcoinConfig.rpcUrls[0];
   }

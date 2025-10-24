@@ -1,5 +1,3 @@
-// biome-ignore-all lint/suspicious/noExplicitAny: hard config structure
-
 import { ok, strictEqual } from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
@@ -10,6 +8,7 @@ import { GenericContainer, StartedTestContainer } from 'testcontainers';
 import { LogWaitStrategy } from 'testcontainers/build/wait-strategies/log-wait-strategy';
 import { assertDefined, assertPropString, hasProp, isDefined } from 'typeshaper';
 
+import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../../shared/services/app-config.service';
 import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
@@ -27,10 +26,11 @@ class TestBitcoinIndexerListener extends BitcoinMainnetIndexerListener {
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
+    repository: CryptogadaiRepository,
     appConfig: AppConfigService,
     rpcUrlOverride: string,
   ) {
-    super(discovery, redis, invoicePaymentQueue, appConfig);
+    super(discovery, redis, invoicePaymentQueue, repository, appConfig);
     // Override the RPC configuration for testing
     this['#rpcUrl'] = rpcUrlOverride;
     this['#rpcUser'] = 'bitcoinrpc';
@@ -138,6 +138,10 @@ describe('BitcoinIndexerListener Integration Tests', function () {
         },
       };
 
+      const mockRepository = {
+        platformViewsActiveInvoices: async () => [],
+      };
+
       module = await Test.createTestingModule({
         providers: [
           {
@@ -161,22 +165,34 @@ describe('BitcoinIndexerListener Integration Tests', function () {
             useValue: mockAppConfigService,
           },
           {
+            provide: CryptogadaiRepository,
+            useValue: mockRepository,
+          },
+          {
             provide: TestBitcoinIndexerListener,
             useFactory: (
               discovery: DiscoveryService,
               redis: RedisService,
               queue: InvoicePaymentQueueService,
+              repository: CryptogadaiRepository,
               appConfig: AppConfigService,
             ) => {
               return new TestBitcoinIndexerListener(
                 discovery,
                 redis,
                 queue,
+                repository,
                 appConfig,
                 bitcoinRpcUrl,
               );
             },
-            inject: [DiscoveryService, RedisService, InvoicePaymentQueueService, AppConfigService],
+            inject: [
+              DiscoveryService,
+              RedisService,
+              InvoicePaymentQueueService,
+              CryptogadaiRepository,
+              AppConfigService,
+            ],
           },
           DiscoveryService,
         ],

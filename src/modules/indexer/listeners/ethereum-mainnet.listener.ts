@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DiscoveryService } from '@nestjs/core';
 
 import { ETHEREUM_MAINNET_KEY } from '../../../shared/constants/blockchain';
+import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../../shared/services/app-config.service';
 import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
@@ -22,9 +23,10 @@ export class EthereumMainnetIndexerListener extends EthereumIndexerListener {
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
+    repository: CryptogadaiRepository,
     appConfig: AppConfigService,
   ) {
-    super(discovery, redis, invoicePaymentQueue, {
+    super(discovery, redis, invoicePaymentQueue, repository, {
       chainName: 'Ethereum Mainnet',
       nativeTokenId: 'slip44:60',
       tokenPrefix: 'erc20',

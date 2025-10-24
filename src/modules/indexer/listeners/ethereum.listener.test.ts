@@ -1,5 +1,3 @@
-// biome-ignore-all lint/suspicious/noExplicitAny: hard config structure
-
 import { ok, strictEqual } from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
@@ -12,6 +10,7 @@ import { LogWaitStrategy } from 'testcontainers/build/wait-strategies/log-wait-s
 import { assertDefined, assertPropString } from 'typeshaper';
 import { isAddress, isHash } from 'viem';
 
+import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../../shared/services/app-config.service';
 import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
@@ -29,9 +28,10 @@ class TestEthereumIndexerListener extends EthereumIndexerListener {
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
+    repository: CryptogadaiRepository,
     wsUrl: string,
   ) {
-    super(discovery, redis, invoicePaymentQueue, {
+    super(discovery, redis, invoicePaymentQueue, repository, {
       chainName: 'Test Ethereum',
       nativeTokenId: 'slip44:60',
       tokenPrefix: 'erc20',
@@ -135,6 +135,10 @@ describe('EthereumIndexerListener Integration Tests', function () {
         },
       };
 
+      const mockRepository = {
+        platformViewsActiveInvoices: async () => [],
+      };
+
       module = await Test.createTestingModule({
         providers: [
           {
@@ -154,15 +158,32 @@ describe('EthereumIndexerListener Integration Tests', function () {
             useValue: mockInvoicePaymentQueue,
           },
           {
+            provide: CryptogadaiRepository,
+            useValue: mockRepository,
+          },
+          {
             provide: TestEthereumIndexerListener,
             useFactory: (
               discovery: DiscoveryService,
               redis: RedisService,
               queue: InvoicePaymentQueueService,
+              repository: CryptogadaiRepository,
             ) => {
-              return new TestEthereumIndexerListener(discovery, redis, queue, `${anvilWsUrl}`);
+              return new TestEthereumIndexerListener(
+                discovery,
+                redis,
+                queue,
+                repository,
+                `${anvilWsUrl}`,
+              );
             },
-            inject: [DiscoveryService, RedisService, InvoicePaymentQueueService, AppConfigService],
+            inject: [
+              DiscoveryService,
+              RedisService,
+              InvoicePaymentQueueService,
+              CryptogadaiRepository,
+              AppConfigService,
+            ],
           },
           {
             provide: AppConfigService,

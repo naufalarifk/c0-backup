@@ -3,6 +3,7 @@ import { DiscoveryService } from '@nestjs/core';
 import { ethers } from 'ethers';
 import { isAddress } from 'viem';
 
+import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
 import { InvoicePaymentQueueService } from '../../invoice-payments/invoice-payment.queue.service';
@@ -49,9 +50,10 @@ export abstract class EthereumIndexerListener extends IndexerListener {
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
+    repository: CryptogadaiRepository,
     config: EthereumIndexerConfig,
   ) {
-    super(discovery, redis, invoicePaymentQueue);
+    super(discovery, redis, invoicePaymentQueue, repository);
 
     this.#nativeTokenId = config.nativeTokenId;
     this.#tokenPrefix = config.tokenPrefix;

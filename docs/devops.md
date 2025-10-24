@@ -21,6 +21,7 @@ You are responsible for managing bellow services running on the server via syste
 - redis (caching and message broker)
 - minio (object storage service)
 - cg-backend (main backend service)
+- cg-backend-indexer (indexer service)
 - traefik (reverse proxy and SSL termination)
 - nginx (web server for static files)
 - ghost (blog CMS)
@@ -28,14 +29,19 @@ You are responsible for managing bellow services running on the server via syste
 
 ## cg-backend
 
-The `cg-backend` deployment flow is as bellow:
+The `cg-backend` consists of two systemd services: `cg-backend` and `cg-backend-indexer`.
+
+- `cg-backend`: Runs the main backend commands including API server and various workers (excluding indexer)
+- `cg-backend-indexer`: Runs only the indexer command for blockchain indexing operations
+
+The deployment flow is as below:
 - the deployment code are based on current local code base
 - sync the local code base to server at `/opt/cg-backend` via `rsync`. Complete command: `rsync -avz --delete --exclude-from=.gitignore --exclude .git/ --exclude node_modules/ --exclude .env* --exclude *.log --exclude .vscode/ --exclude .local/ -e "ssh -i $HOME/.ssh/id_ed25519 -p 22 -o StrictHostKeyChecking=yes -o ConnectTimeout=30 -o ServerAliveInterval=60" ./ root@174.138.16.211:/opt/cg-backend/`
 - make sure the app dependecy on server is up to date by running: `ssh root@174.138.16.211 'env -C /opt/cg-backend pnpm install --frozen-lockfile --ignore-scripts'`
 - rebuild the app `ssh root@174.138.16.211 'env -C /opt/cg-backend pnpm run build'`
-- (optionally) make sure the environment variables are set properly in `/etc/systemd/system/cg-backend.service`
-- (optionally) reload systemd daemon after updating cg-backend systemd unit via `ssh root@174.138.16.211 'systemctl daemon-reload'`
-- restart the service `ssh root@174.138.16.211 'systemctl restart cg-backend'`
+- (optionally) make sure the environment variables are set properly in `/etc/systemd/system/cg-backend.service` and `/etc/systemd/system/cg-backend-indexer.service`
+- (optionally) reload systemd daemon after updating systemd units via `ssh root@174.138.16.211 'systemctl daemon-reload'`
+- restart the services `ssh root@174.138.16.211 'systemctl restart cg-backend cg-backend-indexer'`
 
 ## ghost
 
@@ -96,7 +102,7 @@ To interact with Vault CLI:
 
 ## Vault Configuration for cg-backend
 
-The `cg-backend` service uses HashiCorp Vault for cryptographic operations and secrets management.
+The `cg-backend` and `cg-backend-indexer` services use HashiCorp Vault for cryptographic operations and secrets management.
 
 ### Vault Setup for cg-backend
 
@@ -112,7 +118,7 @@ The `cg-backend` service uses HashiCorp Vault for cryptographic operations and s
 
 ### Environment Variables
 
-The following environment variables are configured in `/etc/systemd/system/cg-backend.service`:
+The following environment variables are configured in `/etc/systemd/system/cg-backend.service` and `/etc/systemd/system/cg-backend-indexer.service`:
 
 ```
 CRYPTOGRAPHY_ENGINE=vault
@@ -130,6 +136,6 @@ CRYPTOGRAPHY_VAULT_SECRET_ID=<secret_id>
 
 To rotate credentials:
 1. Generate new secret_id: `vault write -f auth/approle/role/cg-backend/secret-id`
-2. Update the `CRYPTOGRAPHY_VAULT_SECRET_ID` in the systemd service
+2. Update the `CRYPTOGRAPHY_VAULT_SECRET_ID` in both systemd services
 3. Reload systemd: `systemctl daemon-reload`
-4. Restart cg-backend: `systemctl restart cg-backend`
+4. Restart both services: `systemctl restart cg-backend cg-backend-indexer`

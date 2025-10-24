@@ -5,6 +5,7 @@ import { AccountLayout } from '@solana/spl-token';
 import { Connection, PublicKey } from '@solana/web3.js';
 
 import { SOLANA_MAINNET_KEY } from '../../../shared/constants/blockchain';
+import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../../shared/services/app-config.service';
 import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
@@ -43,9 +44,10 @@ export class SolanaMainnetIndexerListener extends IndexerListener {
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
+    repository: CryptogadaiRepository,
     private appConfig: AppConfigService,
   ) {
-    super(discovery, redis, invoicePaymentQueue);
+    super(discovery, redis, invoicePaymentQueue, repository);
   }
 
   async start() {

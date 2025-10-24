@@ -3,6 +3,7 @@ import { DiscoveryService } from '@nestjs/core';
 
 import { assertDefined, assertPropString, isString } from 'typeshaper';
 
+import { CryptogadaiRepository } from '../../shared/repositories/cryptogadai.repository';
 import { RedisService } from '../../shared/services/redis.service';
 import { TelemetryLogger } from '../../shared/telemetry.logger';
 import { InvoicePaymentQueueService } from '../invoice-payments/invoice-payment.queue.service';
@@ -35,6 +36,7 @@ export abstract class IndexerListener {
     private readonly discovery: DiscoveryService,
     private readonly redis: RedisService,
     private readonly invoicePaymentQueue: InvoicePaymentQueueService,
+    private readonly repository: CryptogadaiRepository,
   ) {}
 
   getBlockchainKey() {
@@ -86,6 +88,10 @@ export abstract class IndexerListener {
 
   async start() {
     const blockchainKey = this.getBlockchainKey();
+    if (!blockchainKey) {
+      throw new Error('Blockchain key not found for listener');
+    }
+
     const exists = await this.redis.get(`indexer:${blockchainKey}:running`);
     if (exists) {
       this.logger.warn(`Indexer for ${blockchainKey} is already running, skipping duplicate start`);
@@ -98,6 +104,40 @@ export abstract class IndexerListener {
     }, 30 * 1000);
     this.redis.subscribe(`indexer:${blockchainKey}:address:added`, this.#addressAddedListner);
     this.redis.subscribe(`indexer:${blockchainKey}:address:removed`, this.#addressRemovedListener);
+
+    // Load active invoice addresses for this blockchain
+    await this.#loadActiveInvoiceAddresses(blockchainKey);
+  }
+
+  async #loadActiveInvoiceAddresses(blockchainKey: string) {
+    try {
+      this.logger.log(`Loading active invoice addresses for ${blockchainKey}`);
+
+      // Query active invoices for this blockchain
+      const activeInvoices = await this.repository.platformViewsActiveInvoices({
+        blockchainKey,
+      });
+
+      this.logger.log(
+        `Found ${activeInvoices.length} active invoice(s) for ${blockchainKey}, adding to indexer`,
+      );
+
+      // Add each active invoice address to the indexer
+      for (const invoice of activeInvoices) {
+        await this.onAddressAdded({
+          tokenId: invoice.currencyTokenId,
+          address: invoice.walletAddress,
+          derivedPath: invoice.walletDerivationPath,
+        });
+      }
+
+      this.logger.log(
+        `Successfully loaded ${activeInvoices.length} active invoice address(es) for ${blockchainKey}`,
+      );
+    } catch (error) {
+      this.logger.error(`Failed to load active invoice addresses for ${blockchainKey}`, error);
+      // Don't throw - allow indexer to continue even if loading fails
+    }
   }
 
   async stop() {

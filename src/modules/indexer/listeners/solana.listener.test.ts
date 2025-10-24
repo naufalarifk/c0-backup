@@ -1,5 +1,3 @@
-// biome-ignore-all lint/suspicious/noExplicitAny: hard config structure
-
 import { ok, strictEqual } from 'node:assert/strict';
 import { type ChildProcess, spawn } from 'node:child_process';
 import { after, before, describe, it } from 'node:test';
@@ -26,6 +24,7 @@ import { GenericContainer, StartedTestContainer } from 'testcontainers';
 import { LogWaitStrategy } from 'testcontainers/build/wait-strategies/log-wait-strategy';
 import { assertDefined, assertPropString } from 'typeshaper';
 
+import { CryptogadaiRepository } from '../../../shared/repositories/cryptogadai.repository';
 import { AppConfigService } from '../../../shared/services/app-config.service';
 import { RedisService } from '../../../shared/services/redis.service';
 import { TelemetryLogger } from '../../../shared/telemetry.logger';
@@ -43,9 +42,10 @@ class TestSolanaIndexerListener extends SolanaMainnetIndexerListener {
     discovery: DiscoveryService,
     redis: RedisService,
     invoicePaymentQueue: InvoicePaymentQueueService,
+    repository: CryptogadaiRepository,
     appConfig: AppConfigService,
   ) {
-    super(discovery, redis, invoicePaymentQueue, appConfig);
+    super(discovery, redis, invoicePaymentQueue, repository, appConfig);
   }
 
   // Override getBlockchainKey for testing
@@ -157,6 +157,10 @@ describe('SolanaIndexerListener Integration Tests', function () {
         },
       };
 
+      const mockRepository = {
+        platformViewsActiveInvoices: async () => [],
+      };
+
       module = await Test.createTestingModule({
         providers: [
           {
@@ -176,16 +180,27 @@ describe('SolanaIndexerListener Integration Tests', function () {
             useValue: mockInvoicePaymentQueue,
           },
           {
+            provide: CryptogadaiRepository,
+            useValue: mockRepository,
+          },
+          {
             provide: TestSolanaIndexerListener,
             useFactory: (
               discovery: DiscoveryService,
               redis: RedisService,
               queue: InvoicePaymentQueueService,
+              repository: CryptogadaiRepository,
               appConfig: AppConfigService,
             ) => {
-              return new TestSolanaIndexerListener(discovery, redis, queue, appConfig);
+              return new TestSolanaIndexerListener(discovery, redis, queue, repository, appConfig);
             },
-            inject: [DiscoveryService, RedisService, InvoicePaymentQueueService, AppConfigService],
+            inject: [
+              DiscoveryService,
+              RedisService,
+              InvoicePaymentQueueService,
+              CryptogadaiRepository,
+              AppConfigService,
+            ],
           },
           {
             provide: AppConfigService,

@@ -8,6 +8,8 @@ import { DiscoveryModule } from '@nestjs/core';
 import { WithdrawalsModule } from 'src/modules/withdrawals/withdrawals.module.js';
 import { WithdrawalsProcessor } from 'src/modules/withdrawals/withdrawals.processor.js';
 
+import { AuthConfig } from '../modules/auth/auth.config';
+import { AuthModule } from '../modules/auth/auth.module';
 import { DocumentModule } from '../modules/documents/document.module';
 import { DocumentProcessor } from '../modules/documents/document.processor';
 import { IndexerModule } from '../modules/indexer/indexer.module';
@@ -189,12 +191,15 @@ export const COMMAND_DEFINITIONS: Record<CommandKey, CommandDefinition> = {
     },
   },
   indexer: {
-    imports: [IndexerModule, DiscoveryModule],
+    imports: [
+      AuthModule.forRootAsync({ imports: [NotificationModule], useClass: AuthConfig }),
+      IndexerModule,
+      DiscoveryModule,
+    ],
     providers: [IndexerProcessor],
     async bootstrap() {
       const logger = new TelemetryLogger('IndexerWorker');
       logger.log('Indexer worker started successfully');
-
       return {
         cleanup: () => {
           logger.log('Indexer worker shutting down');
