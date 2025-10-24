@@ -59,7 +59,10 @@ export class BinanceAssetMapperService {
     },
     'tron:0x/trc20:TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t': { asset: 'USDT', network: 'TRX' },
     'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/spl-token:Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB':
-      { asset: 'USDT', network: 'SOL' },
+      {
+        asset: 'USDT',
+        network: 'SOL',
+      },
 
     // USDC mappings
     'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': { asset: 'USDC', network: 'ETH' },
@@ -69,7 +72,10 @@ export class BinanceAssetMapperService {
       network: 'MATIC',
     },
     'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/spl-token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v':
-      { asset: 'USDC', network: 'SOL' },
+      {
+        asset: 'USDC',
+        network: 'SOL',
+      },
 
     // BNB mappings
     'eip155:56': { asset: 'BNB', network: 'BSC' },

@@ -94,7 +94,9 @@ export class WithdrawalsProcessor extends WorkerHost {
       const feeEstimate = await this.blockchainService.estimateNetworkFee(
         currencyBlockchainKey,
         currencyTokenId,
-        { priority: 'standard' },
+        {
+          priority: 'standard',
+        },
       );
 
       // 4. Validate destination address reachability

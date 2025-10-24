@@ -358,7 +358,9 @@ export class BeneficiariesService {
       const result = await jwtVerify(
         token,
         new TextEncoder().encode(this.configService.authConfig.secret),
-        { algorithms: ['HS256'] },
+        {
+          algorithms: ['HS256'],
+        },
       );
 
       // Extract payload from JWTVerifyResult

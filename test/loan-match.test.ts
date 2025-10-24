@@ -168,7 +168,9 @@ async function setupLoanOffer(
   const [lenderRealtimeClient, currenciesData] = await Promise.all([
     lender.connectRealtimeClient(
       ['notification.created', 'loan.status.changed', 'loan.offer.updated'],
-      { timeout: 10000 },
+      {
+        timeout: 10000,
+      },
     ),
     lender.fetch('/api/currencies?type=loan').then(r => r.json()),
   ]);
