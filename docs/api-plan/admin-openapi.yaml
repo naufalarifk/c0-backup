@@ -881,6 +881,37 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  # Wallet Management
+  /api/admin/wallets:
+    get:
+      tags:
+        - Wallet Management
+      summary: List all active wallet addresses
+      description: |
+        Retrieve all active wallet addresses including hot wallets and invoice wallets across all blockchains.
+        
+        **Features:**
+        - List all hot wallets with their addresses and derivation paths
+        - List all active invoice wallets
+        - Provide statistics on wallet distribution across blockchains
+        
+        **Use Cases:**
+        - Monitoring platform wallet addresses
+        - Auditing wallet allocation
+        - Checking blockchain distribution
+      operationId: listWallets
+      responses:
+        '200':
+          description: Wallet addresses retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminRequired'
+
 
 components:
   securitySchemes:
@@ -1782,6 +1813,141 @@ components:
               type: string
               format: date-time
               example: "2024-01-15T10:30:00Z"
+
+    WalletListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            hotWallets:
+              type: array
+              description: List of hot wallets for each blockchain
+              items:
+                type: object
+                properties:
+                  blockchainKey:
+                    type: string
+                    description: CAIP-2 blockchain identifier
+                    example: "eip155:56"
+                  blockchain:
+                    type: object
+                    description: Blockchain information
+                    properties:
+                      name:
+                        type: string
+                        description: Human-readable blockchain name
+                        example: "Binance Smart Chain Mainnet"
+                      shortName:
+                        type: string
+                        description: Blockchain short name/symbol
+                        example: "BSC"
+                      image:
+                        type: string
+                        description: Blockchain logo URL
+                        example: "https://cryptologos.cc/logos/binance-coin-bnb-logo.png"
+                  address:
+                    type: string
+                    description: Wallet address
+                    example: "0x742d35Cc6634C0532925a3b844c16c"
+                  derivationPath:
+                    type: string
+                    description: BIP44 derivation path
+                    example: "m/44'/60'/0'/0/0"
+                  type:
+                    type: string
+                    enum: [hot_wallet]
+                    example: "hot_wallet"
+            invoiceWallets:
+              type: array
+              description: List of active invoice wallets
+              items:
+                type: object
+                properties:
+                  blockchainKey:
+                    type: string
+                    description: CAIP-2 blockchain identifier
+                    example: "eip155:56"
+                  blockchain:
+                    type: object
+                    description: Blockchain information
+                    properties:
+                      name:
+                        type: string
+                        description: Human-readable blockchain name
+                        example: "Binance Smart Chain Mainnet"
+                      shortName:
+                        type: string
+                        description: Blockchain short name/symbol
+                        example: "BSC"
+                      image:
+                        type: string
+                        description: Blockchain logo URL
+                        example: "https://cryptologos.cc/logos/binance-coin-bnb-logo.png"
+                  currency:
+                    type: object
+                    description: Currency information
+                    properties:
+                      tokenId:
+                        type: string
+                        description: SLIP44 or token identifier
+                        example: "slip44:714"
+                      name:
+                        type: string
+                        description: Human-readable currency name
+                        example: "Binance Coin"
+                      symbol:
+                        type: string
+                        description: Currency symbol/ticker
+                        example: "BNB"
+                      decimals:
+                        type: integer
+                        description: Number of decimal places
+                        example: 18
+                      image:
+                        type: string
+                        description: Currency logo URL
+                        example: "https://cryptologos.cc/logos/binance-coin-bnb-logo.png"
+                  address:
+                    type: string
+                    description: Wallet address
+                    example: "0x742d35Cc6634C0532925a3b844c16c"
+                  derivationPath:
+                    type: string
+                    description: BIP44 derivation path
+                    example: "m/44'/60'/0'/0/123"
+                  invoiceId:
+                    type: integer
+                    description: Associated invoice ID
+                    example: 123
+                  type:
+                    type: string
+                    enum: [invoice_wallet]
+                    example: "invoice_wallet"
+            statistics:
+              type: object
+              description: Statistical summary of wallet distribution
+              properties:
+                totalHotWallets:
+                  type: integer
+                  description: Total number of hot wallets
+                  example: 5
+                totalInvoiceWallets:
+                  type: integer
+                  description: Total number of active invoice wallets
+                  example: 15
+                blockchainDistribution:
+                  type: object
+                  description: Count of wallets per blockchain
+                  additionalProperties:
+                    type: integer
+                  example:
+                    "eip155:56": 5
+                    "eip155:1": 8
+                    "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": 2
 
     PaginationMeta:
       type: object

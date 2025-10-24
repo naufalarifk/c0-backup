@@ -30,6 +30,7 @@ import { CryptogadaiRepository } from '../shared/repositories/cryptogadai.reposi
 import { AppConfigService } from '../shared/services/app-config.service';
 import { SharedModule } from '../shared/shared.module';
 import { TelemetryLogger } from '../shared/telemetry.logger';
+import { WalletFactory } from '../shared/wallets/wallet.factory';
 import { bootstrapUserApi } from './user-api.bootstrap';
 import { AppModule } from './user-api.module';
 
@@ -39,6 +40,7 @@ export type CommandKey =
   | 'indexer'
   | 'invoice-expiration'
   | 'invoice-payment'
+  | 'list-wallets'
   | 'loan-matcher'
   | 'migration'
   | 'notification'
@@ -253,6 +255,90 @@ export const COMMAND_DEFINITIONS: Record<CommandKey, CommandDefinition> = {
         cleanup: () => {
           /** ignore */
         },
+      };
+    },
+  },
+  'list-wallets': {
+    imports: [SharedModule],
+    async bootstrap({ app }) {
+      const logger = new TelemetryLogger('WalletListCommand');
+      const repository = app.get(CryptogadaiRepository);
+      const walletFactory = app.get(WalletFactory);
+
+      logger.log('Listing all active wallet addresses...');
+      logger.log('');
+
+      const allBlockchains = walletFactory.getAllBlockchains();
+
+      console.log('═'.repeat(80));
+      console.log('🔐 ACTIVE WALLET ADDRESSES');
+      console.log('═'.repeat(80));
+      console.log('');
+
+      // Get root addresses (hot wallets) for each blockchain
+      console.log('📍 ROOT ADDRESSES (Hot Wallets)');
+      console.log('─'.repeat(80));
+
+      for (const { blockchainKey, blockchain } of allBlockchains) {
+        try {
+          const hotWallet = await blockchain.getHotWallet();
+          const address = await hotWallet.getAddress();
+          const derivationPath = `m/44'/${blockchain.bip44CoinType}'/0'/0/0`;
+
+          console.log(`\nblockchainKey: ${blockchainKey}`);
+          console.log(`address: ${address}`);
+          console.log(`derivationPath: ${derivationPath}`);
+        } catch (error) {
+          console.log(`\nblockchainKey: ${blockchainKey}`);
+          console.log(`address: ERROR - ${error.message}`);
+        }
+      }
+
+      console.log('');
+      console.log('─'.repeat(80));
+      console.log('');
+
+      // Get active invoice addresses
+      console.log('📫 ACTIVE INVOICE ADDRESSES');
+      console.log('─'.repeat(80));
+
+      try {
+        const activeInvoices = await repository.platformViewsActiveInvoices({});
+
+        if (activeInvoices.length === 0) {
+          console.log('\nNo active invoices found.');
+        } else {
+          // Group by blockchain
+          const groupedByBlockchain = new Map<string, typeof activeInvoices>();
+          for (const invoice of activeInvoices) {
+            const key = invoice.currencyBlockchainKey;
+            if (!groupedByBlockchain.has(key)) {
+              groupedByBlockchain.set(key, []);
+            }
+            groupedByBlockchain.get(key)!.push(invoice);
+          }
+
+          for (const [blockchainKey, invoices] of groupedByBlockchain.entries()) {
+            console.log(`\nBlockchain: ${blockchainKey}`);
+            for (const invoice of invoices) {
+              console.log(`  - Invoice #${invoice.id}`);
+              console.log(`    blockchainKey: ${blockchainKey}`);
+              console.log(`    address: ${invoice.walletAddress}`);
+              console.log(`    derivationPath: ${invoice.walletDerivationPath}`);
+            }
+          }
+        }
+      } catch (error) {
+        console.log(`\nERROR fetching active invoices: ${error.message}`);
+      }
+
+      console.log('');
+      console.log('═'.repeat(80));
+      logger.log('');
+      logger.log('Wallet listing completed.');
+
+      return {
+        exitAfterBootstrap: 0,
       };
     },
   },

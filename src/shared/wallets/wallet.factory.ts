@@ -22,4 +22,20 @@ export class WalletFactory {
     }
     return blockchain;
   }
+
+  getAllBlockchains(): Array<{ blockchainKey: BlockchainKey; blockchain: BlockchainAbstract }> {
+    const providers = this.discovery.getProviders();
+    return providers
+      .map(provider => {
+        const blockchainKey = this.discovery.getMetadataByDecorator(Blockchain, provider);
+        if (!blockchainKey) return null;
+        const instance = provider.instance;
+        if (!(instance instanceof BlockchainAbstract)) return null;
+        return { blockchainKey: blockchainKey as BlockchainKey, blockchain: instance };
+      })
+      .filter(
+        (item): item is { blockchainKey: BlockchainKey; blockchain: BlockchainAbstract } =>
+          item !== null,
+      );
+  }
 }
