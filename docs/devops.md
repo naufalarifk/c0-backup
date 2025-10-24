@@ -24,6 +24,7 @@ You are responsible for managing bellow services running on the server via syste
 - traefik (reverse proxy and SSL termination)
 - nginx (web server for static files)
 - ghost (blog CMS)
+- vault (secrets management)
 
 ## cg-backend
 
@@ -71,3 +72,64 @@ The `cg-admin` deployment flow is as below:
 To manage the nginx service:
 - `systemctl status nginx`
 - `systemctl reload nginx`
+
+## vault
+
+The `vault` service is HashiCorp Vault for managing secrets and sensitive data.
+
+- Installed via official HashiCorp APT repository
+- Configuration at `/etc/vault.d/vault.hcl`
+- Uses file-based storage at `/opt/vault/data`
+- TLS certificates at `/opt/vault/tls/`
+- Runs as systemd unit `vault.service`
+- Served on HTTPS port 8200
+- Initialized and unsealed with Shamir seal (5 keys, threshold 3)
+
+To manage the vault service:
+- `systemctl status vault`
+- `systemctl restart vault`
+
+To interact with Vault CLI:
+- Set environment: `export VAULT_ADDR=https://127.0.0.1:8200 VAULT_SKIP_VERIFY=true`
+- Check status: `vault status`
+- If sealed, unseal with: `vault operator unseal` (provide at least 3 unseal keys)
+
+## Vault Configuration for cg-backend
+
+The `cg-backend` service uses HashiCorp Vault for cryptographic operations and secrets management.
+
+### Vault Setup for cg-backend
+
+- **Secrets Engine**: KV v2 at `secret/` path
+- **Transit Engine**: For encryption/decryption operations
+- **Authentication**: AppRole authentication
+- **Policy**: `cg-backend` policy with access to wallet secrets and transit operations
+
+### Required Secrets
+
+- `secret/data/wallet/platform-seed`: Contains `encrypted_seed` field with the encrypted platform wallet master seed
+- Transit key `platform-wallet`: AES256-GCM96 key for encrypting/decrypting wallet seeds
+
+### Environment Variables
+
+The following environment variables are configured in `/etc/systemd/system/cg-backend.service`:
+
+```
+CRYPTOGRAPHY_ENGINE=vault
+CRYPTOGRAPHY_VAULT_ADDRESS=https://127.0.0.1:8200
+CRYPTOGRAPHY_VAULT_ROLE_ID=<role_id>
+CRYPTOGRAPHY_VAULT_SECRET_ID=<secret_id>
+```
+
+### AppRole Configuration
+
+- **Role**: `cg-backend`
+- **Policy**: `cg-backend`
+- **Token TTL**: 1 hour
+- **Token Max TTL**: 24 hours
+
+To rotate credentials:
+1. Generate new secret_id: `vault write -f auth/approle/role/cg-backend/secret-id`
+2. Update the `CRYPTOGRAPHY_VAULT_SECRET_ID` in the systemd service
+3. Reload systemd: `systemctl daemon-reload`
+4. Restart cg-backend: `systemctl restart cg-backend`

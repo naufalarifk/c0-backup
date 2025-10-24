@@ -1,6 +1,8 @@
 import type { DynamicModule, INestApplicationContext, Provider, Type } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 
+import { randomBytes } from 'node:crypto';
+
 import { DiscoveryModule } from '@nestjs/core';
 
 import { WithdrawalsModule } from 'src/modules/withdrawals/withdrawals.module.js';
@@ -23,7 +25,10 @@ import { ValuationModule } from '../modules/valuation/valuation.module';
 import { ValuationProcessor } from '../modules/valuation/valuation.processor';
 import { WalletBalanceCollectorModule } from '../modules/wallet-balance-collector/wallet-balance-collector.module';
 import { WalletBalanceCollectorProcessor } from '../modules/wallet-balance-collector/wallet-balance-collector.processor';
+import { CryptographyService } from '../shared/cryptography/cryptography.service';
 import { CryptogadaiRepository } from '../shared/repositories/cryptogadai.repository';
+import { AppConfigService } from '../shared/services/app-config.service';
+import { SharedModule } from '../shared/shared.module';
 import { TelemetryLogger } from '../shared/telemetry.logger';
 import { bootstrapUserApi } from './user-api.bootstrap';
 import { AppModule } from './user-api.module';
@@ -38,6 +43,7 @@ export type CommandKey =
   | 'migration'
   | 'notification'
   | 'pricefeed'
+  | 'platform-wallet-init'
   | 'settlement'
   | 'valuation'
   | 'wallet-balance-collector'
@@ -248,6 +254,101 @@ export const COMMAND_DEFINITIONS: Record<CommandKey, CommandDefinition> = {
           /** ignore */
         },
       };
+    },
+  },
+  'platform-wallet-init': {
+    imports: [SharedModule],
+    async bootstrap({ app }) {
+      const logger = new TelemetryLogger('PlatformWalletInitializer');
+      logger.log('Starting platform wallet initialization...');
+
+      const appConfig = app.get(AppConfigService);
+      const cryptography = app.get(CryptographyService);
+
+      const cryptographyConfig = appConfig.cryptographyConfig;
+
+      if (cryptographyConfig.engine !== 'vault') {
+        logger.error(
+          'Platform wallet initialization requires Vault-based cryptography. Set CRYPTOGRAPHY_ENGINE=vault',
+        );
+        return {
+          exitAfterBootstrap: 1,
+        };
+      }
+
+      try {
+        // Check if platform wallet seed already exists
+        logger.log('Checking if platform wallet seed exists...');
+        const existingSecret = await cryptography.getSecret('wallet/platform-seed');
+
+        if (existingSecret && typeof existingSecret === 'object') {
+          const encryptedSeed = (existingSecret as Record<string, unknown>).encrypted_seed;
+          if (typeof encryptedSeed === 'string' && encryptedSeed.length > 0) {
+            logger.warn('Platform wallet seed already exists at wallet/platform-seed');
+            logger.warn('Initialization skipped. Delete the existing secret first to regenerate.');
+            return {
+              exitAfterBootstrap: 0,
+            };
+          }
+        }
+      } catch (_error) {
+        // Secret doesn't exist, proceed with generation
+        logger.log('Platform wallet seed does not exist, proceeding with generation...');
+      } // Generate a cryptographically secure 64-byte (512-bit) random seed
+      logger.log('Generating 64-byte cryptographically secure random seed...');
+      const seedBuffer = randomBytes(64);
+      const seedHex = seedBuffer.toString('hex');
+
+      logger.log(`Generated seed length: ${seedBuffer.length} bytes`);
+      logger.log('⚠️  IMPORTANT: Save this seed securely! It cannot be recovered if lost.');
+      logger.log('─'.repeat(80));
+      logger.log(`PLATFORM WALLET SEED (HEX): ${seedHex}`);
+      logger.log('─'.repeat(80));
+
+      try {
+        // Encrypt the seed using Vault's transit engine
+        logger.log('Encrypting seed with transit key: platform-wallet...');
+        const encryptionResult = await cryptography.encrypt('platform-wallet', seedHex);
+
+        logger.log('Seed encrypted successfully');
+        logger.log(`Ciphertext: ${encryptionResult.ciphertext}`);
+
+        // Store the encrypted seed in Vault KV store
+        logger.log('Storing encrypted seed in Vault at: wallet/platform-seed...');
+        await cryptography.writeSecret('wallet/platform-seed', {
+          encrypted_seed: encryptionResult.ciphertext,
+        });
+
+        logger.log('Platform wallet seed stored successfully!');
+        logger.log('');
+        logger.log('Platform wallet initialization completed successfully!');
+        logger.log('');
+        logger.log('Next steps:');
+        logger.log('1. Store the seed hex shown above in a secure offline location');
+        logger.log(
+          '2. Verify the seed is retrievable: vault kv get secret/data/wallet/platform-seed',
+        );
+        logger.log('3. Test decryption to ensure it works correctly');
+        logger.log('4. Start the API server to verify wallet initialization');
+
+        return {
+          exitAfterBootstrap: 0,
+        };
+      } catch (error) {
+        logger.error('Failed to initialize platform wallet:', error);
+
+        if (error.message?.includes('transit key not found')) {
+          logger.error('');
+          logger.error('Transit key "platform-wallet" does not exist.');
+          logger.error(
+            'Create it first with: vault write transit/keys/platform-wallet type=aes256-gcm96',
+          );
+        }
+
+        return {
+          exitAfterBootstrap: 1,
+        };
+      }
     },
   },
 };

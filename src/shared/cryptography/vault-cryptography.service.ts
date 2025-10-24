@@ -2,7 +2,6 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
-  Logger,
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
@@ -170,19 +169,6 @@ export class VaultCryptographyService
   async getSecret(path: string) {
     this.ensureInitialized();
     try {
-      this.logger.debug(`Reading secret from path: ${path}`);
-      const response = await this.vaultClient.read(path);
-      return response.data;
-    } catch (error) {
-      this.logger.error(`Failed to read secret from path: ${path}`, error.message);
-      throw new CryptographyServiceError(`Failed to read secret: ${error.message}`);
-    }
-  }
-
-  // KV v2 Secret Operations
-  async getKv2Secret(path: string) {
-    this.ensureInitialized();
-    try {
       this.logger.debug(`Reading KV2 secret from path: secret/data/${path}`);
       const response = await this.vaultClient.read(`secret/data/${path}`);
       return response.data.data;
@@ -193,21 +179,6 @@ export class VaultCryptographyService
   }
 
   async writeSecret(path: string, data: Record<string, string>): Promise<void> {
-    this.ensureInitialized();
-    try {
-      this.logger.debug(`Writing secret to path: ${path}`);
-      await this.vaultClient.write(path, data);
-      this.logger.log(`Secret written successfully to path: ${path}`);
-    } catch (error) {
-      this.logger.error(`Failed to write secret to path: ${path}`, error.message);
-      throw new HttpException(
-        `Failed to write secret: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  async writeKv2Secret(path: string, data: Record<string, string>): Promise<void> {
     this.ensureInitialized();
     try {
       this.logger.debug(`Writing KV2 secret to path: secret/data/${path}`);
@@ -232,51 +203,6 @@ export class VaultCryptographyService
       this.logger.error(`Failed to delete secret from path: ${path}`, error.message);
       throw new HttpException(
         `Failed to delete secret: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  // Database Dynamic Secrets
-  async getDatabaseCredentials(role: string): Promise<DatabaseCredentials> {
-    this.ensureInitialized();
-    try {
-      this.logger.debug(`Getting database credentials for role: ${role}`);
-      const response = await this.vaultClient.read(`database/creds/${role}`);
-
-      const credentials: DatabaseCredentials = {
-        username: response.data.username,
-        password: response.data.password,
-        lease_id: response.lease_id,
-        lease_duration: response.lease_duration,
-        renewable: response.renewable,
-      };
-
-      this.logger.log(`Database credentials generated successfully for role: ${role}`);
-      return credentials;
-    } catch (error) {
-      this.logger.error(`Failed to get database credentials for role: ${role}`, error.message);
-      throw new HttpException(
-        `Failed to get database credentials: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  // Transit Encryption
-  async createTransitKey(keyName: string, keyType: string = 'aes256-gcm96'): Promise<void> {
-    this.ensureInitialized();
-    try {
-      this.logger.debug(`Creating transit key: ${keyName} of type: ${keyType}`);
-      await this.vaultClient.write(`transit/keys/${keyName}`, {
-        type: keyType,
-        exportable: false,
-      });
-      this.logger.log(`Transit key created successfully: ${keyName}`);
-    } catch (error) {
-      this.logger.error(`Failed to create transit key: ${keyName}`, error.message);
-      throw new HttpException(
-        `Failed to create transit key: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -333,7 +259,6 @@ export class VaultCryptographyService
     }
   }
 
-  // Policy Management
   async createPolicy(name: string, policy: string): Promise<void> {
     this.ensureInitialized();
     try {
