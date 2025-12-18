@@ -1,4 +1,4 @@
-# CryptoGadai Backend
+# C0 Backend
 
 Scope of `cg-backend` repository includes all backend api and workers.
 
