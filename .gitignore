@@ -46,6 +46,8 @@ test-ledger
 .env.production.local
 .env.local
 .env.local
+.env.example
+.env.testing
 .env.docker
 
 # temp directory
