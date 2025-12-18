@@ -41,5 +41,6 @@
   // Biome specific settings
   "biome.lsp.bin": "./node_modules/.bin/biome",
   // Notification settings
-  "extensions.ignoreRecommendations": false
+  "extensions.ignoreRecommendations": false,
+  "git.ignoreLimitWarning": true
 }
